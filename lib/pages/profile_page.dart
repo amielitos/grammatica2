@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/role_service.dart';
 import '../services/auth_service.dart';
+import '../services/navigation.dart';
+import 'sign_in_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -12,6 +14,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  bool _signingOut = false;
   void _showSnack(String message, {bool error = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: error ? Colors.red : null),
@@ -96,7 +99,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Stack(children: [
+      Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -185,9 +189,25 @@ class _ProfilePageState extends State<ProfilePage> {
             const Divider(height: 32),
             FilledButton.tonal(
               onPressed: () async {
-                await AuthService.instance.signOut();
-                _showSnack('Signed out');
-                if (mounted) Navigator.of(context).pop();
+                setState(() => _signingOut = true);
+                try {
+                  await AuthService.instance.signOut();
+                  _showSnack('Signed out');
+                } finally {
+                  if (!mounted) return;
+                  setState(() => _signingOut = false);
+                  // Auth stream will redirect to SignInPage automatically via root listener.
+                  // Avoid popping when there may be no Navigator history (prevents assertion errors).
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  } else {
+                    // Fallback: hard navigate to SignIn using root navigator
+                    rootNavigatorKey.currentState?.pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const SignInPage()),
+                      (route) => false,
+                    );
+                  }
+                }
               },
               child: const Text('Sign Out'),
             ),
@@ -213,6 +233,11 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
-    );
+    ),
+    if (_signingOut) ...[
+      const ModalBarrier(dismissible: false, color: Colors.black26),
+      const Center(child: CircularProgressIndicator()),
+    ]
+    ]);
   }
 }

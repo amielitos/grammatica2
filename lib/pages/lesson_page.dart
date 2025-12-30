@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class LessonPage extends StatefulWidget {
   final User user;
@@ -12,8 +13,6 @@ class LessonPage extends StatefulWidget {
 }
 
 class _LessonPageState extends State<LessonPage> {
-  final _answerCtrl = TextEditingController();
-  String? _feedback;
   late Lesson _lesson;
 
   @override
@@ -27,20 +26,7 @@ class _LessonPageState extends State<LessonPage> {
     if (latest != null && mounted) {
       setState(() {
         _lesson = latest;
-        _feedback = null;
-        _answerCtrl.clear();
       });
-    }
-  }
-
-  void _check() async {
-    final input = _answerCtrl.text.trim();
-    final correct = input.toLowerCase() == _lesson.answer.trim().toLowerCase();
-    setState(() {
-      _feedback = correct ? 'Correct!' : 'Try again';
-    });
-    if (correct) {
-      await DatabaseService.instance.markLessonCompleted(user: widget.user, lessonId: _lesson.id);
     }
   }
 
@@ -58,18 +44,9 @@ class _LessonPageState extends State<LessonPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_lesson.prompt, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _answerCtrl,
-              decoration: const InputDecoration(labelText: 'Your Answer'),
+            MarkdownBody(
+              data: _lesson.prompt.isEmpty ? '_No content_' : _lesson.prompt,
             ),
-            const SizedBox(height: 12),
-            FilledButton(onPressed: _check, child: const Text('Check')),
-            if (_feedback != null) ...[
-              const SizedBox(height: 12),
-              Text(_feedback!, style: TextStyle(color: _feedback == 'Correct!' ? Colors.green : Colors.red)),
-            ],
           ],
         ),
       ),

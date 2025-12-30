@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'services/role_service.dart';
+import 'services/navigation.dart';
 
 // Pages
 import 'pages/sign_in_page.dart';
@@ -25,6 +26,7 @@ class GrammaticaApp extends StatelessWidget {
     return MaterialApp(
       title: 'Grammatica',
       debugShowCheckedModeBanner: false,
+      navigatorKey: rootNavigatorKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF2E7D32)),
         useMaterial3: true,

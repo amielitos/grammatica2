@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'lesson_page.dart';
+import 'quizzes_page.dart';
 import 'profile_page.dart';
 
 class HomePage extends StatelessWidget {
@@ -15,16 +16,16 @@ class HomePage extends StatelessWidget {
         title: const Text('Grammatica - Lessons'),
         actions: [
           IconButton(
-            onPressed: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => ProfilePage(user: user))),
+            tooltip: 'Quizzes',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => QuizzesPage(user: user))),
+            icon: const Icon(Icons.quiz_outlined),
+          ),
+          IconButton(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProfilePage(user: user))),
             icon: const Icon(Icons.person),
           ),
           IconButton(
-            onPressed: () async {
-              /* quick reload by rebuilding */
-              (context as Element).markNeedsBuild();
-            },
+            onPressed: () async { (context as Element).markNeedsBuild(); },
             icon: const Icon(Icons.refresh),
           ),
         ],

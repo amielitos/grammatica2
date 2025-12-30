@@ -17,7 +17,10 @@ class _SignInPageState extends State<SignInPage> {
   String? _error;
 
   Future<void> _submit() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       if (_isLogin) {
         await AuthService.instance.signInWithEmailPassword(
@@ -31,9 +34,14 @@ class _SignInPageState extends State<SignInPage> {
         );
       }
     } on FirebaseAuthException catch (e) {
-      setState(() { _error = e.message; });
+      setState(() {
+        _error = e.message;
+      });
     } finally {
-      if (mounted) setState(() { _loading = false; });
+      if (mounted)
+        setState(() {
+          _loading = false;
+        });
     }
   }
 
@@ -70,12 +78,20 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 const SizedBox(height: 8),
                 TextButton(
-                  onPressed: _loading ? null : () => setState(() => _isLogin = !_isLogin),
-                  child: Text(_isLogin ? "Don't have an account? Register" : 'Have an account? Sign In'),
+                  onPressed: _loading
+                      ? null
+                      : () => setState(() => _isLogin = !_isLogin),
+                  child: Text(
+                    _isLogin
+                        ? "Don't have an account? Register"
+                        : 'Have an account? Sign In',
+                  ),
                 ),
                 const Divider(height: 32),
                 OutlinedButton.icon(
-                  onPressed: _loading ? null : () => AuthService.instance.signInAnonymously(),
+                  onPressed: _loading
+                      ? null
+                      : () => AuthService.instance.signInAnonymously(),
                   icon: const Icon(Icons.person_outline),
                   label: const Text('Continue as Guest'),
                 ),
