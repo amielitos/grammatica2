@@ -6,6 +6,7 @@ import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'services/role_service.dart';
 import 'services/navigation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Pages
 import 'pages/sign_in_page.dart';
@@ -42,10 +43,26 @@ class GrammaticaApp extends StatelessWidget {
           final user = authSnap.data;
           if (user == null) return const SignInPage();
 
-          // Ensure user document exists then route based on role
-          return FutureBuilder(
-            future: RoleService.instance.ensureUserDocument(user),
-            builder: (context, _) {
+          // Verify user document exists. If missing (e.g., account deleted), sign out.
+          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .snapshots(),
+            builder: (context, userDocSnap) {
+              if (userDocSnap.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (!userDocSnap.hasData ||
+                  !(userDocSnap.data?.exists ?? false)) {
+                // User was removed from database; force sign out and show sign in
+                WidgetsBinding.instance.addPostFrameCallback((_) async {
+                  await AuthService.instance.signOut();
+                });
+                return const SignInPage();
+              }
               return StreamBuilder<UserRole>(
                 stream: RoleService.instance.roleStream(user.uid),
                 builder: (context, roleSnap) {

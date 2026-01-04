@@ -38,10 +38,11 @@ class _SignInPageState extends State<SignInPage> {
         _error = e.message;
       });
     } finally {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
         });
+      }
     }
   }
 
@@ -77,6 +78,48 @@ class _SignInPageState extends State<SignInPage> {
                   child: Text(_isLogin ? 'Sign In' : 'Create Account'),
                 ),
                 const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _loading
+                        ? null
+                        : () async {
+                            final email = _emailController.text.trim();
+                            if (email.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Enter your email to reset password',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                            try {
+                              await FirebaseAuth.instance
+                                  .sendPasswordResetEmail(email: email);
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Password reset link sent to $email',
+                                  ),
+                                ),
+                              );
+                            } on FirebaseAuthException catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    e.message ?? 'Failed to send reset email',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                    child: const Text('Forgot password?'),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 TextButton(
                   onPressed: _loading
                       ? null
@@ -86,14 +129,6 @@ class _SignInPageState extends State<SignInPage> {
                         ? "Don't have an account? Register"
                         : 'Have an account? Sign In',
                   ),
-                ),
-                const Divider(height: 32),
-                OutlinedButton.icon(
-                  onPressed: _loading
-                      ? null
-                      : () => AuthService.instance.signInAnonymously(),
-                  icon: const Icon(Icons.person_outline),
-                  label: const Text('Continue as Guest'),
                 ),
               ],
             ),

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/auth_service.dart';
 import '../services/role_service.dart';
 import '../services/database_service.dart';
 import '../services/app_repository.dart';
 import 'profile_page.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -207,6 +207,16 @@ class _AdminLessonsTab extends StatefulWidget {
 }
 
 class _AdminLessonsTabState extends State<_AdminLessonsTab> {
+  String _fmt(Timestamp ts) {
+    final d = ts.toDate().toLocal();
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final da = d.day.toString().padLeft(2, '0');
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mm = d.minute.toString().padLeft(2, '0');
+    return '$y-$m-$da $hh:$mm';
+  }
+
   String? _selectedLessonId;
   Lesson? _selectedLesson;
   final _deletingLessonIds = <String>{};
@@ -318,8 +328,9 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                     );
                                   }
                                 } finally {
-                                  if (mounted)
+                                  if (mounted) {
                                     setState(() => _creatingLesson = false);
+                                  }
                                 }
                               },
                         icon: _creatingLesson
@@ -379,8 +390,33 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               OutlinedButton.icon(
-                                onPressed: () {
-                                  /* TODO: upload docs */
+                                onPressed: () async {
+                                  final result = await FilePicker.platform
+                                      .pickFiles(
+                                        type: FileType.custom,
+                                        allowMultiple: true,
+                                        allowedExtensions: [
+                                          'jpg',
+                                          'jpeg',
+                                          'png',
+                                          'pdf',
+                                        ],
+                                      );
+                                  if (!context.mounted) return;
+                                  if (result != null) {
+                                    final names = result.files
+                                        .map((f) => f.name)
+                                        .join(', ');
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          names.isEmpty
+                                              ? 'Files selected'
+                                              : 'Selected: $names',
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 },
                                 icon: const Icon(Icons.upload_file),
                                 label: const Text('Upload Documents'),
@@ -429,11 +465,41 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               OutlinedButton.icon(
-                                onPressed: () {
-                                  /* TODO: upload docs */
+                                onPressed: () async {
+                                  final result = await FilePicker.platform
+                                      .pickFiles(
+                                        type: FileType.custom,
+                                        allowMultiple: true,
+                                        allowedExtensions: [
+                                          'jpg',
+                                          'jpeg',
+                                          'png',
+                                          'pdf',
+                                        ],
+                                      );
+                                  if (!context.mounted) return;
+                                  if (result != null) {
+                                    final names = result.files
+                                        .map((f) => f.name)
+                                        .join(', ');
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          names.isEmpty
+                                              ? 'Files selected'
+                                              : 'Selected: $names',
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 },
                                 icon: const Icon(Icons.upload_file),
                                 label: const Text('Upload Documents'),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Supported: JPG, PNG, PDF. Selecting files does not upload them.',
+                                style: Theme.of(context).textTheme.bodySmall,
                               ),
                               const SizedBox(height: 8),
                               Container(
@@ -505,11 +571,15 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                         'title': (m['title'] ?? '').toString(),
                         'prompt': (m['prompt'] ?? '').toString(),
                         'answer': (m['answer'] ?? '').toString(),
+                        'createdAt': m['createdAt'],
+                        'createdByUid': m['createdByUid'],
+                        'createdByEmail': m['createdByEmail'],
                       }),
                     )
                     .toList();
-                if (lessons.isEmpty)
+                if (lessons.isEmpty) {
                   return const Center(child: Text('No lessons yet'));
+                }
                 return ListView.separated(
                   itemCount: lessons.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
@@ -536,10 +606,41 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                         },
                       ),
                       title: Text(l.title),
-                      subtitle: Text(
-                        l.prompt,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l.prompt,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Builder(
+                            builder: (context) {
+                              final ts = lMap['createdAt'];
+                              final createdAtStr = ts is Timestamp
+                                  ? _fmt(ts)
+                                  : 'N/A';
+                              return Row(
+                                children: [
+                                  _AuthorName(
+                                    uid: lMap['createdByUid'] as String?,
+                                    fallbackEmail:
+                                        lMap['createdByEmail'] as String?,
+                                    small: true,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '• Created: $createdAtStr',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -721,6 +822,38 @@ Future<Map<String, String>?> _lessonEditorDialog(
   );
 }
 
+class _AuthorName extends StatelessWidget {
+  final String? uid;
+  final String? fallbackEmail;
+  final bool small;
+  const _AuthorName({
+    required this.uid,
+    required this.fallbackEmail,
+    this.small = false,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final style = small ? Theme.of(context).textTheme.bodySmall : null;
+    if (uid == null || uid!.isEmpty) {
+      return Text('By: ${fallbackEmail ?? 'Unknown'}', style: style);
+    }
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .snapshots(),
+      builder: (context, snap) {
+        final data = snap.data?.data();
+        final username = (data?['username'] as String?)?.trim();
+        final display = (username != null && username.isNotEmpty)
+            ? username
+            : (fallbackEmail ?? 'Unknown');
+        return Text('By: $display', style: style);
+      },
+    );
+  }
+}
+
 class _UsersDataSource extends DataTableSource {
   final List<Map<String, dynamic>> users;
   final Future<void> Function(String uid, String currentRole) onToggleRole;
@@ -791,6 +924,16 @@ class _AdminQuizzesTab extends StatefulWidget {
 }
 
 class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
+  String _fmt(Timestamp ts) {
+    final d = ts.toDate().toLocal();
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final da = d.day.toString().padLeft(2, '0');
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mm = d.minute.toString().padLeft(2, '0');
+    return '$y-$m-$da $hh:$mm';
+  }
+
   String? _selectedQuizId;
   bool _creatingOrUpdating = false;
   final _title = TextEditingController();
@@ -813,11 +956,33 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
           Row(
             children: [
               OutlinedButton.icon(
-                onPressed: () {
-                  /* TODO: upload docs */
+                onPressed: () async {
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowMultiple: true,
+                    allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+                  );
+                  if (!context.mounted) return;
+                  if (result != null) {
+                    final names = result.files.map((f) => f.name).join(', ');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          names.isEmpty ? 'Files selected' : 'Selected: $names',
+                        ),
+                      ),
+                    );
+                  }
                 },
                 icon: const Icon(Icons.upload_file),
                 label: const Text('Upload Documents'),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Supported: JPG, PNG, PDF. Selecting files does not upload them.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
             ],
           ),
@@ -831,6 +996,7 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                   TextField(
                     controller: _title,
                     decoration: const InputDecoration(labelText: 'Title'),
+                    onChanged: (_) => setState(() {}),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -848,6 +1014,7 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                   TextField(
                     controller: _answer,
                     decoration: const InputDecoration(labelText: 'Answer'),
+                    onChanged: (_) => setState(() {}),
                   ),
                 ],
               );
@@ -923,10 +1090,11 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                         _title.clear();
                         _question.clear();
                         _answer.clear();
-                        if (mounted)
+                        if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Quiz created')),
                           );
+                        }
                       } else {
                         await DatabaseService.instance.updateQuiz(
                           id: _selectedQuizId!,
@@ -934,10 +1102,11 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                           question: _question.text.trim(),
                           answer: _answer.text.trim(),
                         );
-                        if (mounted)
+                        if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Quiz updated')),
                           );
+                        }
                       }
                       if (mounted) setState(() {});
                     } finally {
@@ -957,8 +1126,9 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: AppRepository.instance.watchQuizzes(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData)
+                if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
+                }
                 final itemsRaw = snapshot.data!;
                 final items = itemsRaw
                     .map(
@@ -967,11 +1137,15 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                         'title': (m['title'] ?? '').toString(),
                         'question': (m['question'] ?? '').toString(),
                         'answer': (m['answer'] ?? '').toString(),
+                        'createdAt': m['createdAt'],
+                        'createdByUid': m['createdByUid'],
+                        'createdByEmail': m['createdByEmail'],
                       }),
                     )
                     .toList();
-                if (items.isEmpty)
+                if (items.isEmpty) {
                   return const Center(child: Text('No quizzes yet'));
+                }
                 return ListView.separated(
                   itemCount: items.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
@@ -994,10 +1168,41 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                         },
                       ),
                       title: Text((q['title'] as String? ?? '')),
-                      subtitle: Text(
-                        (q['question'] ?? '').toString(),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            (q['question'] ?? '').toString(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Builder(
+                            builder: (context) {
+                              final ts = q['createdAt'];
+                              final createdAtStr = ts is Timestamp
+                                  ? _fmt(ts)
+                                  : 'N/A';
+                              return Row(
+                                children: [
+                                  _AuthorName(
+                                    uid: q['createdByUid'] as String?,
+                                    fallbackEmail:
+                                        q['createdByEmail'] as String?,
+                                    small: true,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '• Created: $createdAtStr',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
                       ),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete),
@@ -1026,13 +1231,15 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                           await DatabaseService.instance.deleteQuiz(
                             (q['id'] as String),
                           );
-                          if (mounted)
+                          if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Quiz deleted')),
                             );
+                          }
                           setState(() {
-                            if (_selectedQuizId == (q['id'] as String))
+                            if (_selectedQuizId == (q['id'] as String)) {
                               _selectedQuizId = null;
+                            }
                           });
                         },
                       ),

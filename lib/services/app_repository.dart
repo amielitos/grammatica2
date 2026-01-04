@@ -30,23 +30,35 @@ class AppRepository {
         .collection('lessons')
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((q) => q.docs
-            .map((d) => {
+        .map(
+          (q) => q.docs
+              .map(
+                (d) => {
                   'id': d.id,
                   'title': d.data()['title'],
                   'prompt': d.data()['prompt'],
                   'answer': d.data()['answer'],
                   'createdAt': d.data()['createdAt'],
-                })
-            .toList())
-        .transform(StreamTransformer.fromHandlers(handleData: (data, sink) {
-      // sort by id to ensure stable comparison
-      data.sort((a, b) => (a['id'] as String).compareTo(b['id'] as String));
-      if (!_listEquals(_lastLessons, data)) {
-        _lastLessons = List<Map<String, dynamic>>.from(data);
-        sink.add(_lastLessons);
-      }
-    }));
+                  'createdByUid': d.data()['createdByUid'],
+                  'createdByEmail': d.data()['createdByEmail'],
+                },
+              )
+              .toList(),
+        )
+        .transform(
+          StreamTransformer.fromHandlers(
+            handleData: (data, sink) {
+              // sort by id to ensure stable comparison
+              data.sort(
+                (a, b) => (a['id'] as String).compareTo(b['id'] as String),
+              );
+              if (!_listEquals(_lastLessons, data)) {
+                _lastLessons = List<Map<String, dynamic>>.from(data);
+                sink.add(_lastLessons);
+              }
+            },
+          ),
+        );
   }
 
   Stream<List<Map<String, dynamic>>> watchQuizzes() {
@@ -54,22 +66,34 @@ class AppRepository {
         .collection('quizzes')
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((q) => q.docs
-            .map((d) => {
+        .map(
+          (q) => q.docs
+              .map(
+                (d) => {
                   'id': d.id,
                   'title': d.data()['title'],
                   'question': d.data()['question'],
                   'answer': d.data()['answer'],
                   'createdAt': d.data()['createdAt'],
-                })
-            .toList())
-        .transform(StreamTransformer.fromHandlers(handleData: (data, sink) {
-      data.sort((a, b) => (a['id'] as String).compareTo(b['id'] as String));
-      if (!_listEquals(_lastQuizzes, data)) {
-        _lastQuizzes = List<Map<String, dynamic>>.from(data);
-        sink.add(_lastQuizzes);
-      }
-    }));
+                  'createdByUid': d.data()['createdByUid'],
+                  'createdByEmail': d.data()['createdByEmail'],
+                },
+              )
+              .toList(),
+        )
+        .transform(
+          StreamTransformer.fromHandlers(
+            handleData: (data, sink) {
+              data.sort(
+                (a, b) => (a['id'] as String).compareTo(b['id'] as String),
+              );
+              if (!_listEquals(_lastQuizzes, data)) {
+                _lastQuizzes = List<Map<String, dynamic>>.from(data);
+                sink.add(_lastQuizzes);
+              }
+            },
+          ),
+        );
   }
 
   Stream<List<Map<String, dynamic>>> watchUsers() {
@@ -77,18 +101,19 @@ class AppRepository {
         .collection('users')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((q) => q.docs
-            .map((d) => {
-                  'uid': d.id,
-                  ...d.data(),
-                })
-            .toList())
-        .transform(StreamTransformer.fromHandlers(handleData: (data, sink) {
-      data.sort((a, b) => (a['uid'] as String).compareTo(b['uid'] as String));
-      if (!_listEquals(_lastUsers, data)) {
-        _lastUsers = List<Map<String, dynamic>>.from(data);
-        sink.add(_lastUsers);
-      }
-    }));
+        .map((q) => q.docs.map((d) => {'uid': d.id, ...d.data()}).toList())
+        .transform(
+          StreamTransformer.fromHandlers(
+            handleData: (data, sink) {
+              data.sort(
+                (a, b) => (a['uid'] as String).compareTo(b['uid'] as String),
+              );
+              if (!_listEquals(_lastUsers, data)) {
+                _lastUsers = List<Map<String, dynamic>>.from(data);
+                sink.add(_lastUsers);
+              }
+            },
+          ),
+        );
   }
 }

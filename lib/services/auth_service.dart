@@ -52,6 +52,15 @@ class AuthService {
   }
 
   Future<void> signOut() async {
+    // Only sign out of FirebaseAuth. Do not terminate Firestore.
+    // Terminating/clearing persistence during runtime can cause
+    // "The client has already been terminated" errors on re-login.
     await _auth.signOut();
+
+    // Optionally, you could temporarily disable/enable network to flush listeners:
+    // try {
+    //   await _firestore.disableNetwork();
+    //   await _firestore.enableNetwork();
+    // } catch (_) {}
   }
 }
