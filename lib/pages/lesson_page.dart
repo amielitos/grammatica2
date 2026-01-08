@@ -24,12 +24,19 @@ class _LessonPageState extends State<LessonPage> {
     return '$y-$m-$da $hh:$mm';
   }
 
-  Widget _authorName({required String? uid, required String? fallbackEmail, TextStyle? style}) {
+  Widget _authorName({
+    required String? uid,
+    required String? fallbackEmail,
+    TextStyle? style,
+  }) {
     if (uid == null || uid.isEmpty) {
       return Text('By: ${fallbackEmail ?? 'Unknown'}', style: style);
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .snapshots(),
       builder: (context, snap) {
         final data = snap.data?.data();
         final username = (data?['username'] as String?)?.trim();
@@ -49,24 +56,10 @@ class _LessonPageState extends State<LessonPage> {
     _lesson = widget.lesson;
   }
 
-  Future<void> _refresh() async {
-    final latest = await DatabaseService.instance.getLessonById(_lesson.id);
-    if (latest != null && mounted) {
-      setState(() {
-        _lesson = latest;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_lesson.title),
-        actions: [
-          IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
-        ],
-      ),
+      appBar: AppBar(title: Text(_lesson.title)),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -75,10 +68,10 @@ class _LessonPageState extends State<LessonPage> {
             Row(
               children: [
                 _authorName(
-                 uid: _lesson.createdByUid,
-                 fallbackEmail: _lesson.createdByEmail,
-                 style: Theme.of(context).textTheme.bodySmall,
-               ),
+                  uid: _lesson.createdByUid,
+                  fallbackEmail: _lesson.createdByEmail,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   '• Created: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}',

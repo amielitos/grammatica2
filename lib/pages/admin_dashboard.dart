@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/role_service.dart';
 import '../services/database_service.dart';
 import '../services/app_repository.dart';
+import '../services/auth_service.dart';
 import 'profile_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 class AdminDashboard extends StatefulWidget {
-  final User user;
-  const AdminDashboard({super.key, required this.user});
+  const AdminDashboard({super.key});
 
   @override
   State<AdminDashboard> createState() => _AdminDashboardState();
@@ -25,13 +24,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.user.uid)
-              .snapshots(),
+          stream: AuthService.instance.currentUser != null
+              ? FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(AuthService.instance.currentUser!.uid)
+                    .snapshots()
+              : null,
           builder: (context, snap) {
             final data = snap.data?.data();
-            final username = (data?['username'] ?? widget.user.email ?? 'Admin')
+            final user = AuthService.instance.currentUser;
+            final username = (data?['username'] ?? user?.email ?? 'Admin')
                 .toString();
             return Text('Grammatica - Admin Dashboard — $username');
           },
@@ -45,7 +47,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               _AdminUsersTab(),
               const _AdminLessonsTab(),
               const _AdminQuizzesTab(),
-              ProfilePage(user: widget.user),
+              ProfilePage(user: AuthService.instance.currentUser!),
             ],
           ),
           if (_switching) ...[
@@ -225,6 +227,7 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
   final _prompt = TextEditingController(); // Markdown content
   final _answer = TextEditingController(); // optional
   bool _preview = true;
+  List<PlatformFile> _selectedFiles = []; // Store selected files
 
   Future<void> _openLessonEditor({Lesson? existing}) async {
     final result = await _lessonEditorDialog(context, existing: existing);
@@ -394,16 +397,15 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                   final result = await FilePicker.platform
                                       .pickFiles(
                                         type: FileType.custom,
-                                        allowMultiple: true,
-                                        allowedExtensions: [
-                                          'jpg',
-                                          'jpeg',
-                                          'png',
-                                          'pdf',
-                                        ],
+                                        allowMultiple:
+                                            false, // Only allow 1 file
+                                        allowedExtensions: ['pdf'],
                                       );
                                   if (!context.mounted) return;
                                   if (result != null) {
+                                    setState(() {
+                                      _selectedFiles = result.files;
+                                    });
                                     final names = result.files
                                         .map((f) => f.name)
                                         .join(', ');
@@ -411,7 +413,7 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                       SnackBar(
                                         content: Text(
                                           names.isEmpty
-                                              ? 'Files selected'
+                                              ? 'File selected'
                                               : 'Selected: $names',
                                         ),
                                       ),
@@ -419,9 +421,23 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                   }
                                 },
                                 icon: const Icon(Icons.upload_file),
-                                label: const Text('Upload Documents'),
+                                label: const Text('Upload Document'),
                               ),
                               const SizedBox(height: 8),
+                              // Display selected files
+                              if (_selectedFiles.isNotEmpty)
+                                Container(
+                                  height: 120,
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: _selectedFiles.length,
+                                    itemBuilder: (context, index) {
+                                      final file = _selectedFiles[index];
+                                      return _buildFileItem(file, index);
+                                    },
+                                  ),
+                                ),
                               Expanded(
                                 child: Container(
                                   padding: const EdgeInsets.all(12),
@@ -469,16 +485,15 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                   final result = await FilePicker.platform
                                       .pickFiles(
                                         type: FileType.custom,
-                                        allowMultiple: true,
-                                        allowedExtensions: [
-                                          'jpg',
-                                          'jpeg',
-                                          'png',
-                                          'pdf',
-                                        ],
+                                        allowMultiple:
+                                            false, // Only allow 1 file
+                                        allowedExtensions: ['pdf'],
                                       );
                                   if (!context.mounted) return;
                                   if (result != null) {
+                                    setState(() {
+                                      _selectedFiles = result.files;
+                                    });
                                     final names = result.files
                                         .map((f) => f.name)
                                         .join(', ');
@@ -486,7 +501,7 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                       SnackBar(
                                         content: Text(
                                           names.isEmpty
-                                              ? 'Files selected'
+                                              ? 'File selected'
                                               : 'Selected: $names',
                                         ),
                                       ),
@@ -494,14 +509,30 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                   }
                                 },
                                 icon: const Icon(Icons.upload_file),
-                                label: const Text('Upload Documents'),
+                                label: const Text('Upload Document'),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Supported: JPG, PNG, PDF. Selecting files does not upload them.',
+                                'Supported: PDF. Selecting files does not upload them.',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
-                              const SizedBox(height: 8),
+                              // Display selected files
+                              if (_selectedFiles.isNotEmpty)
+                                Container(
+                                  height: 120,
+                                  margin: const EdgeInsets.only(
+                                    top: 8,
+                                    bottom: 8,
+                                  ),
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: _selectedFiles.length,
+                                    itemBuilder: (context, index) {
+                                      final file = _selectedFiles[index];
+                                      return _buildFileItem(file, index);
+                                    },
+                                  ),
+                                ),
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
@@ -581,6 +612,8 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                   return const Center(child: Text('No lessons yet'));
                 }
                 return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: lessons.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, index) {
@@ -705,121 +738,57 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
       ),
     );
   }
-}
 
-Future<Map<String, String>?> _lessonEditorDialog(
-  BuildContext context, {
-  Lesson? existing,
-}) async {
-  final title = TextEditingController(text: existing?.title ?? '');
-  final prompt = TextEditingController(text: existing?.prompt ?? '');
-  final answer = TextEditingController(text: existing?.answer ?? '');
-  bool preview = true;
-  return showDialog<Map<String, String>>(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setStateDialog) {
-        final wide = MediaQuery.of(context).size.width >= 900;
-        final editor = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: title,
-              decoration: const InputDecoration(labelText: 'Title'),
+  // Widget to display individual file item
+  Widget _buildFileItem(PlatformFile file, int index) {
+    return Container(
+      width: 150,
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.picture_as_pdf, color: Colors.red[700], size: 32),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Text(
+                    file.name,
+                    style: const TextStyle(fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: prompt,
-              minLines: 6,
-              maxLines: 10,
-              decoration: const InputDecoration(
-                labelText: 'Content (Markdown)',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
+          ),
+          Positioned(
+            top: -8,
+            right: -8,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
               ),
-              onChanged: (_) => setStateDialog(() {}),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: answer,
-              decoration: const InputDecoration(labelText: 'Optional Answer'),
-            ),
-          ],
-        );
-        final previewPane = Container(
-          padding: const EdgeInsets.all(12),
-          width: double.infinity,
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: MarkdownBody(
-            data: prompt.text.isEmpty ? '_Nothing to preview_' : prompt.text,
-          ),
-        );
-        return AlertDialog(
-          title: Text(existing == null ? 'New Lesson' : 'Edit Lesson'),
-          content: SizedBox(
-            width: wide ? 900 : 520,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (wide)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: editor),
-                        const SizedBox(width: 16),
-                        Expanded(child: previewPane),
-                      ],
-                    )
-                  else ...[
-                    Row(
-                      children: [
-                        FilterChip(
-                          label: const Text('Edit'),
-                          selected: !preview,
-                          onSelected: (_) =>
-                              setStateDialog(() => preview = false),
-                        ),
-                        const SizedBox(width: 8),
-                        FilterChip(
-                          label: const Text('Preview'),
-                          selected: preview,
-                          onSelected: (_) =>
-                              setStateDialog(() => preview = true),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    preview ? previewPane : editor,
-                  ],
-                ],
+              child: IconButton(
+                icon: const Icon(Icons.close, size: 16, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    _selectedFiles.removeAt(index);
+                  });
+                },
               ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (title.text.trim().isEmpty) return;
-                Navigator.pop(context, {
-                  'title': title.text.trim(),
-                  'prompt': prompt.text.trim(),
-                  'answer': answer.text.trim(),
-                });
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _AuthorName extends StatelessWidget {
@@ -845,9 +814,10 @@ class _AuthorName extends StatelessWidget {
       builder: (context, snap) {
         final data = snap.data?.data();
         final username = (data?['username'] as String?)?.trim();
+        final email = (data?['email'] as String?)?.trim() ?? fallbackEmail;
         final display = (username != null && username.isNotEmpty)
             ? username
-            : (fallbackEmail ?? 'Unknown');
+            : (email ?? 'Unknown');
         return Text('By: $display', style: style);
       },
     );
@@ -943,6 +913,7 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
   String _origTitle = '';
   String _origQuestion = '';
   String _origAnswer = '';
+  List<PlatformFile> _selectedFiles = []; // Store selected files
 
   @override
   Widget build(BuildContext context) {
@@ -959,34 +930,51 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                 onPressed: () async {
                   final result = await FilePicker.platform.pickFiles(
                     type: FileType.custom,
-                    allowMultiple: true,
-                    allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+                    allowMultiple: false, // Only allow 1 file
+                    allowedExtensions: ['pdf'],
                   );
                   if (!context.mounted) return;
                   if (result != null) {
+                    setState(() {
+                      _selectedFiles = result.files;
+                    });
                     final names = result.files.map((f) => f.name).join(', ');
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          names.isEmpty ? 'Files selected' : 'Selected: $names',
+                          names.isEmpty ? 'File selected' : 'Selected: $names',
                         ),
                       ),
                     );
                   }
                 },
                 icon: const Icon(Icons.upload_file),
-                label: const Text('Upload Documents'),
+                label: const Text('Upload Document'),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Supported: JPG, PNG, PDF. Selecting files does not upload them.',
+                  'Supported: PDF. Selecting files does not upload them.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
+          // Display selected files in the quizzes tab
+          if (_selectedFiles.isNotEmpty)
+            Container(
+              height: 120,
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _selectedFiles.length,
+                itemBuilder: (context, index) {
+                  final file = _selectedFiles[index];
+                  return _buildFileItem(file, index);
+                },
+              ),
+            ),
           LayoutBuilder(
             builder: (context, c) {
               final wide = c.maxWidth >= 900;
@@ -1253,29 +1241,170 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
       ),
     );
   }
+
+  // Widget to display individual file item (same as in Lessons tab)
+  Widget _buildFileItem(PlatformFile file, int index) {
+    return Container(
+      width: 150,
+      margin: const EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.picture_as_pdf, color: Colors.red[700], size: 32),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Text(
+                    file.name,
+                    style: const TextStyle(fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            top: -8,
+            right: -8,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.close, size: 16, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    _selectedFiles.removeAt(index);
+                  });
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-Future<String?> _editTextDialog(
+Future<Map<String, String>?> _lessonEditorDialog(
   BuildContext context, {
-  required String title,
-  required String initial,
+  Lesson? existing,
 }) async {
-  final ctrl = TextEditingController(text: initial);
-  return showDialog<String>(
+  final title = TextEditingController(text: existing?.title ?? '');
+  final prompt = TextEditingController(text: existing?.prompt ?? '');
+  final answer = TextEditingController(text: existing?.answer ?? '');
+  bool preview = true;
+  return showDialog<Map<String, String>>(
     context: context,
-    builder: (context) => AlertDialog(
-      title: Text(title),
-      content: TextField(controller: ctrl),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, ctrl.text),
-          child: const Text('Save'),
-        ),
-      ],
+    builder: (context) => StatefulBuilder(
+      builder: (context, setStateDialog) {
+        final wide = MediaQuery.of(context).size.width >= 900;
+        final editor = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: title,
+              decoration: const InputDecoration(labelText: 'Title'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: prompt,
+              minLines: 6,
+              maxLines: 10,
+              decoration: const InputDecoration(
+                labelText: 'Content (Markdown)',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setStateDialog(() {}),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: answer,
+              decoration: const InputDecoration(labelText: 'Optional Answer'),
+            ),
+          ],
+        );
+        final previewPane = Container(
+          padding: const EdgeInsets.all(12),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: MarkdownBody(
+            data: prompt.text.isEmpty ? '_Nothing to preview_' : prompt.text,
+          ),
+        );
+        return AlertDialog(
+          title: Text(existing == null ? 'New Lesson' : 'Edit Lesson'),
+          content: SizedBox(
+            width: wide ? 900 : 520,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (wide)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: editor),
+                        const SizedBox(width: 16),
+                        Expanded(child: previewPane),
+                      ],
+                    )
+                  else ...[
+                    Row(
+                      children: [
+                        FilterChip(
+                          label: const Text('Edit'),
+                          selected: !preview,
+                          onSelected: (_) =>
+                              setStateDialog(() => preview = false),
+                        ),
+                        const SizedBox(width: 8),
+                        FilterChip(
+                          label: const Text('Preview'),
+                          selected: preview,
+                          onSelected: (_) =>
+                              setStateDialog(() => preview = true),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    preview ? previewPane : editor,
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (title.text.trim().isEmpty) return;
+                Navigator.pop(context, {
+                  'title': title.text.trim(),
+                  'prompt': prompt.text.trim(),
+                  'answer': answer.text.trim(),
+                });
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     ),
   );
 }

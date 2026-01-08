@@ -83,8 +83,8 @@ class Lesson {
 class Quiz {
   final String id;
   final String title;
-  final String question; // markdown-supported
-  final String answer; // expected answer (plain text compare or normalized)
+  final String question;
+  final String answer;
   final Timestamp? createdAt;
   final String? createdByUid;
   final String? createdByEmail;
@@ -130,7 +130,6 @@ class DatabaseService {
   CollectionReference<Map<String, dynamic>> _userQuizProgress(String uid) =>
       _firestore.collection('users').doc(uid).collection('quizProgress');
 
-  // Admin CRUD - Lessons
   Future<String> createLesson({
     required String title,
     required String prompt,
@@ -213,17 +212,6 @@ class DatabaseService {
     });
   }
 
-  // Quizzes API
-  /* stray duplicated body removed */
-  /*
-      'title': title,
-      'question': question,
-      'answer': answer,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    return doc.id;
- */
-
   Future<String> createQuiz({
     required String title,
     required String question,
@@ -287,7 +275,6 @@ class DatabaseService {
     });
   }
 
-  // Image Upload API
   CollectionReference<Map<String, dynamic>> get _images =>
       _firestore.collection('images');
 
@@ -298,7 +285,6 @@ class DatabaseService {
     String? description,
   }) async {
     try {
-      // Upload image to Firebase Storage
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('user_images')
@@ -313,7 +299,6 @@ class DatabaseService {
       final snapshot = await uploadTask.whenComplete(() => null);
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      // Save image metadata to Firestore
       final imageDoc = await _images.add({
         'userId': userId,
         'imageUrl': downloadUrl,
@@ -338,10 +323,8 @@ class DatabaseService {
 
   Future<void> deleteImage(String imageId, String imageUrl) async {
     try {
-      // Delete from Firestore
       await _images.doc(imageId).delete();
 
-      // Extract file path from URL and delete from Storage
       final RegExp regExp = RegExp(r'/(.+)/o/(.+)\?');
       final Match? match = regExp.firstMatch(imageUrl);
       if (match != null) {

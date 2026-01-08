@@ -16,18 +16,30 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   final _answerCtrl = TextEditingController();
   bool _submitting = false;
 
-  String _normalize(String s) => s.trim().toLowerCase().replaceAll(RegExp(r"\s+"), " ");
+  String _normalize(String s) =>
+      s.trim().toLowerCase().replaceAll(RegExp(r"\s+"), " ");
 
   Future<void> _submit() async {
     final input = _normalize(_answerCtrl.text);
     final expected = _normalize(widget.quiz.answer);
     final correct = input == expected;
     setState(() => _submitting = true);
-    await DatabaseService.instance.markQuizCompleted(user: widget.user, quizId: widget.quiz.id, answer: _answerCtrl.text.trim());
+    await DatabaseService.instance.markQuizCompleted(
+      user: widget.user,
+      quizId: widget.quiz.id,
+      answer: _answerCtrl.text.trim(),
+    );
     if (mounted) {
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(correct ? 'Correct!' : 'Submitted'), backgroundColor: correct ? Colors.green : null),
+        SnackBar(
+          content: Text(
+            correct
+                ? 'Correct!'
+                : 'Incorrect. The correct answer is: ${widget.quiz.answer}',
+          ),
+          backgroundColor: correct ? Colors.green : Colors.red,
+        ),
       );
     }
   }
@@ -45,12 +57,21 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             const SizedBox(height: 16),
             TextField(
               controller: _answerCtrl,
-              decoration: const InputDecoration(labelText: 'Your Answer', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Your Answer',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: _submitting ? null : _submit,
-              child: _submitting ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Submit'),
+              child: _submitting
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Submit'),
             ),
           ],
         ),

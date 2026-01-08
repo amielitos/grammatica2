@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,9 +5,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/role_service.dart';
 import '../services/auth_service.dart';
-import '../services/navigation.dart';
-import '../services/database_service.dart';
-import 'sign_in_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -18,8 +14,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  bool _signingOut = false;
-  final int _learnerTabIndex = 2; // default to Profile tab
+  // Removed unused variable
 
   void _showSnack(String message, {bool error = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -52,73 +47,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final password = await showDialog<String?>(
       context: context,
       builder: (context) {
-        bool loading = false;
-        String? errText;
         final pwdCtrl = TextEditingController();
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            Future<void> onConfirm() async {
-              setStateDialog(() {
-                loading = true;
-                errText = null;
-              });
-              try {
-                final cred = EmailAuthProvider.credential(
-                  email: email,
-                  password: pwdCtrl.text,
-                );
-                await widget.user.reauthenticateWithCredential(cred);
-                if (!mounted) return;
-                Navigator.pop(context, pwdCtrl.text);
-              } on FirebaseAuthException catch (e) {
-                setStateDialog(() {
-                  loading = false;
-                  errText = e.message ?? 'Reauthentication failed';
-                });
-              } catch (_) {
-                setStateDialog(() {
-                  loading = false;
-                  errText = 'Reauthentication failed';
-                });
-              }
-            }
-
-            return AlertDialog(
-              title: const Text('Confirm Password'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: pwdCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Password'),
-                  ),
-                  if (errText != null) ...[
-                    const SizedBox(height: 8),
-                    Text(errText!, style: const TextStyle(color: Colors.red)),
-                  ],
-                  if (loading)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 12),
-                      child: CircularProgressIndicator(),
-                    ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: loading
-                      ? null
-                      : () => Navigator.pop(context, null),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: loading ? null : onConfirm,
-                  child: const Text('Confirm'),
-                ),
-              ],
-            );
-          },
-        );
+        return _ReauthDialog(email: email, user: widget.user, pwdCtrl: pwdCtrl);
       },
     );
     if (password == null || password.isEmpty) return;
@@ -152,294 +82,374 @@ class _ProfilePageState extends State<ProfilePage> {
         final role = roleSnap.data;
         final isLearner = role == UserRole.learner;
 
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            Scaffold(
-              appBar: AppBar(title: const Text('Profile')),
-              // No bottomNavigationBar here to avoid duplication; HomePage owns it via IndexedStack
-              bottomNavigationBar: null,
-              body: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                      stream: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(widget.user.uid)
-                          .snapshots(),
-                      builder: (context, snap) {
-                        final data = snap.data?.data();
-                        final username =
-                            (data?['username'] as String?)?.trim() ??
-                            widget.user.displayName ??
-                            'User';
-                        final email = widget.user.email ?? 'no-email';
-                        final photoUrl =
-                            (data?['photoUrl'] as String?) ??
-                            widget.user.photoURL;
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 24, bottom: 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              CircleAvatar(
-                                radius: 40,
-                                backgroundImage:
-                                    (photoUrl != null && photoUrl.isNotEmpty)
-                                    ? NetworkImage(photoUrl)
-                                    : null,
-                                child: (photoUrl == null || photoUrl.isEmpty)
-                                    ? const Icon(Icons.person, size: 40)
-                                    : null,
+        return Scaffold(
+          appBar: AppBar(title: const Text('Profile')),
+          body: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(widget.user.uid)
+                        .snapshots(),
+                    builder: (context, snap) {
+                      final data = snap.data?.data();
+                      final username =
+                          (data?['username'] as String?)?.trim() ??
+                          widget.user.displayName ??
+                          'User';
+                      final email = widget.user.email ?? 'no-email';
+                      final photoUrl =
+                          (data?['photoUrl'] as String?) ??
+                          widget.user.photoURL;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 24, bottom: 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Theme.of(context).dividerColor,
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                username,
-                                textAlign: TextAlign.center,
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.headlineSmall,
+                              child: ClipOval(
+                                child: (photoUrl != null && photoUrl.isNotEmpty)
+                                    ? Image.network(
+                                        photoUrl,
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return Icon(
+                                                Icons.person,
+                                                size: 40,
+                                              );
+                                            },
+                                      )
+                                    : Icon(Icons.person, size: 40),
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                email,
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                              const SizedBox(height: 12),
-                              OutlinedButton.icon(
-                                onPressed: () async {
-                                  try {
-                                    final pick = await FilePicker.platform
-                                        .pickFiles(
-                                          type: FileType.custom,
-                                          allowedExtensions: [
-                                            'jpg',
-                                            'jpeg',
-                                            'png',
-                                          ],
-                                          withData: true,
-                                        );
-                                    if (pick == null || pick.files.isEmpty) {
-                                      return;
-                                    }
-                                    final file = pick.files.first;
-                                    final bytes = file.bytes;
-                                    if (bytes == null) return;
-                                    final ref = FirebaseStorage.instance.ref(
-                                      'profile_pics/${widget.user.uid}.jpg',
-                                    );
-                                    await ref.putData(
-                                      bytes,
-                                      SettableMetadata(
-                                        contentType: 'image/jpeg',
-                                      ),
-                                    );
-                                    final url = await ref.getDownloadURL();
-                                    await widget.user.updatePhotoURL(url);
-                                    await FirebaseFirestore.instance
-                                        .collection('users')
-                                        .doc(widget.user.uid)
-                                        .set({
-                                          'photoUrl': url,
-                                        }, SetOptions(merge: true));
-                                    if (!mounted) return;
-                                    _showSnack('Profile photo updated');
-                                    setState(() {});
-                                  } catch (e) {
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              username,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              email,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                try {
+                                  final pick = await FilePicker.platform
+                                      .pickFiles(
+                                        type: FileType.custom,
+                                        allowedExtensions: [
+                                          'jpg',
+                                          'jpeg',
+                                          'png',
+                                        ],
+                                        withData: true,
+                                      );
+                                  if (pick == null || pick.files.isEmpty) {
+                                    return;
+                                  }
+                                  final file = pick.files.first;
+                                  final bytes = file.bytes;
+                                  if (bytes == null) return;
+
+                                  // Check file size (max 1MB)
+                                  if (bytes.lengthInBytes > 1048576) {
+                                    // 1MB in bytes
                                     _showSnack(
-                                      'Photo update failed: $e',
+                                      'Image size exceeds 1MB limit',
                                       error: true,
                                     );
+                                    return;
                                   }
-                                },
-                                icon: const Icon(Icons.photo_camera),
-                                label: const Text('Change Photo'),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(height: 32),
 
-                    // Editing controls (kept per request)
-                    Align(
-                      alignment: isLearner
-                          ? Alignment.center
-                          : Alignment.centerLeft,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 480),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            TextField(
-                              controller: _usernameCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Username',
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            FilledButton(
-                              onPressed: _promptAndUpdateUsername,
-                              child: const Text('Update Username'),
-                            ),
-                            const Divider(height: 32),
-                            TextField(
-                              controller: _currentPasswordCtrl,
-                              obscureText: true,
-                              decoration: const InputDecoration(
-                                labelText: 'Current Password',
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _newPasswordCtrl,
-                              obscureText: true,
-                              decoration: const InputDecoration(
-                                labelText: 'New Password',
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _confirmPasswordCtrl,
-                              obscureText: true,
-                              decoration: const InputDecoration(
-                                labelText: 'Confirm New Password',
-                              ),
-                            ),
-                            if (_error != null) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                _error!,
-                                style: const TextStyle(color: Colors.red),
-                              ),
-                            ],
-                            const SizedBox(height: 8),
-                            FilledButton(
-                              onPressed: () async {
-                                setState(() {
-                                  _info = null;
-                                  _error = null;
-                                });
-                                final email = widget.user.email;
-                                final current = _currentPasswordCtrl.text;
-                                final newPass = _newPasswordCtrl.text;
-                                final confirm = _confirmPasswordCtrl.text;
-                                if (email == null) {
-                                  setState(
-                                    () => _error = 'No email on account.',
+                                  final ref = FirebaseStorage.instance.ref(
+                                    'profile_pics/${widget.user.uid}.jpg',
                                   );
-                                  return;
-                                }
-                                if (newPass != confirm) {
-                                  setState(
-                                    () =>
-                                        _error = 'New passwords do not match.',
+                                  await ref.putData(
+                                    bytes,
+                                    SettableMetadata(contentType: 'image/jpeg'),
                                   );
-                                  return;
-                                }
-                                if (newPass.length < 6) {
-                                  setState(
-                                    () => _error =
-                                        'Password must be at least 6 characters.',
-                                  );
-                                  return;
-                                }
-                                try {
-                                  final cred = EmailAuthProvider.credential(
-                                    email: email,
-                                    password: current,
-                                  );
-                                  await widget.user
-                                      .reauthenticateWithCredential(cred);
-                                  await widget.user.updatePassword(newPass);
-                                  setState(() => _info = 'Password updated');
-                                  _currentPasswordCtrl.clear();
-                                  _newPasswordCtrl.clear();
-                                  _confirmPasswordCtrl.clear();
-                                } on FirebaseAuthException catch (e) {
-                                  setState(
-                                    () => _error =
-                                        e.message ??
-                                        'Failed to update password',
-                                  );
-                                } catch (e) {
-                                  setState(
-                                    () => _error = 'Failed to update password',
-                                  );
-                                }
-                              },
-                              child: const Text('Update Password'),
-                            ),
-                            const Divider(height: 32),
-                            FilledButton.tonal(
-                              onPressed: () async {
-                                setState(() => _signingOut = true);
-                                try {
-                                  await AuthService.instance.signOut();
-                                  _showSnack('Signed out');
-                                } finally {
-                                  if (!mounted) return;
-                                  setState(() => _signingOut = false);
-                                  if (Navigator.of(context).canPop()) {
-                                    Navigator.of(context).pop();
-                                  } else {
-                                    rootNavigatorKey.currentState
-                                        ?.pushAndRemoveUntil(
-                                          MaterialPageRoute(
-                                            builder: (_) => const SignInPage(),
-                                          ),
-                                          (route) => false,
-                                        );
-                                  }
-                                }
-                              },
-                              child: const Text('Sign Out'),
-                            ),
-                            const SizedBox(height: 8),
-                            OutlinedButton(
-                              onPressed: () async {
-                                try {
-                                  await FirebaseAuth.instance.currentUser
-                                      ?.reload();
-                                  await FirebaseAuth.instance.currentUser
-                                      ?.delete();
-                                } catch (_) {}
-                                try {
+                                  final url = await ref.getDownloadURL();
+                                  await widget.user.updatePhotoURL(url);
                                   await FirebaseFirestore.instance
                                       .collection('users')
                                       .doc(widget.user.uid)
-                                      .delete();
-                                } catch (_) {}
-                                if (mounted) Navigator.of(context).pop();
+                                      .set({
+                                        'photoUrl': url,
+                                      }, SetOptions(merge: true));
+                                  if (!mounted) return;
+                                  _showSnack('Profile photo updated');
+                                } catch (e) {
+                                  _showSnack(
+                                    'Photo update failed: $e',
+                                    error: true,
+                                  );
+                                }
                               },
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                              ),
-                              child: const Text('Delete Account'),
+                              icon: const Icon(Icons.photo_camera),
+                              label: const Text('Change Photo'),
                             ),
-                            if (_info != null) ...[
-                              const SizedBox(height: 8),
-                              Text(_info!),
-                            ],
                           ],
                         ),
+                      );
+                    },
+                  ),
+                  const Divider(height: 32),
+
+                  // Editing controls
+                  Align(
+                    alignment: isLearner
+                        ? Alignment.center
+                        : Alignment.centerLeft,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          TextField(
+                            controller: _usernameCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Username',
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          FilledButton(
+                            onPressed: _promptAndUpdateUsername,
+                            child: const Text('Update Username'),
+                          ),
+                          const Divider(height: 32),
+                          TextField(
+                            controller: _currentPasswordCtrl,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Current Password',
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _newPasswordCtrl,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'New Password',
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _confirmPasswordCtrl,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Confirm New Password',
+                            ),
+                          ),
+                          if (_error != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              _error!,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          FilledButton(
+                            onPressed: () async {
+                              setState(() {
+                                _info = null;
+                                _error = null;
+                              });
+                              final email = widget.user.email;
+                              final current = _currentPasswordCtrl.text;
+                              final newPass = _newPasswordCtrl.text;
+                              final confirm = _confirmPasswordCtrl.text;
+                              if (email == null) {
+                                setState(() => _error = 'No email on account.');
+                                return;
+                              }
+                              if (newPass != confirm) {
+                                setState(
+                                  () => _error = 'New passwords do not match.',
+                                );
+                                return;
+                              }
+                              if (newPass.length < 6) {
+                                setState(
+                                  () => _error =
+                                      'Password must be at least 6 characters.',
+                                );
+                                return;
+                              }
+                              try {
+                                final cred = EmailAuthProvider.credential(
+                                  email: email,
+                                  password: current,
+                                );
+                                await widget.user.reauthenticateWithCredential(
+                                  cred,
+                                );
+                                await widget.user.updatePassword(newPass);
+                                setState(() => _info = 'Password updated');
+                                _currentPasswordCtrl.clear();
+                                _newPasswordCtrl.clear();
+                                _confirmPasswordCtrl.clear();
+                              } on FirebaseAuthException catch (e) {
+                                setState(
+                                  () => _error =
+                                      e.message ?? 'Failed to update password',
+                                );
+                              } catch (e) {
+                                setState(
+                                  () => _error = 'Failed to update password',
+                                );
+                              }
+                            },
+                            child: const Text('Update Password'),
+                          ),
+                          const Divider(height: 32),
+                          FilledButton.tonal(
+                            onPressed: () async {
+                              try {
+                                await AuthService.instance.signOut();
+                                // The auth state listener in main.dart will automatically
+                                // redirect to LoginPage when user becomes null
+                              } catch (e) {
+                                _showSnack('Sign out failed: $e', error: true);
+                              }
+                            },
+                            child: const Text('Sign Out'),
+                          ),
+                          const SizedBox(height: 8),
+                          OutlinedButton(
+                            onPressed: () async {
+                              try {
+                                await FirebaseAuth.instance.currentUser
+                                    ?.reload();
+                                await FirebaseAuth.instance.currentUser
+                                    ?.delete();
+                              } catch (_) {}
+                              try {
+                                await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(widget.user.uid)
+                                    .delete();
+                              } catch (_) {}
+                              if (mounted) Navigator.of(context).pop();
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                            child: const Text('Delete Account'),
+                          ),
+                          if (_info != null) ...[
+                            const SizedBox(height: 8),
+                            Text(_info!),
+                          ],
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            if (_signingOut) ...[
-              const ModalBarrier(dismissible: false, color: Colors.black26),
-              const Center(child: CircularProgressIndicator()),
-            ],
-          ],
+          ),
+          bottomNavigationBar: null,
         );
       },
+    );
+  }
+}
+
+class _ReauthDialog extends StatefulWidget {
+  final String email;
+  final User user;
+  final TextEditingController pwdCtrl;
+
+  const _ReauthDialog({
+    required this.email,
+    required this.user,
+    required this.pwdCtrl,
+  });
+
+  @override
+  State<_ReauthDialog> createState() => _ReauthDialogState();
+}
+
+class _ReauthDialogState extends State<_ReauthDialog> {
+  bool loading = false;
+  String? errText;
+
+  Future<void> onConfirm() async {
+    setState(() {
+      loading = true;
+      errText = null;
+    });
+    try {
+      final cred = EmailAuthProvider.credential(
+        email: widget.email,
+        password: widget.pwdCtrl.text,
+      );
+      await widget.user.reauthenticateWithCredential(cred);
+      if (!mounted) return;
+      Navigator.pop(context, widget.pwdCtrl.text);
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        loading = false;
+        errText = e.message ?? 'Reauthentication failed';
+      });
+    } catch (_) {
+      setState(() {
+        loading = false;
+        errText = 'Reauthentication failed';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Confirm Password'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: widget.pwdCtrl,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Password'),
+          ),
+          if (errText != null) ...[
+            const SizedBox(height: 8),
+            Text(errText!, style: const TextStyle(color: Colors.red)),
+          ],
+          if (loading)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: CircularProgressIndicator(),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: loading ? null : () => Navigator.pop(context, null),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: loading ? null : onConfirm,
+          child: const Text('Confirm'),
+        ),
+      ],
     );
   }
 }

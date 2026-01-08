@@ -21,19 +21,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final user = widget.user;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Grammatica - Lessons'),
-        actions: [
-          IconButton(
-            onPressed: () async {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) setState(() {});
-              });
-            },
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Grammatica - Lessons')),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tabIndex,
         onDestinationSelected: (i) {
