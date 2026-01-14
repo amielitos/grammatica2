@@ -51,6 +51,8 @@ class Lesson {
   final Timestamp? createdAt;
   final String? createdByUid;
   final String? createdByEmail;
+  final String? attachmentUrl;
+  final String? attachmentName;
 
   Lesson({
     required this.id,
@@ -60,6 +62,8 @@ class Lesson {
     this.createdAt,
     this.createdByUid,
     this.createdByEmail,
+    this.attachmentUrl,
+    this.attachmentName,
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -76,6 +80,8 @@ class Lesson {
       createdByEmail: (data['createdByEmail'] ?? '') == ''
           ? null
           : (data['createdByEmail'] as String?),
+      attachmentUrl: (data['attachmentUrl'] ?? '').toString(),
+      attachmentName: (data['attachmentName'] ?? '').toString(),
     );
   }
 }
@@ -89,6 +95,8 @@ class Quiz {
   final Timestamp? createdAt;
   final String? createdByUid;
   final String? createdByEmail;
+  final String? attachmentUrl;
+  final String? attachmentName;
   Quiz({
     required this.id,
     required this.title,
@@ -98,6 +106,8 @@ class Quiz {
     this.createdAt,
     this.createdByUid,
     this.createdByEmail,
+    this.attachmentUrl,
+    this.attachmentName,
   });
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
@@ -114,6 +124,8 @@ class Quiz {
       createdByEmail: (d['createdByEmail'] ?? '') == ''
           ? null
           : (d['createdByEmail'] as String?),
+      attachmentUrl: (d['attachmentUrl'] ?? '').toString(),
+      attachmentName: (d['attachmentName'] ?? '').toString(),
     );
   }
 }
@@ -137,6 +149,8 @@ class DatabaseService {
     required String title,
     required String prompt,
     required String answer,
+    String? attachmentUrl,
+    String? attachmentName,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     final doc = await _lessons.add({
@@ -155,11 +169,15 @@ class DatabaseService {
     String? title,
     String? prompt,
     String? answer,
+    String? attachmentUrl,
+    String? attachmentName,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
     if (prompt != null) data['prompt'] = prompt;
     if (answer != null) data['answer'] = answer;
+    if (attachmentUrl != null) data['attachmentUrl'] = attachmentUrl;
+    if (attachmentName != null) data['attachmentName'] = attachmentName;
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
     }
@@ -220,6 +238,8 @@ class DatabaseService {
     required String question,
     required String answer,
     int maxAttempts = 1,
+    String? attachmentUrl,
+    String? attachmentName,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     final doc = await _quizzes.add({
@@ -240,12 +260,16 @@ class DatabaseService {
     String? question,
     String? answer,
     int? maxAttempts,
+    String? attachmentUrl,
+    String? attachmentName,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
     if (question != null) data['question'] = question;
     if (answer != null) data['answer'] = answer;
     if (maxAttempts != null) data['maxAttempts'] = maxAttempts;
+    if (attachmentUrl != null) data['attachmentUrl'] = attachmentUrl;
+    if (attachmentName != null) data['attachmentName'] = attachmentName;
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
     }
@@ -387,6 +411,32 @@ class DatabaseService {
       }
     } catch (e) {
       throw Exception('Failed to delete image: $e');
+    }
+  }
+
+  Future<String> uploadDocument({
+    required Uint8List fileBytes,
+    required String fileName,
+    required String folder, // 'lessons' or 'quizzes'
+  }) async {
+    try {
+      // 2MB check should be done in UI, but safe to have here if needed.
+      // We will trust the UI to check size for now to keep this flexible.
+
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('${folder}_documents')
+          .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
+
+      final uploadTask = storageRef.putData(
+        fileBytes,
+        SettableMetadata(contentType: 'application/pdf'),
+      );
+
+      final snapshot = await uploadTask.whenComplete(() => null);
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      throw Exception('Failed to upload document: $e');
     }
   }
 }

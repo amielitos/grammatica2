@@ -309,25 +309,84 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                       setState(() => _creatingLesson = true);
                                       try {
                                         if (_title.text.trim().isEmpty) return;
-                                        await DatabaseService.instance
-                                            .createLesson(
-                                              title: _title.text.trim(),
-                                              prompt: _prompt.text.trim(),
-                                              answer: _answer.text.trim(),
+
+                                        String? attachmentUrl;
+                                        String? attachmentName;
+
+                                        // Upload file if selected
+                                        if (_selectedFiles.isNotEmpty) {
+                                          // Validate size (2MB) - doing it here or relying on file picker (not supported directly in file picker)
+                                          final file = _selectedFiles.first;
+                                          if (file.size > 2 * 1024 * 1024) {
+                                            throw Exception(
+                                              'File size must be less than 2MB',
                                             );
+                                          }
+                                          if (file.bytes != null) {
+                                            attachmentUrl =
+                                                await DatabaseService.instance
+                                                    .uploadDocument(
+                                                      fileBytes: file.bytes!,
+                                                      fileName: file.name,
+                                                      folder: 'lessons',
+                                                    );
+                                            attachmentName = file.name;
+                                          }
+                                        } else if (_selectedLesson != null) {
+                                          // Keep existing if not changing
+                                          attachmentUrl =
+                                              _selectedLesson!.attachmentUrl;
+                                          attachmentName =
+                                              _selectedLesson!.attachmentName;
+                                        }
+
+                                        if (_selectedLessonId == null) {
+                                          await DatabaseService.instance
+                                              .createLesson(
+                                                title: _title.text.trim(),
+                                                prompt: _prompt.text.trim(),
+                                                answer: _answer.text.trim(),
+                                                attachmentUrl: attachmentUrl,
+                                                attachmentName: attachmentName,
+                                              );
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Lesson created'),
+                                              ),
+                                            );
+                                          }
+                                        } else {
+                                          await DatabaseService.instance
+                                              .updateLesson(
+                                                id: _selectedLessonId!,
+                                                title: _title.text.trim(),
+                                                prompt: _prompt.text.trim(),
+                                                answer: _answer.text.trim(),
+                                                attachmentUrl: attachmentUrl,
+                                                attachmentName: attachmentName,
+                                              );
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Lesson updated'),
+                                              ),
+                                            );
+                                          }
+                                        }
+
+                                        // Reset fields
                                         _title.clear();
                                         _prompt.clear();
                                         _answer.clear();
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Lesson created'),
-                                            ),
-                                          );
-                                          setState(() {});
-                                        }
+                                        _selectedFiles = [];
+                                        _selectedLessonId = null;
+                                        _selectedLesson = null;
+                                        setState(() {});
                                       } catch (e) {
                                         if (mounted) {
                                           ScaffoldMessenger.of(
@@ -335,7 +394,7 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                           ).showSnackBar(
                                             SnackBar(
                                               content: Text(
-                                                'Create failed: $e',
+                                                'Operation failed: $e',
                                               ),
                                             ),
                                           );
@@ -404,56 +463,7 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    OutlinedButton.icon(
-                                      onPressed: () async {
-                                        final result = await FilePicker.platform
-                                            .pickFiles(
-                                              type: FileType.custom,
-                                              allowMultiple:
-                                                  false, // Only allow 1 file
-                                              allowedExtensions: ['pdf'],
-                                            );
-                                        if (!context.mounted) return;
-                                        if (result != null) {
-                                          setState(() {
-                                            _selectedFiles = result.files;
-                                          });
-                                          final names = result.files
-                                              .map((f) => f.name)
-                                              .join(', ');
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                names.isEmpty
-                                                    ? 'File selected'
-                                                    : 'Selected: $names',
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                      },
-                                      icon: const Icon(Icons.upload_file),
-                                      label: const Text('Upload Document'),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    // Display selected files
-                                    if (_selectedFiles.isNotEmpty)
-                                      Container(
-                                        height: 120,
-                                        margin: const EdgeInsets.only(
-                                          bottom: 8,
-                                        ),
-                                        child: ListView.builder(
-                                          scrollDirection: Axis.horizontal,
-                                          itemCount: _selectedFiles.length,
-                                          itemBuilder: (context, index) {
-                                            final file = _selectedFiles[index];
-                                            return _buildFileItem(file, index);
-                                          },
-                                        ),
-                                      ),
+                                    _buildUploadUI(context),
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
@@ -496,63 +506,7 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                               ? Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    OutlinedButton.icon(
-                                      onPressed: () async {
-                                        final result = await FilePicker.platform
-                                            .pickFiles(
-                                              type: FileType.custom,
-                                              allowMultiple:
-                                                  false, // Only allow 1 file
-                                              allowedExtensions: ['pdf'],
-                                            );
-                                        if (!context.mounted) return;
-                                        if (result != null) {
-                                          setState(() {
-                                            _selectedFiles = result.files;
-                                          });
-                                          final names = result.files
-                                              .map((f) => f.name)
-                                              .join(', ');
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                names.isEmpty
-                                                    ? 'File selected'
-                                                    : 'Selected: $names',
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                      },
-                                      icon: const Icon(Icons.upload_file),
-                                      label: const Text('Upload Document'),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Supported: PDF. Selecting files does not upload them.',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                    // Display selected files
-                                    if (_selectedFiles.isNotEmpty)
-                                      Container(
-                                        height: 120,
-                                        margin: const EdgeInsets.only(
-                                          top: 8,
-                                          bottom: 8,
-                                        ),
-                                        child: ListView.builder(
-                                          scrollDirection: Axis.horizontal,
-                                          itemCount: _selectedFiles.length,
-                                          itemBuilder: (context, index) {
-                                            final file = _selectedFiles[index];
-                                            return _buildFileItem(file, index);
-                                          },
-                                        ),
-                                      ),
+                                    _buildUploadUI(context),
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
@@ -629,6 +583,8 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                       'createdAt': m['createdAt'],
                       'createdByUid': m['createdByUid'],
                       'createdByEmail': m['createdByEmail'],
+                      'attachmentUrl': (m['attachmentUrl'] ?? '').toString(),
+                      'attachmentName': (m['attachmentName'] ?? '').toString(),
                     }),
                   )
                   .toList();
@@ -645,20 +601,34 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                     title: lMap['title']!,
                     prompt: lMap['prompt']!,
                     answer: lMap['answer']!,
+                    attachmentUrl: lMap['attachmentUrl'],
+                    attachmentName: lMap['attachmentName'],
                   );
                   return Column(
                     children: [
                       ListTile(
-                        leading: Radio<String>(
-                          value: l.id,
-                          groupValue: _selectedLessonId,
+                        leading: Checkbox(
+                          value: _selectedLessonId == l.id,
                           onChanged: (val) {
                             setState(() {
-                              _selectedLessonId = val;
-                              _selectedLesson = l;
-                              _title.text = l.title;
-                              _prompt.text = l.prompt;
-                              _answer.text = l.answer;
+                              if (val == true) {
+                                _selectedLessonId = l.id;
+                                _selectedLesson = l;
+                                _title.text = l.title;
+                                _prompt.text = l.prompt;
+                                _answer.text = l.answer;
+                                // Handle existing attachments if any (update UI to show them if needed)
+                                // For now, we don't have a way to 'edit' the attachment easily in UI
+                                // other than uploading a new one or clearing.
+                                // We'll add that logic when we wire up the upload.
+                              } else {
+                                _selectedLessonId = null;
+                                _selectedLesson = null;
+                                _title.clear();
+                                _prompt.clear();
+                                _answer.clear();
+                                _selectedFiles = [];
+                              }
                             });
                           },
                         ),
@@ -671,6 +641,27 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            if (l.attachmentName != null &&
+                                l.attachmentName!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.attachment,
+                                      size: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      l.attachmentName!,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
                             const SizedBox(height: 4),
                             Builder(
                               builder: (context) {
@@ -762,6 +753,78 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUploadUI(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () async {
+            final result = await FilePicker.platform.pickFiles(
+              type: FileType.custom,
+              allowMultiple: false, // Only allow 1 file
+              allowedExtensions: ['pdf'],
+              withData: true, // Needed for bytes
+            );
+            if (!context.mounted) return;
+            if (result != null) {
+              setState(() {
+                _selectedFiles = result.files;
+              });
+              final names = result.files.map((f) => f.name).join(', ');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    names.isEmpty ? 'File selected' : 'Selected: $names',
+                  ),
+                ),
+              );
+            }
+          },
+          icon: const Icon(Icons.upload_file),
+          label: const Text('Upload Document'),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Supported: PDF. Selecting files does not upload them.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        if (_selectedFiles.isEmpty &&
+            _selectedLesson?.attachmentName != null &&
+            _selectedLesson!.attachmentName!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+            child: Row(
+              children: [
+                const Icon(Icons.attach_file, size: 16),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Current: ${_selectedLesson!.attachmentName}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 8),
+        // Display selected files
+        if (_selectedFiles.isNotEmpty)
+          Container(
+            height: 120,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _selectedFiles.length,
+              itemBuilder: (context, index) {
+                final file = _selectedFiles[index];
+                return _buildFileItem(file, index);
+              },
+            ),
+          ),
+      ],
     );
   }
 
@@ -943,6 +1006,8 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
 
   final _maxAttemptsCtrl = TextEditingController(text: '1');
   List<PlatformFile> _selectedFiles = []; // Store selected files
+  String? _currentAttachmentName;
+  String? _currentAttachmentUrl;
 
   // Widget to show results
   void _showResults(String quizId, String title) {
@@ -1041,6 +1106,24 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
               ),
             ],
           ),
+          if (_selectedFiles.isEmpty &&
+              _currentAttachmentName != null &&
+              _currentAttachmentName!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.attach_file, size: 16),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Current: $_currentAttachmentName',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 8),
           // Display selected files in the quizzes tab
           if (_selectedFiles.isNotEmpty)
@@ -1150,7 +1233,6 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                     _title.text.trim().isEmpty ||
                     _question.text.trim().isEmpty ||
                     _answer.text.trim().isEmpty ||
-                    _answer.text.trim().isEmpty ||
                     (_selectedQuizId != null &&
                         _title.text.trim() == _origTitle &&
                         _question.text.trim() == _origQuestion &&
@@ -1163,17 +1245,46 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                     try {
                       if (_title.text.trim().isEmpty) return;
                       // Create or Update
+
+                      String? attachmentUrl;
+                      String? attachmentName;
+
+                      // Upload file if selected
+                      if (_selectedFiles.isNotEmpty) {
+                        final file = _selectedFiles.first;
+                        if (file.size > 2 * 1024 * 1024) {
+                          throw Exception('File size must be less than 2MB');
+                        }
+                        if (file.bytes != null) {
+                          attachmentUrl = await DatabaseService.instance
+                              .uploadDocument(
+                                fileBytes: file.bytes!,
+                                fileName: file.name,
+                                folder: 'quizzes',
+                              );
+                          attachmentName = file.name;
+                        }
+                      } else if (_selectedQuizId != null) {
+                        // Keep existing (null update for specific fields means no change in updateQuiz)
+                        // If we wanted to remove it, we'd need explicit null handling in updateQuiz which we checked.
+                      }
+
                       if (_selectedQuizId == null) {
                         await DatabaseService.instance.createQuiz(
                           title: _title.text.trim(),
                           question: _question.text.trim(),
                           answer: _answer.text.trim(),
                           maxAttempts: int.tryParse(_maxAttemptsCtrl.text) ?? 1,
+                          attachmentUrl: attachmentUrl,
+                          attachmentName: attachmentName,
                         );
+
                         _title.clear();
                         _question.clear();
                         _answer.clear();
                         _maxAttemptsCtrl.text = '1';
+                        _selectedFiles = [];
+
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Quiz created')),
@@ -1186,6 +1297,8 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                           question: _question.text.trim(),
                           answer: _answer.text.trim(),
                           maxAttempts: int.tryParse(_maxAttemptsCtrl.text),
+                          attachmentUrl: attachmentUrl,
+                          attachmentName: attachmentName,
                         );
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -1193,7 +1306,21 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                           );
                         }
                       }
+
+                      // Reset fields
+                      _title.clear();
+                      _question.clear();
+                      _answer.clear();
+                      _maxAttemptsCtrl.text = '1';
+                      _selectedFiles = [];
+                      _selectedQuizId = null;
                       if (mounted) setState(() {});
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
                     } finally {
                       if (mounted) setState(() => _creatingOrUpdating = false);
                     }
@@ -1228,6 +1355,9 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                         'createdAt': m['createdAt'],
                         'createdByUid': m['createdByUid'],
                         'createdByEmail': m['createdByEmail'],
+                        'attachmentUrl': (m['attachmentUrl'] ?? '').toString(),
+                        'attachmentName': (m['attachmentName'] ?? '')
+                            .toString(),
                       }),
                     )
                     .toList();
@@ -1256,6 +1386,11 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                                       .toString() ??
                                   '1';
 
+                              _currentAttachmentName =
+                                  (q['attachmentName'] as String?);
+                              _currentAttachmentUrl =
+                                  (q['attachmentUrl'] as String?);
+
                               _origTitle = _title.text;
                               _origQuestion = _question.text;
                               _origAnswer = _answer.text;
@@ -1272,6 +1407,9 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                               _origQuestion = '';
                               _origAnswer = '';
                               _origMaxAttempts = 1;
+                              _selectedFiles = [];
+                              _currentAttachmentName = null;
+                              _currentAttachmentUrl = null;
                             }
                           });
                         },
@@ -1285,6 +1423,27 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          if (q['attachmentName'] != null &&
+                              (q['attachmentName'] as String).isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.attachment,
+                                    size: 14,
+                                    color: Colors.grey[600],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    q['attachmentName'] as String,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
                           const SizedBox(height: 4),
                           Builder(
                             builder: (context) {
