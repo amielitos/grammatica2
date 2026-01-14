@@ -3,8 +3,25 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'quiz_detail_page.dart';
+import '../utils/responsive_layout.dart';
 
-class QuizzesPage extends StatelessWidget {
+class QuizzesPage extends StatefulWidget {
+  final User user;
+  const QuizzesPage({super.key, required this.user});
+
+  @override
+  State<QuizzesPage> createState() => _QuizzesPageState();
+}
+
+class _QuizzesPageState extends State<QuizzesPage> {
+  late Future<List<Quiz>> _quizzesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _quizzesFuture = DatabaseService.instance.fetchQuizzes();
+  }
+
   // Author name helper
   Widget _authorName({
     required String? uid,
@@ -32,67 +49,119 @@ class QuizzesPage extends StatelessWidget {
 
   String _fmt(Timestamp ts) {
     final d = ts.toDate().toLocal();
-    final y = d.year.toString().padLeft(4, '0');
     final m = d.month.toString().padLeft(2, '0');
     final da = d.day.toString().padLeft(2, '0');
-    final hh = d.hour.toString().padLeft(2, '0');
-    final mm = d.minute.toString().padLeft(2, '0');
-    return '$y-$m-$da $hh:$mm';
+    final y = d.year.toString();
+    return '$m-$da-$y';
   }
-
-  final User user;
-  const QuizzesPage({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Grammatica - Quizzes')),
-      body: FutureBuilder<List<Quiz>>(
-        future: DatabaseService.instance.fetchQuizzes(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final quizzes = snapshot.data!;
-          return StreamBuilder<Map<String, bool>>(
-            stream: DatabaseService.instance.quizProgressStream(user),
-            builder: (context, progSnap) {
-              final progress = progSnap.data ?? const {};
-              return ListView.separated(
-                itemCount: quizzes.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final q = quizzes[index];
-                  final done = progress[q.id] == true;
-                  String createdAtStr = q.createdAt != null
-                      ? _fmt(q.createdAt!)
-                      : 'N/A';
-                  return ListTile(
-                    title: Text(q.title),
-                    subtitle: Row(
-                      children: [
-                        _authorName(
-                          uid: q.createdByUid,
-                          fallbackEmail: q.createdByEmail,
-                        ),
-                        const SizedBox(width: 8),
-                        Text('• Created: $createdAtStr'),
-                      ],
-                    ),
-                    trailing: done
-                        ? const Icon(Icons.check_circle, color: Colors.green)
-                        : null,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => QuizDetailPage(user: user, quiz: q),
+      body: ResponsiveContainer(
+        child: FutureBuilder<List<Quiz>>(
+          future: _quizzesFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('No quizzes available.'));
+            }
+            final quizzes = snapshot.data!;
+            return StreamBuilder<Map<String, Map<String, dynamic>>>(
+              stream: DatabaseService.instance.quizProgressStream(widget.user),
+              builder: (context, progSnap) {
+                final progress = progSnap.data ?? const {};
+                return ListView.separated(
+                  itemCount: quizzes.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final q = quizzes[index];
+                    final progData = progress[q.id];
+                    final completed = progData?['completed'] == true;
+                    final isCorrect = progData?['isCorrect'] == true;
+                    final attempts = (progData?['attemptsUsed'] as int?) ?? 0;
+                    final max = q.maxAttempts;
+
+                    bool failed = !isCorrect && attempts >= max;
+
+                    String createdAtStr = q.createdAt != null
+                        ? _fmt(q.createdAt!)
+                        : 'N/A';
+                    return ListTile(
+                      title: Text(q.title),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: _authorName(
+                                  uid: q.createdByUid,
+                                  fallbackEmail: q.createdByEmail,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text('Created: $createdAtStr'),
+                        ],
                       ),
-                    ),
-                  );
-                },
-              );
-            },
-          );
-        },
+                      trailing: completed
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.green),
+                              ),
+                              child: const Text(
+                                'Passed',
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            )
+                          : failed
+                          ? Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.red),
+                              ),
+                              child: const Text(
+                                'Failed',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            )
+                          : null,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              QuizDetailPage(user: widget.user, quiz: q),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

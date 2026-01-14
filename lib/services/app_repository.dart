@@ -77,6 +77,7 @@ class AppRepository {
                   'createdAt': d.data()['createdAt'],
                   'createdByUid': d.data()['createdByUid'],
                   'createdByEmail': d.data()['createdByEmail'],
+                  'maxAttempts': d.data()['maxAttempts'],
                 },
               )
               .toList(),

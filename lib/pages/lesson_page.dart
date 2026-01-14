@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import '../utils/responsive_layout.dart';
 
 class LessonPage extends StatefulWidget {
   final User user;
@@ -60,8 +61,7 @@ class _LessonPageState extends State<LessonPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_lesson.title)),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: ResponsiveContainer(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -80,8 +80,10 @@ class _LessonPageState extends State<LessonPage> {
               ],
             ),
             const SizedBox(height: 8),
-            MarkdownBody(
-              data: _lesson.prompt.isEmpty ? '_No content_' : _lesson.prompt,
+            Expanded(
+              child: MarkdownBody(
+                data: _lesson.prompt.isEmpty ? '_No content_' : _lesson.prompt,
+              ),
             ),
           ],
         ),

@@ -31,6 +31,17 @@ class GrammaticaApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF2E7D32)),
         useMaterial3: true,
       ),
+      builder: (context, child) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return OrientationBuilder(
+              builder: (context, orientation) {
+                return child!;
+              },
+            );
+          },
+        );
+      },
       initialRoute: '/',
       routes: {
         '/': (context) => _AuthWrapper(),

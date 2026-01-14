@@ -132,9 +132,6 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
                   final subscription =
                       (u['subscription_status'] ?? 'N/A') as String;
                   final ts = u['createdAt'];
-                  final createdAt = ts is Timestamp
-                      ? ts.toDate().toIso8601String()
-                      : 'N/A';
                   return ListTile(
                     leading: Icon(
                       role == 'ADMIN' ? Icons.verified_user : Icons.person,
@@ -162,36 +159,39 @@ class _AdminUsersTabState extends State<_AdminUsersTab> {
             }
 
             // Wide screens: PaginatedDataTable
+            // Fix: Constrain width so PaginatedDataTable doesn't see "infinity"
             return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: PaginatedDataTable(
-                header: const Text('Users'),
-                rowsPerPage: _rowsPerPage,
-                onRowsPerPageChanged: (v) =>
-                    setState(() => _rowsPerPage = v ?? _rowsPerPage),
-                columns: const [
-                  DataColumn(label: Text('Username')),
-                  DataColumn(label: Text('Email')),
-                  DataColumn(label: Text('UID')),
-                  DataColumn(label: Text('Role')),
-                  DataColumn(label: Text('Status')),
-                  DataColumn(label: Text('Subscription')),
-                  DataColumn(label: Text('Created At')),
-                  DataColumn(label: Text('Actions')),
-                ],
-                source: _UsersDataSource(
-                  context: context,
-                  users: users,
-                  onToggleRole: (uid, role) async {
-                    final newRole = role == 'ADMIN'
-                        ? UserRole.learner
-                        : UserRole.admin;
-                    await RoleService.instance.setUserRole(
-                      uid: uid,
-                      role: newRole,
-                    );
-                  },
-                  formatTs: _formatTs,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: PaginatedDataTable(
+                  header: const Text('Users'),
+                  rowsPerPage: _rowsPerPage,
+                  onRowsPerPageChanged: (v) =>
+                      setState(() => _rowsPerPage = v ?? _rowsPerPage),
+                  columns: const [
+                    DataColumn(label: Text('Username')),
+                    DataColumn(label: Text('Email')),
+                    DataColumn(label: Text('UID')),
+                    DataColumn(label: Text('Role')),
+                    DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Subscription')),
+                    DataColumn(label: Text('Created At')),
+                    DataColumn(label: Text('Actions')),
+                  ],
+                  source: _UsersDataSource(
+                    context: context,
+                    users: users,
+                    onToggleRole: (uid, role) async {
+                      final newRole = role == 'ADMIN'
+                          ? UserRole.learner
+                          : UserRole.admin;
+                      await RoleService.instance.setUserRole(
+                        uid: uid,
+                        role: newRole,
+                      );
+                    },
+                    formatTs: _formatTs,
+                  ),
                 ),
               ),
             );
@@ -271,53 +271,470 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Create area: consistent with Quizzes tab UX
-          LayoutBuilder(
-            builder: (context, c) {
-              final wide = c.maxWidth >= 900;
-              final editor = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Create area: consistent with Quizzes tab UX
+                LayoutBuilder(
+                  builder: (context, c) {
+                    final wide = c.maxWidth >= 900;
+                    final editor = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Lessons',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const Spacer(),
+                            FilledButton.icon(
+                              onPressed:
+                                  (_creatingLesson ||
+                                      (_selectedLessonId != null &&
+                                          _selectedLesson != null &&
+                                          _title.text.trim() ==
+                                              _selectedLesson!.title &&
+                                          _prompt.text.trim() ==
+                                              _selectedLesson!.prompt &&
+                                          _answer.text.trim() ==
+                                              _selectedLesson!.answer) ||
+                                      _title.text.trim().isEmpty ||
+                                      _prompt.text.trim().isEmpty)
+                                  ? null
+                                  : () async {
+                                      setState(() => _creatingLesson = true);
+                                      try {
+                                        if (_title.text.trim().isEmpty) return;
+                                        await DatabaseService.instance
+                                            .createLesson(
+                                              title: _title.text.trim(),
+                                              prompt: _prompt.text.trim(),
+                                              answer: _answer.text.trim(),
+                                            );
+                                        _title.clear();
+                                        _prompt.clear();
+                                        _answer.clear();
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Lesson created'),
+                                            ),
+                                          );
+                                          setState(() {});
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Create failed: $e',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      } finally {
+                                        if (mounted) {
+                                          setState(
+                                            () => _creatingLesson = false,
+                                          );
+                                        }
+                                      }
+                                    },
+                              icon: _creatingLesson
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.add),
+                              label: const Text('Create/Edit Lesson'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // Small screens: toggle; Large screens: split
+                        if (wide)
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    TextField(
+                                      controller: _title,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Title',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _prompt,
+                                      minLines: 6,
+                                      maxLines: 10,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Content (Markdown)',
+                                        alignLabelWithHint: true,
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      onChanged: (_) => setState(() {}),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _answer,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Optional Answer',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    OutlinedButton.icon(
+                                      onPressed: () async {
+                                        final result = await FilePicker.platform
+                                            .pickFiles(
+                                              type: FileType.custom,
+                                              allowMultiple:
+                                                  false, // Only allow 1 file
+                                              allowedExtensions: ['pdf'],
+                                            );
+                                        if (!context.mounted) return;
+                                        if (result != null) {
+                                          setState(() {
+                                            _selectedFiles = result.files;
+                                          });
+                                          final names = result.files
+                                              .map((f) => f.name)
+                                              .join(', ');
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                names.isEmpty
+                                                    ? 'File selected'
+                                                    : 'Selected: $names',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      icon: const Icon(Icons.upload_file),
+                                      label: const Text('Upload Document'),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    // Display selected files
+                                    if (_selectedFiles.isNotEmpty)
+                                      Container(
+                                        height: 120,
+                                        margin: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        child: ListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: _selectedFiles.length,
+                                          itemBuilder: (context, index) {
+                                            final file = _selectedFiles[index];
+                                            return _buildFileItem(file, index);
+                                          },
+                                        ),
+                                      ),
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: MarkdownBody(
+                                        data: _prompt.text.isEmpty
+                                            ? '_Nothing to preview_'
+                                            : _prompt.text,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        else ...[
+                          Row(
+                            children: [
+                              FilterChip(
+                                label: const Text('Edit'),
+                                selected: !_preview,
+                                onSelected: (_) =>
+                                    setState(() => _preview = false),
+                              ),
+                              const SizedBox(width: 8),
+                              FilterChip(
+                                label: const Text('Preview'),
+                                selected: _preview,
+                                onSelected: (_) =>
+                                    setState(() => _preview = true),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          _preview
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    OutlinedButton.icon(
+                                      onPressed: () async {
+                                        final result = await FilePicker.platform
+                                            .pickFiles(
+                                              type: FileType.custom,
+                                              allowMultiple:
+                                                  false, // Only allow 1 file
+                                              allowedExtensions: ['pdf'],
+                                            );
+                                        if (!context.mounted) return;
+                                        if (result != null) {
+                                          setState(() {
+                                            _selectedFiles = result.files;
+                                          });
+                                          final names = result.files
+                                              .map((f) => f.name)
+                                              .join(', ');
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                names.isEmpty
+                                                    ? 'File selected'
+                                                    : 'Selected: $names',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      icon: const Icon(Icons.upload_file),
+                                      label: const Text('Upload Document'),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Supported: PDF. Selecting files does not upload them.',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                    // Display selected files
+                                    if (_selectedFiles.isNotEmpty)
+                                      Container(
+                                        height: 120,
+                                        margin: const EdgeInsets.only(
+                                          top: 8,
+                                          bottom: 8,
+                                        ),
+                                        child: ListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: _selectedFiles.length,
+                                          itemBuilder: (context, index) {
+                                            final file = _selectedFiles[index];
+                                            return _buildFileItem(file, index);
+                                          },
+                                        ),
+                                      ),
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: MarkdownBody(
+                                        data: _prompt.text.isEmpty
+                                            ? '_Nothing to preview_'
+                                            : _prompt.text,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    TextField(
+                                      controller: _title,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Title',
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _prompt,
+                                      minLines: 6,
+                                      maxLines: 10,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Content (Markdown)',
+                                        alignLabelWithHint: true,
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      onChanged: (_) => setState(() {}),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _answer,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Optional Answer',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ],
+                      ],
+                    );
+                    return editor;
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+          StreamBuilder<List<Map<String, dynamic>>>(
+            stream: AppRepository.instance.watchLessons(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const SliverToBoxAdapter(
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final lessons = snapshot.data!;
+              // map to lightweight objects for UI
+              final lessonItems = lessons
+                  .map(
+                    (m) => ({
+                      'id': m['id'] as String,
+                      'title': (m['title'] ?? '').toString(),
+                      'prompt': (m['prompt'] ?? '').toString(),
+                      'answer': (m['answer'] ?? '').toString(),
+                      'createdAt': m['createdAt'],
+                      'createdByUid': m['createdByUid'],
+                      'createdByEmail': m['createdByEmail'],
+                    }),
+                  )
+                  .toList();
+              if (lessons.isEmpty) {
+                return const SliverToBoxAdapter(
+                  child: Center(child: Text('No lessons yet')),
+                );
+              }
+              return SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final lMap = lessonItems[index];
+                  final l = Lesson(
+                    id: lMap['id']!,
+                    title: lMap['title']!,
+                    prompt: lMap['prompt']!,
+                    answer: lMap['answer']!,
+                  );
+                  return Column(
                     children: [
-                      Text(
-                        'Lessons',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const Spacer(),
-                      FilledButton.icon(
-                        onPressed:
-                            (_creatingLesson ||
-                                (_selectedLessonId != null &&
-                                    _selectedLesson != null &&
-                                    _title.text.trim() ==
-                                        _selectedLesson!.title &&
-                                    _prompt.text.trim() ==
-                                        _selectedLesson!.prompt &&
-                                    _answer.text.trim() ==
-                                        _selectedLesson!.answer) ||
-                                _title.text.trim().isEmpty ||
-                                _prompt.text.trim().isEmpty)
-                            ? null
-                            : () async {
-                                setState(() => _creatingLesson = true);
+                      ListTile(
+                        leading: Radio<String>(
+                          value: l.id,
+                          groupValue: _selectedLessonId,
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedLessonId = val;
+                              _selectedLesson = l;
+                              _title.text = l.title;
+                              _prompt.text = l.prompt;
+                              _answer.text = l.answer;
+                            });
+                          },
+                        ),
+                        title: Text(l.title),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l.prompt,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Builder(
+                              builder: (context) {
+                                final ts = lMap['createdAt'];
+                                final createdAtStr = ts is Timestamp
+                                    ? _fmt(ts)
+                                    : 'N/A';
+                                return Row(
+                                  children: [
+                                    _AuthorName(
+                                      uid: lMap['createdByUid'] as String?,
+                                      fallbackEmail:
+                                          lMap['createdByEmail'] as String?,
+                                      small: true,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '• Created: $createdAtStr',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Delete Lesson'),
+                                    content: Text(
+                                      'Are you sure you want to delete "${l.title}"?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text('Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm != true) return;
                                 try {
-                                  if (_title.text.trim().isEmpty) return;
-                                  await DatabaseService.instance.createLesson(
-                                    title: _title.text.trim(),
-                                    prompt: _prompt.text.trim(),
-                                    answer: _answer.text.trim(),
+                                  await DatabaseService.instance.deleteLesson(
+                                    l.id,
                                   );
-                                  _title.clear();
-                                  _prompt.clear();
-                                  _answer.clear();
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('Lesson created'),
+                                        content: Text('Lesson deleted'),
                                       ),
                                     );
                                     setState(() {});
@@ -326,413 +743,22 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text('Create failed: $e'),
+                                        content: Text('Delete failed: $e'),
                                       ),
                                     );
-                                  }
-                                } finally {
-                                  if (mounted) {
-                                    setState(() => _creatingLesson = false);
                                   }
                                 }
                               },
-                        icon: _creatingLesson
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.add),
-                        label: const Text('Create/Edit Lesson'),
+                            ),
+                          ],
+                        ),
                       ),
+                      const Divider(height: 1),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Small screens: toggle; Large screens: split
-                  if (wide)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextField(
-                                controller: _title,
-                                decoration: const InputDecoration(
-                                  labelText: 'Title',
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: _prompt,
-                                minLines: 6,
-                                maxLines: 10,
-                                decoration: const InputDecoration(
-                                  labelText: 'Content (Markdown)',
-                                  alignLabelWithHint: true,
-                                  border: OutlineInputBorder(),
-                                ),
-                                onChanged: (_) => setState(() {}),
-                              ),
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: _answer,
-                                decoration: const InputDecoration(
-                                  labelText: 'Optional Answer',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed: () async {
-                                  final result = await FilePicker.platform
-                                      .pickFiles(
-                                        type: FileType.custom,
-                                        allowMultiple:
-                                            false, // Only allow 1 file
-                                        allowedExtensions: ['pdf'],
-                                      );
-                                  if (!context.mounted) return;
-                                  if (result != null) {
-                                    setState(() {
-                                      _selectedFiles = result.files;
-                                    });
-                                    final names = result.files
-                                        .map((f) => f.name)
-                                        .join(', ');
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          names.isEmpty
-                                              ? 'File selected'
-                                              : 'Selected: $names',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                                icon: const Icon(Icons.upload_file),
-                                label: const Text('Upload Document'),
-                              ),
-                              const SizedBox(height: 8),
-                              // Display selected files
-                              if (_selectedFiles.isNotEmpty)
-                                Container(
-                                  height: 120,
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: _selectedFiles.length,
-                                    itemBuilder: (context, index) {
-                                      final file = _selectedFiles[index];
-                                      return _buildFileItem(file, index);
-                                    },
-                                  ),
-                                ),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: MarkdownBody(
-                                    data: _prompt.text.isEmpty
-                                        ? '_Nothing to preview_'
-                                        : _prompt.text,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    )
-                  else ...[
-                    Row(
-                      children: [
-                        FilterChip(
-                          label: const Text('Edit'),
-                          selected: !_preview,
-                          onSelected: (_) => setState(() => _preview = false),
-                        ),
-                        const SizedBox(width: 8),
-                        FilterChip(
-                          label: const Text('Preview'),
-                          selected: _preview,
-                          onSelected: (_) => setState(() => _preview = true),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    _preview
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed: () async {
-                                  final result = await FilePicker.platform
-                                      .pickFiles(
-                                        type: FileType.custom,
-                                        allowMultiple:
-                                            false, // Only allow 1 file
-                                        allowedExtensions: ['pdf'],
-                                      );
-                                  if (!context.mounted) return;
-                                  if (result != null) {
-                                    setState(() {
-                                      _selectedFiles = result.files;
-                                    });
-                                    final names = result.files
-                                        .map((f) => f.name)
-                                        .join(', ');
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          names.isEmpty
-                                              ? 'File selected'
-                                              : 'Selected: $names',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                                icon: const Icon(Icons.upload_file),
-                                label: const Text('Upload Document'),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Supported: PDF. Selecting files does not upload them.',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                              // Display selected files
-                              if (_selectedFiles.isNotEmpty)
-                                Container(
-                                  height: 120,
-                                  margin: const EdgeInsets.only(
-                                    top: 8,
-                                    bottom: 8,
-                                  ),
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: _selectedFiles.length,
-                                    itemBuilder: (context, index) {
-                                      final file = _selectedFiles[index];
-                                      return _buildFileItem(file, index);
-                                    },
-                                  ),
-                                ),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: Colors.grey.shade300,
-                                  ),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: MarkdownBody(
-                                  data: _prompt.text.isEmpty
-                                      ? '_Nothing to preview_'
-                                      : _prompt.text,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextField(
-                                controller: _title,
-                                decoration: const InputDecoration(
-                                  labelText: 'Title',
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: _prompt,
-                                minLines: 6,
-                                maxLines: 10,
-                                decoration: const InputDecoration(
-                                  labelText: 'Content (Markdown)',
-                                  alignLabelWithHint: true,
-                                  border: OutlineInputBorder(),
-                                ),
-                                onChanged: (_) => setState(() {}),
-                              ),
-                              const SizedBox(height: 8),
-                              TextField(
-                                controller: _answer,
-                                decoration: const InputDecoration(
-                                  labelText: 'Optional Answer',
-                                ),
-                              ),
-                            ],
-                          ),
-                  ],
-                ],
+                  );
+                }, childCount: lessons.length),
               );
-              return editor;
             },
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: AppRepository.instance.watchLessons(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final lessons = snapshot.data!;
-                // map to lightweight objects for UI
-                final lessonItems = lessons
-                    .map(
-                      (m) => ({
-                        'id': m['id'] as String,
-                        'title': (m['title'] ?? '').toString(),
-                        'prompt': (m['prompt'] ?? '').toString(),
-                        'answer': (m['answer'] ?? '').toString(),
-                        'createdAt': m['createdAt'],
-                        'createdByUid': m['createdByUid'],
-                        'createdByEmail': m['createdByEmail'],
-                      }),
-                    )
-                    .toList();
-                if (lessons.isEmpty) {
-                  return const Center(child: Text('No lessons yet'));
-                }
-                return ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: lessons.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final lMap = lessonItems[index];
-                    final l = Lesson(
-                      id: lMap['id']!,
-                      title: lMap['title']!,
-                      prompt: lMap['prompt']!,
-                      answer: lMap['answer']!,
-                    );
-                    return ListTile(
-                      leading: Radio<String>(
-                        value: l.id,
-                        groupValue: _selectedLessonId,
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedLessonId = val;
-                            _selectedLesson = l;
-                            _title.text = l.title;
-                            _prompt.text = l.prompt;
-                            _answer.text = l.answer;
-                          });
-                        },
-                      ),
-                      title: Text(l.title),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l.prompt,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Builder(
-                            builder: (context) {
-                              final ts = lMap['createdAt'];
-                              final createdAtStr = ts is Timestamp
-                                  ? _fmt(ts)
-                                  : 'N/A';
-                              return Row(
-                                children: [
-                                  _AuthorName(
-                                    uid: lMap['createdByUid'] as String?,
-                                    fallbackEmail:
-                                        lMap['createdByEmail'] as String?,
-                                    small: true,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '• Created: $createdAtStr',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Delete Lesson'),
-                                  content: Text(
-                                    'Are you sure you want to delete "${l.title}"?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    FilledButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              if (confirm != true) return;
-                              try {
-                                await DatabaseService.instance.deleteLesson(
-                                  l.id,
-                                );
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Lesson deleted'),
-                                    ),
-                                  );
-                                  setState(() {});
-                                }
-                              } catch (e) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Delete failed: $e'),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -913,7 +939,62 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
   String _origTitle = '';
   String _origQuestion = '';
   String _origAnswer = '';
+  int _origMaxAttempts = 1;
+
+  final _maxAttemptsCtrl = TextEditingController(text: '1');
   List<PlatformFile> _selectedFiles = []; // Store selected files
+
+  // Widget to show results
+  void _showResults(String quizId, String title) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Results: $title'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: DatabaseService.instance.fetchQuizResults(quizId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final results = snapshot.data ?? [];
+                if (results.isEmpty) {
+                  return const Center(child: Text('No attempts recorded.'));
+                }
+                return ListView.separated(
+                  itemCount: results.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final r = results[index];
+                    final passed = r['completed'] == true;
+                    return ListTile(
+                      leading: Icon(
+                        passed ? Icons.check_circle : Icons.cancel,
+                        color: passed ? Colors.green : Colors.red,
+                      ),
+                      title: Text(r['username']),
+                      subtitle: Text(
+                        '${passed ? "Passed" : "Failed"} • Attempts: ${r['attemptsUsed']}',
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1004,6 +1085,15 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                     decoration: const InputDecoration(labelText: 'Answer'),
                     onChanged: (_) => setState(() {}),
                   ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _maxAttemptsCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Max Attempts',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
+                  ),
                 ],
               );
               final preview = Container(
@@ -1060,24 +1150,30 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                     _title.text.trim().isEmpty ||
                     _question.text.trim().isEmpty ||
                     _answer.text.trim().isEmpty ||
+                    _answer.text.trim().isEmpty ||
                     (_selectedQuizId != null &&
                         _title.text.trim() == _origTitle &&
                         _question.text.trim() == _origQuestion &&
-                        _answer.text.trim() == _origAnswer))
+                        _answer.text.trim() == _origAnswer &&
+                        (int.tryParse(_maxAttemptsCtrl.text) ?? 1) ==
+                            _origMaxAttempts))
                 ? null
                 : () async {
                     setState(() => _creatingOrUpdating = true);
                     try {
                       if (_title.text.trim().isEmpty) return;
+                      // Create or Update
                       if (_selectedQuizId == null) {
                         await DatabaseService.instance.createQuiz(
                           title: _title.text.trim(),
                           question: _question.text.trim(),
                           answer: _answer.text.trim(),
+                          maxAttempts: int.tryParse(_maxAttemptsCtrl.text) ?? 1,
                         );
                         _title.clear();
                         _question.clear();
                         _answer.clear();
+                        _maxAttemptsCtrl.text = '1';
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Quiz created')),
@@ -1089,6 +1185,7 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                           title: _title.text.trim(),
                           question: _question.text.trim(),
                           answer: _answer.text.trim(),
+                          maxAttempts: int.tryParse(_maxAttemptsCtrl.text),
                         );
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -1125,6 +1222,9 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                         'title': (m['title'] ?? '').toString(),
                         'question': (m['question'] ?? '').toString(),
                         'answer': (m['answer'] ?? '').toString(),
+                        'maxAttempts': (m['maxAttempts'] is String)
+                            ? (int.tryParse(m['maxAttempts'] as String) ?? 1)
+                            : (m['maxAttempts'] as num?)?.toInt() ?? 1,
                         'createdAt': m['createdAt'],
                         'createdByUid': m['createdByUid'],
                         'createdByEmail': m['createdByEmail'],
@@ -1139,19 +1239,40 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final q = items[index];
+                    final isSelected = _selectedQuizId == (q['id'] as String);
                     return ListTile(
-                      leading: Radio<String>(
-                        value: (q['id'] as String),
-                        groupValue: _selectedQuizId,
+                      leading: Checkbox(
+                        value: isSelected,
                         onChanged: (val) {
                           setState(() {
-                            _selectedQuizId = val;
-                            _title.text = (q['title'] ?? '').toString();
-                            _question.text = (q['question'] ?? '').toString();
-                            _answer.text = (q['answer'] ?? '').toString();
-                            _origTitle = (q['title'] ?? '').toString();
-                            _origQuestion = (q['question'] ?? '').toString();
-                            _origAnswer = (q['answer'] ?? '').toString();
+                            if (val == true) {
+                              _selectedQuizId = (q['id'] as String);
+                              _title.text = (q['title'] as String? ?? '');
+                              _question.text = (q['question'] as String? ?? '');
+                              _answer.text = (q['answer'] as String? ?? '');
+                              _maxAttemptsCtrl.text =
+                                  (q['maxAttempts'] as num?)
+                                      ?.toInt()
+                                      .toString() ??
+                                  '1';
+
+                              _origTitle = _title.text;
+                              _origQuestion = _question.text;
+                              _origAnswer = _answer.text;
+                              _origMaxAttempts =
+                                  int.tryParse(_maxAttemptsCtrl.text) ?? 1;
+                            } else {
+                              // Deselect
+                              _selectedQuizId = null;
+                              _title.clear();
+                              _question.clear();
+                              _answer.clear();
+                              _maxAttemptsCtrl.text = '1';
+                              _origTitle = '';
+                              _origQuestion = '';
+                              _origAnswer = '';
+                              _origMaxAttempts = 1;
+                            }
                           });
                         },
                       ),
@@ -1181,7 +1302,7 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '• Created: $createdAtStr',
+                                    '• Created: $createdAtStr • Max Attempts: ${q['maxAttempts']}',
                                     style: Theme.of(
                                       context,
                                     ).textTheme.bodySmall,
@@ -1192,44 +1313,58 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                           ),
                         ],
                       ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Delete Quiz'),
-                              content: Text(
-                                'Are you sure you want to delete "${(q['title'] ?? '').toString()}"?',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(context, false),
-                                  child: const Text('Cancel'),
-                                ),
-                                FilledButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: const Text('Delete'),
-                                ),
-                              ],
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.bar_chart),
+                            tooltip: 'View Results',
+                            onPressed: () => _showResults(
+                              q['id'] as String,
+                              (q['title'] ?? 'Quiz').toString(),
                             ),
-                          );
-                          if (confirm != true) return;
-                          await DatabaseService.instance.deleteQuiz(
-                            (q['id'] as String),
-                          );
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Quiz deleted')),
-                            );
-                          }
-                          setState(() {
-                            if (_selectedQuizId == (q['id'] as String)) {
-                              _selectedQuizId = null;
-                            }
-                          });
-                        },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Delete Quiz'),
+                                  content: Text(
+                                    'Are you sure you want to delete "${(q['title'] ?? '').toString()}"?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text('Delete'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm != true) return;
+                              await DatabaseService.instance.deleteQuiz(
+                                (q['id'] as String),
+                              );
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Quiz deleted')),
+                                );
+                              }
+                              setState(() {
+                                if (_selectedQuizId == (q['id'] as String)) {
+                                  _selectedQuizId = null;
+                                }
+                              });
+                            },
+                          ),
+                        ],
                       ),
                     );
                   },

@@ -85,6 +85,7 @@ class Quiz {
   final String title;
   final String question;
   final String answer;
+  final int maxAttempts;
   final Timestamp? createdAt;
   final String? createdByUid;
   final String? createdByEmail;
@@ -93,6 +94,7 @@ class Quiz {
     required this.title,
     required this.question,
     required this.answer,
+    this.maxAttempts = 1,
     this.createdAt,
     this.createdByUid,
     this.createdByEmail,
@@ -104,6 +106,7 @@ class Quiz {
       title: (d['title'] ?? '').toString(),
       question: (d['question'] ?? '').toString(),
       answer: (d['answer'] ?? '').toString(),
+      maxAttempts: (d['maxAttempts'] as num?)?.toInt() ?? 1,
       createdAt: d['createdAt'] as Timestamp?,
       createdByUid: (d['createdByUid'] ?? '') == ''
           ? null
@@ -216,12 +219,14 @@ class DatabaseService {
     required String title,
     required String question,
     required String answer,
+    int maxAttempts = 1,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     final doc = await _quizzes.add({
       'title': title,
       'question': question,
       'answer': answer,
+      'maxAttempts': maxAttempts,
       'createdAt': FieldValue.serverTimestamp(),
       'createdByUid': user?.uid,
       'createdByEmail': user?.email,
@@ -234,11 +239,13 @@ class DatabaseService {
     String? title,
     String? question,
     String? answer,
+    int? maxAttempts,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
     if (question != null) data['question'] = question;
     if (answer != null) data['answer'] = answer;
+    if (maxAttempts != null) data['maxAttempts'] = maxAttempts;
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
     }
@@ -253,23 +260,67 @@ class DatabaseService {
     return snap.docs.map(Quiz.fromDoc).toList();
   }
 
+  Future<List<Map<String, dynamic>>> fetchQuizResults(String quizId) async {
+    final usersSnap = await _firestore.collection('users').get();
+    final results = <Map<String, dynamic>>[];
+
+    for (final userDoc in usersSnap.docs) {
+      final userData = userDoc.data();
+      final progressDoc = await _userQuizProgress(userDoc.id).doc(quizId).get();
+
+      if (progressDoc.exists) {
+        final pData = progressDoc.data()!;
+        results.add({
+          'username': userData['username'] ?? userData['email'] ?? 'Unknown',
+          'email': userData['email'],
+          'uid': userDoc.id,
+          'isCorrect': pData['isCorrect'] == true,
+          'attemptsUsed': pData['attemptsUsed'] ?? 0,
+          'completed': pData['completed'] == true,
+        });
+      }
+    }
+    return results;
+  }
+
   Future<void> markQuizCompleted({
     required User user,
     required String quizId,
+    required bool isCorrect,
     String? answer,
   }) async {
-    await _userQuizProgress(user.uid).doc(quizId).set({
-      'completed': true,
-      'answer': answer,
-      'completedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    final docRef = _userQuizProgress(user.uid).doc(quizId);
+
+    // Use transaction/atomic update if precise attempt counting under race conditions matters,
+    // but for this simple app, FieldValue.increment is fine.
+
+    final updateData = <String, dynamic>{
+      'attemptsUsed': FieldValue.increment(1),
+      'lastAnswer': answer,
+      'lastAttemptAt': FieldValue.serverTimestamp(),
+    };
+
+    if (isCorrect) {
+      updateData['completed'] = true;
+      updateData['completedAt'] = FieldValue.serverTimestamp();
+      updateData['isCorrect'] = true;
+    }
+    // If not correct, we don't mark as completed or correct,
+    // but we still increment attempts (already done by increment).
+
+    await docRef.set(updateData, SetOptions(merge: true));
   }
 
-  Stream<Map<String, bool>> quizProgressStream(User user) {
+  Stream<Map<String, Map<String, dynamic>>> quizProgressStream(User user) {
     return _userQuizProgress(user.uid).snapshots().map((q) {
-      final map = <String, bool>{};
+      final map = <String, Map<String, dynamic>>{};
       for (final d in q.docs) {
-        map[d.id] = (d.data()['completed'] == true);
+        final data = d.data();
+        map[d.id] = {
+          'completed': data['completed'] == true,
+          'isCorrect': data['isCorrect'] == true,
+          'attemptsUsed': data['attemptsUsed'] ?? 0,
+        };
       }
       return map;
     });

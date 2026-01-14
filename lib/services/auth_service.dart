@@ -46,6 +46,7 @@ class AuthService {
         'status': 'ACTIVE',
         'subscription_status': 'NONE',
         'username': 'Firstname Lastname',
+        'photoUrl': '', // Initialize with empty photo URL
       }, SetOptions(merge: true));
     }
     return cred;

@@ -17,15 +17,25 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _tabIndex = 0; // 0=Lessons,1=Quizzes,2=Profile
 
+  // Key to access ProfilePage state
+  final _profileKey = GlobalKey<ProfilePageState>();
+
   @override
   Widget build(BuildContext context) {
     final user = widget.user;
     return Scaffold(
-      appBar: AppBar(title: const Text('Grammatica - Lessons')),
+      appBar: AppBar(
+        title: const Text('Grammatica - Lessons'),
+        automaticallyImplyLeading: false,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tabIndex,
         onDestinationSelected: (i) {
           setState(() => _tabIndex = i);
+          // If profile tab selected, fetch profile
+          if (i == 2) {
+            _profileKey.currentState?.fetchProfile();
+          }
         },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.menu_book), label: 'Lessons'),
@@ -36,13 +46,19 @@ class _HomePageState extends State<HomePage> {
           NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
-      body: IndexedStack(
-        index: _tabIndex,
-        children: [
-          _LessonsList(user: user),
-          QuizzesPage(user: user),
-          ProfilePage(user: user),
-        ],
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return IndexedStack(
+              index: _tabIndex,
+              children: [
+                _LessonsList(user: user),
+                QuizzesPage(user: user),
+                ProfilePage(key: _profileKey, user: user),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
