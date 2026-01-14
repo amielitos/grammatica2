@@ -1,1 +1,36 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"grammatica-68829","appId":"1:458713583940:android:a97bae985c314d3e03c711","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"grammatica-68829","configurations":{"android":"1:458713583940:android:a97bae985c314d3e03c711","web":"1:458713583940:web:eb2a02ce9949dd4903c711"}}}}}}
+{
+    "hosting": {
+        "public": "build/web",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**"
+        ],
+        "rewrites": [
+            {
+                "source": "**",
+                "destination": "/index.html"
+            }
+        ]
+    },
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "grammatica-68829",
+                    "appId": "1:458713583940:android:a97bae985c314d3e03c711",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "grammatica-68829",
+                    "configurations": {
+                        "android": "1:458713583940:android:a97bae985c314d3e03c711",
+                        "web": "1:458713583940:web:eb2a02ce9949dd4903c711"
+                    }
+                }
+            }
+        }
+    }
+}

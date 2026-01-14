@@ -79,11 +79,20 @@ class _AuthWrapper extends StatelessWidget {
               );
             }
             if (!userDocSnap.hasData || !(userDocSnap.data?.exists ?? false)) {
-              // User was removed from database; force sign out and show login
-              WidgetsBinding.instance.addPostFrameCallback((_) async {
-                await AuthService.instance.signOut();
-              });
-              return const LoginPage();
+              // Document creation might be in progress (race condition).
+              // Show loading instead of signing out immediately.
+              return const Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text("Setting up your account..."),
+                    ],
+                  ),
+                ),
+              );
             }
             return StreamBuilder<UserRole>(
               stream: RoleService.instance.roleStream(user.uid),
