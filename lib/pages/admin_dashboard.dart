@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/role_service.dart';
 import '../services/database_service.dart';
-import '../services/app_repository.dart';
+
 import '../services/auth_service.dart';
 import 'profile_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:grammatica/widgets/markdown_guide_button.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -448,6 +449,10 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                       ),
                                       onChanged: (_) => setState(() {}),
                                     ),
+                                    const Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: MarkdownGuideButton(),
+                                    ),
                                     const SizedBox(height: 8),
                                     TextField(
                                       controller: _answer,
@@ -544,6 +549,10 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                                       ),
                                       onChanged: (_) => setState(() {}),
                                     ),
+                                    const Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: MarkdownGuideButton(),
+                                    ),
                                     const SizedBox(height: 8),
                                     TextField(
                                       controller: _answer,
@@ -563,8 +572,8 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
               ],
             ),
           ),
-          StreamBuilder<List<Map<String, dynamic>>>(
-            stream: AppRepository.instance.watchLessons(),
+          StreamBuilder<List<Lesson>>(
+            stream: DatabaseService.instance.streamLessons(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
                 return const SliverToBoxAdapter(
@@ -572,22 +581,6 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                 );
               }
               final lessons = snapshot.data!;
-              // map to lightweight objects for UI
-              final lessonItems = lessons
-                  .map(
-                    (m) => ({
-                      'id': m['id'] as String,
-                      'title': (m['title'] ?? '').toString(),
-                      'prompt': (m['prompt'] ?? '').toString(),
-                      'answer': (m['answer'] ?? '').toString(),
-                      'createdAt': m['createdAt'],
-                      'createdByUid': m['createdByUid'],
-                      'createdByEmail': m['createdByEmail'],
-                      'attachmentUrl': (m['attachmentUrl'] ?? '').toString(),
-                      'attachmentName': (m['attachmentName'] ?? '').toString(),
-                    }),
-                  )
-                  .toList();
               if (lessons.isEmpty) {
                 return const SliverToBoxAdapter(
                   child: Center(child: Text('No lessons yet')),
@@ -595,15 +588,7 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
               }
               return SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
-                  final lMap = lessonItems[index];
-                  final l = Lesson(
-                    id: lMap['id']!,
-                    title: lMap['title']!,
-                    prompt: lMap['prompt']!,
-                    answer: lMap['answer']!,
-                    attachmentUrl: lMap['attachmentUrl'],
-                    attachmentName: lMap['attachmentName'],
-                  );
+                  final l = lessons[index];
                   return Column(
                     children: [
                       ListTile(
@@ -665,16 +650,15 @@ class _AdminLessonsTabState extends State<_AdminLessonsTab> {
                             const SizedBox(height: 4),
                             Builder(
                               builder: (context) {
-                                final ts = lMap['createdAt'];
-                                final createdAtStr = ts is Timestamp
+                                final ts = l.createdAt;
+                                final createdAtStr = ts != null
                                     ? _fmt(ts)
                                     : 'N/A';
                                 return Row(
                                   children: [
                                     _AuthorName(
-                                      uid: lMap['createdByUid'] as String?,
-                                      fallbackEmail:
-                                          lMap['createdByEmail'] as String?,
+                                      uid: l.createdByUid,
+                                      fallbackEmail: l.createdByEmail,
                                       small: true,
                                     ),
                                     const SizedBox(width: 8),
@@ -1162,6 +1146,10 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                     ),
                     onChanged: (_) => setState(() {}),
                   ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: MarkdownGuideButton(),
+                  ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _answer,
@@ -1335,32 +1323,13 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: AppRepository.instance.watchQuizzes(),
+            child: StreamBuilder<List<Quiz>>(
+              stream: DatabaseService.instance.streamQuizzes(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final itemsRaw = snapshot.data!;
-                final items = itemsRaw
-                    .map(
-                      (m) => ({
-                        'id': m['id'] as String,
-                        'title': (m['title'] ?? '').toString(),
-                        'question': (m['question'] ?? '').toString(),
-                        'answer': (m['answer'] ?? '').toString(),
-                        'maxAttempts': (m['maxAttempts'] is String)
-                            ? (int.tryParse(m['maxAttempts'] as String) ?? 1)
-                            : (m['maxAttempts'] as num?)?.toInt() ?? 1,
-                        'createdAt': m['createdAt'],
-                        'createdByUid': m['createdByUid'],
-                        'createdByEmail': m['createdByEmail'],
-                        'attachmentUrl': (m['attachmentUrl'] ?? '').toString(),
-                        'attachmentName': (m['attachmentName'] ?? '')
-                            .toString(),
-                      }),
-                    )
-                    .toList();
+                final items = snapshot.data!;
                 if (items.isEmpty) {
                   return const Center(child: Text('No quizzes yet'));
                 }
@@ -1369,33 +1338,26 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final q = items[index];
-                    final isSelected = _selectedQuizId == (q['id'] as String);
+                    final isSelected = _selectedQuizId == q.id;
                     return ListTile(
                       leading: Checkbox(
                         value: isSelected,
                         onChanged: (val) {
                           setState(() {
                             if (val == true) {
-                              _selectedQuizId = (q['id'] as String);
-                              _title.text = (q['title'] as String? ?? '');
-                              _question.text = (q['question'] as String? ?? '');
-                              _answer.text = (q['answer'] as String? ?? '');
-                              _maxAttemptsCtrl.text =
-                                  (q['maxAttempts'] as num?)
-                                      ?.toInt()
-                                      .toString() ??
-                                  '1';
+                              _selectedQuizId = q.id;
+                              _title.text = q.title;
+                              _question.text = q.question;
+                              _answer.text = q.answer;
+                              _maxAttemptsCtrl.text = q.maxAttempts.toString();
 
-                              _currentAttachmentName =
-                                  (q['attachmentName'] as String?);
-                              _currentAttachmentUrl =
-                                  (q['attachmentUrl'] as String?);
+                              _currentAttachmentName = q.attachmentName;
+                              _currentAttachmentUrl = q.attachmentUrl;
 
                               _origTitle = _title.text;
                               _origQuestion = _question.text;
                               _origAnswer = _answer.text;
-                              _origMaxAttempts =
-                                  int.tryParse(_maxAttemptsCtrl.text) ?? 1;
+                              _origMaxAttempts = q.maxAttempts;
                             } else {
                               // Deselect
                               _selectedQuizId = null;
@@ -1414,17 +1376,17 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                           });
                         },
                       ),
-                      title: Text((q['title'] as String? ?? '')),
+                      title: Text(q.title),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            (q['question'] ?? '').toString(),
+                            q.question,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (q['attachmentName'] != null &&
-                              (q['attachmentName'] as String).isNotEmpty)
+                          if (q.attachmentName != null &&
+                              q.attachmentName!.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 4.0),
                               child: Row(
@@ -1436,7 +1398,7 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    q['attachmentName'] as String,
+                                    q.attachmentName!,
                                     style: Theme.of(
                                       context,
                                     ).textTheme.bodySmall,
@@ -1447,21 +1409,20 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                           const SizedBox(height: 4),
                           Builder(
                             builder: (context) {
-                              final ts = q['createdAt'];
-                              final createdAtStr = ts is Timestamp
+                              final ts = q.createdAt;
+                              final createdAtStr = ts != null
                                   ? _fmt(ts)
                                   : 'N/A';
                               return Row(
                                 children: [
                                   _AuthorName(
-                                    uid: q['createdByUid'] as String?,
-                                    fallbackEmail:
-                                        q['createdByEmail'] as String?,
+                                    uid: q.createdByUid,
+                                    fallbackEmail: q.createdByEmail,
                                     small: true,
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '• Created: $createdAtStr • Max Attempts: ${q['maxAttempts']}',
+                                    '• Created: $createdAtStr • Max Attempts: ${q.maxAttempts}',
                                     style: Theme.of(
                                       context,
                                     ).textTheme.bodySmall,
@@ -1478,10 +1439,7 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                           IconButton(
                             icon: const Icon(Icons.bar_chart),
                             tooltip: 'View Results',
-                            onPressed: () => _showResults(
-                              q['id'] as String,
-                              (q['title'] ?? 'Quiz').toString(),
-                            ),
+                            onPressed: () => _showResults(q.id, q.title),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete),
@@ -1491,7 +1449,7 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                                 builder: (context) => AlertDialog(
                                   title: const Text('Delete Quiz'),
                                   content: Text(
-                                    'Are you sure you want to delete "${(q['title'] ?? '').toString()}"?',
+                                    'Are you sure you want to delete "${q.title}"?',
                                   ),
                                   actions: [
                                     TextButton(
@@ -1508,16 +1466,14 @@ class _AdminQuizzesTabState extends State<_AdminQuizzesTab> {
                                 ),
                               );
                               if (confirm != true) return;
-                              await DatabaseService.instance.deleteQuiz(
-                                (q['id'] as String),
-                              );
+                              await DatabaseService.instance.deleteQuiz(q.id);
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('Quiz deleted')),
                                 );
                               }
                               setState(() {
-                                if (_selectedQuizId == (q['id'] as String)) {
+                                if (_selectedQuizId == q.id) {
                                   _selectedQuizId = null;
                                 }
                               });

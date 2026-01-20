@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/role_service.dart';
 import 'lesson_page.dart';
 import 'quizzes_page.dart';
 import 'profile_page.dart';
@@ -104,11 +105,22 @@ class _LessonsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Lesson>>(
-      future: DatabaseService.instance.fetchLessons(),
+    return StreamBuilder<List<Lesson>>(
+      stream: DatabaseService.instance.streamLessons(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error loading lessons: ${snapshot.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('No lessons available.'));
         }
         final lessons = snapshot.data!;
         return StreamBuilder<Map<String, bool>>(

@@ -193,24 +193,18 @@ class DatabaseService {
     return Lesson.fromDoc(doc);
   }
 
-  Future<void> _seedPlaceholderIfEmpty() async {
-    final count = await _lessons.limit(1).get();
-    if (count.size == 0) {
-      await _lessons.add({
-        'title': 'Sample: Articles',
-        'prompt': 'Fill in: __ apple a day keeps __ doctor away.',
-        'answer': 'An the',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
-  }
-
   Future<List<Lesson>> fetchLessons() async {
-    await _seedPlaceholderIfEmpty();
     final snapshot = await _lessons
         .orderBy('createdAt', descending: false)
         .get();
     return snapshot.docs.map(Lesson.fromDoc).toList();
+  }
+
+  Stream<List<Lesson>> streamLessons() {
+    return _lessons
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(Lesson.fromDoc).toList());
   }
 
   Stream<Map<String, bool>> progressStream(User user) {
@@ -282,6 +276,13 @@ class DatabaseService {
   Future<List<Quiz>> fetchQuizzes() async {
     final snap = await _quizzes.orderBy('createdAt', descending: false).get();
     return snap.docs.map(Quiz.fromDoc).toList();
+  }
+
+  Stream<List<Quiz>> streamQuizzes() {
+    return _quizzes
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(Quiz.fromDoc).toList());
   }
 
   Future<List<Map<String, dynamic>>> fetchQuizResults(String quizId) async {

@@ -3,24 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'quiz_detail_page.dart';
+import '../services/role_service.dart';
 import '../utils/responsive_layout.dart';
 
-class QuizzesPage extends StatefulWidget {
+class QuizzesPage extends StatelessWidget {
   final User user;
   const QuizzesPage({super.key, required this.user});
-
-  @override
-  State<QuizzesPage> createState() => _QuizzesPageState();
-}
-
-class _QuizzesPageState extends State<QuizzesPage> {
-  late Future<List<Quiz>> _quizzesFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _quizzesFuture = DatabaseService.instance.fetchQuizzes();
-  }
 
   // Author name helper
   Widget _authorName({
@@ -60,18 +48,26 @@ class _QuizzesPageState extends State<QuizzesPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Grammatica - Quizzes')),
       body: ResponsiveContainer(
-        child: FutureBuilder<List<Quiz>>(
-          future: _quizzesFuture,
+        child: StreamBuilder<List<Quiz>>(
+          stream: DatabaseService.instance.streamQuizzes(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Error loading quizzes: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              );
             }
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Center(child: Text('No quizzes available.'));
             }
             final quizzes = snapshot.data!;
             return StreamBuilder<Map<String, Map<String, dynamic>>>(
-              stream: DatabaseService.instance.quizProgressStream(widget.user),
+              stream: DatabaseService.instance.quizProgressStream(user),
               builder: (context, progSnap) {
                 final progress = progSnap.data ?? const {};
                 return ListView.separated(
@@ -151,8 +147,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
                           : null,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) =>
-                              QuizDetailPage(user: widget.user, quiz: q),
+                          builder: (_) => QuizDetailPage(user: user, quiz: q),
                         ),
                       ),
                     );
