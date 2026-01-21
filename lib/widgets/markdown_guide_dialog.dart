@@ -1,84 +1,100 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'rainbow_background.dart';
 
 class MarkdownGuideDialog extends StatelessWidget {
   const MarkdownGuideDialog({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Markdown Guide'),
-      content: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Use Markdown to format your text:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _buildGuideItem(
-              title: 'Headers',
-              syntax: '# Header 1\n## Header 2',
-              description: 'Use # for headers.',
-            ),
-            _buildGuideItem(
-              title: 'Bold',
-              syntax: '**bold text**',
-              description: 'Wrap text in double asterisks.',
-            ),
-            _buildGuideItem(
-              title: 'Italic',
-              syntax: '*italic text*',
-              description: 'Wrap text in single asterisks.',
-            ),
-            _buildGuideItem(
-              title: 'Lists',
-              syntax: '- Item 1\n- Item 2',
-              description: 'Use hyphens for bullet points.',
-            ),
-            _buildGuideItem(
-              title: 'Numbered Lists',
-              syntax: '1. Item 1\n2. Item 2',
-              description: 'Use numbers followed by a period.',
-            ),
-            _buildGuideItem(
-              title: 'Links',
-              syntax: '[Link Text](url)',
-              description: 'Square brackets for text, parentheses for URL.',
-            ),
-            _buildGuideItem(
-              title: 'Code Block',
-              syntax: '```\ncode here\n```',
-              description: 'Use triple backticks for code blocks.',
-            ),
-            _buildGuideItem(
-              title: 'Inline Code',
-              syntax: '`code`',
-              description: 'Use single backtick for inline code.',
-            ),
-            _buildGuideItem(
-              title: 'Blockquote',
-              syntax: '> Quote',
-              description: 'Use > for blockquotes.',
-            ),
-          ],
+    return RainbowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('Markdown Guide'),
+          leading: IconButton(
+            icon: const Icon(CupertinoIcons.xmark),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Use Markdown to format your text:',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 24),
+              _buildGuideItem(
+                context,
+                title: 'Headers',
+                syntax: '# Header 1\n## Header 2',
+                description: 'Use # for headers.',
+              ),
+              _buildGuideItem(
+                context,
+                title: 'Bold',
+                syntax: '**bold text**',
+                description: 'Wrap text in double asterisks.',
+              ),
+              _buildGuideItem(
+                context,
+                title: 'Italic',
+                syntax: '*italic text*',
+                description: 'Wrap text in single asterisks.',
+              ),
+              _buildGuideItem(
+                context,
+                title: 'Lists',
+                syntax: '- Item 1\n- Item 2',
+                description: 'Use hyphens for bullet points.',
+              ),
+              _buildGuideItem(
+                context,
+                title: 'Numbered Lists',
+                syntax: '1. Item 1\n2. Item 2',
+                description: 'Use numbers followed by a period.',
+              ),
+              _buildGuideItem(
+                context,
+                title: 'Links',
+                syntax: '[Link Text](url)',
+                description: 'Square brackets for text, parentheses for URL.',
+              ),
+              _buildGuideItem(
+                context,
+                title: 'Code Block',
+                syntax: '```\ncode here\n```',
+                description: 'Use triple backticks for code blocks.',
+              ),
+              _buildGuideItem(
+                context,
+                title: 'Inline Code',
+                syntax: '`code`',
+                description: 'Use single backtick for inline code.',
+              ),
+              _buildGuideItem(
+                context,
+                title: 'Blockquote',
+                syntax: '> Quote',
+                description: 'Use > for blockquotes.',
+              ),
+            ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
-        ),
-      ],
     );
   }
 
-  Widget _buildGuideItem({
+  Widget _buildGuideItem(
+    BuildContext context, {
     required String title,
     required String syntax,
     required String description,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Column(
@@ -90,16 +106,20 @@ class MarkdownGuideDialog extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey[300]!),
+              color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withOpacity(0.1)
+                    : Colors.grey[300]!,
+              ),
             ),
             child: Text(
               syntax,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 13,
-                color: Colors.black87,
+                fontSize: 14,
+                color: isDark ? Colors.white.withOpacity(0.9) : Colors.black87,
               ),
             ),
           ),

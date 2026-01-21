@@ -6,6 +6,8 @@ import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'services/role_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'theme/app_theme.dart';
+import 'widgets/rainbow_background.dart';
 
 // Pages
 import 'pages/login_page.dart';
@@ -19,34 +21,29 @@ void main() async {
   runApp(const GrammaticaApp());
 }
 
+final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.light);
+
 class GrammaticaApp extends StatelessWidget {
   const GrammaticaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Grammatica',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF2E7D32)),
-        useMaterial3: true,
-      ),
-      builder: (context, child) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return OrientationBuilder(
-              builder: (context, orientation) {
-                return child!;
-              },
-            );
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, currentMode, _) {
+        return MaterialApp(
+          title: 'Grammatica',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: currentMode,
+          initialRoute: '/',
+          routes: {
+            '/': (context) => _AuthWrapper(),
+            '/login': (context) => const LoginPage(),
+            '/register': (context) => const SignupPage(),
           },
         );
-      },
-      initialRoute: '/',
-      routes: {
-        '/': (context) => _AuthWrapper(),
-        '/login': (context) => const LoginPage(),
-        '/register': (context) => const SignupPage(),
       },
     );
   }
@@ -59,8 +56,11 @@ class _AuthWrapper extends StatelessWidget {
       stream: AuthService.instance.authStateChanges(),
       builder: (context, authSnap) {
         if (authSnap.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+          return const RainbowBackground(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: Center(child: CircularProgressIndicator()),
+            ),
           );
         }
         final user = authSnap.data;
@@ -74,22 +74,28 @@ class _AuthWrapper extends StatelessWidget {
               .snapshots(),
           builder: (context, userDocSnap) {
             if (userDocSnap.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
+              return const RainbowBackground(
+                child: Scaffold(
+                  backgroundColor: Colors.transparent,
+                  body: Center(child: CircularProgressIndicator()),
+                ),
               );
             }
             if (!userDocSnap.hasData || !(userDocSnap.data?.exists ?? false)) {
               // Document creation might be in progress (race condition).
               // Show loading instead of signing out immediately.
-              return const Scaffold(
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text("Setting up your account..."),
-                    ],
+              return const RainbowBackground(
+                child: Scaffold(
+                  backgroundColor: Colors.transparent,
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text("Setting up your account..."),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -98,8 +104,11 @@ class _AuthWrapper extends StatelessWidget {
               stream: RoleService.instance.roleStream(user.uid),
               builder: (context, roleSnap) {
                 if (!roleSnap.hasData) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
+                  return const RainbowBackground(
+                    child: Scaffold(
+                      backgroundColor: Colors.transparent,
+                      body: Center(child: CircularProgressIndicator()),
+                    ),
                   );
                 }
                 final role = roleSnap.data!;

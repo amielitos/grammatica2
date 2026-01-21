@@ -3,7 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import '../utils/responsive_layout.dart';
+import '../widgets/rainbow_background.dart';
+import '../widgets/glass_card.dart';
 
 class LessonPage extends StatefulWidget {
   final User user;
@@ -59,33 +60,49 @@ class _LessonPageState extends State<LessonPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(_lesson.title)),
-      body: ResponsiveContainer(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                _authorName(
-                  uid: _lesson.createdByUid,
-                  fallbackEmail: _lesson.createdByEmail,
-                  style: Theme.of(context).textTheme.bodySmall,
+    return RainbowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(_lesson.title),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: GlassCard(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _authorName(
+                          uid: _lesson.createdByUid,
+                          fallbackEmail: _lesson.createdByEmail,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '• Created: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    MarkdownBody(
+                      data: _lesson.prompt.isEmpty
+                          ? '_No content_'
+                          : _lesson.prompt,
+                      selectable: true,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  '• Created: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: MarkdownBody(
-                data: _lesson.prompt.isEmpty ? '_No content_' : _lesson.prompt,
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

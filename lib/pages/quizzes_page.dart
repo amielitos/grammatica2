@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'quiz_detail_page.dart';
-import '../services/role_service.dart';
-import '../utils/responsive_layout.dart';
+import '../widgets/rainbow_background.dart';
+import '../widgets/glass_card.dart';
+import '../theme/app_colors.dart';
 
 class QuizzesPage extends StatelessWidget {
   final User user;
@@ -45,10 +47,15 @@ class QuizzesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Grammatica - Quizzes')),
-      body: ResponsiveContainer(
-        child: StreamBuilder<List<Quiz>>(
+    return RainbowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('Grammatica - Quizzes'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: StreamBuilder<List<Quiz>>(
           stream: DatabaseService.instance.streamQuizzes(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -71,8 +78,9 @@ class QuizzesPage extends StatelessWidget {
               builder: (context, progSnap) {
                 final progress = progSnap.data ?? const {};
                 return ListView.separated(
+                  padding: const EdgeInsets.all(16),
                   itemCount: quizzes.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final q = quizzes[index];
                     final progData = progress[q.id];
@@ -80,74 +88,103 @@ class QuizzesPage extends StatelessWidget {
                     final isCorrect = progData?['isCorrect'] == true;
                     final attempts = (progData?['attemptsUsed'] as int?) ?? 0;
                     final max = q.maxAttempts;
+                    final rainbowColor = AppColors.rainbow.elementAt(index);
 
                     bool failed = !isCorrect && attempts >= max;
 
                     String createdAtStr = q.createdAt != null
                         ? _fmt(q.createdAt!)
                         : 'N/A';
-                    return ListTile(
-                      title: Text(q.title),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: _authorName(
-                                  uid: q.createdByUid,
-                                  fallbackEmail: q.createdByEmail,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Text('Created: $createdAtStr'),
-                        ],
-                      ),
-                      trailing: completed
-                          ? Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.green),
-                              ),
-                              child: const Text(
-                                'Passed',
-                                style: TextStyle(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            )
-                          : failed
-                          ? Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.red),
-                              ),
-                              child: const Text(
-                                'Failed',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            )
-                          : null,
+
+                    return GlassCard(
+                      backgroundColor: rainbowColor,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => QuizDetailPage(user: user, quiz: q),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(
+                          4.0,
+                        ), // Inner padding for list tile
+                        child: ListTile(
+                          title: Text(
+                            q.title,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: _authorName(
+                                      uid: q.createdByUid,
+                                      fallbackEmail: q.createdByEmail,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'Created: $createdAtStr',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (completed)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.green),
+                                  ),
+                                  child: const Text(
+                                    'Passed',
+                                    style: TextStyle(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                )
+                              else if (failed)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.red),
+                                  ),
+                                  child: const Text(
+                                    'Failed',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  CupertinoIcons.chevron_right,
+                                  color: Colors.grey[400],
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     );
