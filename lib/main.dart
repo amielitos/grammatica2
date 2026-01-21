@@ -101,7 +101,7 @@ class _AuthWrapper extends StatelessWidget {
                   );
                 }
                 final role = roleSnap.data!;
-                if (role == UserRole.admin) {
+                if (role == UserRole.admin || role == UserRole.educator) {
                   return const AdminDashboard();
                 }
                 return HomePage(user: user);

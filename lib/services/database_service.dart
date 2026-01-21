@@ -53,6 +53,7 @@ class Lesson {
   final String? createdByEmail;
   final String? attachmentUrl;
   final String? attachmentName;
+  final String validationStatus; // 'approved', 'awaiting_approval'
 
   Lesson({
     required this.id,
@@ -64,6 +65,7 @@ class Lesson {
     this.createdByEmail,
     this.attachmentUrl,
     this.attachmentName,
+    this.validationStatus = 'approved',
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -82,6 +84,7 @@ class Lesson {
           : (data['createdByEmail'] as String?),
       attachmentUrl: (data['attachmentUrl'] ?? '').toString(),
       attachmentName: (data['attachmentName'] ?? '').toString(),
+      validationStatus: (data['validationStatus'] ?? 'approved').toString(),
     );
   }
 }
@@ -97,6 +100,8 @@ class Quiz {
   final String? createdByEmail;
   final String? attachmentUrl;
   final String? attachmentName;
+  final String validationStatus; // 'approved', 'awaiting_approval'
+
   Quiz({
     required this.id,
     required this.title,
@@ -108,6 +113,7 @@ class Quiz {
     this.createdByEmail,
     this.attachmentUrl,
     this.attachmentName,
+    this.validationStatus = 'approved',
   });
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
@@ -126,6 +132,7 @@ class Quiz {
           : (d['createdByEmail'] as String?),
       attachmentUrl: (d['attachmentUrl'] ?? '').toString(),
       attachmentName: (d['attachmentName'] ?? '').toString(),
+      validationStatus: (d['validationStatus'] ?? 'approved').toString(),
     );
   }
 }
@@ -153,6 +160,16 @@ class DatabaseService {
     String? attachmentName,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
+    // Determine initial status based on role
+    String status = 'approved';
+    if (user != null) {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final role = doc.data()?['role'];
+      if (role == 'EDUCATOR') {
+        status = 'awaiting_approval';
+      }
+    }
+
     final doc = await _lessons.add({
       'title': title,
       'prompt': prompt,
@@ -160,6 +177,9 @@ class DatabaseService {
       'createdAt': FieldValue.serverTimestamp(),
       'createdByUid': user?.uid,
       'createdByEmail': user?.email,
+      'validationStatus': status,
+      'attachmentUrl': attachmentUrl,
+      'attachmentName': attachmentName,
     });
     return doc.id;
   }
@@ -200,11 +220,32 @@ class DatabaseService {
     return snapshot.docs.map(Lesson.fromDoc).toList();
   }
 
-  Stream<List<Lesson>> streamLessons() {
+  Stream<List<Lesson>> streamLessons({bool approvedOnly = true}) {
+    // We order by createdAt. To avoid composite index requirements and support
+    // legacy content (without validationStatus), we filter in Dart.
+    return _lessons.orderBy('createdAt', descending: false).snapshots().map((
+      snapshot,
+    ) {
+      final lessons = snapshot.docs.map(Lesson.fromDoc).toList();
+      if (approvedOnly) {
+        return lessons
+            .where((l) => l.validationStatus != 'awaiting_approval')
+            .toList();
+      }
+      return lessons;
+    });
+  }
+
+  Stream<List<Lesson>> streamAwaitingApprovalLessons() {
     return _lessons
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(Lesson.fromDoc).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(Lesson.fromDoc)
+              .where((l) => l.validationStatus == 'awaiting_approval')
+              .toList(),
+        );
   }
 
   Stream<Map<String, bool>> progressStream(User user) {
@@ -236,6 +277,16 @@ class DatabaseService {
     String? attachmentName,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
+    // Determine initial status based on role
+    String status = 'approved';
+    if (user != null) {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final role = doc.data()?['role'];
+      if (role == 'EDUCATOR') {
+        status = 'awaiting_approval';
+      }
+    }
+
     final doc = await _quizzes.add({
       'title': title,
       'question': question,
@@ -244,6 +295,9 @@ class DatabaseService {
       'createdAt': FieldValue.serverTimestamp(),
       'createdByUid': user?.uid,
       'createdByEmail': user?.email,
+      'validationStatus': status,
+      'attachmentUrl': attachmentUrl,
+      'attachmentName': attachmentName,
     });
     return doc.id;
   }
@@ -278,11 +332,42 @@ class DatabaseService {
     return snap.docs.map(Quiz.fromDoc).toList();
   }
 
-  Stream<List<Quiz>> streamQuizzes() {
+  Stream<List<Quiz>> streamQuizzes({bool approvedOnly = true}) {
+    // To avoid composite index requirements and support legacy content,
+    // we filter out awaiting_approval docs in Dart.
+    return _quizzes.orderBy('createdAt', descending: false).snapshots().map((
+      snapshot,
+    ) {
+      final quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
+      if (approvedOnly) {
+        return quizzes
+            .where((q) => q.validationStatus != 'awaiting_approval')
+            .toList();
+      }
+      return quizzes;
+    });
+  }
+
+  Stream<List<Quiz>> streamAwaitingApprovalQuizzes() {
     return _quizzes
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(Quiz.fromDoc).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(Quiz.fromDoc)
+              .where((q) => q.validationStatus == 'awaiting_approval')
+              .toList(),
+        );
+  }
+
+  Future<void> updateContentStatus(
+    String collection,
+    String id,
+    String status,
+  ) async {
+    await _firestore.collection(collection).doc(id).update({
+      'validationStatus': status,
+    });
   }
 
   Future<List<Map<String, dynamic>>> fetchQuizResults(String quizId) async {

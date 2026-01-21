@@ -7,6 +7,8 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../widgets/markdown_guide_button.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/glass_card.dart';
+import '../../services/auth_service.dart';
+import '../../services/role_service.dart';
 
 class AdminLessonsTab extends StatefulWidget {
   const AdminLessonsTab({super.key});
@@ -123,7 +125,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
 
           // List of Lessons
           StreamBuilder<List<Lesson>>(
-            stream: DatabaseService.instance.streamLessons(),
+            stream: DatabaseService.instance.streamLessons(approvedOnly: false),
             builder: (context, snapshot) {
               if (!snapshot.hasData)
                 return const Center(child: CircularProgressIndicator());
@@ -141,89 +143,165 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                   final isSelected = _selectedLessonId == l.id;
                   final color = AppColors.primaryGreen;
 
-                  return GlassCard(
-                    onTap: () {
-                      setState(() {
-                        if (isSelected) {
-                          _resetForm();
-                        } else {
-                          _selectedLessonId = l.id;
-                          _selectedLesson = l;
-                          _title.text = l.title;
-                          _prompt.text = l.prompt;
-                          _selectedFiles = [];
-                        }
-                      });
-                    },
-                    backgroundColor: isSelected ? color : null,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: color,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                l.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                  final currentUser = AuthService.instance.currentUser;
+                  return StreamBuilder<UserRole>(
+                    stream: currentUser != null
+                        ? RoleService.instance.roleStream(currentUser.uid)
+                        : null,
+                    builder: (context, roleSnap) {
+                      final role = roleSnap.data;
+                      final isOwner = l.createdByUid == currentUser?.uid;
+                      final isAdmin = role == UserRole.admin;
+                      final canEdit = isAdmin || isOwner;
+                      final isPending =
+                          l.validationStatus == 'awaiting_approval';
+
+                      return GlassCard(
+                        onTap: () {
+                          if (!canEdit) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'You can only edit your own lessons.',
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                l.prompt,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                            );
+                            return;
+                          }
+                          setState(() {
+                            if (isSelected) {
+                              _resetForm();
+                            } else {
+                              _selectedLessonId = l.id;
+                              _selectedLesson = l;
+                              _title.text = l.title;
+                              _prompt.text = l.prompt;
+                              _selectedFiles = [];
+                            }
+                          });
+                        },
+                        backgroundColor: isSelected
+                            ? color
+                            : (!canEdit ? Colors.grey.withOpacity(0.05) : null),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 4,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: isPending ? Colors.orange : color,
+                                borderRadius: BorderRadius.circular(4),
                               ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 12,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (l.attachmentName != null &&
-                                      l.attachmentName!.isNotEmpty)
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          CupertinoIcons.paperclip,
-                                          size: 14,
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          l.title,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: !canEdit
+                                                ? Colors.grey
+                                                : null,
+                                          ),
                                         ),
-                                        const SizedBox(width: 4),
+                                      ),
+                                      if (isPending)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.withOpacity(
+                                              0.2,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.orange.withOpacity(
+                                                0.5,
+                                              ),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Awaiting Approval',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.orange,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    l.prompt,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: !canEdit ? Colors.grey : null,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 12,
+                                    children: [
+                                      if (l.attachmentName != null &&
+                                          l.attachmentName!.isNotEmpty)
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              CupertinoIcons.paperclip,
+                                              size: 14,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              l.attachmentName!,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                            ),
+                                          ],
+                                        ),
+                                      Text(
+                                        'Created: ${_fmt(l.createdAt ?? Timestamp.now())}',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodySmall,
+                                      ),
+                                      if (l.createdByEmail != null)
                                         Text(
-                                          l.attachmentName!,
+                                          'By: ${l.createdByEmail}',
                                           style: Theme.of(
                                             context,
                                           ).textTheme.bodySmall,
                                         ),
-                                      ],
-                                    ),
-                                  Text(
-                                    'Created: ${_fmt(l.createdAt ?? Timestamp.now())}',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
+                            ),
+                            if (canEdit)
+                              IconButton(
+                                icon: const Icon(CupertinoIcons.trash),
+                                color: Colors.red[300],
+                                onPressed: () => _deleteLesson(l),
+                              ),
+                          ],
                         ),
-                        IconButton(
-                          icon: const Icon(CupertinoIcons.trash),
-                          color: Colors.red[300],
-                          onPressed: () => _deleteLesson(l),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
               );
@@ -372,10 +450,19 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
         );
-        if (mounted)
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Lesson created')));
+        if (mounted) {
+          final role = await RoleService.instance.getRole(
+            AuthService.instance.currentUser?.uid ?? '',
+          );
+          final isEducator = role == UserRole.educator;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isEducator ? 'Lesson submitted for approval' : 'Lesson created',
+              ),
+            ),
+          );
+        }
       } else {
         await DatabaseService.instance.updateLesson(
           id: _selectedLessonId!,
