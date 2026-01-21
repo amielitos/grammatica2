@@ -25,16 +25,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // [x] Align Learner Dark Mode background with Admin (Black background)
-    //   [x] Update `AppTheme` to use `backgroundDark` for Scaffolds in dark mode, but keep Salmon for light mode
-    //   [ ] Verify `ProfilePage` and `QuizzesPage` background behavior
-    // [/] Align Admin Bottom Navigation with Learner design
-    //   [/] Extract Learner Navigation design into a reusable widget or identify the pattern
-    //   [ ] Update `AdminDashboard` to use the modern-circular centered navigation
-    //   [ ] Ensure the navigation width wraps to content
     final user = widget.user;
     return Scaffold(
-      backgroundColor: Colors.transparent,
       extendBody: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,

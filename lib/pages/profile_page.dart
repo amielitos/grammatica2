@@ -137,6 +137,7 @@ class ProfilePageState extends State<ProfilePage> {
         if (roleSnap.connectionState == ConnectionState.waiting ||
             !roleSnap.hasData) {
           return const Scaffold(
+            backgroundColor: Colors.transparent,
             body: Center(child: CircularProgressIndicator()),
           );
         }
