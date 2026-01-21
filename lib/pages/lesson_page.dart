@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import '../widgets/rainbow_background.dart';
 import '../widgets/glass_card.dart';
 
 class LessonPage extends StatefulWidget {
@@ -60,46 +59,44 @@ class _LessonPageState extends State<LessonPage> {
 
   @override
   Widget build(BuildContext context) {
-    return RainbowBackground(
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Grammatica'),
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: Text(_lesson.title),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: GlassCard(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        _authorName(
-                          uid: _lesson.createdByUid,
-                          fallbackEmail: _lesson.createdByEmail,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '• Created: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    MarkdownBody(
-                      data: _lesson.prompt.isEmpty
-                          ? '_No content_'
-                          : _lesson.prompt,
-                      selectable: true,
-                    ),
-                  ],
-                ),
+        elevation: 0,
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: GlassCard(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _authorName(
+                        uid: _lesson.createdByUid,
+                        fallbackEmail: _lesson.createdByEmail,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '• Created: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  MarkdownBody(
+                    data: _lesson.prompt.isEmpty
+                        ? '_No content_'
+                        : _lesson.prompt,
+                    selectable: true,
+                  ),
+                ],
               ),
             ),
           ),

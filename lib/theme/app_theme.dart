@@ -25,15 +25,16 @@ class AppTheme {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.rainbow.violet,
+        seedColor: AppColors.salmonBackground,
         brightness: brightness,
-        primary: textColor,
-        secondary: AppColors.rainbow.blue,
+        primary: AppColors.salmonBackground,
+        secondary: AppColors.primaryGreen,
         surface: surfaceColor,
         onSurface: textColor,
       ),
-      scaffoldBackgroundColor:
-          Colors.transparent, // Always transparent to show rainbow mesh
+      scaffoldBackgroundColor: isDark
+          ? AppColors.backgroundDark
+          : AppColors.salmonBackground,
       fontFamily: _fontFamily,
       textTheme: TextTheme(
         displayLarge: TextStyle(
@@ -83,7 +84,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: AppColors.rainbow.violet, width: 2),
+          borderSide: BorderSide(color: AppColors.salmonBackground, width: 2),
         ),
       ),
       appBarTheme: const AppBarTheme(
@@ -98,8 +99,20 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: isDark ? Colors.white : AppColors.textPrimary,
-          foregroundColor: isDark ? Colors.black : Colors.white,
+          backgroundColor: AppColors.primaryGreen,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primaryGreen,
+          foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
@@ -111,6 +124,17 @@ class AppTheme {
       cupertinoOverrideTheme: CupertinoThemeData(
         brightness: brightness,
         primaryColor: isDark ? Colors.white : AppColors.textPrimary,
+      ),
+      cardTheme: CardThemeData(
+        color: isDark ? AppColors.cardNearBlack : AppColors.cardOffWhite,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: isDark ? AppColors.darkBorder : AppColors.softBorder,
+            width: 1,
+          ),
+        ),
       ),
     );
   }

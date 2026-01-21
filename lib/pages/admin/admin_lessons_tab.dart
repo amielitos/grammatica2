@@ -25,7 +25,6 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
   bool _creatingLesson = false;
   final _title = TextEditingController();
   final _prompt = TextEditingController();
-  bool _preview = true;
   List<PlatformFile> _selectedFiles = [];
 
   @override
@@ -77,7 +76,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                       : 'Update',
                                 ),
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: AppColors.rainbow.blue,
+                                  backgroundColor: AppColors.primaryGreen,
                                 ),
                               ),
                               if (_selectedLessonId != null) ...[
@@ -100,34 +99,16 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                               ],
                             )
                           else ...[
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: FilterChip(
-                                    label: const Center(child: Text('Edit')),
-                                    selected: !_preview,
-                                    onSelected: (_) =>
-                                        setState(() => _preview = false),
-                                    checkmarkColor: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: FilterChip(
-                                    avatar: const Icon(CupertinoIcons.eye),
-                                    label: const Center(child: Text('Preview')),
-                                    selected: _preview,
-                                    onSelected: (_) =>
-                                        setState(() => _preview = true),
-                                    checkmarkColor: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
+                            _buildInputFields(),
+                            const SizedBox(height: 24),
+                            const Divider(),
                             const SizedBox(height: 16),
-                            _preview
-                                ? _buildPreviewArea()
-                                : _buildInputFields(),
+                            Text(
+                              'Preview',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildPreviewArea(),
                           ],
                         ],
                       );
@@ -158,7 +139,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                 itemBuilder: (context, index) {
                   final l = lessons[index];
                   final isSelected = _selectedLessonId == l.id;
-                  final color = AppColors.rainbow.elementAt(index);
+                  final color = AppColors.primaryGreen;
 
                   return GlassCard(
                     onTap: () {
@@ -282,6 +263,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
   }
 
   Widget _buildPreviewArea() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -291,9 +273,13 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           padding: const EdgeInsets.all(16),
           constraints: const BoxConstraints(minHeight: 200),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withOpacity(0.05)
+                  : Colors.grey.withOpacity(0.1),
+            ),
             borderRadius: BorderRadius.circular(12),
-            color: Colors.white.withOpacity(0.5),
+            color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
           ),
           child: MarkdownBody(
             data: _prompt.text.isEmpty ? '_Nothing to preview_' : _prompt.text,

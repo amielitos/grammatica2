@@ -7,7 +7,6 @@ import 'services/auth_service.dart';
 import 'services/role_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'theme/app_theme.dart';
-import 'widgets/rainbow_background.dart';
 
 // Pages
 import 'pages/login_page.dart';
@@ -56,15 +55,14 @@ class _AuthWrapper extends StatelessWidget {
       stream: AuthService.instance.authStateChanges(),
       builder: (context, authSnap) {
         if (authSnap.connectionState == ConnectionState.waiting) {
-          return const RainbowBackground(
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              body: Center(child: CircularProgressIndicator()),
-            ),
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
           );
         }
         final user = authSnap.data;
-        if (user == null) return const LoginPage();
+        if (user == null) {
+          return Theme(data: AppTheme.lightTheme, child: const LoginPage());
+        }
 
         // Verify user document exists. If missing (e.g., account deleted), sign out.
         return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -74,28 +72,22 @@ class _AuthWrapper extends StatelessWidget {
               .snapshots(),
           builder: (context, userDocSnap) {
             if (userDocSnap.connectionState == ConnectionState.waiting) {
-              return const RainbowBackground(
-                child: Scaffold(
-                  backgroundColor: Colors.transparent,
-                  body: Center(child: CircularProgressIndicator()),
-                ),
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
               );
             }
             if (!userDocSnap.hasData || !(userDocSnap.data?.exists ?? false)) {
               // Document creation might be in progress (race condition).
               // Show loading instead of signing out immediately.
-              return const RainbowBackground(
-                child: Scaffold(
-                  backgroundColor: Colors.transparent,
-                  body: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text("Setting up your account..."),
-                      ],
-                    ),
+              return const Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text("Setting up your account..."),
+                    ],
                   ),
                 ),
               );
@@ -104,11 +96,8 @@ class _AuthWrapper extends StatelessWidget {
               stream: RoleService.instance.roleStream(user.uid),
               builder: (context, roleSnap) {
                 if (!roleSnap.hasData) {
-                  return const RainbowBackground(
-                    child: Scaffold(
-                      backgroundColor: Colors.transparent,
-                      body: Center(child: CircularProgressIndicator()),
-                    ),
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
                   );
                 }
                 final role = roleSnap.data!;

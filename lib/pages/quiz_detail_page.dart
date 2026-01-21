@@ -3,7 +3,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../services/database_service.dart';
-import '../widgets/rainbow_background.dart';
 import '../widgets/glass_card.dart';
 
 class QuizDetailPage extends StatefulWidget {
@@ -81,213 +80,210 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return RainbowBackground(
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Grammatica'),
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: Text(widget.quiz.title),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: GlassCard(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: StreamBuilder<Map<String, Map<String, dynamic>>>(
-                  stream: DatabaseService.instance.quizProgressStream(
-                    widget.user,
-                  ),
-                  builder: (context, snapshot) {
-                    final progressMap = snapshot.data ?? {};
-                    final myProgress = progressMap[widget.quiz.id];
+        elevation: 0,
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: GlassCard(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: StreamBuilder<Map<String, Map<String, dynamic>>>(
+                stream: DatabaseService.instance.quizProgressStream(
+                  widget.user,
+                ),
+                builder: (context, snapshot) {
+                  final progressMap = snapshot.data ?? {};
+                  final myProgress = progressMap[widget.quiz.id];
 
-                    // Update state from stream
-                    if (myProgress != null) {
-                      _completed = myProgress['completed'] == true;
-                      final streamAttempts =
-                          (myProgress['attemptsUsed'] as num?)?.toInt() ?? 0;
-                      // Prevent stale stream data from overwriting local increment
-                      if (streamAttempts > _attemptsUsed) {
-                        _attemptsUsed = streamAttempts;
-                      }
-                      _isCorrect = myProgress['isCorrect'] == true;
+                  // Update state from stream
+                  if (myProgress != null) {
+                    _completed = myProgress['completed'] == true;
+                    final streamAttempts =
+                        (myProgress['attemptsUsed'] as num?)?.toInt() ?? 0;
+                    // Prevent stale stream data from overwriting local increment
+                    if (streamAttempts > _attemptsUsed) {
+                      _attemptsUsed = streamAttempts;
                     }
+                    _isCorrect = myProgress['isCorrect'] == true;
+                  }
 
-                    final maxAttempts = widget.quiz.maxAttempts;
-                    final attemptsLeft = maxAttempts - _attemptsUsed;
-                    final canSubmit = !_completed && attemptsLeft > 0;
-                    final showTryAgain =
-                        !_completed && _attemptsUsed > 0 && attemptsLeft > 0;
+                  final maxAttempts = widget.quiz.maxAttempts;
+                  final attemptsLeft = maxAttempts - _attemptsUsed;
+                  final canSubmit = !_completed && attemptsLeft > 0;
+                  final showTryAgain =
+                      !_completed && _attemptsUsed > 0 && attemptsLeft > 0;
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            if (_completed && _isCorrect)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.green),
-                                ),
-                                child: const Text(
-                                  'Completed',
-                                  style: TextStyle(
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              )
-                            else if (_attemptsUsed >= maxAttempts &&
-                                !_isCorrect)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.red),
-                                ),
-                                child: const Text(
-                                  'Failed',
-                                  style: TextStyle(
-                                    color: Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              )
-                            else
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.blue),
-                                ),
-                                child: Text(
-                                  'Attempts used: $_attemptsUsed / $maxAttempts',
-                                  style: const TextStyle(
-                                    color: Colors.blue,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (_completed && _isCorrect)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.green),
+                              ),
+                              child: const Text(
+                                'Completed',
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        MarkdownBody(
-                          data: widget.quiz.question,
-                          selectable: true,
-                        ),
-                        const SizedBox(height: 32),
-                        TextField(
-                          controller: _answerCtrl,
-                          enabled: canSubmit || showTryAgain,
-                          decoration: InputDecoration(
-                            labelText: 'Your Answer',
-                            border: const OutlineInputBorder(),
-                            errorText:
-                                (_attemptsUsed > 0 &&
-                                    !_isCorrect &&
-                                    !_submitting &&
-                                    attemptsLeft > 0)
-                                ? 'Incorrect, try again.'
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        if (canSubmit || showTryAgain)
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              onPressed: _submitting
-                                  ? null
-                                  : () => _submit(maxAttempts),
-                              child: _submitting
-                                  ? const SizedBox(
-                                      height: 16,
-                                      width: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : Text(showTryAgain ? 'Try Again' : 'Submit'),
-                            ),
-                          )
-                        else if (_isCorrect)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              children: [
-                                const Icon(
-                                  CupertinoIcons.check_mark_circled_solid,
-                                  color: Colors.green,
-                                  size: 48,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Great job! The answer was: ${widget.quiz.answer}',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              children: [
-                                const Icon(
-                                  CupertinoIcons.xmark_circle_fill,
+                            )
+                          else if (_attemptsUsed >= maxAttempts && !_isCorrect)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.red),
+                              ),
+                              child: const Text(
+                                'Failed',
+                                style: TextStyle(
                                   color: Colors.red,
-                                  size: 48,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Out of attempts. The correct answer was: ${widget.quiz.answer}',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.blue),
+                              ),
+                              child: Text(
+                                'Attempts used: $_attemptsUsed / $maxAttempts',
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ],
+                              ),
                             ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      MarkdownBody(
+                        data: widget.quiz.question,
+                        selectable: true,
+                      ),
+                      const SizedBox(height: 32),
+                      TextField(
+                        controller: _answerCtrl,
+                        enabled: canSubmit || showTryAgain,
+                        decoration: InputDecoration(
+                          labelText: 'Your Answer',
+                          border: const OutlineInputBorder(),
+                          errorText:
+                              (_attemptsUsed > 0 &&
+                                  !_isCorrect &&
+                                  !_submitting &&
+                                  attemptsLeft > 0)
+                              ? 'Incorrect, try again.'
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (canSubmit || showTryAgain)
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: _submitting
+                                ? null
+                                : () => _submit(maxAttempts),
+                            child: _submitting
+                                ? const SizedBox(
+                                    height: 16,
+                                    width: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(showTryAgain ? 'Try Again' : 'Submit'),
                           ),
-                      ],
-                    );
-                  },
-                ),
+                        )
+                      else if (_isCorrect)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                CupertinoIcons.check_mark_circled_solid,
+                                color: Colors.green,
+                                size: 48,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Great job! The answer was: ${widget.quiz.answer}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                CupertinoIcons.xmark_circle_fill,
+                                color: Colors.red,
+                                size: 48,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Out of attempts. The correct answer was: ${widget.quiz.answer}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           ),

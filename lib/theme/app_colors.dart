@@ -35,6 +35,17 @@ class AppColors {
   static const Color glassBorder = Color(0x33FFFFFF); // Subtle border
   static const Color glassBorderDark = Color(0x33000000); // Subtle border dark
 
+  /// Superadmin colors
+  static const Color superAdminBgDark = Color(0xFF0F1A20);
+  static const Color superAdminBgLight = Color(0xFFE2856E);
+  static const Color primaryGreen = Color(0xFF4CAF50);
+  static const Color adminBackgroundLight = Color(0xFFF8F9FA);
+  static const Color salmonBackground = Color(0xFFE2856E);
+  static const Color cardOffWhite = Color(0xFFFDFDFD);
+  static const Color cardNearBlack = Color(0xFF0F0F0F);
+  static const Color softBorder = Color(0x1F000000);
+  static const Color darkBorder = Color(0x1FFFFFFF);
+
   /// Gradients
   /// Used for backgrounds and active elements.
   static const LinearGradient mainGradient = LinearGradient(

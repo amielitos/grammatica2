@@ -29,12 +29,18 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Determine base color (use provided or default opacity)
-    Color baseColor = backgroundColor ?? AppColors.glassWhite;
-    // If we want a strong glass effect, ensure opacity is < 1.0
-    if (!isSolid && backgroundColor == null) {
-      baseColor = AppColors.glassWhite;
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // 1. Determine base color
+    Color baseColor =
+        backgroundColor ??
+        (isDark ? AppColors.cardNearBlack : AppColors.cardOffWhite);
+
+    // 2. Determine border
+    BorderSide borderSide = BorderSide(
+      color: isDark ? AppColors.darkBorder : AppColors.softBorder,
+      width: 1.0,
+    );
 
     Widget content = Container(
       width: width,
@@ -43,28 +49,20 @@ class GlassCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: baseColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.glassBorder, width: 1.5),
+        border: Border.fromBorderSide(borderSide),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: child,
+      child: DefaultTextStyle(
+        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+        child: child,
+      ),
     );
-
-    // 2. Wrap with Blur if not solid
-    Widget styledBox = isSolid
-        ? content
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: content,
-            ),
-          );
 
     // 3. Handle Taps
     if (onTap != null) {
@@ -72,11 +70,11 @@ class GlassCard extends StatelessWidget {
         padding: margin,
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
-          child: GestureDetector(onTap: onTap, child: styledBox),
+          child: GestureDetector(onTap: onTap, child: content),
         ),
       );
     }
 
-    return Padding(padding: margin, child: styledBox);
+    return Padding(padding: margin, child: content);
   }
 }

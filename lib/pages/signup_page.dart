@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
-import '../widgets/rainbow_background.dart';
+import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 
 class SignupPage extends StatefulWidget {
@@ -56,7 +56,8 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
-    return RainbowBackground(
+    return Theme(
+      data: AppTheme.lightTheme,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(

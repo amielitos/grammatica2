@@ -42,7 +42,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             }
 
             if (!isWide) {
-              // Small screens: keep ListTiles but wrapped in GlassCards
               return ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: users.length,
@@ -58,8 +57,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       (u['subscription_status'] ?? 'N/A') as String;
                   final ts = u['createdAt'];
 
-                  final color = AppColors.rainbow.elementAt(index);
-
                   return GlassCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,7 +66,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: color.withOpacity(0.2),
+                                color:
+                                    (role == 'ADMIN'
+                                            ? AppColors.primaryGreen
+                                            : Colors.grey)
+                                        .withOpacity(0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -91,20 +92,34 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                                horizontal: 10,
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
                                 color: role == 'ADMIN'
-                                    ? AppColors.rainbow.violet
-                                    : Colors.grey.shade200,
+                                    ? AppColors.primaryGreen.withOpacity(0.2)
+                                    : Colors.grey.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: role == 'ADMIN'
+                                      ? AppColors.primaryGreen.withOpacity(0.5)
+                                      : Colors.grey.withOpacity(0.3),
+                                ),
                               ),
                               child: Text(
                                 role,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
+                                  color: role == 'ADMIN'
+                                      ? (Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? Colors.green[200]
+                                            : Colors.green[800])
+                                      : (Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? Colors.white70
+                                            : Colors.black54),
                                 ),
                               ),
                             ),
@@ -126,7 +141,12 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Status: $status | Sub: $subscription'),
+                            Flexible(
+                              child: Text(
+                                'Status: $status | Sub: $subscription',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                             Text(
                               'Created: ${_formatTs(ts)}',
                               style: const TextStyle(fontSize: 12),
@@ -136,7 +156,13 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,
-                          child: OutlinedButton(
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: role == 'ADMIN'
+                                  ? Colors.grey[400]
+                                  : AppColors.primaryGreen,
+                              foregroundColor: Colors.white,
+                            ),
                             onPressed: () async {
                               final newRole = role == 'ADMIN'
                                   ? UserRole.learner
@@ -256,7 +282,7 @@ class _UsersDataSource extends DataTableSource {
                 role == 'ADMIN'
                     ? CupertinoIcons.checkmark_shield_fill
                     : CupertinoIcons.person_fill,
-                color: role == 'ADMIN' ? AppColors.rainbow.violet : Colors.grey,
+                color: role == 'ADMIN' ? AppColors.primaryGreen : Colors.grey,
               ),
               const SizedBox(width: 6),
               Text(username),
@@ -270,15 +296,25 @@ class _UsersDataSource extends DataTableSource {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: role == 'ADMIN'
-                  ? AppColors.rainbow.violet.withOpacity(0.3)
+                  ? AppColors.primaryGreen.withOpacity(0.2)
                   : Theme.of(context).brightness == Brightness.dark
                   ? Colors.white.withOpacity(0.1)
-                  : Colors.grey.shade200,
+                  : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(8),
+              border: role == 'ADMIN'
+                  ? Border.all(color: AppColors.primaryGreen.withOpacity(0.5))
+                  : null,
             ),
             child: Text(
               role,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: role == 'ADMIN'
+                    ? (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.green[200]
+                          : Colors.green[800])
+                    : null,
+              ),
             ),
           ),
         ),
@@ -330,7 +366,10 @@ class _UsersDataSource extends DataTableSource {
                 );
               }
             },
-            child: Text(role == 'ADMIN' ? 'Demote' : 'Promote'),
+            child: Text(
+              role == 'ADMIN' ? 'Demote' : 'Promote',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ),
       ],

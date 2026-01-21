@@ -6,7 +6,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/role_service.dart';
 import '../services/auth_service.dart';
-import '../widgets/rainbow_background.dart';
 import '../widgets/glass_card.dart';
 import '../theme/app_colors.dart';
 import '../main.dart';
@@ -142,478 +141,447 @@ class ProfilePageState extends State<ProfilePage> {
           );
         }
 
-        return RainbowBackground(
-          child: Scaffold(
-            backgroundColor: Colors.transparent,
-            body: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 40,
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isWide = constraints.maxWidth > 800;
-                    return Center(
-                      child: Container(
-                        width: isWide
-                            ? constraints.maxWidth * 0.5
-                            : double.infinity,
-                        constraints: const BoxConstraints(maxWidth: 600),
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 24),
-                              child: Text(
-                                'Profile',
-                                style: Theme.of(context).textTheme.displayLarge,
-                              ),
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 800;
+                  return Center(
+                    child: Container(
+                      width: isWide
+                          ? constraints.maxWidth * 0.5
+                          : double.infinity,
+                      constraints: const BoxConstraints(maxWidth: 600),
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 24),
+                            child: Text(
+                              'Profile',
+                              style: Theme.of(context).textTheme.displayLarge,
                             ),
-                            GlassCard(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    Center(
-                                      child: Stack(
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 50,
-                                            backgroundColor: Colors.grey
-                                                .withOpacity(0.2),
-                                            child:
-                                                (_photoUrl != null &&
-                                                    _photoUrl!.isNotEmpty)
-                                                ? ClipOval(
-                                                    child: Image.network(
-                                                      _photoUrl!,
-                                                      width: 100,
-                                                      height: 100,
-                                                      fit: BoxFit.cover,
-                                                      errorBuilder:
-                                                          (
-                                                            context,
-                                                            error,
-                                                            stackTrace,
-                                                          ) {
-                                                            return const Icon(
-                                                              CupertinoIcons
-                                                                  .person_fill,
-                                                              size: 50,
-                                                            );
-                                                          },
-                                                    ),
-                                                  )
-                                                : const Icon(
-                                                    CupertinoIcons.person_fill,
-                                                    size: 50,
+                          ),
+                          GlassCard(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Center(
+                                    child: Stack(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 50,
+                                          backgroundColor: Colors.grey
+                                              .withOpacity(0.2),
+                                          child:
+                                              (_photoUrl != null &&
+                                                  _photoUrl!.isNotEmpty)
+                                              ? ClipOval(
+                                                  child: Image.network(
+                                                    _photoUrl!,
+                                                    width: 100,
+                                                    height: 100,
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder:
+                                                        (
+                                                          context,
+                                                          error,
+                                                          stackTrace,
+                                                        ) {
+                                                          return const Icon(
+                                                            CupertinoIcons
+                                                                .person_fill,
+                                                            size: 50,
+                                                          );
+                                                        },
                                                   ),
-                                          ),
-                                          Positioned(
-                                            bottom: 0,
-                                            right: 0,
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: AppColors.rainbow.blue,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: IconButton(
-                                                icon: const Icon(
-                                                  CupertinoIcons.camera_fill,
-                                                  size: 20,
-                                                  color: Colors.white,
+                                                )
+                                              : const Icon(
+                                                  CupertinoIcons.person_fill,
+                                                  size: 50,
                                                 ),
-                                                onPressed: () async {
-                                                  try {
-                                                    final pick =
-                                                        await FilePicker
-                                                            .platform
-                                                            .pickFiles(
-                                                              type: FileType
-                                                                  .custom,
-                                                              allowedExtensions:
-                                                                  [
-                                                                    'jpg',
-                                                                    'jpeg',
-                                                                    'png',
-                                                                  ],
-                                                              withData: true,
-                                                            );
-                                                    if (pick == null ||
-                                                        pick.files.isEmpty)
-                                                      return;
-
-                                                    final file =
-                                                        pick.files.first;
-                                                    final bytes = file.bytes;
-                                                    if (bytes == null) return;
-
-                                                    if (bytes.lengthInBytes >
-                                                        2097152) {
-                                                      _showSnack(
-                                                        'Image exceeds 2MB limit',
-                                                        error: true,
+                                        ),
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primaryGreen,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: IconButton(
+                                              icon: const Icon(
+                                                CupertinoIcons.camera_fill,
+                                                size: 20,
+                                                color: Colors.white,
+                                              ),
+                                              onPressed: () async {
+                                                try {
+                                                  final pick = await FilePicker
+                                                      .platform
+                                                      .pickFiles(
+                                                        type: FileType.custom,
+                                                        allowedExtensions: [
+                                                          'jpg',
+                                                          'jpeg',
+                                                          'png',
+                                                        ],
+                                                        withData: true,
                                                       );
-                                                      return;
-                                                    }
+                                                  if (pick == null ||
+                                                      pick.files.isEmpty)
+                                                    return;
 
-                                                    final fileExtension = file
-                                                        .name
-                                                        .toLowerCase()
-                                                        .split('.')
-                                                        .last;
-                                                    final contentType =
-                                                        fileExtension == 'png'
-                                                        ? 'image/png'
-                                                        : 'image/jpeg';
+                                                  final file = pick.files.first;
+                                                  final bytes = file.bytes;
+                                                  if (bytes == null) return;
 
-                                                    final ref = FirebaseStorage
-                                                        .instance
-                                                        .ref()
-                                                        .child('users')
-                                                        .child(widget.user.uid)
-                                                        .child(
-                                                          'profile_pic.$fileExtension',
-                                                        );
-
-                                                    await ref.putData(
-                                                      bytes,
-                                                      SettableMetadata(
-                                                        contentType:
-                                                            contentType,
-                                                      ),
-                                                    );
-                                                    final url = await ref
-                                                        .getDownloadURL();
-                                                    await widget.user
-                                                        .updatePhotoURL(url);
-                                                    await FirebaseFirestore
-                                                        .instance
-                                                        .collection('users')
-                                                        .doc(widget.user.uid)
-                                                        .set(
-                                                          {'photoUrl': url},
-                                                          SetOptions(
-                                                            merge: true,
-                                                          ),
-                                                        );
-
-                                                    if (mounted) {
-                                                      setState(
-                                                        () => _photoUrl = url,
-                                                      );
-                                                      _showSnack(
-                                                        'Profile photo updated',
-                                                      );
-                                                    }
-                                                  } catch (e) {
+                                                  if (bytes.lengthInBytes >
+                                                      2097152) {
                                                     _showSnack(
-                                                      'Photo update failed: $e',
+                                                      'Image exceeds 2MB limit',
                                                       error: true,
                                                     );
+                                                    return;
                                                   }
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      _displayName,
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .headlineMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                    ),
-                                    Text(
-                                      _displayEmail,
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(color: Colors.grey[600]),
-                                    ),
-                                    const SizedBox(height: 32),
-                                    Text(
-                                      'Update Details',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleLarge,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    TextField(
-                                      controller: _usernameCtrl,
-                                      decoration: const InputDecoration(
-                                        labelText: 'New Username',
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    FilledButton(
-                                      onPressed: _promptAndUpdateUsername,
-                                      child: const Text('Update Username'),
-                                    ),
-                                    const Divider(height: 48),
-                                    Text(
-                                      'Change Password',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleLarge,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    TextField(
-                                      controller: _currentPasswordCtrl,
-                                      obscureText: true,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Current Password',
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    TextField(
-                                      controller: _newPasswordCtrl,
-                                      obscureText: true,
-                                      decoration: const InputDecoration(
-                                        labelText: 'New Password',
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    TextField(
-                                      controller: _confirmPasswordCtrl,
-                                      obscureText: true,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Confirm New Password',
-                                      ),
-                                    ),
-                                    if (_error != null) ...[
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        _error!,
-                                        style: const TextStyle(
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                    ],
-                                    if (_info != null) ...[
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        _info!,
-                                        style: const TextStyle(
-                                          color: Colors.green,
-                                        ),
-                                      ),
-                                    ],
-                                    const SizedBox(height: 24),
-                                    FilledButton(
-                                      onPressed: () async {
-                                        setState(() {
-                                          _info = null;
-                                          _error = null;
-                                        });
-                                        final email = widget.user.email;
-                                        final current =
-                                            _currentPasswordCtrl.text;
-                                        final newPass = _newPasswordCtrl.text;
-                                        final confirm =
-                                            _confirmPasswordCtrl.text;
 
-                                        if (email == null) {
-                                          setState(
-                                            () =>
-                                                _error = 'No email on account.',
-                                          );
-                                          return;
-                                        }
-                                        if (newPass != confirm) {
-                                          setState(
-                                            () => _error =
-                                                'New passwords do not match.',
-                                          );
-                                          return;
-                                        }
+                                                  final fileExtension = file
+                                                      .name
+                                                      .toLowerCase()
+                                                      .split('.')
+                                                      .last;
+                                                  final contentType =
+                                                      fileExtension == 'png'
+                                                      ? 'image/png'
+                                                      : 'image/jpeg';
 
-                                        try {
-                                          final cred =
-                                              EmailAuthProvider.credential(
-                                                email: email,
-                                                password: current,
-                                              );
-                                          await widget.user
-                                              .reauthenticateWithCredential(
-                                                cred,
-                                              );
-                                          await widget.user.updatePassword(
-                                            newPass,
-                                          );
-                                          setState(
-                                            () => _info = 'Password updated',
-                                          );
-                                          _currentPasswordCtrl.clear();
-                                          _newPasswordCtrl.clear();
-                                          _confirmPasswordCtrl.clear();
-                                        } catch (e) {
-                                          setState(
-                                            () => _error =
-                                                'Failed to update password. Check current password.',
-                                          );
-                                        }
-                                      },
-                                      child: const Text('Update Password'),
-                                    ),
-                                    const Divider(height: 48),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            'App Theme',
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.titleLarge,
-                                          ),
-                                        ),
-                                        ValueListenableBuilder<ThemeMode>(
-                                          valueListenable: themeNotifier,
-                                          builder: (context, mode, _) {
-                                            return CupertinoSlidingSegmentedControl<
-                                              ThemeMode
-                                            >(
-                                              groupValue: mode,
-                                              onValueChanged: (newMode) {
-                                                if (newMode != null)
-                                                  themeNotifier.value = newMode;
-                                              },
-                                              children: const {
-                                                ThemeMode.light: Padding(
-                                                  padding: EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                  ),
-                                                  child: Icon(
-                                                    CupertinoIcons.sun_max_fill,
-                                                  ),
-                                                ),
-                                                ThemeMode.dark: Padding(
-                                                  padding: EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                  ),
-                                                  child: Icon(
-                                                    CupertinoIcons.moon_fill,
-                                                  ),
-                                                ),
-                                              },
-                                            );
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 40),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: FilledButton(
-                                            style: FilledButton.styleFrom(
-                                              backgroundColor: Theme.of(
-                                                context,
-                                              ).colorScheme.surface,
-                                              foregroundColor: Theme.of(
-                                                context,
-                                              ).colorScheme.onSurface,
-                                              side: BorderSide(
-                                                color: Theme.of(
-                                                  context,
-                                                ).dividerColor,
-                                              ),
-                                            ),
-                                            onPressed: () async {
-                                              await AuthService.instance
-                                                  .signOut();
-                                            },
-                                            child: const Text('Sign Out'),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: FilledButton(
-                                            style: FilledButton.styleFrom(
-                                              backgroundColor:
-                                                  Colors.red.shade400,
-                                              foregroundColor: Colors.white,
-                                            ),
-                                            onPressed: () async {
-                                              final confirm = await showDialog<bool>(
-                                                context: context,
-                                                builder: (c) => AlertDialog(
-                                                  title: const Text(
-                                                    'Delete Account?',
-                                                  ),
-                                                  content: const Text(
-                                                    'This action cannot be undone.',
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                            c,
-                                                            false,
-                                                          ),
-                                                      child: const Text(
-                                                        'Cancel',
-                                                      ),
+                                                  final ref = FirebaseStorage
+                                                      .instance
+                                                      .ref()
+                                                      .child('users')
+                                                      .child(widget.user.uid)
+                                                      .child(
+                                                        'profile_pic.$fileExtension',
+                                                      );
+
+                                                  await ref.putData(
+                                                    bytes,
+                                                    SettableMetadata(
+                                                      contentType: contentType,
                                                     ),
-                                                    FilledButton(
-                                                      style:
-                                                          FilledButton.styleFrom(
-                                                            backgroundColor:
-                                                                Colors.red,
-                                                            foregroundColor:
-                                                                Colors.white,
-                                                          ),
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                            c,
-                                                            true,
-                                                          ),
-                                                      child: const Text(
-                                                        'Delete',
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                              if (confirm == true) {
-                                                try {
+                                                  );
+                                                  final url = await ref
+                                                      .getDownloadURL();
+                                                  await widget.user
+                                                      .updatePhotoURL(url);
                                                   await FirebaseFirestore
                                                       .instance
                                                       .collection('users')
                                                       .doc(widget.user.uid)
-                                                      .delete();
-                                                  await widget.user.delete();
+                                                      .set(
+                                                        {'photoUrl': url},
+                                                        SetOptions(merge: true),
+                                                      );
+
+                                                  if (mounted) {
+                                                    setState(
+                                                      () => _photoUrl = url,
+                                                    );
+                                                    _showSnack(
+                                                      'Profile photo updated',
+                                                    );
+                                                  }
                                                 } catch (e) {
                                                   _showSnack(
-                                                    'Delete failed: $e',
+                                                    'Photo update failed: $e',
+                                                    error: true,
                                                   );
                                                 }
-                                              }
-                                            },
-                                            child: const Text('Delete Account'),
+                                              },
+                                            ),
                                           ),
                                         ),
                                       ],
                                     ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _displayName,
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    _displayEmail,
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(color: Colors.grey[600]),
+                                  ),
+                                  const SizedBox(height: 32),
+                                  Text(
+                                    'Update Details',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TextField(
+                                    controller: _usernameCtrl,
+                                    decoration: const InputDecoration(
+                                      labelText: 'New Username',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  FilledButton(
+                                    onPressed: _promptAndUpdateUsername,
+                                    child: const Text('Update Username'),
+                                  ),
+                                  const Divider(height: 48),
+                                  Text(
+                                    'Change Password',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TextField(
+                                    controller: _currentPasswordCtrl,
+                                    obscureText: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Current Password',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: _newPasswordCtrl,
+                                    obscureText: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'New Password',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: _confirmPasswordCtrl,
+                                    obscureText: true,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Confirm New Password',
+                                    ),
+                                  ),
+                                  if (_error != null) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _error!,
+                                      style: const TextStyle(color: Colors.red),
+                                    ),
                                   ],
-                                ),
+                                  if (_info != null) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _info!,
+                                      style: const TextStyle(
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 24),
+                                  FilledButton(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    onPressed: () async {
+                                      setState(() {
+                                        _info = null;
+                                        _error = null;
+                                      });
+                                      final email = widget.user.email;
+                                      final current = _currentPasswordCtrl.text;
+                                      final newPass = _newPasswordCtrl.text;
+                                      final confirm = _confirmPasswordCtrl.text;
+
+                                      if (email == null) {
+                                        setState(
+                                          () => _error = 'No email on account.',
+                                        );
+                                        return;
+                                      }
+                                      if (newPass != confirm) {
+                                        setState(
+                                          () => _error =
+                                              'New passwords do not match.',
+                                        );
+                                        return;
+                                      }
+
+                                      try {
+                                        final cred =
+                                            EmailAuthProvider.credential(
+                                              email: email,
+                                              password: current,
+                                            );
+                                        await widget.user
+                                            .reauthenticateWithCredential(cred);
+                                        await widget.user.updatePassword(
+                                          newPass,
+                                        );
+                                        setState(
+                                          () => _info = 'Password updated',
+                                        );
+                                        _currentPasswordCtrl.clear();
+                                        _newPasswordCtrl.clear();
+                                        _confirmPasswordCtrl.clear();
+                                      } catch (e) {
+                                        setState(
+                                          () => _error =
+                                              'Failed to update password. Check current password.',
+                                        );
+                                      }
+                                    },
+                                    child: const Text('Update Password'),
+                                  ),
+                                  const Divider(height: 48),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'App Theme',
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.titleLarge,
+                                        ),
+                                      ),
+                                      ValueListenableBuilder<ThemeMode>(
+                                        valueListenable: themeNotifier,
+                                        builder: (context, mode, _) {
+                                          return CupertinoSlidingSegmentedControl<
+                                            ThemeMode
+                                          >(
+                                            groupValue: mode,
+                                            onValueChanged: (newMode) {
+                                              if (newMode != null)
+                                                themeNotifier.value = newMode;
+                                            },
+                                            children: const {
+                                              ThemeMode.light: Padding(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                ),
+                                                child: Icon(
+                                                  CupertinoIcons.sun_max_fill,
+                                                ),
+                                              ),
+                                              ThemeMode.dark: Padding(
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                ),
+                                                child: Icon(
+                                                  CupertinoIcons.moon_fill,
+                                                ),
+                                              ),
+                                            },
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 40),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.red,
+                                            side: const BorderSide(
+                                              color: Colors.red,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 16,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                            ),
+                                          ),
+                                          onPressed: () async {
+                                            await AuthService.instance
+                                                .signOut();
+                                          },
+                                          child: const Text('Sign Out'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: FilledButton(
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor:
+                                                Colors.red.shade400,
+                                            foregroundColor: Colors.white,
+                                          ),
+                                          onPressed: () async {
+                                            final confirm = await showDialog<bool>(
+                                              context: context,
+                                              builder: (c) => AlertDialog(
+                                                title: const Text(
+                                                  'Delete Account?',
+                                                ),
+                                                content: const Text(
+                                                  'This action cannot be undone.',
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(c, false),
+                                                    child: const Text('Cancel'),
+                                                  ),
+                                                  FilledButton(
+                                                    style:
+                                                        FilledButton.styleFrom(
+                                                          backgroundColor:
+                                                              Colors.red,
+                                                          foregroundColor:
+                                                              Colors.white,
+                                                        ),
+                                                    onPressed: () =>
+                                                        Navigator.pop(c, true),
+                                                    child: const Text('Delete'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (confirm == true) {
+                                              try {
+                                                await FirebaseFirestore.instance
+                                                    .collection('users')
+                                                    .doc(widget.user.uid)
+                                                    .delete();
+                                                await widget.user.delete();
+                                              } catch (e) {
+                                                _showSnack('Delete failed: $e');
+                                              }
+                                            }
+                                          },
+                                          child: const Text('Delete Account'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -697,6 +665,10 @@ class _ReauthDialogState extends State<_ReauthDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primaryGreen,
+            foregroundColor: Colors.white,
+          ),
           onPressed: loading ? null : onConfirm,
           child: const Text('Confirm'),
         ),

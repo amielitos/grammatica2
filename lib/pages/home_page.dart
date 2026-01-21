@@ -8,8 +8,8 @@ import 'quizzes_page.dart';
 import 'profile_page.dart';
 import '../theme/app_colors.dart';
 import '../widgets/glass_card.dart';
-import '../widgets/rainbow_background.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/modern_bottom_nav.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -25,64 +25,56 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // [x] Align Learner Dark Mode background with Admin (Black background)
+    //   [x] Update `AppTheme` to use `backgroundDark` for Scaffolds in dark mode, but keep Salmon for light mode
+    //   [ ] Verify `ProfilePage` and `QuizzesPage` background behavior
+    // [/] Align Admin Bottom Navigation with Learner design
+    //   [/] Extract Learner Navigation design into a reusable widget or identify the pattern
+    //   [ ] Update `AdminDashboard` to use the modern-circular centered navigation
+    //   [ ] Ensure the navigation width wraps to content
     final user = widget.user;
-    return RainbowBackground(
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBody: true,
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _tabIndex,
-          onDestinationSelected: (i) {
-            setState(() => _tabIndex = i);
-            if (i == 2) {
-              _profileKey.currentState?.fetchProfile();
-            }
-          },
-          backgroundColor: Theme.of(context).brightness == Brightness.dark
-              ? Colors.black.withOpacity(0.5)
-              : AppColors.glassWhite,
-          elevation: 0,
-          indicatorColor: AppColors.rainbow.violet,
-          destinations: [
-            const NavigationDestination(
-              icon: Icon(CupertinoIcons.book),
-              label: 'Lessons',
-            ),
-            const NavigationDestination(
-              icon: Icon(CupertinoIcons.question_circle),
-              label: 'Quizzes',
-            ),
-            NavigationDestination(
-              icon: const Icon(CupertinoIcons.person),
-              label: user.displayName?.split(' ').first ?? 'Profile',
-            ),
-          ],
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          'Grammatica',
+          style: Theme.of(
+            context,
+          ).textTheme.displayLarge?.copyWith(fontSize: 28),
         ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: Text(
-                    'Grammatica',
-                    style: Theme.of(context).textTheme.displayLarge,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ResponsiveWrapper(
-                  child: IndexedStack(
-                    index: _tabIndex,
-                    children: [
-                      _LessonsList(user: user),
-                      QuizzesPage(user: user),
-                      ProfilePage(key: _profileKey, user: user),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+      ),
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: _tabIndex,
+        onTap: (index) {
+          setState(() => _tabIndex = index);
+          if (index == 2) {
+            _profileKey.currentState?.fetchProfile();
+          }
+        },
+        items: [
+          const ModernNavItem(icon: CupertinoIcons.book, label: 'Lessons'),
+          const ModernNavItem(
+            icon: CupertinoIcons.question_circle,
+            label: 'Quizzes',
           ),
+          ModernNavItem(
+            icon: CupertinoIcons.person,
+            label: user.displayName?.split(' ').first ?? 'Profile',
+          ),
+        ],
+      ),
+      body: ResponsiveWrapper(
+        child: IndexedStack(
+          index: _tabIndex,
+          children: [
+            _LessonsList(user: user),
+            QuizzesPage(user: user),
+            ProfilePage(key: _profileKey, user: user),
+          ],
         ),
       ),
     );
@@ -159,9 +151,6 @@ class _LessonsList extends StatelessWidget {
                     ? _fmt(lesson.createdAt!)
                     : 'N/A';
 
-                // Cycle through rainbow colors for card accents
-                final color = AppColors.rainbow.elementAt(index);
-
                 return GlassCard(
                   onTap: () {
                     Navigator.of(context).push(
@@ -172,16 +161,7 @@ class _LessonsList extends StatelessWidget {
                   },
                   child: Row(
                     children: [
-                      // Colored Indicator Strip
-                      Container(
-                        width: 6,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 8),
                       // Content
                       Expanded(
                         child: Column(
@@ -224,7 +204,7 @@ class _LessonsList extends StatelessWidget {
                       if (done)
                         Icon(
                           CupertinoIcons.check_mark_circled,
-                          color: AppColors.rainbow.green,
+                          color: AppColors.primaryGreen,
                           size: 28,
                         )
                       else

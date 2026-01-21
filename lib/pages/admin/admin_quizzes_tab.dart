@@ -26,7 +26,6 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
   final _question = TextEditingController();
   final _answer = TextEditingController();
   final _maxAttemptsCtrl = TextEditingController(text: '1');
-  bool _preview = true;
   List<PlatformFile> _selectedFiles = []; // Store selected files
   String? _currentAttachmentName;
   String? _currentAttachmentUrl;
@@ -77,7 +76,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                   _selectedQuizId == null ? 'Create' : 'Update',
                                 ),
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: AppColors.rainbow.blue,
+                                  backgroundColor: AppColors.primaryGreen,
                                 ),
                               ),
                               if (_selectedQuizId != null) ...[
@@ -100,34 +99,16 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                               ],
                             )
                           else ...[
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: FilterChip(
-                                    label: const Center(child: Text('Edit')),
-                                    selected: !_preview,
-                                    onSelected: (_) =>
-                                        setState(() => _preview = false),
-                                    checkmarkColor: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: FilterChip(
-                                    avatar: const Icon(CupertinoIcons.eye),
-                                    label: const Center(child: Text('Preview')),
-                                    selected: _preview,
-                                    onSelected: (_) =>
-                                        setState(() => _preview = true),
-                                    checkmarkColor: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
+                            _buildInputFields(),
+                            const SizedBox(height: 24),
+                            const Divider(),
                             const SizedBox(height: 16),
-                            _preview
-                                ? _buildPreviewArea()
-                                : _buildInputFields(),
+                            Text(
+                              'Preview',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            _buildPreviewArea(),
                           ],
                         ],
                       );
@@ -156,7 +137,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 itemBuilder: (context, index) {
                   final q = items[index];
                   final isSelected = _selectedQuizId == q.id;
-                  final color = AppColors.rainbow.elementAt(index);
+                  final color = AppColors.primaryGreen;
 
                   return GlassCard(
                     backgroundColor: isSelected ? color : null,
@@ -298,6 +279,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
   }
 
   Widget _buildPreviewArea() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -307,9 +289,13 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           padding: const EdgeInsets.all(16),
           constraints: const BoxConstraints(minHeight: 200),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withOpacity(0.05)
+                  : Colors.grey.withOpacity(0.1),
+            ),
             borderRadius: BorderRadius.circular(12),
-            color: Colors.white.withOpacity(0.5),
+            color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
           ),
           child: MarkdownBody(
             data: _question.text.isEmpty

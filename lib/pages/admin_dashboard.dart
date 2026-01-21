@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'profile_page.dart';
-import '../../widgets/rainbow_background.dart';
 import '../../theme/app_colors.dart';
 import 'admin/admin_users_tab.dart';
 import 'admin/admin_lessons_tab.dart';
 import 'admin/admin_quizzes_tab.dart';
+
+import '../widgets/modern_bottom_nav.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -22,57 +23,52 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return RainbowBackground(
-      child: Scaffold(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark
+          ? AppColors.backgroundDark
+          : AppColors.adminBackgroundLight,
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: AuthService.instance.currentUser != null
-                ? FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(AuthService.instance.currentUser!.uid)
-                      .snapshots()
-                : null,
-            builder: (context, snap) {
-              final data = snap.data?.data();
-              final user = AuthService.instance.currentUser;
-              final username = (data?['username'] ?? user?.email ?? 'Admin')
-                  .toString();
-              return Text(
-                'Admin Dashboard — $username',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              );
-            },
-          ),
+        elevation: 0,
+        title: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: AuthService.instance.currentUser != null
+              ? FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(AuthService.instance.currentUser!.uid)
+                    .snapshots()
+              : null,
+          builder: (context, snap) {
+            return Text(
+              'Grammatica',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            );
+          },
         ),
-        body: Stack(
-          children: [
-            IndexedStack(
-              index: _index,
-              children: [
-                const AdminUsersTab(),
-                const AdminLessonsTab(),
-                const AdminQuizzesTab(),
-                ProfilePage(user: AuthService.instance.currentUser!),
-              ],
-            ),
-            if (_switching) ...[
-              const ModalBarrier(dismissible: false, color: Colors.black12),
-              const Center(child: CircularProgressIndicator()),
+      ),
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _index,
+            children: [
+              const AdminUsersTab(),
+              const AdminLessonsTab(),
+              const AdminQuizzesTab(),
+              ProfilePage(user: AuthService.instance.currentUser!),
             ],
-          ],
-        ),
-        bottomNavigationBar: NavigationBarTheme(
-          data: NavigationBarThemeData(
-            backgroundColor: AppColors.glassWhite,
-            indicatorColor: AppColors.rainbow.violet,
-            labelTextStyle: WidgetStateProperty.all(
-              const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-            ),
           ),
-          child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          if (_switching) ...[
+            const ModalBarrier(dismissible: false, color: Colors.black12),
+            const Center(child: CircularProgressIndicator()),
+          ],
+        ],
+      ),
+      bottomNavigationBar:
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
             stream: AuthService.instance.currentUser != null
                 ? FirebaseFirestore.instance
                       .collection('users')
@@ -83,9 +79,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               final data = snap.data?.data();
               final username =
                   (data?['username'] as String?)?.split(' ').first ?? 'Profile';
-              return NavigationBar(
-                selectedIndex: _index,
-                onDestinationSelected: (i) async {
+
+              return ModernBottomNav(
+                currentIndex: _index,
+                onTap: (i) async {
                   setState(() => _switching = true);
                   await Future.delayed(const Duration(milliseconds: 250));
                   if (!mounted) return;
@@ -94,33 +91,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     _switching = false;
                   });
                 },
-                destinations: [
-                  const NavigationDestination(
-                    icon: Icon(CupertinoIcons.person_2),
-                    selectedIcon: Icon(CupertinoIcons.person_2_fill),
+                items: [
+                  const ModernNavItem(
+                    icon: CupertinoIcons.person_2,
                     label: 'Users',
                   ),
-                  const NavigationDestination(
-                    icon: Icon(CupertinoIcons.book),
-                    selectedIcon: Icon(CupertinoIcons.book_fill),
+                  const ModernNavItem(
+                    icon: CupertinoIcons.book,
                     label: 'Lessons',
                   ),
-                  const NavigationDestination(
-                    icon: Icon(CupertinoIcons.question_circle),
-                    selectedIcon: Icon(CupertinoIcons.question_circle_fill),
+                  const ModernNavItem(
+                    icon: CupertinoIcons.question_circle,
                     label: 'Quizzes',
                   ),
-                  NavigationDestination(
-                    icon: const Icon(CupertinoIcons.person),
-                    selectedIcon: const Icon(CupertinoIcons.person_fill),
-                    label: username,
-                  ),
+                  ModernNavItem(icon: CupertinoIcons.person, label: username),
                 ],
               );
             },
           ),
-        ),
-      ),
     );
   }
 }
