@@ -54,6 +54,7 @@ class Lesson {
   final String? attachmentUrl;
   final String? attachmentName;
   final String validationStatus; // 'approved', 'awaiting_approval'
+  final bool isVisible;
 
   Lesson({
     required this.id,
@@ -66,6 +67,7 @@ class Lesson {
     this.attachmentUrl,
     this.attachmentName,
     this.validationStatus = 'approved',
+    this.isVisible = true,
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -85,6 +87,7 @@ class Lesson {
       attachmentUrl: (data['attachmentUrl'] ?? '').toString(),
       attachmentName: (data['attachmentName'] ?? '').toString(),
       validationStatus: (data['validationStatus'] ?? 'approved').toString(),
+      isVisible: data['isVisible'] ?? true,
     );
   }
 }
@@ -92,18 +95,34 @@ class Lesson {
 class QuizQuestion {
   final String question;
   final String answer;
+  final String type; // 'text', 'multiple_choice'
+  final List<String>? options;
 
-  QuizQuestion({required this.question, required this.answer});
+  QuizQuestion({
+    required this.question,
+    required this.answer,
+    this.type = 'text',
+    this.options,
+  });
 
   factory QuizQuestion.fromMap(Map<String, dynamic> map) {
     return QuizQuestion(
       question: (map['question'] ?? '').toString(),
       answer: (map['answer'] ?? '').toString(),
+      type: (map['type'] ?? 'text').toString(),
+      options: map['options'] != null
+          ? List<String>.from(map['options'])
+          : null,
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {'question': question, 'answer': answer};
+    return {
+      'question': question,
+      'answer': answer,
+      'type': type,
+      'options': options,
+    };
   }
 }
 
@@ -120,6 +139,7 @@ class Quiz {
   final String? attachmentUrl;
   final String? attachmentName;
   final String validationStatus; // 'approved', 'awaiting_approval'
+  final bool isVisible;
 
   Quiz({
     required this.id,
@@ -134,6 +154,7 @@ class Quiz {
     this.attachmentUrl,
     this.attachmentName,
     this.validationStatus = 'approved',
+    this.isVisible = true,
   });
 
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -158,6 +179,7 @@ class Quiz {
       attachmentUrl: (d['attachmentUrl'] ?? '').toString(),
       attachmentName: (d['attachmentName'] ?? '').toString(),
       validationStatus: (d['validationStatus'] ?? 'approved').toString(),
+      isVisible: d['isVisible'] ?? true,
     );
   }
 }
@@ -183,6 +205,7 @@ class DatabaseService {
     required String answer,
     String? attachmentUrl,
     String? attachmentName,
+    bool isVisible = true,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -205,6 +228,7 @@ class DatabaseService {
       'validationStatus': status,
       'attachmentUrl': attachmentUrl,
       'attachmentName': attachmentName,
+      'isVisible': isVisible,
     });
     return doc.id;
   }
@@ -216,6 +240,7 @@ class DatabaseService {
     String? answer,
     String? attachmentUrl,
     String? attachmentName,
+    bool? isVisible,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -223,6 +248,7 @@ class DatabaseService {
     if (answer != null) data['answer'] = answer;
     if (attachmentUrl != null) data['attachmentUrl'] = attachmentUrl;
     if (attachmentName != null) data['attachmentName'] = attachmentName;
+    if (isVisible != null) data['isVisible'] = isVisible;
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
     }
@@ -254,7 +280,9 @@ class DatabaseService {
       final lessons = snapshot.docs.map(Lesson.fromDoc).toList();
       if (approvedOnly) {
         return lessons
-            .where((l) => l.validationStatus != 'awaiting_approval')
+            .where(
+              (l) => l.validationStatus != 'awaiting_approval' && l.isVisible,
+            )
             .toList();
       }
       return lessons;
@@ -301,6 +329,7 @@ class DatabaseService {
     int maxAttempts = 1,
     String? attachmentUrl,
     String? attachmentName,
+    bool isVisible = true,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -325,6 +354,7 @@ class DatabaseService {
       'validationStatus': status,
       'attachmentUrl': attachmentUrl,
       'attachmentName': attachmentName,
+      'isVisible': isVisible,
     });
     return doc.id;
   }
@@ -338,6 +368,7 @@ class DatabaseService {
     int? maxAttempts,
     String? attachmentUrl,
     String? attachmentName,
+    bool? isVisible,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -349,6 +380,7 @@ class DatabaseService {
     if (maxAttempts != null) data['maxAttempts'] = maxAttempts;
     if (attachmentUrl != null) data['attachmentUrl'] = attachmentUrl;
     if (attachmentName != null) data['attachmentName'] = attachmentName;
+    if (isVisible != null) data['isVisible'] = isVisible;
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
     }
@@ -372,7 +404,9 @@ class DatabaseService {
       final quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
       if (approvedOnly) {
         return quizzes
-            .where((q) => q.validationStatus != 'awaiting_approval')
+            .where(
+              (q) => q.validationStatus != 'awaiting_approval' && q.isVisible,
+            )
             .toList();
       }
       return quizzes;

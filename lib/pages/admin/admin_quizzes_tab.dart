@@ -29,6 +29,9 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
   List<TextEditingController> _questionCtrls = [TextEditingController()];
   List<TextEditingController> _answerCtrls = [TextEditingController()];
+  List<String> _questionTypes = ['text'];
+  List<List<TextEditingController>> _optionsCtrls = [[]];
+  bool _isVisible = true;
 
   List<PlatformFile> _selectedFiles = []; // Store selected files
   String? _currentAttachmentName;
@@ -175,9 +178,25 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                         TextEditingController(text: qu.answer),
                                   )
                                   .toList();
+                              _questionTypes = q.questions
+                                  .map((qu) => qu.type)
+                                  .toList();
+                              _optionsCtrls = q.questions
+                                  .map(
+                                    (qu) => (qu.options ?? [])
+                                        .map(
+                                          (opt) =>
+                                              TextEditingController(text: opt),
+                                        )
+                                        .toList(),
+                                  )
+                                  .toList();
+                              _isVisible = q.isVisible;
                               if (_questionCtrls.isEmpty) {
                                 _questionCtrls = [TextEditingController()];
                                 _answerCtrls = [TextEditingController()];
+                                _questionTypes = ['text'];
+                                _optionsCtrls = [[]];
                               }
                             }
                           });
@@ -274,7 +293,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                           ],
                                         ),
                                       Text(
-                                        'Created: ${_fmt(q.createdAt ?? Timestamp.now())} • Qs: ${q.questions.length} • ${q.duration}m • Attempts: ${q.maxAttempts}',
+                                        'Created: ${_fmt(q.createdAt ?? Timestamp.now())} • Qs: ${q.questions.length} • ${q.duration}m • Attempts: ${q.maxAttempts} • Visible: ${q.isVisible ? 'Yes' : 'No'}',
                                         style: Theme.of(
                                           context,
                                         ).textTheme.bodySmall,
@@ -352,6 +371,15 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           ],
         ),
         const SizedBox(height: 16),
+        SwitchListTile(
+          title: const Text('Visible to Public'),
+          subtitle: const Text('If off, learners cannot see this quiz'),
+          value: _isVisible,
+          onChanged: (v) => setState(() => _isVisible = v),
+          activeColor: AppColors.primaryGreen,
+        ),
+        const SizedBox(height: 16),
+        const SizedBox(height: 16),
         _buildUploadUI(),
         const SizedBox(height: 24),
         const Divider(),
@@ -402,9 +430,79 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       maxLines: null,
                     ),
                     const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _questionTypes[index],
+                      decoration: const InputDecoration(labelText: 'Type'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'text',
+                          child: Text('Textfield'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'multiple_choice',
+                          child: Text('Multiple Choice'),
+                        ),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() {
+                            _questionTypes[index] = v;
+                            if (v == 'multiple_choice' &&
+                                _optionsCtrls[index].isEmpty) {
+                              _optionsCtrls[index] = [
+                                TextEditingController(),
+                                TextEditingController(),
+                              ];
+                            }
+                          });
+                        }
+                      },
+                    ),
+                    if (_questionTypes[index] == 'multiple_choice') ...[
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Options',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      ...List.generate(_optionsCtrls[index].length, (optIdx) {
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _optionsCtrls[index][optIdx],
+                                decoration: InputDecoration(
+                                  labelText: 'Option ${optIdx + 1}',
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(CupertinoIcons.minus_circle),
+                              onPressed: () {
+                                setState(() {
+                                  _optionsCtrls[index].removeAt(optIdx);
+                                });
+                              },
+                            ),
+                          ],
+                        );
+                      }),
+                      TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _optionsCtrls[index].add(TextEditingController());
+                          });
+                        },
+                        icon: const Icon(CupertinoIcons.add),
+                        label: const Text('Add Option'),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
                     TextField(
                       controller: _answerCtrls[index],
-                      decoration: const InputDecoration(labelText: 'Answer'),
+                      decoration: const InputDecoration(
+                        labelText: 'Correct Answer',
+                        hintText: 'Should match one of the options for MC',
+                      ),
                     ),
                   ],
                 ),
@@ -418,6 +516,8 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
               setState(() {
                 _questionCtrls.add(TextEditingController());
                 _answerCtrls.add(TextEditingController());
+                _questionTypes.add('text');
+                _optionsCtrls.add([]);
               });
             },
             icon: const Icon(CupertinoIcons.add_circled),
@@ -479,6 +579,9 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _currentAttachmentUrl = null;
     _questionCtrls = [TextEditingController()];
     _answerCtrls = [TextEditingController()];
+    _questionTypes = ['text'];
+    _optionsCtrls = [[]];
+    _isVisible = true;
     setState(() {});
   }
 
@@ -508,6 +611,13 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
         return QuizQuestion(
           question: _questionCtrls[i].text.trim(),
           answer: _answerCtrls[i].text.trim(),
+          type: _questionTypes[i],
+          options: _questionTypes[i] == 'multiple_choice'
+              ? _optionsCtrls[i]
+                    .map((c) => c.text.trim())
+                    .where((t) => t.isNotEmpty)
+                    .toList()
+              : null,
         );
       }).where((q) => q.question.isNotEmpty).toList();
 
@@ -522,6 +632,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           maxAttempts: int.tryParse(_maxAttemptsCtrl.text) ?? 1,
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
+          isVisible: _isVisible,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
@@ -546,6 +657,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           maxAttempts: int.tryParse(_maxAttemptsCtrl.text),
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
+          isVisible: _isVisible,
         );
         if (mounted)
           ScaffoldMessenger.of(

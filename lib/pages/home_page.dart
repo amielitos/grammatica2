@@ -20,7 +20,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _tabIndex = 0; // 0=Lessons,1=Quizzes,2=Profile
+  int _tabIndex = 0; // 0=Lessons,1=Quizzes,2=Profile,3=Subscription
   final _profileKey = GlobalKey<ProfilePageState>();
 
   @override
@@ -43,7 +43,7 @@ class _HomePageState extends State<HomePage> {
         currentIndex: _tabIndex,
         onTap: (index) {
           setState(() => _tabIndex = index);
-          if (index == 2) {
+          if (index == 3) {
             _profileKey.currentState?.fetchProfile();
           }
         },
@@ -53,6 +53,10 @@ class _HomePageState extends State<HomePage> {
             icon: CupertinoIcons.question_circle,
             label: 'Quizzes',
           ),
+          const ModernNavItem(
+            icon: CupertinoIcons.creditcard,
+            label: 'Subscription',
+          ),
           ModernNavItem(
             icon: CupertinoIcons.person,
             label: user.displayName?.split(' ').first ?? 'Profile',
@@ -60,12 +64,20 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: ResponsiveWrapper(
-        child: IndexedStack(
-          index: _tabIndex,
+        child: Column(
           children: [
-            _LessonsList(user: user),
-            QuizzesPage(user: user),
-            ProfilePage(key: _profileKey, user: user),
+            Expanded(
+              child: IndexedStack(
+                index: _tabIndex,
+                children: [
+                  _LessonsList(user: user),
+                  QuizzesPage(user: user),
+                  const _SubscriptionTab(),
+                  ProfilePage(key: _profileKey, user: user),
+                ],
+              ),
+            ),
+            const _SecondaryBottomNav(),
           ],
         ),
       ),
@@ -213,6 +225,104 @@ class _LessonsList extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _SubscriptionTab extends StatelessWidget {
+  const _SubscriptionTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(CupertinoIcons.creditcard, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'Subscription Plan',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text('Coming Soon', style: TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SecondaryBottomNav extends StatelessWidget {
+  const _SecondaryBottomNav();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        child: Row(
+          children: [
+            Expanded(
+              child: _SecondaryNavButton(
+                icon: CupertinoIcons.ant,
+                label: 'Spelling Bee',
+                onTap: () {},
+                isDark: isDark,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _SecondaryNavButton(
+                icon: CupertinoIcons.mic,
+                label: 'Pronunciation',
+                onTap: () {},
+                isDark: isDark,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SecondaryNavButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isDark;
+
+  const _SecondaryNavButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AppColors.primaryGreen, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

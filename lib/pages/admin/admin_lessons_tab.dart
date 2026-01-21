@@ -28,6 +28,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
   final _title = TextEditingController();
   final _prompt = TextEditingController();
   List<PlatformFile> _selectedFiles = [];
+  bool _isVisible = true;
 
   @override
   Widget build(BuildContext context) {
@@ -179,6 +180,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                               _title.text = l.title;
                               _prompt.text = l.prompt;
                               _selectedFiles = [];
+                              _isVisible = l.isVisible;
                             }
                           });
                         },
@@ -277,7 +279,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                           ],
                                         ),
                                       Text(
-                                        'Created: ${_fmt(l.createdAt ?? Timestamp.now())}',
+                                        'Created: ${_fmt(l.createdAt ?? Timestamp.now())} • Visible: ${l.isVisible ? 'Yes' : 'No'}',
                                         style: Theme.of(
                                           context,
                                         ).textTheme.bodySmall,
@@ -334,6 +336,15 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           ),
           onChanged: (_) => setState(() {}),
         ),
+        const SizedBox(height: 16),
+        SwitchListTile(
+          title: const Text('Visible to Public'),
+          subtitle: const Text('If off, learners cannot see this lesson'),
+          value: _isVisible,
+          onChanged: (v) => setState(() => _isVisible = v),
+          activeColor: AppColors.primaryGreen,
+        ),
+        const SizedBox(height: 16),
         const Align(
           alignment: Alignment.centerLeft,
           child: MarkdownGuideButton(),
@@ -419,6 +430,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
     _title.clear();
     _prompt.clear();
     _selectedFiles = [];
+    _isVisible = true;
   }
 
   Future<void> _saveLesson() async {
@@ -452,6 +464,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           answer: '',
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
+          isVisible: _isVisible,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
@@ -474,6 +487,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           answer: '',
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
+          isVisible: _isVisible,
         );
         if (mounted) {
           ScaffoldMessenger.of(

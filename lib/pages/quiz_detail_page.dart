@@ -5,6 +5,7 @@ import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import '../widgets/glass_card.dart';
+import '../theme/app_colors.dart';
 
 class QuizDetailPage extends StatefulWidget {
   final User user;
@@ -297,17 +298,65 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           style: const TextStyle(fontSize: 18),
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _answerCtrls[_currentQuestionIndex],
-          decoration: const InputDecoration(
-            hintText: 'Type your answer here...',
-            border: OutlineInputBorder(),
+        if (_shuffledQuestions[_currentQuestionIndex].type == 'multiple_choice')
+          ...(_shuffledQuestions[_currentQuestionIndex].options ?? []).map((
+            opt,
+          ) {
+            final isSelected =
+                _answerCtrls[_currentQuestionIndex].text.trim() == opt.trim();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: GlassCard(
+                onTap: () {
+                  setState(() {
+                    _answerCtrls[_currentQuestionIndex].text = opt;
+                  });
+                },
+                backgroundColor: isSelected
+                    ? AppColors.primaryGreen.withOpacity(0.2)
+                    : null,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSelected
+                            ? CupertinoIcons.check_mark_circled_solid
+                            : CupertinoIcons.circle,
+                        color: isSelected
+                            ? AppColors.primaryGreen
+                            : Colors.grey,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          opt,
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.bold : null,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList()
+        else
+          TextField(
+            controller: _answerCtrls[_currentQuestionIndex],
+            decoration: const InputDecoration(
+              hintText: 'Type your answer here...',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true,
+            onChanged: (v) => setState(
+              () {},
+            ), // Force rebuild to update sidebar/submit button status
           ),
-          autofocus: true,
-          onChanged: (v) => setState(
-            () {},
-          ), // Force rebuild to update sidebar/submit button status
-        ),
         const SizedBox(height: 32),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

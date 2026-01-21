@@ -11,6 +11,7 @@ import 'admin/admin_validation_tab.dart';
 import '../../services/role_service.dart';
 
 import '../widgets/modern_bottom_nav.dart';
+import '../widgets/glass_card.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -73,15 +74,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
           tabs.add(const AdminLessonsTab());
           tabs.add(const AdminQuizzesTab());
           if (isAdmin) tabs.add(const AdminValidationTab());
+          tabs.add(const _SubscriptionTab());
           tabs.add(ProfilePage(user: AuthService.instance.currentUser!));
 
-          return Stack(
+          return Column(
             children: [
-              IndexedStack(index: _index, children: tabs),
-              if (_switching) ...[
-                const ModalBarrier(dismissible: false, color: Colors.black12),
-                const Center(child: CircularProgressIndicator()),
-              ],
+              Expanded(
+                child: Stack(
+                  children: [
+                    IndexedStack(index: _index, children: tabs),
+                    if (_switching) ...[
+                      const ModalBarrier(
+                        dismissible: false,
+                        color: Colors.black12,
+                      ),
+                      const Center(child: CircularProgressIndicator()),
+                    ],
+                  ],
+                ),
+              ),
+              const _SecondaryBottomNav(),
             ],
           );
         },
@@ -140,6 +152,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 );
               }
               navItems.add(
+                const ModernNavItem(
+                  icon: CupertinoIcons.creditcard,
+                  label: 'Subscription',
+                ),
+              );
+              navItems.add(
                 ModernNavItem(icon: CupertinoIcons.person, label: username),
               );
 
@@ -167,4 +185,105 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
     );
   }
+}
+
+class _SubscriptionTab extends StatelessWidget {
+  const _SubscriptionTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(CupertinoIcons.creditcard, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'Subscription Plan',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text('Coming Soon', style: TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SecondaryBottomNav extends StatelessWidget {
+  const _SecondaryBottomNav();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        child: Row(
+          children: [
+            Expanded(
+              child: _SecondaryNavButton(
+                icon: CupertinoIcons.ant,
+                label: 'Spelling Bee',
+                onTap: () {},
+                isDark: isDark,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _SecondaryNavButton(
+                icon: CupertinoIcons.mic,
+                label: 'Pronunciation',
+                onTap: () {},
+                isDark: isDark,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SecondaryNavButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isDark;
+
+  const _SecondaryNavButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AppColors.primaryGreen, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper for minAxisSize which is MainAxisSize.min
+  getMainAxisSize() => MainAxisSize.min;
 }
