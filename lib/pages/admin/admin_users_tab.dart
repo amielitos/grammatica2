@@ -69,15 +69,23 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                 color:
                                     (role == 'ADMIN'
                                             ? AppColors.primaryGreen
-                                            : Colors.grey)
+                                            : (role == 'EDUCATOR'
+                                                  ? Colors.blue
+                                                  : Colors.grey))
                                         .withOpacity(0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
                                 role == 'ADMIN'
                                     ? CupertinoIcons.checkmark_shield_fill
-                                    : CupertinoIcons.person_fill,
-                                color: AppColors.textPrimary,
+                                    : (role == 'EDUCATOR'
+                                          ? CupertinoIcons.book_fill
+                                          : CupertinoIcons.person_fill),
+                                color: role == 'ADMIN'
+                                    ? AppColors.primaryGreen
+                                    : (role == 'EDUCATOR'
+                                          ? Colors.blue
+                                          : AppColors.textPrimary),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -154,30 +162,78 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: role == 'ADMIN'
-                                  ? Colors.grey[400]
-                                  : AppColors.primaryGreen,
-                              foregroundColor: Colors.white,
+                        Row(
+                          children: [
+                            const Text(
+                              'Change Role:',
+                              style: TextStyle(fontWeight: FontWeight.bold),
                             ),
-                            onPressed: () async {
-                              final newRole = role == 'ADMIN'
-                                  ? UserRole.learner
-                                  : UserRole.admin;
-                              await RoleService.instance.setUserRole(
-                                uid: uid,
-                                role: newRole,
-                              );
-                            },
-                            child: Text(
-                              role == 'ADMIN'
-                                  ? 'Demote to Learner'
-                                  : 'Promote to Admin',
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<UserRole>(
+                                  value: roleFromString(role),
+                                  isExpanded: true,
+                                  items: UserRole.values
+                                      .where((r) => r != UserRole.superadmin)
+                                      .map((r) {
+                                        final rStr = roleToString(r);
+                                        return DropdownMenuItem<UserRole>(
+                                          value: r,
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                r == UserRole.admin
+                                                    ? CupertinoIcons
+                                                          .checkmark_shield_fill
+                                                    : (r == UserRole.educator
+                                                          ? CupertinoIcons
+                                                                .book_fill
+                                                          : CupertinoIcons
+                                                                .person_fill),
+                                                size: 16,
+                                                color: r == UserRole.admin
+                                                    ? Colors.green
+                                                    : (r == UserRole.educator
+                                                          ? Colors.blue
+                                                          : Colors.grey),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                rStr,
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      })
+                                      .toList(),
+                                  onChanged: (newRole) async {
+                                    if (newRole != null &&
+                                        roleToString(newRole) != role) {
+                                      await RoleService.instance.setUserRole(
+                                        uid: uid,
+                                        role: newRole,
+                                      );
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Role updated to ${roleToString(newRole)}',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ],
                     ),
@@ -227,14 +283,20 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       source: _UsersDataSource(
                         context: context,
                         users: users,
-                        onToggleRole: (uid, role) async {
-                          final newRole = role == 'ADMIN'
-                              ? UserRole.learner
-                              : UserRole.admin;
+                        onRoleChanged: (uid, email, newRole) async {
                           await RoleService.instance.setUserRole(
                             uid: uid,
                             role: newRole,
                           );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Role updated to ${roleToString(newRole)} for $email',
+                                ),
+                              ),
+                            );
+                          }
                         },
                         formatTs: _formatTs,
                       ),
@@ -252,13 +314,14 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
 
 class _UsersDataSource extends DataTableSource {
   final List<Map<String, dynamic>> users;
-  final Future<void> Function(String uid, String currentRole) onToggleRole;
+  final Future<void> Function(String uid, String email, UserRole newRole)
+  onRoleChanged;
   final String Function(dynamic ts) formatTs;
   final BuildContext context;
   _UsersDataSource({
     required this.context,
     required this.users,
-    required this.onToggleRole,
+    required this.onRoleChanged,
     required this.formatTs,
   });
   @override
@@ -281,8 +344,12 @@ class _UsersDataSource extends DataTableSource {
               Icon(
                 role == 'ADMIN'
                     ? CupertinoIcons.checkmark_shield_fill
-                    : CupertinoIcons.person_fill,
-                color: role == 'ADMIN' ? AppColors.primaryGreen : Colors.grey,
+                    : (role == 'EDUCATOR'
+                          ? CupertinoIcons.book_fill
+                          : CupertinoIcons.person_fill),
+                color: role == 'ADMIN'
+                    ? AppColors.primaryGreen
+                    : (role == 'EDUCATOR' ? Colors.blue : Colors.grey),
               ),
               const SizedBox(width: 6),
               Text(username),
@@ -297,13 +364,17 @@ class _UsersDataSource extends DataTableSource {
             decoration: BoxDecoration(
               color: role == 'ADMIN'
                   ? AppColors.primaryGreen.withOpacity(0.2)
-                  : Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withOpacity(0.1)
-                  : Colors.grey.shade100,
+                  : (role == 'EDUCATOR'
+                        ? Colors.blue.withOpacity(0.2)
+                        : (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white.withOpacity(0.1)
+                              : Colors.grey.shade100)),
               borderRadius: BorderRadius.circular(8),
               border: role == 'ADMIN'
                   ? Border.all(color: AppColors.primaryGreen.withOpacity(0.5))
-                  : null,
+                  : (role == 'EDUCATOR'
+                        ? Border.all(color: Colors.blue.withOpacity(0.5))
+                        : null),
             ),
             child: Text(
               role,
@@ -313,7 +384,11 @@ class _UsersDataSource extends DataTableSource {
                     ? (Theme.of(context).brightness == Brightness.dark
                           ? Colors.green[200]
                           : Colors.green[800])
-                    : null,
+                    : (role == 'EDUCATOR'
+                          ? (Theme.of(context).brightness == Brightness.dark
+                                ? Colors.blue[200]
+                                : Colors.blue[800])
+                          : null),
               ),
             ),
           ),
@@ -353,22 +428,25 @@ class _UsersDataSource extends DataTableSource {
         DataCell(Text(subscription)),
         DataCell(Text(createdAt)),
         DataCell(
-          FilledButton.tonal(
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              visualDensity: VisualDensity.compact,
-            ),
-            onPressed: () async {
-              await onToggleRole(uid, role);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Role updated for $email')),
-                );
-              }
-            },
-            child: Text(
-              role == 'ADMIN' ? 'Demote' : 'Promote',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<UserRole>(
+              value: roleFromString(role),
+              items: UserRole.values.where((r) => r != UserRole.superadmin).map(
+                (r) {
+                  return DropdownMenuItem<UserRole>(
+                    value: r,
+                    child: Text(
+                      roleToString(r),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  );
+                },
+              ).toList(),
+              onChanged: (newRole) async {
+                if (newRole != null && roleToString(newRole) != role) {
+                  await onRoleChanged(uid, email, newRole);
+                }
+              },
             ),
           ),
         ),

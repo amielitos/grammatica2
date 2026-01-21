@@ -53,6 +53,7 @@ class Lesson {
   final String? createdByEmail;
   final String? attachmentUrl;
   final String? attachmentName;
+  final String validationStatus; // 'approved', 'awaiting_approval'
 
   Lesson({
     required this.id,
@@ -64,6 +65,7 @@ class Lesson {
     this.createdByEmail,
     this.attachmentUrl,
     this.attachmentName,
+    this.validationStatus = 'approved',
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -82,40 +84,69 @@ class Lesson {
           : (data['createdByEmail'] as String?),
       attachmentUrl: (data['attachmentUrl'] ?? '').toString(),
       attachmentName: (data['attachmentName'] ?? '').toString(),
+      validationStatus: (data['validationStatus'] ?? 'approved').toString(),
     );
+  }
+}
+
+class QuizQuestion {
+  final String question;
+  final String answer;
+
+  QuizQuestion({required this.question, required this.answer});
+
+  factory QuizQuestion.fromMap(Map<String, dynamic> map) {
+    return QuizQuestion(
+      question: (map['question'] ?? '').toString(),
+      answer: (map['answer'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {'question': question, 'answer': answer};
   }
 }
 
 class Quiz {
   final String id;
   final String title;
-  final String question;
-  final String answer;
+  final String description;
+  final List<QuizQuestion> questions;
+  final int duration; // in minutes
   final int maxAttempts;
   final Timestamp? createdAt;
   final String? createdByUid;
   final String? createdByEmail;
   final String? attachmentUrl;
   final String? attachmentName;
+  final String validationStatus; // 'approved', 'awaiting_approval'
+
   Quiz({
     required this.id,
     required this.title,
-    required this.question,
-    required this.answer,
+    required this.description,
+    required this.questions,
+    this.duration = 0,
     this.maxAttempts = 1,
     this.createdAt,
     this.createdByUid,
     this.createdByEmail,
     this.attachmentUrl,
     this.attachmentName,
+    this.validationStatus = 'approved',
   });
+
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
+    final questionsData = (d['questions'] as List?) ?? [];
     return Quiz(
       id: doc.id,
       title: (d['title'] ?? '').toString(),
-      question: (d['question'] ?? '').toString(),
-      answer: (d['answer'] ?? '').toString(),
+      description: (d['description'] ?? '').toString(),
+      questions: questionsData
+          .map((q) => QuizQuestion.fromMap(Map<String, dynamic>.from(q)))
+          .toList(),
+      duration: (d['duration'] as num?)?.toInt() ?? 0,
       maxAttempts: (d['maxAttempts'] as num?)?.toInt() ?? 1,
       createdAt: d['createdAt'] as Timestamp?,
       createdByUid: (d['createdByUid'] ?? '') == ''
@@ -126,6 +157,7 @@ class Quiz {
           : (d['createdByEmail'] as String?),
       attachmentUrl: (d['attachmentUrl'] ?? '').toString(),
       attachmentName: (d['attachmentName'] ?? '').toString(),
+      validationStatus: (d['validationStatus'] ?? 'approved').toString(),
     );
   }
 }
@@ -153,6 +185,16 @@ class DatabaseService {
     String? attachmentName,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
+    // Determine initial status based on role
+    String status = 'approved';
+    if (user != null) {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final role = doc.data()?['role'];
+      if (role == 'EDUCATOR') {
+        status = 'awaiting_approval';
+      }
+    }
+
     final doc = await _lessons.add({
       'title': title,
       'prompt': prompt,
@@ -160,6 +202,9 @@ class DatabaseService {
       'createdAt': FieldValue.serverTimestamp(),
       'createdByUid': user?.uid,
       'createdByEmail': user?.email,
+      'validationStatus': status,
+      'attachmentUrl': attachmentUrl,
+      'attachmentName': attachmentName,
     });
     return doc.id;
   }
@@ -200,11 +245,32 @@ class DatabaseService {
     return snapshot.docs.map(Lesson.fromDoc).toList();
   }
 
-  Stream<List<Lesson>> streamLessons() {
+  Stream<List<Lesson>> streamLessons({bool approvedOnly = true}) {
+    // We order by createdAt. To avoid composite index requirements and support
+    // legacy content (without validationStatus), we filter in Dart.
+    return _lessons.orderBy('createdAt', descending: false).snapshots().map((
+      snapshot,
+    ) {
+      final lessons = snapshot.docs.map(Lesson.fromDoc).toList();
+      if (approvedOnly) {
+        return lessons
+            .where((l) => l.validationStatus != 'awaiting_approval')
+            .toList();
+      }
+      return lessons;
+    });
+  }
+
+  Stream<List<Lesson>> streamAwaitingApprovalLessons() {
     return _lessons
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(Lesson.fromDoc).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(Lesson.fromDoc)
+              .where((l) => l.validationStatus == 'awaiting_approval')
+              .toList(),
+        );
   }
 
   Stream<Map<String, bool>> progressStream(User user) {
@@ -229,21 +295,36 @@ class DatabaseService {
 
   Future<String> createQuiz({
     required String title,
-    required String question,
-    required String answer,
+    required String description,
+    required List<QuizQuestion> questions,
+    int duration = 0,
     int maxAttempts = 1,
     String? attachmentUrl,
     String? attachmentName,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
+    // Determine initial status based on role
+    String status = 'approved';
+    if (user != null) {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final role = doc.data()?['role'];
+      if (role == 'EDUCATOR') {
+        status = 'awaiting_approval';
+      }
+    }
+
     final doc = await _quizzes.add({
       'title': title,
-      'question': question,
-      'answer': answer,
+      'description': description,
+      'questions': questions.map((q) => q.toMap()).toList(),
+      'duration': duration,
       'maxAttempts': maxAttempts,
       'createdAt': FieldValue.serverTimestamp(),
       'createdByUid': user?.uid,
       'createdByEmail': user?.email,
+      'validationStatus': status,
+      'attachmentUrl': attachmentUrl,
+      'attachmentName': attachmentName,
     });
     return doc.id;
   }
@@ -251,16 +332,20 @@ class DatabaseService {
   Future<void> updateQuiz({
     required String id,
     String? title,
-    String? question,
-    String? answer,
+    String? description,
+    List<QuizQuestion>? questions,
+    int? duration,
     int? maxAttempts,
     String? attachmentUrl,
     String? attachmentName,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
-    if (question != null) data['question'] = question;
-    if (answer != null) data['answer'] = answer;
+    if (description != null) data['description'] = description;
+    if (questions != null) {
+      data['questions'] = questions.map((q) => q.toMap()).toList();
+    }
+    if (duration != null) data['duration'] = duration;
     if (maxAttempts != null) data['maxAttempts'] = maxAttempts;
     if (attachmentUrl != null) data['attachmentUrl'] = attachmentUrl;
     if (attachmentName != null) data['attachmentName'] = attachmentName;
@@ -278,11 +363,42 @@ class DatabaseService {
     return snap.docs.map(Quiz.fromDoc).toList();
   }
 
-  Stream<List<Quiz>> streamQuizzes() {
+  Stream<List<Quiz>> streamQuizzes({bool approvedOnly = true}) {
+    // To avoid composite index requirements and support legacy content,
+    // we filter out awaiting_approval docs in Dart.
+    return _quizzes.orderBy('createdAt', descending: false).snapshots().map((
+      snapshot,
+    ) {
+      final quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
+      if (approvedOnly) {
+        return quizzes
+            .where((q) => q.validationStatus != 'awaiting_approval')
+            .toList();
+      }
+      return quizzes;
+    });
+  }
+
+  Stream<List<Quiz>> streamAwaitingApprovalQuizzes() {
     return _quizzes
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(Quiz.fromDoc).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map(Quiz.fromDoc)
+              .where((q) => q.validationStatus == 'awaiting_approval')
+              .toList(),
+        );
+  }
+
+  Future<void> updateContentStatus(
+    String collection,
+    String id,
+    String status,
+  ) async {
+    await _firestore.collection(collection).doc(id).update({
+      'validationStatus': status,
+    });
   }
 
   Future<List<Map<String, dynamic>>> fetchQuizResults(String quizId) async {
@@ -312,16 +428,17 @@ class DatabaseService {
     required User user,
     required String quizId,
     required bool isCorrect,
-    String? answer,
+    int? score,
+    int? totalQuestions,
+    List<String>? answers,
   }) async {
     final docRef = _userQuizProgress(user.uid).doc(quizId);
 
-    // Use transaction/atomic update if precise attempt counting under race conditions matters,
-    // but for this simple app, FieldValue.increment is fine.
-
     final updateData = <String, dynamic>{
       'attemptsUsed': FieldValue.increment(1),
-      'lastAnswer': answer,
+      'lastAnswers': answers,
+      'score': score,
+      'totalQuestions': totalQuestions,
       'lastAttemptAt': FieldValue.serverTimestamp(),
     };
 
@@ -330,8 +447,6 @@ class DatabaseService {
       updateData['completedAt'] = FieldValue.serverTimestamp();
       updateData['isCorrect'] = true;
     }
-    // If not correct, we don't mark as completed or correct,
-    // but we still increment attempts (already done by increment).
 
     await docRef.set(updateData, SetOptions(merge: true));
   }

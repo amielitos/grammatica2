@@ -84,7 +84,7 @@ class _LoginPageState extends State<LoginPage> {
                       controller: _emailController,
                       decoration: const InputDecoration(
                         labelText: 'Email',
-                        prefixIcon: const Icon(CupertinoIcons.mail),
+                        prefixIcon: Icon(CupertinoIcons.mail),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {

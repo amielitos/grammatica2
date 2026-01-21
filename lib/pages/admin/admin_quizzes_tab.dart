@@ -3,10 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import '../../services/database_service.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import '../../widgets/markdown_guide_button.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/glass_card.dart';
+import '../../services/auth_service.dart';
+import '../../services/role_service.dart';
 
 class AdminQuizzesTab extends StatefulWidget {
   const AdminQuizzesTab({super.key});
@@ -23,9 +23,13 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
   String? _selectedQuizId;
   bool _creatingOrUpdating = false;
   final _title = TextEditingController();
-  final _question = TextEditingController();
-  final _answer = TextEditingController();
+  final _description = TextEditingController(); // NEW
+  final _durationCtrl = TextEditingController(text: '0'); // NEW (minutes)
   final _maxAttemptsCtrl = TextEditingController(text: '1');
+
+  List<TextEditingController> _questionCtrls = [TextEditingController()];
+  List<TextEditingController> _answerCtrls = [TextEditingController()];
+
   List<PlatformFile> _selectedFiles = []; // Store selected files
   String? _currentAttachmentName;
   String? _currentAttachmentUrl;
@@ -45,7 +49,6 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 children: [
                   LayoutBuilder(
                     builder: (context, c) {
-                      final wide = c.maxWidth >= 900;
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -89,27 +92,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          if (wide)
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(child: _buildInputFields()),
-                                const SizedBox(width: 16),
-                                Expanded(child: _buildPreviewArea()),
-                              ],
-                            )
-                          else ...[
-                            _buildInputFields(),
-                            const SizedBox(height: 24),
-                            const Divider(),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Preview',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 8),
-                            _buildPreviewArea(),
-                          ],
+                          _buildInputFields(),
                         ],
                       );
                     },
@@ -121,7 +104,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           const SizedBox(height: 24),
 
           StreamBuilder<List<Quiz>>(
-            stream: DatabaseService.instance.streamQuizzes(),
+            stream: DatabaseService.instance.streamQuizzes(approvedOnly: false),
             builder: (context, snapshot) {
               if (!snapshot.hasData)
                 return const Center(child: CircularProgressIndicator());
@@ -139,96 +122,189 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   final isSelected = _selectedQuizId == q.id;
                   final color = AppColors.primaryGreen;
 
-                  return GlassCard(
-                    backgroundColor: isSelected ? color : null,
-                    onTap: () {
-                      setState(() {
-                        if (isSelected) {
-                          _resetForm();
-                        } else {
-                          _selectedQuizId = q.id;
-                          _title.text = q.title;
-                          _question.text = q.question;
-                          _answer.text = q.answer;
-                          _maxAttemptsCtrl.text = q.maxAttempts.toString();
-                          _currentAttachmentName = q.attachmentName;
-                          _currentAttachmentUrl = q.attachmentUrl;
-                          _selectedFiles = [];
-                        }
-                      });
-                    },
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: color,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                q.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                  final currentUser = AuthService.instance.currentUser;
+                  return StreamBuilder<UserRole>(
+                    stream: currentUser != null
+                        ? RoleService.instance.roleStream(currentUser.uid)
+                        : null,
+                    builder: (context, roleSnap) {
+                      final role = roleSnap.data;
+                      final isOwner = q.createdByUid == currentUser?.uid;
+                      final isAdmin = role == UserRole.admin;
+                      final canEdit = isAdmin || isOwner;
+                      final isPending =
+                          q.validationStatus == 'awaiting_approval';
+
+                      return GlassCard(
+                        backgroundColor: isSelected
+                            ? color
+                            : (!canEdit ? Colors.grey.withOpacity(0.05) : null),
+                        onTap: () {
+                          if (!canEdit) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'You can only edit your own quizzes.',
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                q.question,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                            );
+                            return;
+                          }
+                          setState(() {
+                            if (isSelected) {
+                              _resetForm();
+                            } else {
+                              _selectedQuizId = q.id;
+                              _title.text = q.title;
+                              _description.text = q.description;
+                              _durationCtrl.text = q.duration.toString();
+                              _maxAttemptsCtrl.text = q.maxAttempts.toString();
+                              _currentAttachmentName = q.attachmentName;
+                              _currentAttachmentUrl = q.attachmentUrl;
+                              _selectedFiles = [];
+                              _questionCtrls = q.questions
+                                  .map(
+                                    (qu) => TextEditingController(
+                                      text: qu.question,
+                                    ),
+                                  )
+                                  .toList();
+                              _answerCtrls = q.questions
+                                  .map(
+                                    (qu) =>
+                                        TextEditingController(text: qu.answer),
+                                  )
+                                  .toList();
+                              if (_questionCtrls.isEmpty) {
+                                _questionCtrls = [TextEditingController()];
+                                _answerCtrls = [TextEditingController()];
+                              }
+                            }
+                          });
+                        },
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 4,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: isPending ? Colors.orange : color,
+                                borderRadius: BorderRadius.circular(4),
                               ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 12,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (q.attachmentName != null &&
-                                      q.attachmentName!.isNotEmpty)
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          CupertinoIcons.paperclip,
-                                          size: 14,
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          q.title,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: !canEdit
+                                                ? Colors.grey
+                                                : null,
+                                          ),
                                         ),
-                                        const SizedBox(width: 4),
+                                      ),
+                                      if (isPending)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.withOpacity(
+                                              0.2,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.orange.withOpacity(
+                                                0.5,
+                                              ),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Awaiting Approval',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.orange,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    q.description,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: !canEdit ? Colors.grey : null,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 12,
+                                    children: [
+                                      if (q.attachmentName != null &&
+                                          q.attachmentName!.isNotEmpty)
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              CupertinoIcons.paperclip,
+                                              size: 14,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              q.attachmentName!,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                            ),
+                                          ],
+                                        ),
+                                      Text(
+                                        'Created: ${_fmt(q.createdAt ?? Timestamp.now())} • Qs: ${q.questions.length} • ${q.duration}m • Attempts: ${q.maxAttempts}',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodySmall,
+                                      ),
+                                      if (q.createdByEmail != null)
                                         Text(
-                                          q.attachmentName!,
+                                          'By: ${q.createdByEmail}',
                                           style: Theme.of(
                                             context,
                                           ).textTheme.bodySmall,
                                         ),
-                                      ],
-                                    ),
-                                  Text(
-                                    'Created: ${_fmt(q.createdAt ?? Timestamp.now())} • Attempts: ${q.maxAttempts}',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
+                                    ],
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
+                            ),
+                            IconButton(
+                              icon: const Icon(CupertinoIcons.graph_square),
+                              onPressed: () => _showResults(q.id, q.title),
+                            ),
+                            if (canEdit)
+                              IconButton(
+                                icon: const Icon(CupertinoIcons.trash),
+                                color: Colors.red[300],
+                                onPressed: () => _deleteQuiz(q),
+                              ),
+                          ],
                         ),
-                        IconButton(
-                          icon: const Icon(CupertinoIcons.graph_square),
-                          onPressed: () => _showResults(q.id, q.title),
-                        ),
-                        IconButton(
-                          icon: const Icon(CupertinoIcons.trash),
-                          color: Colors.red[300],
-                          onPressed: () => _deleteQuiz(q),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
               );
@@ -249,58 +325,103 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
         ),
         const SizedBox(height: 16),
         TextField(
-          controller: _question,
-          minLines: 6,
-          maxLines: 15,
-          decoration: const InputDecoration(
-            labelText: 'Question (Markdown)',
-            alignLabelWithHint: true,
-            border: OutlineInputBorder(),
-          ),
-          onChanged: (_) => setState(() {}),
-        ),
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: MarkdownGuideButton(),
+          controller: _description,
+          decoration: const InputDecoration(labelText: 'Description'),
+          maxLines: 3,
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _answer,
-          decoration: const InputDecoration(labelText: 'Answer'),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _maxAttemptsCtrl,
-          decoration: const InputDecoration(labelText: 'Max Attempts'),
-          keyboardType: TextInputType.number,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPreviewArea() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildUploadUI(),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          constraints: const BoxConstraints(minHeight: 200),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withOpacity(0.05)
-                  : Colors.grey.withOpacity(0.1),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _durationCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Duration (Minutes)',
+                ),
+                keyboardType: TextInputType.number,
+              ),
             ),
-            borderRadius: BorderRadius.circular(12),
-            color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-          ),
-          child: MarkdownBody(
-            data: _question.text.isEmpty
-                ? '_Nothing to preview_'
-                : _question.text,
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextField(
+                controller: _maxAttemptsCtrl,
+                decoration: const InputDecoration(labelText: 'Max Attempts'),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildUploadUI(),
+        const SizedBox(height: 24),
+        const Divider(),
+        const SizedBox(height: 16),
+        Text('Questions', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        ...List.generate(_questionCtrls.length, (index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16.0),
+            child: GlassCard(
+              backgroundColor: Colors.white.withOpacity(0.05),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: AppColors.primaryGreen,
+                          child: Text(
+                            '${index + 1}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        if (_questionCtrls.length > 1)
+                          IconButton(
+                            icon: const Icon(
+                              CupertinoIcons.minus_circle,
+                              color: Colors.red,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _questionCtrls.removeAt(index);
+                                _answerCtrls.removeAt(index);
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                    TextField(
+                      controller: _questionCtrls[index],
+                      decoration: const InputDecoration(labelText: 'Question'),
+                      maxLines: null,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _answerCtrls[index],
+                      decoration: const InputDecoration(labelText: 'Answer'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+        Center(
+          child: TextButton.icon(
+            onPressed: () {
+              setState(() {
+                _questionCtrls.add(TextEditingController());
+                _answerCtrls.add(TextEditingController());
+              });
+            },
+            icon: const Icon(CupertinoIcons.add_circled),
+            label: const Text('Add Question'),
           ),
         ),
       ],
@@ -350,12 +471,14 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
   void _resetForm() {
     _selectedQuizId = null;
     _title.clear();
-    _question.clear();
-    _answer.clear();
+    _description.clear();
+    _durationCtrl.text = '0';
     _maxAttemptsCtrl.text = '1';
     _selectedFiles = [];
     _currentAttachmentName = null;
     _currentAttachmentUrl = null;
+    _questionCtrls = [TextEditingController()];
+    _answerCtrls = [TextEditingController()];
     setState(() {});
   }
 
@@ -381,25 +504,45 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
         attachmentName = _currentAttachmentName;
       }
 
+      final questions = List.generate(_questionCtrls.length, (i) {
+        return QuizQuestion(
+          question: _questionCtrls[i].text.trim(),
+          answer: _answerCtrls[i].text.trim(),
+        );
+      }).where((q) => q.question.isNotEmpty).toList();
+
+      if (questions.isEmpty) throw Exception('Add at least one question');
+
       if (_selectedQuizId == null) {
         await DatabaseService.instance.createQuiz(
           title: _title.text.trim(),
-          question: _question.text.trim(),
-          answer: _answer.text.trim(),
+          description: _description.text.trim(),
+          questions: questions,
+          duration: int.tryParse(_durationCtrl.text) ?? 0,
           maxAttempts: int.tryParse(_maxAttemptsCtrl.text) ?? 1,
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
         );
-        if (mounted)
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Quiz created')));
+        if (mounted) {
+          final role = await RoleService.instance.getRole(
+            AuthService.instance.currentUser?.uid ?? '',
+          );
+          final isEducator = role == UserRole.educator;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isEducator ? 'Quiz submitted for approval' : 'Quiz created',
+              ),
+            ),
+          );
+        }
       } else {
         await DatabaseService.instance.updateQuiz(
           id: _selectedQuizId!,
           title: _title.text.trim(),
-          question: _question.text.trim(),
-          answer: _answer.text.trim(),
+          description: _description.text.trim(),
+          questions: questions,
+          duration: int.tryParse(_durationCtrl.text) ?? 0,
           maxAttempts: int.tryParse(_maxAttemptsCtrl.text),
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,

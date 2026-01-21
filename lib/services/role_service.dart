@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-enum UserRole { learner, admin, superadmin }
+enum UserRole { learner, educator, admin, superadmin }
 
 UserRole roleFromString(String? value) {
   switch (value) {
     case 'ADMIN':
       return UserRole.admin;
+    case 'EDUCATOR':
+      return UserRole.educator;
     case 'SUPERADMIN':
       return UserRole.superadmin;
     case 'LEARNER':
@@ -19,6 +21,8 @@ String roleToString(UserRole role) {
   switch (role) {
     case UserRole.admin:
       return 'ADMIN';
+    case UserRole.educator:
+      return 'EDUCATOR';
     case UserRole.superadmin:
       return 'SUPERADMIN';
     case UserRole.learner:
@@ -57,6 +61,11 @@ class RoleService {
       final data = snap.data();
       return roleFromString(data?['role'] as String?);
     });
+  }
+
+  Future<UserRole> getRole(String uid) async {
+    final snap = await _users.doc(uid).get();
+    return roleFromString(snap.data()?['role'] as String?);
   }
 
   Stream<List<Map<String, dynamic>>> allUsersStream() {

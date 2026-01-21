@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import '../services/database_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import '../widgets/glass_card.dart';
 
 class QuizDetailPage extends StatefulWidget {
   final User user;
   final Quiz quiz;
+
   const QuizDetailPage({super.key, required this.user, required this.quiz});
 
   @override
@@ -15,56 +17,129 @@ class QuizDetailPage extends StatefulWidget {
 }
 
 class _QuizDetailPageState extends State<QuizDetailPage> {
-  final _answerCtrl = TextEditingController();
+  int _currentQuestionIndex = 0;
+  bool _quizStarted = false;
+  List<QuizQuestion> _shuffledQuestions = [];
+  List<TextEditingController> _answerCtrls = [];
+  Timer? _timer;
+  int _secondsRemaining = 0;
+  DateTime? _startTime;
+  int _timeTaken = 0;
+
   bool _submitting = false;
   bool _isCorrect = false;
+  bool _completedLocal =
+      false; // Local flag to show summary immediately after submit
   int _attemptsUsed = 0;
-  bool _completed = false;
+  int? _lastScore;
+
+  @override
+  void initState() {
+    super.initState();
+    _shuffledQuestions = List.from(widget.quiz.questions)..shuffle();
+    _answerCtrls = List.generate(
+      _shuffledQuestions.length,
+      (_) => TextEditingController(),
+    );
+    _secondsRemaining = widget.quiz.duration * 60;
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    for (var ctrl in _answerCtrls) {
+      ctrl.dispose();
+    }
+    super.dispose();
+  }
+
+  bool get _allAnswered =>
+      _answerCtrls.every((ctrl) => ctrl.text.trim().isNotEmpty);
+
+  void _startQuiz() {
+    setState(() {
+      _quizStarted = true;
+      _startTime = DateTime.now();
+      _completedLocal = false;
+    });
+    if (widget.quiz.duration > 0) {
+      _startTimer();
+    }
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining > 0) {
+        if (mounted) {
+          setState(() {
+            _secondsRemaining--;
+          });
+        }
+      } else {
+        _timer?.cancel();
+        _submit(widget.quiz.maxAttempts, autoSubmit: true);
+      }
+    });
+  }
 
   String _normalize(String s) =>
       s.trim().toLowerCase().replaceAll(RegExp(r"\s+"), " ");
 
-  Future<void> _submit(int maxAttempts) async {
-    if (_attemptsUsed >= maxAttempts && !_completed) {
+  Future<void> _submit(int maxAttempts, {bool autoSubmit = false}) async {
+    // Basic check against local snapshot of attempts
+    if (_attemptsUsed >= maxAttempts && !_completedLocal && !autoSubmit) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('No attempts remaining.')));
       return;
     }
 
-    final input = _normalize(_answerCtrl.text);
-    final expected = _normalize(widget.quiz.answer);
-    final correct = input == expected;
+    int score = 0;
+    List<String> userAnswers = [];
+    for (int i = 0; i < _shuffledQuestions.length; i++) {
+      final input = _normalize(_answerCtrls[i].text);
+      final expected = _normalize(_shuffledQuestions[i].answer);
+      if (input == expected) score++;
+      userAnswers.add(_answerCtrls[i].text.trim());
+    }
+
+    final bool isCorrect = score == _shuffledQuestions.length;
 
     setState(() => _submitting = true);
+    _timer?.cancel();
+
+    if (_startTime != null) {
+      _timeTaken = DateTime.now().difference(_startTime!).inSeconds;
+    }
 
     try {
       await DatabaseService.instance.markQuizCompleted(
         user: widget.user,
         quizId: widget.quiz.id,
-        answer: _answerCtrl.text.trim(),
-        isCorrect: correct,
+        isCorrect: isCorrect,
+        score: score,
+        totalQuestions: _shuffledQuestions.length,
+        answers: userAnswers,
       );
 
       if (mounted) {
         setState(() {
           _submitting = false;
-          // Optimistic update (stream will confirm)
-          if (correct) {
-            _isCorrect = true;
-            _completed = true;
-          }
-          _attemptsUsed++; // Increment local count for immediate feedback
+          _isCorrect = isCorrect;
+          _lastScore = score;
+          _completedLocal = true;
+          // We don't increment _attemptsUsed locally here anymore because
+          // the StreamBuilder will pick up the FieldValue.increment(1) from Firestore.
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              correct
-                  ? 'Correct!'
-                  : 'Incorrect. ${maxAttempts - _attemptsUsed} attempts remaining.',
+              isCorrect
+                  ? 'Quiz Submitted! All correct!'
+                  : 'Quiz Submitted! Score: $score/${_shuffledQuestions.length}.',
             ),
-            backgroundColor: correct ? Colors.green : Colors.red,
+            backgroundColor: isCorrect ? Colors.green : Colors.orange,
           ),
         );
       }
@@ -86,208 +161,411 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: GlassCard(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: StreamBuilder<Map<String, Map<String, dynamic>>>(
-                stream: DatabaseService.instance.quizProgressStream(
-                  widget.user,
-                ),
-                builder: (context, snapshot) {
-                  final progressMap = snapshot.data ?? {};
-                  final myProgress = progressMap[widget.quiz.id];
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool isWide = constraints.maxWidth >= 900;
 
-                  // Update state from stream
-                  if (myProgress != null) {
-                    _completed = myProgress['completed'] == true;
-                    final streamAttempts =
-                        (myProgress['attemptsUsed'] as num?)?.toInt() ?? 0;
-                    // Prevent stale stream data from overwriting local increment
-                    if (streamAttempts > _attemptsUsed) {
-                      _attemptsUsed = streamAttempts;
-                    }
-                    _isCorrect = myProgress['isCorrect'] == true;
-                  }
+          return Center(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 700),
+                        child: GlassCard(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: StreamBuilder<Map<String, Map<String, dynamic>>>(
+                              stream: DatabaseService.instance
+                                  .quizProgressStream(widget.user),
+                              builder: (context, snapshot) {
+                                final progressMap = snapshot.data ?? {};
+                                final myProgress = progressMap[widget.quiz.id];
 
-                  final maxAttempts = widget.quiz.maxAttempts;
-                  final attemptsLeft = maxAttempts - _attemptsUsed;
-                  final canSubmit = !_completed && attemptsLeft > 0;
-                  final showTryAgain =
-                      !_completed && _attemptsUsed > 0 && attemptsLeft > 0;
+                                bool serverCompleted = false;
+                                if (myProgress != null) {
+                                  serverCompleted =
+                                      myProgress['completed'] == true;
+                                  _attemptsUsed =
+                                      (myProgress['attemptsUsed'] as num?)
+                                          ?.toInt() ??
+                                      0;
+                                  _isCorrect = myProgress['isCorrect'] == true;
+                                  // Don't override _lastScore if we are in the middle of a submission
+                                  if (!_submitting) {
+                                    _lastScore = (myProgress['score'] as num?)
+                                        ?.toInt();
+                                  }
+                                }
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          if (_completed && _isCorrect)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.green),
-                              ),
-                              child: const Text(
-                                'Completed',
-                                style: TextStyle(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            )
-                          else if (_attemptsUsed >= maxAttempts && !_isCorrect)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.red),
-                              ),
-                              child: const Text(
-                                'Failed',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            )
-                          else
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.blue),
-                              ),
-                              child: Text(
-                                'Attempts used: $_attemptsUsed / $maxAttempts',
-                                style: const TextStyle(
-                                  color: Colors.blue,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                                final maxAttempts = widget.quiz.maxAttempts;
+                                final hasAttemptsLeft =
+                                    _attemptsUsed < maxAttempts;
+
+                                // Show results if finished locally OR finished on server OR no attempts left
+                                if (_completedLocal ||
+                                    serverCompleted ||
+                                    (!hasAttemptsLeft && !_quizStarted)) {
+                                  return _buildResultsArea(maxAttempts);
+                                }
+
+                                if (!_quizStarted) {
+                                  return _buildStartArea(maxAttempts);
+                                }
+
+                                return _buildQuestionArea(maxAttempts);
+                              },
                             ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      MarkdownBody(
-                        data: widget.quiz.question,
-                        selectable: true,
-                      ),
-                      const SizedBox(height: 32),
-                      TextField(
-                        controller: _answerCtrl,
-                        enabled: canSubmit || showTryAgain,
-                        decoration: InputDecoration(
-                          labelText: 'Your Answer',
-                          border: const OutlineInputBorder(),
-                          errorText:
-                              (_attemptsUsed > 0 &&
-                                  !_isCorrect &&
-                                  !_submitting &&
-                                  attemptsLeft > 0)
-                              ? 'Incorrect, try again.'
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      if (canSubmit || showTryAgain)
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton(
-                            onPressed: _submitting
-                                ? null
-                                : () => _submit(maxAttempts),
-                            child: _submitting
-                                ? const SizedBox(
-                                    height: 16,
-                                    width: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : Text(showTryAgain ? 'Try Again' : 'Submit'),
-                          ),
-                        )
-                      else if (_isCorrect)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              const Icon(
-                                CupertinoIcons.check_mark_circled_solid,
-                                color: Colors.green,
-                                size: 48,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Great job! The answer was: ${widget.quiz.answer}',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            children: [
-                              const Icon(
-                                CupertinoIcons.xmark_circle_fill,
-                                color: Colors.red,
-                                size: 48,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Out of attempts. The correct answer was: ${widget.quiz.answer}',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
                           ),
                         ),
-                    ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (isWide && _quizStarted && !_completedLocal)
+                  SizedBox(
+                    width: 300,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 16, 16, 16),
+                      child: _buildQuestionSidePanel(),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStartArea(int maxAttempts) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.quiz.title,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 16),
+        Text(widget.quiz.description),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            const Icon(Icons.timer_outlined, size: 20),
+            const SizedBox(width: 8),
+            Text('${widget.quiz.duration} minutes'),
+            const Spacer(),
+            Text('Attempts Used: $_attemptsUsed / $maxAttempts'),
+          ],
+        ),
+        if (maxAttempts - _attemptsUsed > 0) ...[
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _startQuiz,
+              child: const Text('Start Quiz'),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildQuestionArea(int maxAttempts) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Question ${_currentQuestionIndex + 1}/${_shuffledQuestions.length}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            if (widget.quiz.duration > 0) _buildTimerBadge(),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Text(
+          _shuffledQuestions[_currentQuestionIndex].question,
+          style: const TextStyle(fontSize: 18),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _answerCtrls[_currentQuestionIndex],
+          decoration: const InputDecoration(
+            hintText: 'Type your answer here...',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+          onChanged: (v) => setState(
+            () {},
+          ), // Force rebuild to update sidebar/submit button status
+        ),
+        const SizedBox(height: 32),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            if (_currentQuestionIndex > 0)
+              TextButton(
+                onPressed: () {
+                  setState(() => _currentQuestionIndex--);
+                },
+                child: const Text('Previous'),
+              )
+            else
+              const SizedBox(),
+            if (_currentQuestionIndex < _shuffledQuestions.length - 1)
+              FilledButton(
+                onPressed: () {
+                  setState(() => _currentQuestionIndex++);
+                },
+                child: const Text('Next'),
+              )
+            else
+              SizedBox(
+                width: 120,
+                child: FilledButton(
+                  onPressed: (_submitting || !_allAnswered)
+                      ? null
+                      : () => _confirmSubmission(maxAttempts),
+                  child: _submitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Submit'),
+                ),
+              ),
+          ],
+        ),
+        if (!_allAnswered &&
+            _currentQuestionIndex == _shuffledQuestions.length - 1)
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0),
+            child: Text(
+              'Please answer all questions before submitting.',
+              style: TextStyle(color: Colors.orange, fontSize: 12),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTimerBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _secondsRemaining < 60
+            ? Colors.red.withOpacity(0.1)
+            : Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.timer,
+            size: 16,
+            color: _secondsRemaining < 60 ? Colors.red : Colors.blue,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '${(_secondsRemaining ~/ 60).toString().padLeft(2, '0')}:${(_secondsRemaining % 60).toString().padLeft(2, '0')}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: _secondsRemaining < 60 ? Colors.red : Colors.blue,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuestionSidePanel() {
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Questions',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _shuffledQuestions.length,
+                itemBuilder: (context, index) {
+                  final isCurrent = index == _currentQuestionIndex;
+                  final isAnswered = _answerCtrls[index].text.trim().isNotEmpty;
+
+                  return ListTile(
+                    dense: true,
+                    selected: isCurrent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    tileColor: isCurrent ? Colors.blue.withOpacity(0.1) : null,
+                    leading: CircleAvatar(
+                      radius: 12,
+                      backgroundColor: isAnswered
+                          ? Colors.green
+                          : Colors.grey[300],
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      'Question ${index + 1}',
+                      style: TextStyle(
+                        fontWeight: isCurrent ? FontWeight.bold : null,
+                      ),
+                    ),
+                    onTap: () {
+                      setState(() {
+                        _currentQuestionIndex = index;
+                      });
+                    },
                   );
                 },
               ),
             ),
-          ),
+          ],
         ),
       ),
+    );
+  }
+
+  Future<void> _confirmSubmission(int maxAttempts) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Submit Quiz?'),
+        content: const Text('Do you want to submit your answers?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes, Submit'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      _submit(maxAttempts);
+    }
+  }
+
+  Widget _buildResultsArea(int maxAttempts) {
+    final minutes = _timeTaken ~/ 60;
+    final seconds = _timeTaken % 60;
+    final timeStr = minutes > 0 ? '$minutes m $seconds s' : '$seconds seconds';
+
+    final remainingAttempts = (maxAttempts - _attemptsUsed).clamp(
+      0,
+      maxAttempts,
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _isCorrect
+                ? Colors.green.withOpacity(0.1)
+                : Colors.orange.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            _isCorrect ? Icons.check_circle : Icons.info_outline,
+            size: 64,
+            color: _isCorrect ? Colors.green : Colors.orange,
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          _isCorrect ? 'Congratulations!' : 'Quiz Finished',
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildStatItem(
+              'Score',
+              '${_lastScore ?? 0} / ${_shuffledQuestions.length}',
+            ),
+            _buildStatItem('Time', timeStr),
+          ],
+        ),
+        const SizedBox(height: 32),
+        Text(
+          _isCorrect
+              ? 'You have successfully completed this quiz.'
+              : 'Keep practicing! You have $remainingAttempts attempts remaining.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 32),
+        if (!_isCorrect && remainingAttempts > 0)
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () {
+                setState(() {
+                  _quizStarted = false;
+                  _completedLocal = false;
+                  _currentQuestionIndex = 0;
+                  for (var ctrl in _answerCtrls) {
+                    ctrl.clear();
+                  }
+                  _secondsRemaining = widget.quiz.duration * 60;
+                  _startTime = null;
+                });
+              },
+              child: const Text('Try Again'),
+            ),
+          ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Back to Quizzes'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 }
