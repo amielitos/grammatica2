@@ -89,11 +89,30 @@ class Lesson {
   }
 }
 
+class QuizQuestion {
+  final String question;
+  final String answer;
+
+  QuizQuestion({required this.question, required this.answer});
+
+  factory QuizQuestion.fromMap(Map<String, dynamic> map) {
+    return QuizQuestion(
+      question: (map['question'] ?? '').toString(),
+      answer: (map['answer'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {'question': question, 'answer': answer};
+  }
+}
+
 class Quiz {
   final String id;
   final String title;
-  final String question;
-  final String answer;
+  final String description;
+  final List<QuizQuestion> questions;
+  final int duration; // in minutes
   final int maxAttempts;
   final Timestamp? createdAt;
   final String? createdByUid;
@@ -105,8 +124,9 @@ class Quiz {
   Quiz({
     required this.id,
     required this.title,
-    required this.question,
-    required this.answer,
+    required this.description,
+    required this.questions,
+    this.duration = 0,
     this.maxAttempts = 1,
     this.createdAt,
     this.createdByUid,
@@ -115,13 +135,18 @@ class Quiz {
     this.attachmentName,
     this.validationStatus = 'approved',
   });
+
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
+    final questionsData = (d['questions'] as List?) ?? [];
     return Quiz(
       id: doc.id,
       title: (d['title'] ?? '').toString(),
-      question: (d['question'] ?? '').toString(),
-      answer: (d['answer'] ?? '').toString(),
+      description: (d['description'] ?? '').toString(),
+      questions: questionsData
+          .map((q) => QuizQuestion.fromMap(Map<String, dynamic>.from(q)))
+          .toList(),
+      duration: (d['duration'] as num?)?.toInt() ?? 0,
       maxAttempts: (d['maxAttempts'] as num?)?.toInt() ?? 1,
       createdAt: d['createdAt'] as Timestamp?,
       createdByUid: (d['createdByUid'] ?? '') == ''
@@ -270,8 +295,9 @@ class DatabaseService {
 
   Future<String> createQuiz({
     required String title,
-    required String question,
-    required String answer,
+    required String description,
+    required List<QuizQuestion> questions,
+    int duration = 0,
     int maxAttempts = 1,
     String? attachmentUrl,
     String? attachmentName,
@@ -289,8 +315,9 @@ class DatabaseService {
 
     final doc = await _quizzes.add({
       'title': title,
-      'question': question,
-      'answer': answer,
+      'description': description,
+      'questions': questions.map((q) => q.toMap()).toList(),
+      'duration': duration,
       'maxAttempts': maxAttempts,
       'createdAt': FieldValue.serverTimestamp(),
       'createdByUid': user?.uid,
@@ -305,16 +332,20 @@ class DatabaseService {
   Future<void> updateQuiz({
     required String id,
     String? title,
-    String? question,
-    String? answer,
+    String? description,
+    List<QuizQuestion>? questions,
+    int? duration,
     int? maxAttempts,
     String? attachmentUrl,
     String? attachmentName,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
-    if (question != null) data['question'] = question;
-    if (answer != null) data['answer'] = answer;
+    if (description != null) data['description'] = description;
+    if (questions != null) {
+      data['questions'] = questions.map((q) => q.toMap()).toList();
+    }
+    if (duration != null) data['duration'] = duration;
     if (maxAttempts != null) data['maxAttempts'] = maxAttempts;
     if (attachmentUrl != null) data['attachmentUrl'] = attachmentUrl;
     if (attachmentName != null) data['attachmentName'] = attachmentName;
@@ -397,16 +428,17 @@ class DatabaseService {
     required User user,
     required String quizId,
     required bool isCorrect,
-    String? answer,
+    int? score,
+    int? totalQuestions,
+    List<String>? answers,
   }) async {
     final docRef = _userQuizProgress(user.uid).doc(quizId);
 
-    // Use transaction/atomic update if precise attempt counting under race conditions matters,
-    // but for this simple app, FieldValue.increment is fine.
-
     final updateData = <String, dynamic>{
       'attemptsUsed': FieldValue.increment(1),
-      'lastAnswer': answer,
+      'lastAnswers': answers,
+      'score': score,
+      'totalQuestions': totalQuestions,
       'lastAttemptAt': FieldValue.serverTimestamp(),
     };
 
@@ -415,8 +447,6 @@ class DatabaseService {
       updateData['completedAt'] = FieldValue.serverTimestamp();
       updateData['isCorrect'] = true;
     }
-    // If not correct, we don't mark as completed or correct,
-    // but we still increment attempts (already done by increment).
 
     await docRef.set(updateData, SetOptions(merge: true));
   }

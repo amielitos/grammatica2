@@ -62,8 +62,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
               )
             : null,
         builder: (context, roleSnap) {
-          if (!roleSnap.hasData)
+          if (!roleSnap.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
           final role = roleSnap.data!;
           final isAdmin = role == UserRole.admin;
 

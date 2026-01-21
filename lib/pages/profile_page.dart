@@ -234,8 +234,9 @@ class ProfilePageState extends State<ProfilePage> {
                                                         withData: true,
                                                       );
                                                   if (pick == null ||
-                                                      pick.files.isEmpty)
+                                                      pick.files.isEmpty) {
                                                     return;
+                                                  }
 
                                                   final file = pick.files.first;
                                                   final bytes = file.bytes;
@@ -467,8 +468,9 @@ class ProfilePageState extends State<ProfilePage> {
                                           >(
                                             groupValue: mode,
                                             onValueChanged: (newMode) {
-                                              if (newMode != null)
+                                              if (newMode != null) {
                                                 themeNotifier.value = newMode;
+                                              }
                                             },
                                             children: const {
                                               ThemeMode.light: Padding(

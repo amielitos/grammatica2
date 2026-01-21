@@ -127,11 +127,13 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           StreamBuilder<List<Lesson>>(
             stream: DatabaseService.instance.streamLessons(approvedOnly: false),
             builder: (context, snapshot) {
-              if (!snapshot.hasData)
+              if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
+              }
               final lessons = snapshot.data!;
-              if (lessons.isEmpty)
+              if (lessons.isEmpty) {
                 return const Center(child: Text('No lessons yet'));
+              }
 
               return ListView.separated(
                 physics: const NeverScrollableScrollPhysics(),
@@ -427,8 +429,9 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
 
       if (_selectedFiles.isNotEmpty) {
         final file = _selectedFiles.first;
-        if (file.size > 2 * 1024 * 1024)
+        if (file.size > 2 * 1024 * 1024) {
           throw Exception('File size must be less than 2MB');
+        }
         if (file.bytes != null) {
           attachmentUrl = await DatabaseService.instance.uploadDocument(
             fileBytes: file.bytes!,
@@ -472,17 +475,19 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
         );
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Lesson updated')));
+        }
       }
       if (mounted) _resetForm();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Failed: $e')));
+      }
     } finally {
       if (mounted) setState(() => _creatingLesson = false);
     }
@@ -516,10 +521,11 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
         if (_selectedLessonId == l.id) _resetForm();
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      }
     }
   }
 }

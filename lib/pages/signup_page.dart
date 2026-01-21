@@ -94,7 +94,7 @@ class _SignupPageState extends State<SignupPage> {
                         controller: _emailController,
                         decoration: const InputDecoration(
                           labelText: 'Email',
-                          prefixIcon: const Icon(CupertinoIcons.mail),
+                          prefixIcon: Icon(CupertinoIcons.mail),
                         ),
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
