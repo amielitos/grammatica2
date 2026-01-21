@@ -431,6 +431,7 @@ class DatabaseService {
     int? score,
     int? totalQuestions,
     List<String>? answers,
+    int? timeTaken,
   }) async {
     final docRef = _userQuizProgress(user.uid).doc(quizId);
 
@@ -439,13 +440,14 @@ class DatabaseService {
       'lastAnswers': answers,
       'score': score,
       'totalQuestions': totalQuestions,
+      'timeTaken': timeTaken,
       'lastAttemptAt': FieldValue.serverTimestamp(),
+      'isCorrect': isCorrect,
     };
 
     if (isCorrect) {
       updateData['completed'] = true;
       updateData['completedAt'] = FieldValue.serverTimestamp();
-      updateData['isCorrect'] = true;
     }
 
     await docRef.set(updateData, SetOptions(merge: true));

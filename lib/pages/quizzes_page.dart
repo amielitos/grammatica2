@@ -80,12 +80,8 @@ class QuizzesPage extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final q = quizzes[index];
                   final progData = progress[q.id];
-                  final completed = progData?['completed'] == true;
                   final isCorrect = progData?['isCorrect'] == true;
                   final attempts = (progData?['attemptsUsed'] as int?) ?? 0;
-                  final max = q.maxAttempts;
-
-                  bool failed = !isCorrect && attempts >= max;
 
                   String createdAtStr = q.createdAt != null
                       ? _fmt(q.createdAt!)
@@ -130,41 +126,28 @@ class QuizzesPage extends StatelessWidget {
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            if (completed)
+                            if (attempts > 0)
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.green.withOpacity(0.2),
+                                  color: (isCorrect ? Colors.green : Colors.red)
+                                      .withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.green),
-                                ),
-                                child: const Text(
-                                  'Passed',
-                                  style: TextStyle(
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                                  border: Border.all(
+                                    color: (isCorrect
+                                        ? Colors.green
+                                        : Colors.red),
                                   ),
                                 ),
-                              )
-                            else if (failed)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.red),
-                                ),
-                                child: const Text(
-                                  'Failed',
+                                child: Text(
+                                  isCorrect ? 'Passed' : 'Failed',
                                   style: TextStyle(
-                                    color: Colors.red,
+                                    color: (isCorrect
+                                        ? Colors.green
+                                        : Colors.red),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
                                   ),
