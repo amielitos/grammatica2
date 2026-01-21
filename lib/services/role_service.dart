@@ -1,19 +1,30 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-enum UserRole { learner, admin }
+enum UserRole { learner, admin, superadmin }
 
 UserRole roleFromString(String? value) {
   switch (value) {
     case 'ADMIN':
       return UserRole.admin;
+    case 'SUPERADMIN':
+      return UserRole.superadmin;
     case 'LEARNER':
     default:
       return UserRole.learner;
   }
 }
 
-String roleToString(UserRole role) => role == UserRole.admin ? 'ADMIN' : 'LEARNER';
+String roleToString(UserRole role) {
+  switch (role) {
+    case UserRole.admin:
+      return 'ADMIN';
+    case UserRole.superadmin:
+      return 'SUPERADMIN';
+    case UserRole.learner:
+      return 'LEARNER';
+  }
+}
 
 class RoleService {
   RoleService._();
@@ -21,7 +32,8 @@ class RoleService {
 
   final _firestore = FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> get _users => _firestore.collection('users');
+  CollectionReference<Map<String, dynamic>> get _users =>
+      _firestore.collection('users');
 
   Future<void> ensureUserDocument(User user) async {
     final docRef = _users.doc(user.uid);
@@ -48,15 +60,23 @@ class RoleService {
   }
 
   Stream<List<Map<String, dynamic>>> allUsersStream() {
-    return _users.orderBy('createdAt', descending: true).snapshots().map((q) =>
-      q.docs.map((d) => {'uid': d.id, ...d.data()}).toList());
+    return _users
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((q) => q.docs.map((d) => {'uid': d.id, ...d.data()}).toList());
   }
 
-  Future<void> setUserRole({required String uid, required UserRole role}) async {
+  Future<void> setUserRole({
+    required String uid,
+    required UserRole role,
+  }) async {
     await _users.doc(uid).update({'role': roleToString(role)});
   }
 
-  Future<void> updateUsername({required String uid, required String username}) async {
+  Future<void> updateUsername({
+    required String uid,
+    required String username,
+  }) async {
     await _users.doc(uid).update({'username': username});
   }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'markdown_guide_dialog.dart';
 
@@ -10,9 +11,11 @@ class MarkdownGuideButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
       child: InkWell(
         onTap: () {
-          showDialog(
-            context: context,
-            builder: (context) => const MarkdownGuideDialog(),
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              fullscreenDialog: true,
+              builder: (context) => const MarkdownGuideDialog(),
+            ),
           );
         },
         borderRadius: BorderRadius.circular(20),
@@ -27,7 +30,7 @@ class MarkdownGuideButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.help_outline,
+                CupertinoIcons.question_circle,
                 size: 18,
                 color: Theme.of(context).primaryColor,
               ),

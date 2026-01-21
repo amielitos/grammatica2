@@ -1,11 +1,15 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/role_service.dart';
 import 'lesson_page.dart';
 import 'quizzes_page.dart';
 import 'profile_page.dart';
+import '../theme/app_colors.dart';
+import '../widgets/glass_card.dart';
+import '../widgets/responsive_wrapper.dart';
+import '../widgets/modern_bottom_nav.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -17,48 +21,60 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _tabIndex = 0; // 0=Lessons,1=Quizzes,2=Profile
-
-  // Key to access ProfilePage state
   final _profileKey = GlobalKey<ProfilePageState>();
 
   @override
   Widget build(BuildContext context) {
+    // [x] Align Learner Dark Mode background with Admin (Black background)
+    //   [x] Update `AppTheme` to use `backgroundDark` for Scaffolds in dark mode, but keep Salmon for light mode
+    //   [ ] Verify `ProfilePage` and `QuizzesPage` background behavior
+    // [/] Align Admin Bottom Navigation with Learner design
+    //   [/] Extract Learner Navigation design into a reusable widget or identify the pattern
+    //   [ ] Update `AdminDashboard` to use the modern-circular centered navigation
+    //   [ ] Ensure the navigation width wraps to content
     final user = widget.user;
     return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBody: true,
       appBar: AppBar(
-        title: const Text('Grammatica - Lessons'),
-        automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          'Grammatica',
+          style: Theme.of(
+            context,
+          ).textTheme.displayLarge?.copyWith(fontSize: 28),
+        ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tabIndex,
-        onDestinationSelected: (i) {
-          setState(() => _tabIndex = i);
-          // If profile tab selected, fetch profile
-          if (i == 2) {
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: _tabIndex,
+        onTap: (index) {
+          setState(() => _tabIndex = index);
+          if (index == 2) {
             _profileKey.currentState?.fetchProfile();
           }
         },
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.menu_book), label: 'Lessons'),
-          NavigationDestination(
-            icon: Icon(Icons.quiz_outlined),
+        items: [
+          const ModernNavItem(icon: CupertinoIcons.book, label: 'Lessons'),
+          const ModernNavItem(
+            icon: CupertinoIcons.question_circle,
             label: 'Quizzes',
           ),
-          NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
+          ModernNavItem(
+            icon: CupertinoIcons.person,
+            label: user.displayName?.split(' ').first ?? 'Profile',
+          ),
         ],
       ),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return IndexedStack(
-              index: _tabIndex,
-              children: [
-                _LessonsList(user: user),
-                QuizzesPage(user: user),
-                ProfilePage(key: _profileKey, user: user),
-              ],
-            );
-          },
+      body: ResponsiveWrapper(
+        child: IndexedStack(
+          index: _tabIndex,
+          children: [
+            _LessonsList(user: user),
+            QuizzesPage(user: user),
+            ProfilePage(key: _profileKey, user: user),
+          ],
         ),
       ),
     );
@@ -71,12 +87,7 @@ class _LessonsList extends StatelessWidget {
 
   String _fmt(Timestamp ts) {
     final d = ts.toDate().toLocal();
-    final y = d.year.toString().padLeft(4, '0');
-    final m = d.month.toString().padLeft(2, '0');
-    final da = d.day.toString().padLeft(2, '0');
-    final hh = d.hour.toString().padLeft(2, '0');
-    final mm = d.minute.toString().padLeft(2, '0');
-    return '$y-$m-$da $hh:$mm';
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
   Widget _authorName({
@@ -123,48 +134,24 @@ class _LessonsList extends StatelessWidget {
           return const Center(child: Text('No lessons available.'));
         }
         final lessons = snapshot.data!;
+
         return StreamBuilder<Map<String, bool>>(
           stream: DatabaseService.instance.progressStream(user),
           builder: (context, progressSnap) {
             final progress = progressSnap.data ?? const {};
-            return ListView.builder(
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
               itemCount: lessons.length,
+              separatorBuilder: (c, i) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
                 final lesson = lessons[index];
                 final done = progress[lesson.id] == true;
                 final createdAtStr = lesson.createdAt != null
                     ? _fmt(lesson.createdAt!)
                     : 'N/A';
-                return ListTile(
-                  title: Text(lesson.title),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        lesson.prompt,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          _authorName(
-                            uid: lesson.createdByUid,
-                            fallbackEmail: lesson.createdByEmail,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '• Created: $createdAtStr',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  trailing: done
-                      ? const Icon(Icons.check_circle, color: Colors.green)
-                      : const Icon(Icons.circle_outlined),
+
+                return GlassCard(
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -172,6 +159,62 @@ class _LessonsList extends StatelessWidget {
                       ),
                     );
                   },
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 8),
+                      // Content
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              lesson.title,
+                              style: Theme.of(
+                                context,
+                              ).textTheme.titleLarge?.copyWith(fontSize: 18),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              lesson.prompt,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 12,
+                              children: [
+                                _authorName(
+                                  uid: lesson.createdByUid,
+                                  fallbackEmail: lesson.createdByEmail,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: Colors.grey),
+                                ),
+                                Text(
+                                  '• $createdAtStr',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Status Icon
+                      if (done)
+                        Icon(
+                          CupertinoIcons.check_mark_circled,
+                          color: AppColors.primaryGreen,
+                          size: 28,
+                        )
+                      else
+                        Icon(
+                          CupertinoIcons.chevron_right,
+                          size: 16,
+                          color: Colors.grey.withOpacity(0.5),
+                        ),
+                    ],
+                  ),
                 );
               },
             );

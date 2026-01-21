@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
-import '../utils/responsive_layout.dart';
+import '../widgets/glass_card.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -48,22 +49,42 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Login'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+      ),
       body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: ResponsiveContainer(
-            child: SingleChildScrollView(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: GlassCard(
               child: Form(
                 key: _formKey,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    const Text(
+                      "Welcome Back",
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Sign in to continue learning",
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
+                    const SizedBox(height: 32),
                     TextFormField(
                       controller: _emailController,
                       decoration: const InputDecoration(
                         labelText: 'Email',
-                        border: OutlineInputBorder(),
+                        prefixIcon: const Icon(CupertinoIcons.mail),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
@@ -83,12 +104,12 @@ class _LoginPageState extends State<LoginPage> {
                       controller: _passwordController,
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(CupertinoIcons.lock),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword
-                                ? Icons.visibility
-                                : Icons.visibility_off,
+                                ? CupertinoIcons.eye
+                                : CupertinoIcons.eye_slash,
                           ),
                           onPressed: () {
                             setState(() {
@@ -108,18 +129,25 @@ class _LoginPageState extends State<LoginPage> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
+                      height: 54,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _login,
                         child: _isLoading
-                            ? const CircularProgressIndicator()
-                            : const Text('Login'),
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Sign In'),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     TextButton(
                       onPressed: () {
                         Navigator.pushNamed(context, '/register');

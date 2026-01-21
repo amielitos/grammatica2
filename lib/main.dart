@@ -6,6 +6,7 @@ import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'services/role_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'theme/app_theme.dart';
 
 // Pages
 import 'pages/login_page.dart';
@@ -19,34 +20,29 @@ void main() async {
   runApp(const GrammaticaApp());
 }
 
+final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.light);
+
 class GrammaticaApp extends StatelessWidget {
   const GrammaticaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Grammatica',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Color(0xFF2E7D32)),
-        useMaterial3: true,
-      ),
-      builder: (context, child) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return OrientationBuilder(
-              builder: (context, orientation) {
-                return child!;
-              },
-            );
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, currentMode, _) {
+        return MaterialApp(
+          title: 'Grammatica',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: currentMode,
+          initialRoute: '/',
+          routes: {
+            '/': (context) => _AuthWrapper(),
+            '/login': (context) => const LoginPage(),
+            '/register': (context) => const SignupPage(),
           },
         );
-      },
-      initialRoute: '/',
-      routes: {
-        '/': (context) => _AuthWrapper(),
-        '/login': (context) => const LoginPage(),
-        '/register': (context) => const SignupPage(),
       },
     );
   }
@@ -64,7 +60,9 @@ class _AuthWrapper extends StatelessWidget {
           );
         }
         final user = authSnap.data;
-        if (user == null) return const LoginPage();
+        if (user == null) {
+          return Theme(data: AppTheme.lightTheme, child: const LoginPage());
+        }
 
         // Verify user document exists. If missing (e.g., account deleted), sign out.
         return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
