@@ -57,8 +57,6 @@ class Lesson {
   final String validationStatus; // 'approved', 'awaiting_approval'
   final bool isVisible;
 
-  final List<String> allowedUserIds;
-
   Lesson({
     required this.id,
     required this.title,
@@ -71,7 +69,6 @@ class Lesson {
     this.attachmentName,
     this.validationStatus = 'approved',
     this.isVisible = true,
-    this.allowedUserIds = const [],
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -92,7 +89,6 @@ class Lesson {
       attachmentName: (data['attachmentName'] ?? '').toString(),
       validationStatus: (data['validationStatus'] ?? 'approved').toString(),
       isVisible: data['isVisible'] ?? true,
-      allowedUserIds: List<String>.from(data['allowedUserIds'] ?? []),
     );
   }
 }
@@ -145,7 +141,6 @@ class Quiz {
   final String? attachmentName;
   final String validationStatus; // 'approved', 'awaiting_approval'
   final bool isVisible;
-  final List<String> allowedUserIds;
 
   Quiz({
     required this.id,
@@ -161,7 +156,6 @@ class Quiz {
     this.attachmentName,
     this.validationStatus = 'approved',
     this.isVisible = true,
-    this.allowedUserIds = const [],
   });
 
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -187,7 +181,6 @@ class Quiz {
       attachmentName: (d['attachmentName'] ?? '').toString(),
       validationStatus: (d['validationStatus'] ?? 'approved').toString(),
       isVisible: d['isVisible'] ?? true,
-      allowedUserIds: List<String>.from(d['allowedUserIds'] ?? []),
     );
   }
 }
@@ -214,7 +207,6 @@ class DatabaseService {
     String? attachmentUrl,
     String? attachmentName,
     bool isVisible = true,
-    List<String> allowedUserIds = const [],
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -238,7 +230,6 @@ class DatabaseService {
       'attachmentUrl': attachmentUrl,
       'attachmentName': attachmentName,
       'isVisible': isVisible,
-      'allowedUserIds': allowedUserIds,
     });
     return doc.id;
   }
@@ -251,7 +242,6 @@ class DatabaseService {
     String? attachmentUrl,
     String? attachmentName,
     bool? isVisible,
-    List<String>? allowedUserIds,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -260,7 +250,6 @@ class DatabaseService {
     if (attachmentUrl != null) data['attachmentUrl'] = attachmentUrl;
     if (attachmentName != null) data['attachmentName'] = attachmentName;
     if (isVisible != null) data['isVisible'] = isVisible;
-    if (allowedUserIds != null) data['allowedUserIds'] = allowedUserIds;
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
     }
@@ -301,11 +290,7 @@ class DatabaseService {
           // Own content
           if (l.createdByUid == userId) return true;
           // Public admin content (visible and approved)
-          // OR specific user access
-          bool isPublic =
-              l.isVisible && l.validationStatus != 'awaiting_approval';
-          bool isAllowed = l.allowedUserIds.contains(userId);
-          return isPublic || isAllowed;
+          return l.isVisible && l.validationStatus != 'awaiting_approval';
         }).toList();
       }
 
@@ -316,10 +301,7 @@ class DatabaseService {
             return l.validationStatus != 'awaiting_approval';
           }
           // Other users must respect isVisible flag
-          bool isPublic = l.isVisible;
-          bool isAllowed = l.allowedUserIds.contains(userId);
-          return l.validationStatus != 'awaiting_approval' &&
-              (isPublic || isAllowed);
+          return l.validationStatus != 'awaiting_approval' && l.isVisible;
         }).toList();
       }
       return lessons;
@@ -367,7 +349,6 @@ class DatabaseService {
     String? attachmentUrl,
     String? attachmentName,
     bool isVisible = true,
-    List<String> allowedUserIds = const [],
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -393,7 +374,6 @@ class DatabaseService {
       'attachmentUrl': attachmentUrl,
       'attachmentName': attachmentName,
       'isVisible': isVisible,
-      'allowedUserIds': allowedUserIds,
     });
     return doc.id;
   }
@@ -408,7 +388,6 @@ class DatabaseService {
     String? attachmentUrl,
     String? attachmentName,
     bool? isVisible,
-    List<String>? allowedUserIds,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -421,7 +400,6 @@ class DatabaseService {
     if (attachmentUrl != null) data['attachmentUrl'] = attachmentUrl;
     if (attachmentName != null) data['attachmentName'] = attachmentName;
     if (isVisible != null) data['isVisible'] = isVisible;
-    if (allowedUserIds != null) data['allowedUserIds'] = allowedUserIds;
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
     }
@@ -454,11 +432,7 @@ class DatabaseService {
           // Own content
           if (q.createdByUid == userId) return true;
           // Public admin content (visible and approved)
-          // OR specific user access
-          bool isPublic =
-              q.isVisible && q.validationStatus != 'awaiting_approval';
-          bool isAllowed = q.allowedUserIds.contains(userId);
-          return isPublic || isAllowed;
+          return q.isVisible && q.validationStatus != 'awaiting_approval';
         }).toList();
       }
 
@@ -469,10 +443,7 @@ class DatabaseService {
             return q.validationStatus != 'awaiting_approval';
           }
           // Other users must respect isVisible flag
-          bool isPublic = q.isVisible;
-          bool isAllowed = q.allowedUserIds.contains(userId);
-          return q.validationStatus != 'awaiting_approval' &&
-              (isPublic || isAllowed);
+          return q.validationStatus != 'awaiting_approval' && q.isVisible;
         }).toList();
       }
       return quizzes;
@@ -656,18 +627,5 @@ class DatabaseService {
     } catch (e) {
       throw Exception('Failed to upload document: $e');
     }
-  }
-
-  Future<List<Map<String, dynamic>>> fetchUsers() async {
-    final snapshot = await _firestore.collection('users').get();
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      return {
-        'uid': doc.id,
-        'email': data['email'] ?? '',
-        'username': data['username'] ?? '',
-        'role': data['role'] ?? 'LEARNER',
-      };
-    }).toList();
   }
 }

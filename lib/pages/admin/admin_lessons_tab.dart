@@ -10,7 +10,6 @@ import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../lesson_page.dart';
-import '../../widgets/user_search_picker.dart';
 
 class AdminLessonsTab extends StatefulWidget {
   const AdminLessonsTab({super.key});
@@ -27,43 +26,10 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
   String? _selectedLessonId;
   Lesson? _selectedLesson;
   bool _creatingLesson = false;
-  final _searchCtrl = TextEditingController();
-  Map<String, String> _usernames = {}; // uid -> username
-
   final _title = TextEditingController();
   final _prompt = TextEditingController();
   List<PlatformFile> _selectedFiles = [];
   bool _isVisible = true;
-  List<String> _allowedUserIds = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUsernames();
-  }
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    _title.dispose();
-    _prompt.dispose();
-    super.dispose();
-  }
-
-  Future<void> _fetchUsernames() async {
-    try {
-      final users = await DatabaseService.instance.fetchUsers();
-      if (mounted) {
-        setState(() {
-          _usernames = {
-            for (var u in users) u['uid'] as String: u['username'] as String,
-          };
-        });
-      }
-    } catch (e) {
-      debugPrint('Error fetching usernames: $e');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -172,8 +138,6 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
               const SizedBox(height: 24),
 
               // List of Lessons
-              _buildSearchBar(),
-              const SizedBox(height: 12),
               StreamBuilder<List<Lesson>>(
                 stream: DatabaseService.instance.streamLessons(
                   approvedOnly: false,
@@ -184,23 +148,10 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final allLessons = snapshot.data!;
-                  final query = _searchCtrl.text.toLowerCase().trim();
-                  final lessons = allLessons.where((l) {
-                    if (query.isEmpty) return true;
-                    final title = l.title.toLowerCase();
-                    final email = (l.createdByEmail ?? '').toLowerCase();
-                    final author = (_usernames[l.createdByUid] ?? '')
-                        .toLowerCase();
-                    return title.contains(query) ||
-                        email.contains(query) ||
-                        author.contains(query);
-                  }).toList();
+                  final lessons = snapshot.data!;
 
-                  if (lessons.isEmpty && query.isNotEmpty) {
-                    return const Center(child: Text('No lessons found.'));
-                  } else if (lessons.isEmpty) {
-                    return const Center(child: Text('No lessons yet.'));
+                  if (lessons.isEmpty) {
+                    return const Center(child: Text('No lessons yet'));
                   }
 
                   return ListView.separated(
@@ -244,7 +195,6 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                               _prompt.text = l.prompt;
                               _selectedFiles = [];
                               _isVisible = l.isVisible;
-                              _allowedUserIds = List.from(l.allowedUserIds);
                             }
                           });
                         },
@@ -405,38 +355,10 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
         const SizedBox(height: 16),
         SwitchListTile(
           title: const Text('Visible to Public'),
-          subtitle: const Text(
-            'If off, only selected users can see this lesson (if any)',
-          ),
+          subtitle: const Text('If off, learners cannot see this lesson'),
           value: _isVisible,
-          onChanged: (v) {
-            setState(() {
-              _isVisible = v;
-              // If visible turned ON, clear specific users?
-              // "If there is a user selected, then the visible to public should be automatically turned off. And vice versa."
-              if (_isVisible) {
-                _allowedUserIds.clear();
-              }
-            });
-          },
+          onChanged: (v) => setState(() => _isVisible = v),
           activeThumbColor: AppColors.primaryGreen,
-        ),
-        const SizedBox(height: 8),
-        UserSearchPicker(
-          selectedUserIds: _allowedUserIds,
-          onChanged: (ids) {
-            setState(() {
-              _allowedUserIds = ids;
-              // If users are selected, visibility must be false
-              if (_allowedUserIds.isNotEmpty) {
-                _isVisible = false;
-              } else {
-                // Revert to true if list becomes empty?
-                // "And vice versa" -> if no user selected, maybe default to public?
-                // Or keep it manual. Let's make it manual but force public=off if users>0
-              }
-            });
-          },
         ),
         const SizedBox(height: 16),
         const Align(
@@ -525,7 +447,6 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
     _prompt.clear();
     _selectedFiles = [];
     _isVisible = true;
-    _allowedUserIds = [];
     setState(() {});
   }
 
@@ -561,7 +482,6 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
           isVisible: _isVisible,
-          allowedUserIds: _allowedUserIds,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
@@ -585,7 +505,6 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
           isVisible: _isVisible,
-          allowedUserIds: _allowedUserIds,
         );
         if (mounted) {
           ScaffoldMessenger.of(
@@ -639,34 +558,5 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
         ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
       }
     }
-  }
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: TextField(
-        controller: _searchCtrl,
-        onSubmitted: (_) => setState(() {}),
-        textInputAction: TextInputAction.search,
-        decoration: InputDecoration(
-          hintText: 'Search by title, author name',
-          prefixIcon: const Icon(CupertinoIcons.search),
-          suffixIcon: IconButton(
-            icon: const Icon(CupertinoIcons.arrow_right_circle_fill),
-            color: AppColors.primaryGreen,
-            onPressed: () => setState(() {}),
-          ),
-          filled: true,
-          fillColor: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.grey.withValues(alpha: 0.1),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: EdgeInsets.zero,
-        ),
-      ),
-    );
   }
 }
