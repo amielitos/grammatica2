@@ -7,9 +7,12 @@ import '../../theme/app_colors.dart';
 import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
+import '../quiz_detail_page.dart';
+import '../../widgets/user_search_picker.dart';
 
 class AdminQuizzesTab extends StatefulWidget {
   const AdminQuizzesTab({super.key});
+
   @override
   State<AdminQuizzesTab> createState() => _AdminQuizzesTabState();
 }
@@ -22,132 +25,204 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
   String? _selectedQuizId;
   bool _creatingOrUpdating = false;
+  final _searchCtrl = TextEditingController();
+  Map<String, String> _usernames = {}; // uid -> username
+
   final _title = TextEditingController();
-  final _description = TextEditingController(); // NEW
-  final _durationCtrl = TextEditingController(text: '0'); // NEW (minutes)
+  final _description = TextEditingController();
+  final _durationCtrl = TextEditingController(text: '0');
   final _maxAttemptsCtrl = TextEditingController(text: '1');
 
   List<TextEditingController> _questionCtrls = [TextEditingController()];
   List<TextEditingController> _answerCtrls = [TextEditingController()];
+  List<String> _questionTypes = ['text'];
+  List<List<TextEditingController>> _optionsCtrls = [[]];
+  bool _isVisible = true;
+  List<String> _allowedUserIds = [];
 
-  List<PlatformFile> _selectedFiles = []; // Store selected files
+  List<PlatformFile> _selectedFiles = [];
   String? _currentAttachmentName;
   String? _currentAttachmentUrl;
 
   @override
+  void initState() {
+    super.initState();
+    _fetchUsernames();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _title.dispose();
+    _description.dispose();
+    _durationCtrl.dispose();
+    _maxAttemptsCtrl.dispose();
+    // Dispose other controllers if needed, but they are lists so maybe keep simple
+    super.dispose();
+  }
+
+  Future<void> _fetchUsernames() async {
+    try {
+      final users = await DatabaseService.instance.fetchUsers();
+      if (mounted) {
+        setState(() {
+          _usernames = {
+            for (var u in users) u['uid'] as String: u['username'] as String,
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching usernames: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GlassCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  LayoutBuilder(
-                    builder: (context, c) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+    final user = AuthService.instance.currentUser;
+    return StreamBuilder<UserRole>(
+      stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
+      builder: (context, roleSnap) {
+        final role = roleSnap.data ?? UserRole.learner;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GlassCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LayoutBuilder(
+                        builder: (context, c) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Manage Quizzes',
-                                style: Theme.of(context).textTheme.titleLarge,
+                              Row(
+                                children: [
+                                  Text(
+                                    'Manage Quizzes',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge,
+                                  ),
+                                  const Spacer(),
+                                  FilledButton.icon(
+                                    onPressed:
+                                        (_creatingOrUpdating ||
+                                            _title.text.trim().isEmpty)
+                                        ? null
+                                        : _saveQuiz,
+                                    icon: _creatingOrUpdating
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            CupertinoIcons.floppy_disk,
+                                          ),
+                                    label: Text(
+                                      _selectedQuizId == null
+                                          ? 'Create'
+                                          : 'Update',
+                                    ),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.primaryGreen,
+                                    ),
+                                  ),
+                                  if (_selectedQuizId != null) ...[
+                                    const SizedBox(width: 8),
+                                    OutlinedButton(
+                                      onPressed: _resetForm,
+                                      child: const Text('Cancel'),
+                                    ),
+                                  ],
+                                ],
                               ),
-                              const Spacer(),
-                              FilledButton.icon(
-                                onPressed:
-                                    (_creatingOrUpdating ||
-                                        _title.text.trim().isEmpty)
-                                    ? null
-                                    : _saveQuiz,
-                                icon: _creatingOrUpdating
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Icon(CupertinoIcons.floppy_disk),
-                                label: Text(
-                                  _selectedQuizId == null ? 'Create' : 'Update',
-                                ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: AppColors.primaryGreen,
-                                ),
-                              ),
-                              if (_selectedQuizId != null) ...[
-                                const SizedBox(width: 8),
-                                OutlinedButton(
-                                  onPressed: _resetForm,
-                                  child: const Text('Cancel'),
-                                ),
-                              ],
+                              const SizedBox(height: 16),
+                              _buildInputFields(),
                             ],
-                          ),
-                          const SizedBox(height: 16),
-                          _buildInputFields(),
-                        ],
-                      );
-                    },
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 24),
+              const SizedBox(height: 24),
+              // List of Quizzes
+              _buildSearchBar(),
+              const SizedBox(height: 12),
+              StreamBuilder<List<Quiz>>(
+                stream: DatabaseService.instance.streamQuizzes(
+                  approvedOnly: false,
+                  userRole: role,
+                  userId: user?.uid,
+                ),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final allItems = snapshot.data!;
+                  final query = _searchCtrl.text.toLowerCase().trim();
+                  final items = allItems.where((q) {
+                    if (query.isEmpty) return true;
+                    final title = q.title.toLowerCase();
+                    final email = (q.createdByEmail ?? '').toLowerCase();
+                    final author = (_usernames[q.createdByUid] ?? '')
+                        .toLowerCase();
+                    return title.contains(query) ||
+                        email.contains(query) ||
+                        author.contains(query);
+                  }).toList();
 
-          StreamBuilder<List<Quiz>>(
-            stream: DatabaseService.instance.streamQuizzes(approvedOnly: false),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData)
-                return const Center(child: CircularProgressIndicator());
-              final items = snapshot.data!;
-              if (items.isEmpty)
-                return const Center(child: Text('No quizzes yet'));
+                  if (items.isEmpty && query.isNotEmpty) {
+                    return const Center(child: Text('No quizzes found.'));
+                  } else if (items.isEmpty) {
+                    return const Center(child: Text('No quizzes yet.'));
+                  }
 
-              return ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: items.length,
-                separatorBuilder: (c, i) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final q = items[index];
-                  final isSelected = _selectedQuizId == q.id;
-                  final color = AppColors.primaryGreen;
-
-                  final currentUser = AuthService.instance.currentUser;
-                  return StreamBuilder<UserRole>(
-                    stream: currentUser != null
-                        ? RoleService.instance.roleStream(currentUser.uid)
-                        : null,
-                    builder: (context, roleSnap) {
-                      final role = roleSnap.data;
-                      final isOwner = q.createdByUid == currentUser?.uid;
+                  return ListView.separated(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: items.length,
+                    separatorBuilder: (c, i) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final q = items[index];
+                      final currentUser = AuthService.instance.currentUser;
                       final isAdmin = role == UserRole.admin;
-                      final canEdit = isAdmin || isOwner;
+                      final isOwner = q.createdByUid == currentUser?.uid;
+                      final canEdit = isOwner; // Only owners can edit
                       final isPending =
                           q.validationStatus == 'awaiting_approval';
+                      final isSelected = _selectedQuizId == q.id;
+                      final color = AppColors.primaryGreen;
 
                       return GlassCard(
                         backgroundColor: isSelected
                             ? color
-                            : (!canEdit ? Colors.grey.withOpacity(0.05) : null),
+                            : (!canEdit
+                                  ? Colors.grey.withValues(alpha: 0.05)
+                                  : null),
                         onTap: () {
                           if (!canEdit) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'You can only edit your own quizzes.',
+                            // If user cannot edit (e.g. educator viewing public content),
+                            // navigate to the detail page for viewing/taking the quiz.
+                            if (currentUser != null) {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => QuizDetailPage(
+                                    user: currentUser,
+                                    quiz: q,
+                                  ),
                                 ),
-                              ),
-                            );
+                              );
+                            }
                             return;
                           }
                           setState(() {
@@ -175,9 +250,26 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                         TextEditingController(text: qu.answer),
                                   )
                                   .toList();
+                              _questionTypes = q.questions
+                                  .map((qu) => qu.type)
+                                  .toList();
+                              _optionsCtrls = q.questions
+                                  .map(
+                                    (qu) => (qu.options ?? [])
+                                        .map(
+                                          (opt) =>
+                                              TextEditingController(text: opt),
+                                        )
+                                        .toList(),
+                                  )
+                                  .toList();
+                              _isVisible = q.isVisible;
+                              _allowedUserIds = List.from(q.allowedUserIds);
                               if (_questionCtrls.isEmpty) {
                                 _questionCtrls = [TextEditingController()];
                                 _answerCtrls = [TextEditingController()];
+                                _questionTypes = ['text'];
+                                _optionsCtrls = [[]];
                               }
                             }
                           });
@@ -219,15 +311,15 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                             vertical: 2,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.orange.withOpacity(
-                                              0.2,
+                                            color: Colors.orange.withValues(
+                                              alpha: 0.2,
                                             ),
                                             borderRadius: BorderRadius.circular(
                                               10,
                                             ),
                                             border: Border.all(
-                                              color: Colors.orange.withOpacity(
-                                                0.5,
+                                              color: Colors.orange.withValues(
+                                                alpha: 0.5,
                                               ),
                                             ),
                                           ),
@@ -274,7 +366,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                           ],
                                         ),
                                       Text(
-                                        'Created: ${_fmt(q.createdAt ?? Timestamp.now())} • Qs: ${q.questions.length} • ${q.duration}m • Attempts: ${q.maxAttempts}',
+                                        'Created: ${_fmt(q.createdAt ?? Timestamp.now())} • Qs: ${q.questions.length} • ${q.duration}m • Attempts: ${q.maxAttempts} • Visible: ${q.isVisible ? 'Yes' : 'No'}',
                                         style: Theme.of(
                                           context,
                                         ).textTheme.bodySmall,
@@ -291,10 +383,11 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                 ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(CupertinoIcons.graph_square),
-                              onPressed: () => _showResults(q.id, q.title),
-                            ),
+                            if (canEdit) // Only show stats to owner/editor
+                              IconButton(
+                                icon: const Icon(CupertinoIcons.graph_square),
+                                onPressed: () => _showResults(q.id, q.title),
+                              ),
                             if (canEdit)
                               IconButton(
                                 icon: const Icon(CupertinoIcons.trash),
@@ -307,11 +400,11 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     },
                   );
                 },
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -352,6 +445,30 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           ],
         ),
         const SizedBox(height: 16),
+        SwitchListTile(
+          title: const Text('Visible to Public'),
+          subtitle: const Text('If off, learners cannot see this quiz'),
+          value: _isVisible,
+          onChanged: (v) => setState(() {
+            _isVisible = v;
+            if (v) _allowedUserIds = [];
+          }),
+          activeThumbColor: AppColors.primaryGreen,
+        ),
+        const SizedBox(height: 8),
+        UserSearchPicker(
+          selectedUserIds: _allowedUserIds,
+          onChanged: (ids) {
+            setState(() {
+              _allowedUserIds = ids;
+              if (_allowedUserIds.isNotEmpty) {
+                _isVisible = false;
+              }
+            });
+          },
+        ),
+        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         _buildUploadUI(),
         const SizedBox(height: 24),
         const Divider(),
@@ -362,7 +479,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           return Padding(
             padding: const EdgeInsets.only(bottom: 16.0),
             child: GlassCard(
-              backgroundColor: Colors.white.withOpacity(0.05),
+              backgroundColor: Colors.white.withValues(alpha: 0.05),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -391,6 +508,8 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                               setState(() {
                                 _questionCtrls.removeAt(index);
                                 _answerCtrls.removeAt(index);
+                                _questionTypes.removeAt(index);
+                                _optionsCtrls.removeAt(index);
                               });
                             },
                           ),
@@ -402,9 +521,79 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       maxLines: null,
                     ),
                     const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _questionTypes[index],
+                      decoration: const InputDecoration(labelText: 'Type'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'text',
+                          child: Text('Textfield'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'multiple_choice',
+                          child: Text('Multiple Choice'),
+                        ),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() {
+                            _questionTypes[index] = v;
+                            if (v == 'multiple_choice' &&
+                                _optionsCtrls[index].isEmpty) {
+                              _optionsCtrls[index] = [
+                                TextEditingController(),
+                                TextEditingController(),
+                              ];
+                            }
+                          });
+                        }
+                      },
+                    ),
+                    if (_questionTypes[index] == 'multiple_choice') ...[
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Options',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      ...List.generate(_optionsCtrls[index].length, (optIdx) {
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _optionsCtrls[index][optIdx],
+                                decoration: InputDecoration(
+                                  labelText: 'Option ${optIdx + 1}',
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(CupertinoIcons.minus_circle),
+                              onPressed: () {
+                                setState(() {
+                                  _optionsCtrls[index].removeAt(optIdx);
+                                });
+                              },
+                            ),
+                          ],
+                        );
+                      }),
+                      TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _optionsCtrls[index].add(TextEditingController());
+                          });
+                        },
+                        icon: const Icon(CupertinoIcons.add),
+                        label: const Text('Add Option'),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
                     TextField(
                       controller: _answerCtrls[index],
-                      decoration: const InputDecoration(labelText: 'Answer'),
+                      decoration: const InputDecoration(
+                        labelText: 'Correct Answer',
+                        hintText: 'Should match one of the options for MC',
+                      ),
                     ),
                   ],
                 ),
@@ -418,6 +607,8 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
               setState(() {
                 _questionCtrls.add(TextEditingController());
                 _answerCtrls.add(TextEditingController());
+                _questionTypes.add('text');
+                _optionsCtrls.add([]);
               });
             },
             icon: const Icon(CupertinoIcons.add_circled),
@@ -479,6 +670,10 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _currentAttachmentUrl = null;
     _questionCtrls = [TextEditingController()];
     _answerCtrls = [TextEditingController()];
+    _questionTypes = ['text'];
+    _optionsCtrls = [[]];
+    _isVisible = true;
+    _allowedUserIds = [];
     setState(() {});
   }
 
@@ -508,6 +703,13 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
         return QuizQuestion(
           question: _questionCtrls[i].text.trim(),
           answer: _answerCtrls[i].text.trim(),
+          type: _questionTypes[i],
+          options: _questionTypes[i] == 'multiple_choice'
+              ? _optionsCtrls[i]
+                    .map((c) => c.text.trim())
+                    .where((t) => t.isNotEmpty)
+                    .toList()
+              : null,
         );
       }).where((q) => q.question.isNotEmpty).toList();
 
@@ -522,6 +724,8 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           maxAttempts: int.tryParse(_maxAttemptsCtrl.text) ?? 1,
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
+          isVisible: _isVisible,
+          allowedUserIds: _allowedUserIds,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
@@ -546,18 +750,22 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           maxAttempts: int.tryParse(_maxAttemptsCtrl.text),
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
+          isVisible: _isVisible,
+          allowedUserIds: _allowedUserIds,
         );
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Quiz updated')));
+        }
       }
       if (mounted) _resetForm();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _creatingOrUpdating = false);
     }
@@ -603,11 +811,13 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: DatabaseService.instance.fetchQuizResults(quizId),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting)
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
+                }
                 final results = snapshot.data ?? [];
-                if (results.isEmpty)
+                if (results.isEmpty) {
                   return const Center(child: Text('No attempts recorded.'));
+                }
                 return ListView.separated(
                   itemCount: results.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
@@ -631,13 +841,13 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                             ),
                             decoration: BoxDecoration(
                               color: passed
-                                  ? Colors.green.withOpacity(0.2)
-                                  : Colors.red.withOpacity(0.2),
+                                  ? Colors.green.withValues(alpha: 0.2)
+                                  : Colors.red.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: passed
-                                    ? Colors.green.withOpacity(0.5)
-                                    : Colors.red.withOpacity(0.5),
+                                    ? Colors.green.withValues(alpha: 0.5)
+                                    : Colors.red.withValues(alpha: 0.5),
                               ),
                             ),
                             child: Text(
@@ -672,6 +882,35 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: _searchCtrl,
+        onSubmitted: (_) => setState(() {}),
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'Search by title, author name',
+          prefixIcon: const Icon(CupertinoIcons.search),
+          suffixIcon: IconButton(
+            icon: const Icon(CupertinoIcons.arrow_right_circle_fill),
+            color: AppColors.primaryGreen,
+            onPressed: () => setState(() {}),
+          ),
+          filled: true,
+          fillColor: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.grey.withValues(alpha: 0.1),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'role_service.dart';
 
 class ImageUpload {
   final String id;
@@ -54,6 +55,9 @@ class Lesson {
   final String? attachmentUrl;
   final String? attachmentName;
   final String validationStatus; // 'approved', 'awaiting_approval'
+  final bool isVisible;
+
+  final List<String> allowedUserIds;
 
   Lesson({
     required this.id,
@@ -66,6 +70,8 @@ class Lesson {
     this.attachmentUrl,
     this.attachmentName,
     this.validationStatus = 'approved',
+    this.isVisible = true,
+    this.allowedUserIds = const [],
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -85,6 +91,8 @@ class Lesson {
       attachmentUrl: (data['attachmentUrl'] ?? '').toString(),
       attachmentName: (data['attachmentName'] ?? '').toString(),
       validationStatus: (data['validationStatus'] ?? 'approved').toString(),
+      isVisible: data['isVisible'] ?? true,
+      allowedUserIds: List<String>.from(data['allowedUserIds'] ?? []),
     );
   }
 }
@@ -92,18 +100,34 @@ class Lesson {
 class QuizQuestion {
   final String question;
   final String answer;
+  final String type; // 'text', 'multiple_choice'
+  final List<String>? options;
 
-  QuizQuestion({required this.question, required this.answer});
+  QuizQuestion({
+    required this.question,
+    required this.answer,
+    this.type = 'text',
+    this.options,
+  });
 
   factory QuizQuestion.fromMap(Map<String, dynamic> map) {
     return QuizQuestion(
       question: (map['question'] ?? '').toString(),
       answer: (map['answer'] ?? '').toString(),
+      type: (map['type'] ?? 'text').toString(),
+      options: map['options'] != null
+          ? List<String>.from(map['options'])
+          : null,
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {'question': question, 'answer': answer};
+    return {
+      'question': question,
+      'answer': answer,
+      'type': type,
+      'options': options,
+    };
   }
 }
 
@@ -120,6 +144,8 @@ class Quiz {
   final String? attachmentUrl;
   final String? attachmentName;
   final String validationStatus; // 'approved', 'awaiting_approval'
+  final bool isVisible;
+  final List<String> allowedUserIds;
 
   Quiz({
     required this.id,
@@ -134,6 +160,8 @@ class Quiz {
     this.attachmentUrl,
     this.attachmentName,
     this.validationStatus = 'approved',
+    this.isVisible = true,
+    this.allowedUserIds = const [],
   });
 
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -158,6 +186,8 @@ class Quiz {
       attachmentUrl: (d['attachmentUrl'] ?? '').toString(),
       attachmentName: (d['attachmentName'] ?? '').toString(),
       validationStatus: (d['validationStatus'] ?? 'approved').toString(),
+      isVisible: d['isVisible'] ?? true,
+      allowedUserIds: List<String>.from(d['allowedUserIds'] ?? []),
     );
   }
 }
@@ -183,6 +213,8 @@ class DatabaseService {
     required String answer,
     String? attachmentUrl,
     String? attachmentName,
+    bool isVisible = true,
+    List<String> allowedUserIds = const [],
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -205,6 +237,8 @@ class DatabaseService {
       'validationStatus': status,
       'attachmentUrl': attachmentUrl,
       'attachmentName': attachmentName,
+      'isVisible': isVisible,
+      'allowedUserIds': allowedUserIds,
     });
     return doc.id;
   }
@@ -216,6 +250,8 @@ class DatabaseService {
     String? answer,
     String? attachmentUrl,
     String? attachmentName,
+    bool? isVisible,
+    List<String>? allowedUserIds,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -223,6 +259,8 @@ class DatabaseService {
     if (answer != null) data['answer'] = answer;
     if (attachmentUrl != null) data['attachmentUrl'] = attachmentUrl;
     if (attachmentName != null) data['attachmentName'] = attachmentName;
+    if (isVisible != null) data['isVisible'] = isVisible;
+    if (allowedUserIds != null) data['allowedUserIds'] = allowedUserIds;
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
     }
@@ -245,17 +283,44 @@ class DatabaseService {
     return snapshot.docs.map(Lesson.fromDoc).toList();
   }
 
-  Stream<List<Lesson>> streamLessons({bool approvedOnly = true}) {
+  Stream<List<Lesson>> streamLessons({
+    bool approvedOnly = true,
+    UserRole? userRole,
+    String? userId,
+  }) {
     // We order by createdAt. To avoid composite index requirements and support
     // legacy content (without validationStatus), we filter in Dart.
     return _lessons.orderBy('createdAt', descending: false).snapshots().map((
       snapshot,
     ) {
       final lessons = snapshot.docs.map(Lesson.fromDoc).toList();
+
+      // Educators see their own content + public content from admins
+      if (userRole == UserRole.educator && userId != null) {
+        return lessons.where((l) {
+          // Own content
+          if (l.createdByUid == userId) return true;
+          // Public admin content (visible and approved)
+          // OR specific user access
+          bool isPublic =
+              l.isVisible && l.validationStatus != 'awaiting_approval';
+          bool isAllowed = l.allowedUserIds.contains(userId);
+          return isPublic || isAllowed;
+        }).toList();
+      }
+
       if (approvedOnly) {
-        return lessons
-            .where((l) => l.validationStatus != 'awaiting_approval')
-            .toList();
+        return lessons.where((l) {
+          // Admins can see all content regardless of isVisible
+          if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
+            return l.validationStatus != 'awaiting_approval';
+          }
+          // Other users must respect isVisible flag
+          bool isPublic = l.isVisible;
+          bool isAllowed = l.allowedUserIds.contains(userId);
+          return l.validationStatus != 'awaiting_approval' &&
+              (isPublic || isAllowed);
+        }).toList();
       }
       return lessons;
     });
@@ -301,6 +366,8 @@ class DatabaseService {
     int maxAttempts = 1,
     String? attachmentUrl,
     String? attachmentName,
+    bool isVisible = true,
+    List<String> allowedUserIds = const [],
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -325,6 +392,8 @@ class DatabaseService {
       'validationStatus': status,
       'attachmentUrl': attachmentUrl,
       'attachmentName': attachmentName,
+      'isVisible': isVisible,
+      'allowedUserIds': allowedUserIds,
     });
     return doc.id;
   }
@@ -338,6 +407,8 @@ class DatabaseService {
     int? maxAttempts,
     String? attachmentUrl,
     String? attachmentName,
+    bool? isVisible,
+    List<String>? allowedUserIds,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -349,6 +420,8 @@ class DatabaseService {
     if (maxAttempts != null) data['maxAttempts'] = maxAttempts;
     if (attachmentUrl != null) data['attachmentUrl'] = attachmentUrl;
     if (attachmentName != null) data['attachmentName'] = attachmentName;
+    if (isVisible != null) data['isVisible'] = isVisible;
+    if (allowedUserIds != null) data['allowedUserIds'] = allowedUserIds;
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
     }
@@ -363,17 +436,44 @@ class DatabaseService {
     return snap.docs.map(Quiz.fromDoc).toList();
   }
 
-  Stream<List<Quiz>> streamQuizzes({bool approvedOnly = true}) {
+  Stream<List<Quiz>> streamQuizzes({
+    bool approvedOnly = true,
+    UserRole? userRole,
+    String? userId,
+  }) {
     // To avoid composite index requirements and support legacy content,
     // we filter out awaiting_approval docs in Dart.
     return _quizzes.orderBy('createdAt', descending: false).snapshots().map((
       snapshot,
     ) {
       final quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
+
+      // Educators see their own content + public content from admins
+      if (userRole == UserRole.educator && userId != null) {
+        return quizzes.where((q) {
+          // Own content
+          if (q.createdByUid == userId) return true;
+          // Public admin content (visible and approved)
+          // OR specific user access
+          bool isPublic =
+              q.isVisible && q.validationStatus != 'awaiting_approval';
+          bool isAllowed = q.allowedUserIds.contains(userId);
+          return isPublic || isAllowed;
+        }).toList();
+      }
+
       if (approvedOnly) {
-        return quizzes
-            .where((q) => q.validationStatus != 'awaiting_approval')
-            .toList();
+        return quizzes.where((q) {
+          // Admins can see all content regardless of isVisible
+          if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
+            return q.validationStatus != 'awaiting_approval';
+          }
+          // Other users must respect isVisible flag
+          bool isPublic = q.isVisible;
+          bool isAllowed = q.allowedUserIds.contains(userId);
+          return q.validationStatus != 'awaiting_approval' &&
+              (isPublic || isAllowed);
+        }).toList();
       }
       return quizzes;
     });
@@ -556,5 +656,18 @@ class DatabaseService {
     } catch (e) {
       throw Exception('Failed to upload document: $e');
     }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchUsers() async {
+    final snapshot = await _firestore.collection('users').get();
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'uid': doc.id,
+        'email': data['email'] ?? '',
+        'username': data['username'] ?? '',
+        'role': data['role'] ?? 'LEARNER',
+      };
+    }).toList();
   }
 }

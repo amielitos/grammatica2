@@ -5,12 +5,19 @@ import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import '../widgets/glass_card.dart';
+import '../theme/app_colors.dart';
 
 class QuizDetailPage extends StatefulWidget {
   final User user;
   final Quiz quiz;
+  final bool previewMode;
 
-  const QuizDetailPage({super.key, required this.user, required this.quiz});
+  const QuizDetailPage({
+    super.key,
+    required this.user,
+    required this.quiz,
+    this.previewMode = false,
+  });
 
   @override
   State<QuizDetailPage> createState() => _QuizDetailPageState();
@@ -28,10 +35,13 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
 
   bool _submitting = false;
   bool _isCorrect = false;
-  bool _completedLocal =
-      false; // Local flag to show summary immediately after submit
+  bool _completedLocal = false;
   int _attemptsUsed = 0;
   int? _lastScore;
+
+  bool _isReviewing = false;
+  bool get _previewMode =>
+      widget.previewMode || widget.quiz.validationStatus == 'awaiting_approval';
 
   @override
   void initState() {
@@ -61,10 +71,19 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       _quizStarted = true;
       _startTime = DateTime.now();
       _completedLocal = false;
+      _isReviewing = false;
     });
     if (widget.quiz.duration > 0) {
       _startTimer();
     }
+  }
+
+  void _startReview() {
+    setState(() {
+      _quizStarted = true;
+      _isReviewing = true;
+      _completedLocal = false;
+    });
   }
 
   void _startTimer() {
@@ -248,6 +267,31 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_previewMode)
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.visibility, color: Colors.blue[700], size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Preview Mode - You are viewing this quiz contents. Submission is disabled.',
+                    style: TextStyle(
+                      color: Colors.blue[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Text(
           widget.quiz.title,
           style: Theme.of(context).textTheme.headlineSmall,
@@ -264,8 +308,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             Text('Attempts Used: $_attemptsUsed / $maxAttempts'),
           ],
         ),
-        if (maxAttempts - _attemptsUsed > 0) ...[
-          const SizedBox(height: 32),
+        const SizedBox(height: 32),
+        if (!_previewMode && maxAttempts - _attemptsUsed > 0)
           SizedBox(
             width: double.infinity,
             child: FilledButton(
@@ -273,12 +317,23 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
               child: const Text('Start Quiz'),
             ),
           ),
-        ],
+        if (_previewMode)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _startReview,
+              icon: const Icon(Icons.rate_review),
+              label: const Text('Review Questions'),
+            ),
+          ),
       ],
     );
   }
 
   Widget _buildQuestionArea(int maxAttempts) {
+    final question = _shuffledQuestions[_currentQuestionIndex];
+    final isMultipleChoice = question.type == 'multiple_choice';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -289,20 +344,110 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
               'Question ${_currentQuestionIndex + 1}/${_shuffledQuestions.length}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            if (widget.quiz.duration > 0) _buildTimerBadge(),
+            if (widget.quiz.duration > 0 && !_isReviewing) _buildTimerBadge(),
           ],
         ),
         const SizedBox(height: 24),
-        Text(
-          _shuffledQuestions[_currentQuestionIndex].question,
-          style: const TextStyle(fontSize: 18),
-        ),
+        Text(question.question, style: const TextStyle(fontSize: 18)),
         const SizedBox(height: 16),
-        TextField(
-          controller: _answerCtrls[_currentQuestionIndex],
-          decoration: const InputDecoration(
-            hintText: 'Type your answer here...',
-            border: OutlineInputBorder(),
+        if (isMultipleChoice)
+          ...(question.options ?? []).map((opt) {
+            final isSelected =
+                _answerCtrls[_currentQuestionIndex].text.trim() == opt.trim();
+            final isCorrectAnswer = opt.trim() == question.answer.trim();
+
+            // In review mode, highlight correct answer green
+            Color? cardColor;
+            if (_isReviewing) {
+              if (isCorrectAnswer) {
+                cardColor = Colors.green.withOpacity(0.2);
+              }
+            } else if (isSelected) {
+              cardColor = AppColors.primaryGreen.withOpacity(0.2);
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: GlassCard(
+                onTap: _isReviewing
+                    ? null
+                    : () {
+                        setState(() {
+                          _answerCtrls[_currentQuestionIndex].text = opt;
+                        });
+                      },
+                backgroundColor: cardColor,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      if (_isReviewing)
+                        Icon(
+                          isCorrectAnswer
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color: isCorrectAnswer ? Colors.green : Colors.grey,
+                        )
+                      else
+                        Icon(
+                          isSelected
+                              ? CupertinoIcons.check_mark_circled_solid
+                              : CupertinoIcons.circle,
+                          color: isSelected
+                              ? AppColors.primaryGreen
+                              : Colors.grey,
+                        ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          opt,
+                          style: TextStyle(
+                            fontWeight:
+                                (isSelected ||
+                                    (_isReviewing && isCorrectAnswer))
+                                ? FontWeight.bold
+                                : null,
+                            color: (_isReviewing && isCorrectAnswer)
+                                ? Colors.green[800]
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList()
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _answerCtrls[_currentQuestionIndex],
+                decoration: const InputDecoration(
+                  hintText: 'Type your answer here...',
+                  border: OutlineInputBorder(),
+                ),
+                enabled: !_isReviewing, // Disable input in review mode
+                autofocus: !_isReviewing,
+                onChanged: (v) => setState(() {}),
+              ),
+              if (_isReviewing)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'Correct Answer: ${question.answer}',
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
           ),
           autofocus: true,
           onChanged: (v) => setState(() {}),
@@ -327,7 +472,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                 },
                 child: const Text('Next'),
               )
-            else
+            else if (!_isReviewing)
               SizedBox(
                 width: 120,
                 child: FilledButton(
@@ -348,7 +493,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
               ),
           ],
         ),
-        if (!_allAnswered &&
+        if (!_isReviewing &&
+            !_allAnswered &&
             _currentQuestionIndex == _shuffledQuestions.length - 1)
           const Padding(
             padding: EdgeInsets.only(top: 8.0),

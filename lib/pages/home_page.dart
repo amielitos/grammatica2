@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../widgets/modern_bottom_nav.dart';
+import '../services/role_service.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -20,7 +21,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _tabIndex = 0; // 0=Lessons,1=Quizzes,2=Profile
+  int _tabIndex = 0; // 0=Lessons,1=Quizzes,2=Profile,3=Subscription
   final _profileKey = GlobalKey<ProfilePageState>();
 
   @override
@@ -43,7 +44,7 @@ class _HomePageState extends State<HomePage> {
         currentIndex: _tabIndex,
         onTap: (index) {
           setState(() => _tabIndex = index);
-          if (index == 2) {
+          if (index == 3) {
             _profileKey.currentState?.fetchProfile();
           }
         },
@@ -53,6 +54,10 @@ class _HomePageState extends State<HomePage> {
             icon: CupertinoIcons.question_circle,
             label: 'Quizzes',
           ),
+          const ModernNavItem(
+            icon: CupertinoIcons.creditcard,
+            label: 'Subscription',
+          ),
           ModernNavItem(
             icon: CupertinoIcons.person,
             label: user.displayName?.split(' ').first ?? 'Profile',
@@ -60,12 +65,20 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: ResponsiveWrapper(
-        child: IndexedStack(
-          index: _tabIndex,
+        child: Column(
           children: [
-            _LessonsList(user: user),
-            QuizzesPage(user: user),
-            ProfilePage(key: _profileKey, user: user),
+            Expanded(
+              child: IndexedStack(
+                index: _tabIndex,
+                children: [
+                  _LessonsList(user: user),
+                  QuizzesPage(user: user),
+                  const _SubscriptionTab(),
+                  ProfilePage(key: _profileKey, user: user),
+                ],
+              ),
+            ),
+            const _SecondaryBottomNav(),
           ],
         ),
       ),
@@ -73,9 +86,45 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _LessonsList extends StatelessWidget {
+class _LessonsList extends StatefulWidget {
   const _LessonsList({required this.user});
   final User user;
+
+  @override
+  State<_LessonsList> createState() => _LessonsListState();
+}
+
+class _LessonsListState extends State<_LessonsList> {
+  final _searchCtrl = TextEditingController();
+  Map<String, String> _usernames = {}; // uid -> username
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsernames();
+    // Removed listener to prevent rebuild on every keystroke
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchUsernames() async {
+    try {
+      final users = await DatabaseService.instance.fetchUsers();
+      if (mounted) {
+        setState(() {
+          _usernames = {
+            for (var u in users) u['uid'] as String: u['username'] as String,
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching usernames: $e');
+    }
+  }
 
   String _fmt(Timestamp ts) {
     final d = ts.toDate().toLocal();
@@ -87,132 +136,292 @@ class _LessonsList extends StatelessWidget {
     required String? fallbackEmail,
     TextStyle? style,
   }) {
-    if (uid == null || uid.isEmpty) {
-      return Text('By: ${fallbackEmail ?? 'Unknown'}', style: style);
-    }
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .snapshots(),
-      builder: (context, snap) {
-        final data = snap.data?.data();
-        final username = (data?['username'] as String?)?.trim();
-        final display = (username != null && username.isNotEmpty)
-            ? username
-            : (fallbackEmail ?? 'Unknown');
-        return Text('By: $display', style: style);
-      },
-    );
+    final username = _usernames[uid] ?? '';
+    final display = username.isNotEmpty
+        ? username
+        : (fallbackEmail ?? 'Unknown');
+    return Text('By: $display', style: style);
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Lesson>>(
-      stream: DatabaseService.instance.streamLessons(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              'Error loading lessons: ${snapshot.error}',
-              style: const TextStyle(color: Colors.red),
-            ),
-          );
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No lessons available.'));
-        }
-        final lessons = snapshot.data!;
+    return StreamBuilder<UserRole>(
+      stream: RoleService.instance.roleStream(widget.user.uid),
+      builder: (context, roleSnapshot) {
+        final role = roleSnapshot.data;
 
-        return StreamBuilder<Map<String, bool>>(
-          stream: DatabaseService.instance.progressStream(user),
-          builder: (context, progressSnap) {
-            final progress = progressSnap.data ?? const {};
+        return StreamBuilder<List<Lesson>>(
+          stream: DatabaseService.instance.streamLessons(
+            userRole: role,
+            userId: widget.user.uid,
+          ),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Error loading lessons: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              );
+            }
 
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: lessons.length,
-              separatorBuilder: (c, i) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final lesson = lessons[index];
-                final done = progress[lesson.id] == true;
-                final createdAtStr = lesson.createdAt != null
-                    ? _fmt(lesson.createdAt!)
-                    : 'N/A';
+            final allLessons = snapshot.data ?? [];
+            final query = _searchCtrl.text.toLowerCase().trim();
+            final lessons = allLessons.where((l) {
+              if (query.isEmpty) return true;
+              final title = l.title.toLowerCase();
+              final email = (l.createdByEmail ?? '').toLowerCase();
+              final author = (_usernames[l.createdByUid] ?? '').toLowerCase();
+              return title.contains(query) ||
+                  email.contains(query) ||
+                  author.contains(query);
+            }).toList();
 
-                return GlassCard(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => LessonPage(user: user, lesson: lesson),
-                      ),
-                    );
-                  },
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 8),
-                      // Content
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              lesson.title,
-                              style: Theme.of(
-                                context,
-                              ).textTheme.titleLarge?.copyWith(fontSize: 18),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              lesson.prompt,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 12,
-                              children: [
-                                _authorName(
-                                  uid: lesson.createdByUid,
-                                  fallbackEmail: lesson.createdByEmail,
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(color: Colors.grey),
-                                ),
-                                Text(
-                                  '• $createdAtStr',
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          ],
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onSubmitted: (_) => setState(() {}),
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText: 'Search by title, author name',
+                      prefixIcon: const Icon(CupertinoIcons.search),
+                      suffixIcon: IconButton(
+                        icon: const Icon(
+                          CupertinoIcons.arrow_right_circle_fill,
                         ),
+                        color: AppColors.primaryGreen,
+                        onPressed: () => setState(() {}),
                       ),
-                      // Status Icon
-                      if (done)
-                        Icon(
-                          CupertinoIcons.check_mark_circled,
-                          color: AppColors.primaryGreen,
-                          size: 28,
-                        )
-                      else
-                        Icon(
-                          CupertinoIcons.chevron_right,
-                          size: 16,
-                          color: Colors.grey.withOpacity(0.5),
-                        ),
-                    ],
+                      filled: true,
+                      fillColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.grey.withValues(alpha: 0.1),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ),
-                );
-              },
+                ),
+                if (lessons.isEmpty)
+                  const Expanded(
+                    child: Center(child: Text('No lessons found.')),
+                  )
+                else
+                  Expanded(
+                    child: StreamBuilder<Map<String, bool>>(
+                      stream: DatabaseService.instance.progressStream(
+                        widget.user,
+                      ),
+                      builder: (context, progressSnap) {
+                        final progress = progressSnap.data ?? const {};
+
+                        return ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: lessons.length,
+                          separatorBuilder: (c, i) =>
+                              const SizedBox(height: 16),
+                          itemBuilder: (context, index) {
+                            final lesson = lessons[index];
+                            final done = progress[lesson.id] == true;
+                            final createdAtStr = lesson.createdAt != null
+                                ? _fmt(lesson.createdAt!)
+                                : 'N/A';
+
+                            return GlassCard(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => LessonPage(
+                                      user: widget.user,
+                                      lesson: lesson,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                children: [
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          lesson.title,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge
+                                              ?.copyWith(fontSize: 18),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          lesson.prompt,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 12,
+                                          children: [
+                                            _authorName(
+                                              uid: lesson.createdByUid,
+                                              fallbackEmail:
+                                                  lesson.createdByEmail,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color: Colors.grey,
+                                                  ),
+                                            ),
+                                            Text(
+                                              '• $createdAtStr',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color: Colors.grey,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (done)
+                                    Icon(
+                                      CupertinoIcons.check_mark_circled,
+                                      color: AppColors.primaryGreen,
+                                      size: 28,
+                                    )
+                                  else
+                                    Icon(
+                                      CupertinoIcons.chevron_right,
+                                      size: 16,
+                                      color: Colors.grey.withOpacity(0.5),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
             );
           },
         );
       },
+    );
+  }
+}
+
+class _SubscriptionTab extends StatelessWidget {
+  const _SubscriptionTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(CupertinoIcons.creditcard, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'Subscription Plan',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text('Coming Soon', style: TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SecondaryBottomNav extends StatelessWidget {
+  const _SecondaryBottomNav();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+        child: Row(
+          children: [
+            Expanded(
+              child: _SecondaryNavButton(
+                icon: CupertinoIcons.ant,
+                label: 'Spelling Bee',
+                onTap: () {},
+                isDark: isDark,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _SecondaryNavButton(
+                icon: CupertinoIcons.mic,
+                label: 'Pronunciation',
+                onTap: () {},
+                isDark: isDark,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SecondaryNavButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isDark;
+
+  const _SecondaryNavButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AppColors.primaryGreen, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

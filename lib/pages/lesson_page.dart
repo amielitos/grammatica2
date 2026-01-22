@@ -8,7 +8,14 @@ import '../widgets/glass_card.dart';
 class LessonPage extends StatefulWidget {
   final User user;
   final Lesson lesson;
-  const LessonPage({super.key, required this.user, required this.lesson});
+  final bool previewMode;
+
+  const LessonPage({
+    super.key,
+    required this.user,
+    required this.lesson,
+    this.previewMode = false,
+  });
 
   @override
   State<LessonPage> createState() => _LessonPageState();
@@ -50,6 +57,7 @@ class _LessonPageState extends State<LessonPage> {
   }
 
   late Lesson _lesson;
+  bool get _previewMode => widget.previewMode;
 
   @override
   void initState() {
@@ -74,6 +82,35 @@ class _LessonPageState extends State<LessonPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_previewMode)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.visibility,
+                            color: Colors.blue[700],
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Preview Mode - You are viewing this lesson as an admin.',
+                              style: TextStyle(
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   Row(
                     children: [
                       _authorName(
