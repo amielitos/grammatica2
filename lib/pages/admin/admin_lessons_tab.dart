@@ -10,6 +10,8 @@ import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../lesson_page.dart';
+import '../../widgets/app_search_bar.dart';
+import '../../widgets/user_visibility_selector.dart';
 
 class AdminLessonsTab extends StatefulWidget {
   const AdminLessonsTab({super.key});
@@ -30,6 +32,8 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
   final _prompt = TextEditingController();
   List<PlatformFile> _selectedFiles = [];
   bool _isVisible = true;
+  List<String> _visibleTo = [];
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
@@ -148,180 +152,206 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final lessons = snapshot.data!;
-
-                  if (lessons.isEmpty) {
-                    return const Center(child: Text('No lessons yet'));
+                  var lessons = snapshot.data!;
+                  if (_searchQuery.isNotEmpty) {
+                    final query = _searchQuery.toLowerCase();
+                    lessons = lessons.where((l) {
+                      final title = l.title.toLowerCase();
+                      final author = (l.createdByEmail ?? 'Unknown')
+                          .toLowerCase();
+                      return title.contains(query) || author.contains(query);
+                    }).toList();
                   }
 
-                  return ListView.separated(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: lessons.length,
-                    separatorBuilder: (c, i) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final l = lessons[index];
-                      final currentUser = AuthService.instance.currentUser;
-                      final isSelected = _selectedLessonId == l.id;
-                      final color = AppColors.primaryGreen;
-
-                      final isAdmin = role == UserRole.admin;
-                      final isOwner = l.createdByUid == currentUser?.uid;
-                      final canEdit = isOwner; // Only owners can edit
-                      final isPending =
-                          l.validationStatus == 'awaiting_approval';
-
-                      return GlassCard(
-                        onTap: () {
-                          if (!canEdit) {
-                            // Enable preview for non-editable content
-                            if (currentUser != null) {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      LessonPage(user: currentUser, lesson: l),
-                                ),
-                              );
-                            }
-                            return;
-                          }
+                  return Column(
+                    children: [
+                      AppSearchBar(
+                        hintText: 'Search lessons by title or author...',
+                        onSearch: (value) {
                           setState(() {
-                            if (isSelected) {
-                              _resetForm();
-                            } else {
-                              _selectedLessonId = l.id;
-                              _selectedLesson = l;
-                              _title.text = l.title;
-                              _prompt.text = l.prompt;
-                              _selectedFiles = [];
-                              _isVisible = l.isVisible;
-                            }
+                            _searchQuery = value;
                           });
                         },
-                        backgroundColor: isSelected
-                            ? color
-                            : (!canEdit
-                                  ? Colors.grey.withValues(alpha: 0.05)
-                                  : null),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 4,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: isPending ? Colors.orange : color,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
+                      ),
+                      const SizedBox(height: 16),
+                      if (lessons.isEmpty)
+                        const Center(child: Text('No lessons found'))
+                      else
+                        ListView.separated(
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: lessons.length,
+                          separatorBuilder: (c, i) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final l = lessons[index];
+                            final currentUser =
+                                AuthService.instance.currentUser;
+                            final isSelected = _selectedLessonId == l.id;
+                            final color = AppColors.primaryGreen;
+
+                            final isOwner = l.createdByUid == currentUser?.uid;
+                            final canEdit = isOwner; // Only owners can edit
+                            final isPending =
+                                l.validationStatus == 'awaiting_approval';
+
+                            return GlassCard(
+                              onTap: () {
+                                if (!canEdit) {
+                                  // Enable preview for non-editable content
+                                  if (currentUser != null) {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => LessonPage(
+                                          user: currentUser,
+                                          lesson: l,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
+                                setState(() {
+                                  if (isSelected) {
+                                    _resetForm();
+                                  } else {
+                                    _selectedLessonId = l.id;
+                                    _selectedLesson = l;
+                                    _title.text = l.title;
+                                    _prompt.text = l.prompt;
+                                    _selectedFiles = [];
+                                    _isVisible = l.isVisible;
+                                    _visibleTo = List<String>.from(l.visibleTo);
+                                  }
+                                });
+                              },
+                              backgroundColor: isSelected
+                                  ? color
+                                  : (!canEdit
+                                        ? Colors.grey.withValues(alpha: 0.05)
+                                        : null),
+                              child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          l.title,
+                                  Container(
+                                    width: 4,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: isPending ? Colors.orange : color,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                l.title,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  color: !canEdit
+                                                      ? Colors.grey
+                                                      : null,
+                                                ),
+                                              ),
+                                            ),
+                                            if (isPending)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.orange
+                                                      .withOpacity(0.2),
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                  border: Border.all(
+                                                    color: Colors.orange
+                                                        .withValues(alpha: 0.5),
+                                                  ),
+                                                ),
+                                                child: const Text(
+                                                  'Awaiting Approval',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors.orange,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          l.prompt,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
                                             color: !canEdit
                                                 ? Colors.grey
                                                 : null,
                                           ),
                                         ),
-                                      ),
-                                      if (isPending)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange.withOpacity(
-                                              0.2,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.orange.withValues(
-                                                alpha: 0.5,
-                                              ),
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            'Awaiting Approval',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: Colors.orange,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    l.prompt,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: !canEdit ? Colors.grey : null,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Wrap(
-                                    spacing: 12,
-                                    children: [
-                                      if (l.attachmentName != null &&
-                                          l.attachmentName!.isNotEmpty)
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 12,
                                           children: [
-                                            const Icon(
-                                              CupertinoIcons.paperclip,
-                                              size: 14,
-                                            ),
-                                            const SizedBox(width: 4),
+                                            if (l.attachmentName != null &&
+                                                l.attachmentName!.isNotEmpty)
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    CupertinoIcons.paperclip,
+                                                    size: 14,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    l.attachmentName!,
+                                                    style: Theme.of(
+                                                      context,
+                                                    ).textTheme.bodySmall,
+                                                  ),
+                                                ],
+                                              ),
                                             Text(
-                                              l.attachmentName!,
+                                              'Created: ${_fmt(l.createdAt ?? Timestamp.now())} • Visible: ${l.isVisible ? 'Yes' : 'No'}',
                                               style: Theme.of(
                                                 context,
                                               ).textTheme.bodySmall,
                                             ),
+                                            if (l.createdByEmail != null)
+                                              Text(
+                                                'By: ${l.createdByEmail}',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.bodySmall,
+                                              ),
                                           ],
                                         ),
-                                      Text(
-                                        'Created: ${_fmt(l.createdAt ?? Timestamp.now())} • Visible: ${l.isVisible ? 'Yes' : 'No'}',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodySmall,
-                                      ),
-                                      if (l.createdByEmail != null)
-                                        Text(
-                                          'By: ${l.createdByEmail}',
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.bodySmall,
-                                        ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
+                                  if (canEdit)
+                                    IconButton(
+                                      icon: const Icon(CupertinoIcons.trash),
+                                      color: Colors.red[300],
+                                      onPressed: () => _deleteLesson(l),
+                                    ),
                                 ],
                               ),
-                            ),
-                            if (canEdit)
-                              IconButton(
-                                icon: const Icon(CupertinoIcons.trash),
-                                color: Colors.red[300],
-                                onPressed: () => _deleteLesson(l),
-                              ),
-                          ],
+                            );
+                          },
                         ),
-                      );
-                    },
+                    ],
                   );
                 },
               ),
@@ -360,6 +390,15 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           onChanged: (v) => setState(() => _isVisible = v),
           activeThumbColor: AppColors.primaryGreen,
         ),
+        if (!_isVisible) ...[
+          const SizedBox(height: 16),
+          UserVisibilitySelector(
+            selectedUserIds: _visibleTo,
+            onChanged: (users) {
+              setState(() => _visibleTo = users);
+            },
+          ),
+        ],
         const SizedBox(height: 16),
         const Align(
           alignment: Alignment.centerLeft,
@@ -447,6 +486,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
     _prompt.clear();
     _selectedFiles = [];
     _isVisible = true;
+    _visibleTo = [];
     setState(() {});
   }
 
@@ -482,6 +522,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
           isVisible: _isVisible,
+          visibleTo: _visibleTo,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
@@ -505,6 +546,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
           isVisible: _isVisible,
+          visibleTo: _visibleTo,
         );
         if (mounted) {
           ScaffoldMessenger.of(

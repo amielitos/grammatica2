@@ -8,6 +8,8 @@ import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../quiz_detail_page.dart';
+import '../../widgets/app_search_bar.dart';
+import '../../widgets/user_visibility_selector.dart';
 
 class AdminQuizzesTab extends StatefulWidget {
   const AdminQuizzesTab({super.key});
@@ -34,6 +36,8 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
   List<String> _questionTypes = ['text'];
   List<List<TextEditingController>> _optionsCtrls = [[]];
   bool _isVisible = true;
+  List<String> _visibleTo = [];
+  String _searchQuery = '';
 
   List<PlatformFile> _selectedFiles = [];
   String? _currentAttachmentName;
@@ -128,222 +132,254 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final items = snapshot.data!;
-
-                  if (items.isEmpty) {
-                    return const Center(child: Text('No quizzes yet'));
+                  var items = snapshot.data!;
+                  if (_searchQuery.isNotEmpty) {
+                    final query = _searchQuery.toLowerCase();
+                    items = items.where((q) {
+                      final title = q.title.toLowerCase();
+                      final author = (q.createdByEmail ?? 'Unknown')
+                          .toLowerCase();
+                      return title.contains(query) || author.contains(query);
+                    }).toList();
                   }
 
-                  return ListView.separated(
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    itemCount: items.length,
-                    separatorBuilder: (c, i) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final q = items[index];
-                      final currentUser = AuthService.instance.currentUser;
-                      final isAdmin = role == UserRole.admin;
-                      final isOwner = q.createdByUid == currentUser?.uid;
-                      final canEdit = isOwner; // Only owners can edit
-                      final isPending =
-                          q.validationStatus == 'awaiting_approval';
-                      final isSelected = _selectedQuizId == q.id;
-                      final color = AppColors.primaryGreen;
-
-                      return GlassCard(
-                        backgroundColor: isSelected
-                            ? color
-                            : (!canEdit
-                                  ? Colors.grey.withValues(alpha: 0.05)
-                                  : null),
-                        onTap: () {
-                          if (!canEdit) {
-                            // If user cannot edit (e.g. educator viewing public content),
-                            // navigate to the detail page for viewing/taking the quiz.
-                            if (currentUser != null) {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => QuizDetailPage(
-                                    user: currentUser,
-                                    quiz: q,
-                                  ),
-                                ),
-                              );
-                            }
-                            return;
-                          }
+                  return Column(
+                    children: [
+                      AppSearchBar(
+                        hintText: 'Search quizzes by title or author...',
+                        onSearch: (value) {
                           setState(() {
-                            if (isSelected) {
-                              _resetForm();
-                            } else {
-                              _selectedQuizId = q.id;
-                              _title.text = q.title;
-                              _description.text = q.description;
-                              _durationCtrl.text = q.duration.toString();
-                              _maxAttemptsCtrl.text = q.maxAttempts.toString();
-                              _currentAttachmentName = q.attachmentName;
-                              _currentAttachmentUrl = q.attachmentUrl;
-                              _selectedFiles = [];
-                              _questionCtrls = q.questions
-                                  .map(
-                                    (qu) => TextEditingController(
-                                      text: qu.question,
-                                    ),
-                                  )
-                                  .toList();
-                              _answerCtrls = q.questions
-                                  .map(
-                                    (qu) =>
-                                        TextEditingController(text: qu.answer),
-                                  )
-                                  .toList();
-                              _questionTypes = q.questions
-                                  .map((qu) => qu.type)
-                                  .toList();
-                              _optionsCtrls = q.questions
-                                  .map(
-                                    (qu) => (qu.options ?? [])
-                                        .map(
-                                          (opt) =>
-                                              TextEditingController(text: opt),
-                                        )
-                                        .toList(),
-                                  )
-                                  .toList();
-                              _isVisible = q.isVisible;
-                              if (_questionCtrls.isEmpty) {
-                                _questionCtrls = [TextEditingController()];
-                                _answerCtrls = [TextEditingController()];
-                                _questionTypes = ['text'];
-                                _optionsCtrls = [[]];
-                              }
-                            }
+                            _searchQuery = value;
                           });
                         },
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 4,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: isPending ? Colors.orange : color,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
+                      ),
+                      const SizedBox(height: 16),
+                      if (items.isEmpty)
+                        const Center(child: Text('No quizzes found'))
+                      else
+                        ListView.separated(
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: items.length,
+                          separatorBuilder: (c, i) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final q = items[index];
+                            final currentUser =
+                                AuthService.instance.currentUser;
+                            final isOwner = q.createdByUid == currentUser?.uid;
+                            final canEdit = isOwner; // Only owners can edit
+                            final isPending =
+                                q.validationStatus == 'awaiting_approval';
+                            final isSelected = _selectedQuizId == q.id;
+                            final color = AppColors.primaryGreen;
+
+                            return GlassCard(
+                              backgroundColor: isSelected
+                                  ? color
+                                  : (!canEdit
+                                        ? Colors.grey.withValues(alpha: 0.05)
+                                        : null),
+                              onTap: () {
+                                if (!canEdit) {
+                                  // If user cannot edit (e.g. educator viewing public content),
+                                  // navigate to the detail page for viewing/taking the quiz.
+                                  if (currentUser != null) {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => QuizDetailPage(
+                                          user: currentUser,
+                                          quiz: q,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
+                                setState(() {
+                                  if (isSelected) {
+                                    _resetForm();
+                                  } else {
+                                    _selectedQuizId = q.id;
+                                    _title.text = q.title;
+                                    _description.text = q.description;
+                                    _durationCtrl.text = q.duration.toString();
+                                    _maxAttemptsCtrl.text = q.maxAttempts
+                                        .toString();
+                                    _currentAttachmentName = q.attachmentName;
+                                    _currentAttachmentUrl = q.attachmentUrl;
+                                    _selectedFiles = [];
+                                    _questionCtrls = q.questions
+                                        .map(
+                                          (qu) => TextEditingController(
+                                            text: qu.question,
+                                          ),
+                                        )
+                                        .toList();
+                                    _answerCtrls = q.questions
+                                        .map(
+                                          (qu) => TextEditingController(
+                                            text: qu.answer,
+                                          ),
+                                        )
+                                        .toList();
+                                    _questionTypes = q.questions
+                                        .map((qu) => qu.type)
+                                        .toList();
+                                    _optionsCtrls = q.questions
+                                        .map(
+                                          (qu) => (qu.options ?? [])
+                                              .map(
+                                                (opt) => TextEditingController(
+                                                  text: opt,
+                                                ),
+                                              )
+                                              .toList(),
+                                        )
+                                        .toList();
+                                    _isVisible = q.isVisible;
+                                    _visibleTo = List<String>.from(q.visibleTo);
+                                    if (_questionCtrls.isEmpty) {
+                                      _questionCtrls = [
+                                        TextEditingController(),
+                                      ];
+                                      _answerCtrls = [TextEditingController()];
+                                      _questionTypes = ['text'];
+                                      _optionsCtrls = [[]];
+                                    }
+                                  }
+                                });
+                              },
+                              child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          q.title,
+                                  Container(
+                                    width: 4,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: isPending ? Colors.orange : color,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                q.title,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  color: !canEdit
+                                                      ? Colors.grey
+                                                      : null,
+                                                ),
+                                              ),
+                                            ),
+                                            if (isPending)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.orange
+                                                      .withValues(alpha: 0.2),
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                  border: Border.all(
+                                                    color: Colors.orange
+                                                        .withValues(alpha: 0.5),
+                                                  ),
+                                                ),
+                                                child: const Text(
+                                                  'Awaiting Approval',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors.orange,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          q.description,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
                                             color: !canEdit
                                                 ? Colors.grey
                                                 : null,
                                           ),
                                         ),
-                                      ),
-                                      if (isPending)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange.withValues(
-                                              alpha: 0.2,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.orange.withValues(
-                                                alpha: 0.5,
-                                              ),
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            'Awaiting Approval',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: Colors.orange,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    q.description,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: !canEdit ? Colors.grey : null,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Wrap(
-                                    spacing: 12,
-                                    children: [
-                                      if (q.attachmentName != null &&
-                                          q.attachmentName!.isNotEmpty)
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 12,
                                           children: [
-                                            const Icon(
-                                              CupertinoIcons.paperclip,
-                                              size: 14,
-                                            ),
-                                            const SizedBox(width: 4),
+                                            if (q.attachmentName != null &&
+                                                q.attachmentName!.isNotEmpty)
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                    CupertinoIcons.paperclip,
+                                                    size: 14,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    q.attachmentName!,
+                                                    style: Theme.of(
+                                                      context,
+                                                    ).textTheme.bodySmall,
+                                                  ),
+                                                ],
+                                              ),
                                             Text(
-                                              q.attachmentName!,
+                                              'Created: ${_fmt(q.createdAt ?? Timestamp.now())} • Qs: ${q.questions.length} • ${q.duration}m • Attempts: ${q.maxAttempts} • Visible: ${q.isVisible ? 'Yes' : 'No'}',
                                               style: Theme.of(
                                                 context,
                                               ).textTheme.bodySmall,
                                             ),
+                                            if (q.createdByEmail != null)
+                                              Text(
+                                                'By: ${q.createdByEmail}',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.bodySmall,
+                                              ),
                                           ],
                                         ),
-                                      Text(
-                                        'Created: ${_fmt(q.createdAt ?? Timestamp.now())} • Qs: ${q.questions.length} • ${q.duration}m • Attempts: ${q.maxAttempts} • Visible: ${q.isVisible ? 'Yes' : 'No'}',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodySmall,
-                                      ),
-                                      if (q.createdByEmail != null)
-                                        Text(
-                                          'By: ${q.createdByEmail}',
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.bodySmall,
-                                        ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
+                                  if (canEdit) // Only show stats to owner/editor
+                                    IconButton(
+                                      icon: const Icon(
+                                        CupertinoIcons.graph_square,
+                                      ),
+                                      onPressed: () =>
+                                          _showResults(q.id, q.title),
+                                    ),
+                                  if (canEdit)
+                                    IconButton(
+                                      icon: const Icon(CupertinoIcons.trash),
+                                      color: Colors.red[300],
+                                      onPressed: () => _deleteQuiz(q),
+                                    ),
                                 ],
                               ),
-                            ),
-                            if (canEdit) // Only show stats to owner/editor
-                              IconButton(
-                                icon: const Icon(CupertinoIcons.graph_square),
-                                onPressed: () => _showResults(q.id, q.title),
-                              ),
-                            if (canEdit)
-                              IconButton(
-                                icon: const Icon(CupertinoIcons.trash),
-                                color: Colors.red[300],
-                                onPressed: () => _deleteQuiz(q),
-                              ),
-                          ],
+                            );
+                          },
                         ),
-                      );
-                    },
+                    ],
                   );
                 },
               ),
@@ -398,6 +434,15 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           onChanged: (v) => setState(() => _isVisible = v),
           activeThumbColor: AppColors.primaryGreen,
         ),
+        if (!_isVisible) ...[
+          const SizedBox(height: 16),
+          UserVisibilitySelector(
+            selectedUserIds: _visibleTo,
+            onChanged: (users) {
+              setState(() => _visibleTo = users);
+            },
+          ),
+        ],
         const SizedBox(height: 16),
         _buildUploadUI(),
         const SizedBox(height: 24),
@@ -603,6 +648,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _questionTypes = ['text'];
     _optionsCtrls = [[]];
     _isVisible = true;
+    _visibleTo = [];
     setState(() {});
   }
 
@@ -654,6 +700,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
           isVisible: _isVisible,
+          visibleTo: _visibleTo,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
@@ -679,6 +726,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
           isVisible: _isVisible,
+          visibleTo: _visibleTo,
         );
         if (mounted) {
           ScaffoldMessenger.of(
