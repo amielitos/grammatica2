@@ -8,6 +8,7 @@ import '../../widgets/markdown_guide_button.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
+import '../lesson_page.dart';
 import '../../services/role_service.dart';
 
 class AdminLessonsTab extends StatefulWidget {
@@ -32,129 +33,144 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Editor Section
-          GlassCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  LayoutBuilder(
-                    builder: (context, c) {
-                      final wide = c.maxWidth >= 900;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+    final user = AuthService.instance.currentUser;
+    return StreamBuilder<UserRole>(
+      stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
+      builder: (context, roleSnap) {
+        final role = roleSnap.data ?? UserRole.learner;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Editor Section
+              GlassCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LayoutBuilder(
+                        builder: (context, c) {
+                          final wide = c.maxWidth >= 900;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Manage Lessons',
-                                style: Theme.of(context).textTheme.titleLarge,
+                              Row(
+                                children: [
+                                  Text(
+                                    'Manage Lessons',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge,
+                                  ),
+                                  const Spacer(),
+                                  FilledButton.icon(
+                                    onPressed:
+                                        (_creatingLesson ||
+                                            _title.text.trim().isEmpty)
+                                        ? null
+                                        : _saveLesson,
+                                    icon: _creatingLesson
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            CupertinoIcons.floppy_disk,
+                                          ),
+                                    label: Text(
+                                      _selectedLessonId == null
+                                          ? 'Create'
+                                          : 'Update',
+                                    ),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.primaryGreen,
+                                    ),
+                                  ),
+                                  if (_selectedLessonId != null) ...[
+                                    const SizedBox(width: 8),
+                                    OutlinedButton(
+                                      onPressed: () =>
+                                          setState(() => _resetForm()),
+                                      child: const Text('Cancel'),
+                                    ),
+                                  ],
+                                ],
                               ),
-                              const Spacer(),
-                              FilledButton.icon(
-                                onPressed:
-                                    (_creatingLesson ||
-                                        _title.text.trim().isEmpty)
-                                    ? null
-                                    : _saveLesson,
-                                icon: _creatingLesson
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Icon(CupertinoIcons.floppy_disk),
-                                label: Text(
-                                  _selectedLessonId == null
-                                      ? 'Create'
-                                      : 'Update',
+                              const SizedBox(height: 16),
+                              if (wide)
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(child: _buildInputFields()),
+                                    const SizedBox(width: 16),
+                                    Expanded(child: _buildPreviewArea()),
+                                  ],
+                                )
+                              else ...[
+                                _buildInputFields(),
+                                const SizedBox(height: 24),
+                                const Divider(),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Preview',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: AppColors.primaryGreen,
-                                ),
-                              ),
-                              if (_selectedLessonId != null) ...[
-                                const SizedBox(width: 8),
-                                OutlinedButton(
-                                  onPressed: () => setState(() => _resetForm()),
-                                  child: const Text('Cancel'),
-                                ),
+                                const SizedBox(height: 8),
+                                _buildPreviewArea(),
                               ],
                             ],
-                          ),
-                          const SizedBox(height: 16),
-                          if (wide)
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(child: _buildInputFields()),
-                                const SizedBox(width: 16),
-                                Expanded(child: _buildPreviewArea()),
-                              ],
-                            )
-                          else ...[
-                            _buildInputFields(),
-                            const SizedBox(height: 24),
-                            const Divider(),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Preview',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 8),
-                            _buildPreviewArea(),
-                          ],
-                        ],
-                      );
-                    },
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
 
-          const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-          // List of Lessons
-          StreamBuilder<List<Lesson>>(
-            stream: DatabaseService.instance.streamLessons(approvedOnly: false),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final lessons = snapshot.data!;
-              if (lessons.isEmpty) {
-                return const Center(child: Text('No lessons yet'));
-              }
-
-              return ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: lessons.length,
-                separatorBuilder: (c, i) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final l = lessons[index];
-                  final isSelected = _selectedLessonId == l.id;
-                  final color = AppColors.primaryGreen;
-
+              // List of Lessons
+              StreamBuilder<List<Lesson>>(
+                stream: DatabaseService.instance.streamLessons(
+                  approvedOnly: false,
+                ),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final lessons = snapshot.data!;
                   final currentUser = AuthService.instance.currentUser;
-                  return StreamBuilder<UserRole>(
-                    stream: currentUser != null
-                        ? RoleService.instance.roleStream(currentUser.uid)
-                        : null,
-                    builder: (context, roleSnap) {
-                      final role = roleSnap.data;
-                      final isOwner = l.createdByUid == currentUser?.uid;
+                  final filteredLessons = lessons.where((l) {
+                    final isAdmin = role == UserRole.admin;
+                    final isOwner = l.createdByUid == currentUser?.uid;
+                    if (isAdmin || isOwner) return true;
+                    return l.isVisible;
+                  }).toList();
+
+                  if (filteredLessons.isEmpty) {
+                    return const Center(child: Text('No lessons yet'));
+                  }
+
+                  return ListView.separated(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: filteredLessons.length,
+                    separatorBuilder: (c, i) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final l = filteredLessons[index];
+                      final isSelected = _selectedLessonId == l.id;
+                      final color = AppColors.primaryGreen;
+
                       final isAdmin = role == UserRole.admin;
+                      final isOwner = l.createdByUid == currentUser?.uid;
                       final canEdit = isAdmin || isOwner;
                       final isPending =
                           l.validationStatus == 'awaiting_approval';
@@ -162,11 +178,10 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                       return GlassCard(
                         onTap: () {
                           if (!canEdit) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'You can only edit your own lessons.',
-                                ),
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    LessonPage(user: currentUser!, lesson: l),
                               ),
                             );
                             return;
@@ -186,7 +201,9 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                         },
                         backgroundColor: isSelected
                             ? color
-                            : (!canEdit ? Colors.grey.withOpacity(0.05) : null),
+                            : (!canEdit
+                                  ? Colors.grey.withValues(alpha: 0.05)
+                                  : null),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -231,8 +248,8 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                               10,
                                             ),
                                             border: Border.all(
-                                              color: Colors.orange.withOpacity(
-                                                0.5,
+                                              color: Colors.orange.withValues(
+                                                alpha: 0.5,
                                               ),
                                             ),
                                           ),
@@ -308,11 +325,11 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                     },
                   );
                 },
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -342,7 +359,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           subtitle: const Text('If off, learners cannot see this lesson'),
           value: _isVisible,
           onChanged: (v) => setState(() => _isVisible = v),
-          activeColor: AppColors.primaryGreen,
+          activeThumbColor: AppColors.primaryGreen,
         ),
         const SizedBox(height: 16),
         const Align(
@@ -366,11 +383,11 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           decoration: BoxDecoration(
             border: Border.all(
               color: isDark
-                  ? Colors.white.withOpacity(0.05)
-                  : Colors.grey.withOpacity(0.1),
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.grey.withValues(alpha: 0.1),
             ),
             borderRadius: BorderRadius.circular(12),
-            color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
           ),
           child: MarkdownBody(
             data: _prompt.text.isEmpty ? '_Nothing to preview_' : _prompt.text,
@@ -431,6 +448,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
     _prompt.clear();
     _selectedFiles = [];
     _isVisible = true;
+    setState(() {});
   }
 
   Future<void> _saveLesson() async {

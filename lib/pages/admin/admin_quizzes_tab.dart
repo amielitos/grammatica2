@@ -7,9 +7,11 @@ import '../../theme/app_colors.dart';
 import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
+import '../quiz_detail_page.dart';
 
 class AdminQuizzesTab extends StatefulWidget {
   const AdminQuizzesTab({super.key});
+
   @override
   State<AdminQuizzesTab> createState() => _AdminQuizzesTabState();
 }
@@ -23,8 +25,8 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
   String? _selectedQuizId;
   bool _creatingOrUpdating = false;
   final _title = TextEditingController();
-  final _description = TextEditingController(); // NEW
-  final _durationCtrl = TextEditingController(text: '0'); // NEW (minutes)
+  final _description = TextEditingController();
+  final _durationCtrl = TextEditingController(text: '0');
   final _maxAttemptsCtrl = TextEditingController(text: '1');
 
   List<TextEditingController> _questionCtrls = [TextEditingController()];
@@ -33,122 +35,137 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
   List<List<TextEditingController>> _optionsCtrls = [[]];
   bool _isVisible = true;
 
-  List<PlatformFile> _selectedFiles = []; // Store selected files
+  List<PlatformFile> _selectedFiles = [];
   String? _currentAttachmentName;
   String? _currentAttachmentUrl;
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GlassCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  LayoutBuilder(
-                    builder: (context, c) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+    final user = AuthService.instance.currentUser;
+    return StreamBuilder<UserRole>(
+      stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
+      builder: (context, roleSnap) {
+        final role = roleSnap.data ?? UserRole.learner;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GlassCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LayoutBuilder(
+                        builder: (context, c) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'Manage Quizzes',
-                                style: Theme.of(context).textTheme.titleLarge,
+                              Row(
+                                children: [
+                                  Text(
+                                    'Manage Quizzes',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge,
+                                  ),
+                                  const Spacer(),
+                                  FilledButton.icon(
+                                    onPressed:
+                                        (_creatingOrUpdating ||
+                                            _title.text.trim().isEmpty)
+                                        ? null
+                                        : _saveQuiz,
+                                    icon: _creatingOrUpdating
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            CupertinoIcons.floppy_disk,
+                                          ),
+                                    label: Text(
+                                      _selectedQuizId == null
+                                          ? 'Create'
+                                          : 'Update',
+                                    ),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.primaryGreen,
+                                    ),
+                                  ),
+                                  if (_selectedQuizId != null) ...[
+                                    const SizedBox(width: 8),
+                                    OutlinedButton(
+                                      onPressed: _resetForm,
+                                      child: const Text('Cancel'),
+                                    ),
+                                  ],
+                                ],
                               ),
-                              const Spacer(),
-                              FilledButton.icon(
-                                onPressed:
-                                    (_creatingOrUpdating ||
-                                        _title.text.trim().isEmpty)
-                                    ? null
-                                    : _saveQuiz,
-                                icon: _creatingOrUpdating
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Icon(CupertinoIcons.floppy_disk),
-                                label: Text(
-                                  _selectedQuizId == null ? 'Create' : 'Update',
-                                ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: AppColors.primaryGreen,
-                                ),
-                              ),
-                              if (_selectedQuizId != null) ...[
-                                const SizedBox(width: 8),
-                                OutlinedButton(
-                                  onPressed: _resetForm,
-                                  child: const Text('Cancel'),
-                                ),
-                              ],
+                              const SizedBox(height: 16),
+                              _buildInputFields(),
                             ],
-                          ),
-                          const SizedBox(height: 16),
-                          _buildInputFields(),
-                        ],
-                      );
-                    },
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          StreamBuilder<List<Quiz>>(
-            stream: DatabaseService.instance.streamQuizzes(approvedOnly: false),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData)
-                return const Center(child: CircularProgressIndicator());
-              final items = snapshot.data!;
-              if (items.isEmpty)
-                return const Center(child: Text('No quizzes yet'));
-
-              return ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: items.length,
-                separatorBuilder: (c, i) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final q = items[index];
-                  final isSelected = _selectedQuizId == q.id;
-                  final color = AppColors.primaryGreen;
-
+              const SizedBox(height: 24),
+              StreamBuilder<List<Quiz>>(
+                stream: DatabaseService.instance.streamQuizzes(
+                  approvedOnly: false,
+                ),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final items = snapshot.data!;
                   final currentUser = AuthService.instance.currentUser;
-                  return StreamBuilder<UserRole>(
-                    stream: currentUser != null
-                        ? RoleService.instance.roleStream(currentUser.uid)
-                        : null,
-                    builder: (context, roleSnap) {
-                      final role = roleSnap.data;
-                      final isOwner = q.createdByUid == currentUser?.uid;
+                  final filteredQuizzes = items.where((q) {
+                    final isAdmin = role == UserRole.admin;
+                    final isOwner = q.createdByUid == currentUser?.uid;
+                    if (isAdmin || isOwner) return true;
+                    return q.isVisible;
+                  }).toList();
+
+                  if (filteredQuizzes.isEmpty) {
+                    return const Center(child: Text('No quizzes yet'));
+                  }
+
+                  return ListView.separated(
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: filteredQuizzes.length,
+                    separatorBuilder: (c, i) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final q = filteredQuizzes[index];
                       final isAdmin = role == UserRole.admin;
+                      final isOwner = q.createdByUid == currentUser?.uid;
                       final canEdit = isAdmin || isOwner;
                       final isPending =
                           q.validationStatus == 'awaiting_approval';
+                      final isSelected = _selectedQuizId == q.id;
+                      final color = AppColors.primaryGreen;
 
                       return GlassCard(
                         backgroundColor: isSelected
                             ? color
-                            : (!canEdit ? Colors.grey.withOpacity(0.05) : null),
+                            : (!canEdit
+                                  ? Colors.grey.withValues(alpha: 0.05)
+                                  : null),
                         onTap: () {
                           if (!canEdit) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'You can only edit your own quizzes.',
-                                ),
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    QuizDetailPage(user: currentUser!, quiz: q),
                               ),
                             );
                             return;
@@ -238,15 +255,15 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                             vertical: 2,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.orange.withOpacity(
-                                              0.2,
+                                            color: Colors.orange.withValues(
+                                              alpha: 0.2,
                                             ),
                                             borderRadius: BorderRadius.circular(
                                               10,
                                             ),
                                             border: Border.all(
-                                              color: Colors.orange.withOpacity(
-                                                0.5,
+                                              color: Colors.orange.withValues(
+                                                alpha: 0.5,
                                               ),
                                             ),
                                           ),
@@ -326,11 +343,11 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     },
                   );
                 },
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -376,9 +393,8 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           subtitle: const Text('If off, learners cannot see this quiz'),
           value: _isVisible,
           onChanged: (v) => setState(() => _isVisible = v),
-          activeColor: AppColors.primaryGreen,
+          activeThumbColor: AppColors.primaryGreen,
         ),
-        const SizedBox(height: 16),
         const SizedBox(height: 16),
         _buildUploadUI(),
         const SizedBox(height: 24),
@@ -390,7 +406,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           return Padding(
             padding: const EdgeInsets.only(bottom: 16.0),
             child: GlassCard(
-              backgroundColor: Colors.white.withOpacity(0.05),
+              backgroundColor: Colors.white.withValues(alpha: 0.05),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -419,6 +435,8 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                               setState(() {
                                 _questionCtrls.removeAt(index);
                                 _answerCtrls.removeAt(index);
+                                _questionTypes.removeAt(index);
+                                _optionsCtrls.removeAt(index);
                               });
                             },
                           ),
@@ -659,17 +677,19 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           attachmentName: attachmentName,
           isVisible: _isVisible,
         );
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Quiz updated')));
+        }
       }
       if (mounted) _resetForm();
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _creatingOrUpdating = false);
     }
@@ -715,11 +735,13 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: DatabaseService.instance.fetchQuizResults(quizId),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting)
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
+                }
                 final results = snapshot.data ?? [];
-                if (results.isEmpty)
+                if (results.isEmpty) {
                   return const Center(child: Text('No attempts recorded.'));
+                }
                 return ListView.separated(
                   itemCount: results.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
@@ -743,13 +765,13 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                             ),
                             decoration: BoxDecoration(
                               color: passed
-                                  ? Colors.green.withOpacity(0.2)
-                                  : Colors.red.withOpacity(0.2),
+                                  ? Colors.green.withValues(alpha: 0.2)
+                                  : Colors.red.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: passed
-                                    ? Colors.green.withOpacity(0.5)
-                                    : Colors.red.withOpacity(0.5),
+                                    ? Colors.green.withValues(alpha: 0.5)
+                                    : Colors.red.withValues(alpha: 0.5),
                               ),
                             ),
                             child: Text(
