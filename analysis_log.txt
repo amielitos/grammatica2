@@ -1,0 +1,32 @@
+Analyzing quiz_detail_page.dart...
+
+  error - quiz_detail_page.dart:452:11 - Undefined name 'autofocus'. Try correcting the name to one that is defined, or defining the name. - undefined_identifier
+  error - quiz_detail_page.dart:452:20 - Expected to find ')'. - expected_token
+  error - quiz_detail_page.dart:452:20 - Expected to find ']'. - expected_token
+  error - quiz_detail_page.dart:454:9 - Expected to find ';'. - expected_token
+  error - quiz_detail_page.dart:454:10 - Expected an identifier. - missing_identifier
+  error - quiz_detail_page.dart:454:10 - Unexpected text ';'. Try removing the text. - unexpected_token
+  error - quiz_detail_page.dart:455:34 - Expected to find ';'. - expected_token
+  error - quiz_detail_page.dart:455:35 - Expected an identifier. - missing_identifier
+  error - quiz_detail_page.dart:455:35 - Unexpected text ';'. Try removing the text. - unexpected_token
+  error - quiz_detail_page.dart:495:9 - Expected to find ';'. - expected_token
+  error - quiz_detail_page.dart:495:10 - Expected an identifier. - missing_identifier
+  error - quiz_detail_page.dart:495:10 - Unexpected text ';'. Try removing the text. - unexpected_token
+  error - quiz_detail_page.dart:505:11 - Expected to find ';'. - expected_token
+  error - quiz_detail_page.dart:505:12 - Expected an identifier. - missing_identifier
+  error - quiz_detail_page.dart:505:12 - Expected to find ';'. - expected_token
+  error - quiz_detail_page.dart:505:12 - Unexpected text ';'. Try removing the text. - unexpected_token
+  error - quiz_detail_page.dart:506:7 - Expected an identifier. - missing_identifier
+  error - quiz_detail_page.dart:506:7 - Expected to find ';'. - expected_token
+  error - quiz_detail_page.dart:506:7 - Unexpected text ';'. Try removing the text. - unexpected_token
+  error - quiz_detail_page.dart:506:8 - Expected an identifier. - missing_identifier
+  error - quiz_detail_page.dart:506:8 - Expected to find ';'. - expected_token
+  error - quiz_detail_page.dart:506:8 - Unexpected text ';'. Try removing the text. - unexpected_token
+  error - quiz_detail_page.dart:507:5 - Expected an identifier. - missing_identifier
+  error - quiz_detail_page.dart:507:5 - Unexpected text ';'. Try removing the text. - unexpected_token
+warning - quiz_detail_page.dart:454:10 - Dead code. Try removing the code, or fixing the code before it so that it can be reached. - dead_code
+   info - quiz_detail_page.dart:424:14 - Unnecessary use of 'toList' in a spread. Try removing the invocation of 'toList'. - unnecessary_to_list_in_spreads
+   info - quiz_detail_page.dart:499:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - quiz_detail_page.dart:507:6 - Unnecessary empty statement. Try removing the empty statement or restructuring the code. - empty_statements
+
+28 issues found.

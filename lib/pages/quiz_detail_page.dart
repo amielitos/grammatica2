@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'dart:async';
 import '../widgets/glass_card.dart';
 import '../theme/app_colors.dart';
@@ -272,9 +272,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
+              color: Colors.blue.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+              border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -360,10 +360,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             Color? cardColor;
             if (_isReviewing) {
               if (isCorrectAnswer) {
-                cardColor = Colors.green.withOpacity(0.2);
+                cardColor = Colors.green.withValues(alpha: 0.2);
               }
             } else if (isSelected) {
-              cardColor = AppColors.primaryGreen.withOpacity(0.2);
+              cardColor = AppColors.primaryGreen.withValues(alpha: 0.2);
             }
 
             return Padding(
@@ -421,7 +421,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                 ),
               ),
             );
-          }).toList()
+          })
         else
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,9 +449,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                 ),
             ],
           ),
-          autofocus: true,
-          onChanged: (v) => setState(() {}),
-        ),
+
         const SizedBox(height: 32),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -512,8 +510,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: _secondsRemaining < 60
-            ? Colors.red.withOpacity(0.1)
-            : Colors.blue.withOpacity(0.1),
+            ? Colors.red.withValues(alpha: 0.1)
+            : Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -563,7 +561,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    tileColor: isCurrent ? Colors.blue.withOpacity(0.1) : null,
+                    tileColor: isCurrent
+                        ? Colors.blue.withValues(alpha: 0.1)
+                        : null,
                     leading: CircleAvatar(
                       radius: 12,
                       backgroundColor: isAnswered
@@ -639,8 +639,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: _isCorrect
-                ? Colors.green.withOpacity(0.1)
-                : Colors.orange.withOpacity(0.1),
+                ? Colors.green.withValues(alpha: 0.1)
+                : Colors.orange.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(

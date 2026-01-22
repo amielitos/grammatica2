@@ -4,6 +4,7 @@ import '../../theme/app_colors.dart';
 import '../../widgets/glass_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
+import '../../widgets/app_search_bar.dart';
 
 class AdminUsersTab extends StatefulWidget {
   const AdminUsersTab({super.key});
@@ -13,14 +14,7 @@ class AdminUsersTab extends StatefulWidget {
 
 class _AdminUsersTabState extends State<AdminUsersTab> {
   int _rowsPerPage = PaginatedDataTable.defaultRowsPerPage;
-  final _searchCtrl = TextEditingController();
   String _searchQuery = '';
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
 
   String _formatTs(dynamic ts) {
     if (ts is Timestamp) {
@@ -44,318 +38,333 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            final users = snapshot.data!;
-            if (users.isEmpty) {
-              return const Center(child: Text('No users found'));
+            var users = snapshot.data!;
+            if (_searchQuery.isNotEmpty) {
+              final query = _searchQuery.toLowerCase();
+              users = users.where((u) {
+                final username = (u['username'] ?? '').toString().toLowerCase();
+                final email = (u['email'] ?? '').toString().toLowerCase();
+                return username.contains(query) || email.contains(query);
+              }).toList();
             }
 
-            final filteredUsers = users.where((u) {
-              if (_searchQuery.isEmpty) return true;
-              final q = _searchQuery.toLowerCase();
-              final username = (u['username'] ?? '').toString().toLowerCase();
-              final email = (u['email'] ?? '').toString().toLowerCase();
-              final role = (u['role'] ?? '').toString().toLowerCase();
-              return username.contains(q) ||
-                  email.contains(q) ||
-                  role.contains(q);
-            }).toList();
-
-            if (filteredUsers.isEmpty) {
-              return Column(
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
                 children: [
-                  _buildSearchBar(),
-                  const SizedBox(height: 24),
-                  const Center(child: Text('No matching users')),
-                ],
-              );
-            }
+                  const SizedBox(height: 16),
+                  AppSearchBar(
+                    hintText: 'Search users by name or email...',
+                    onSearch: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: Builder(
+                      builder: (context) {
+                        if (users.isEmpty) {
+                          return const Center(child: Text('No users found'));
+                        }
 
-            if (!isWide) {
-              return Column(
-                children: [
-                  _buildSearchBar(),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredUsers.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final u = filteredUsers[index];
-                      final email = (u['email'] ?? 'N/A') as String;
-                      final role = (u['role'] ?? 'N/A') as String;
-                      final uid = (u['uid'] ?? 'N/A') as String;
-                      final username = (u['username'] ?? 'N/A') as String;
-                      final status = (u['status'] ?? 'N/A') as String;
-                      final subscription =
-                          (u['subscription_status'] ?? 'N/A') as String;
-                      final ts = u['createdAt'];
+                        if (!isWide) {
+                          return ListView.separated(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            itemCount: users.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final u = users[index];
+                              final email = (u['email'] ?? 'N/A') as String;
+                              final role = (u['role'] ?? 'N/A') as String;
+                              final uid = (u['uid'] ?? 'N/A') as String;
+                              final username =
+                                  (u['username'] ?? 'N/A') as String;
+                              final status = (u['status'] ?? 'N/A') as String;
+                              final subscription =
+                                  (u['subscription_status'] ?? 'N/A') as String;
+                              final ts = u['createdAt'];
 
-                      return GlassCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        (role == 'ADMIN'
+                              return GlassCard(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                (role == 'ADMIN'
+                                                        ? AppColors.primaryGreen
+                                                        : (role == 'EDUCATOR'
+                                                              ? Colors.blue
+                                                              : Colors.grey))
+                                                    .withOpacity(0.1),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            role == 'ADMIN'
+                                                ? CupertinoIcons
+                                                      .checkmark_shield_fill
+                                                : (role == 'EDUCATOR'
+                                                      ? CupertinoIcons.book_fill
+                                                      : CupertinoIcons
+                                                            .person_fill),
+                                            color: role == 'ADMIN'
                                                 ? AppColors.primaryGreen
                                                 : (role == 'EDUCATOR'
                                                       ? Colors.blue
-                                                      : Colors.grey))
-                                            .withOpacity(0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    role == 'ADMIN'
-                                        ? CupertinoIcons.checkmark_shield_fill
-                                        : (role == 'EDUCATOR'
-                                              ? CupertinoIcons.book_fill
-                                              : CupertinoIcons.person_fill),
-                                    color: role == 'ADMIN'
-                                        ? AppColors.primaryGreen
-                                        : (role == 'EDUCATOR'
-                                              ? Colors.blue
-                                              : AppColors.textPrimary),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    username,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                                      : AppColors.textPrimary),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            username,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: role == 'ADMIN'
+                                                ? AppColors.primaryGreen
+                                                      .withOpacity(0.2)
+                                                : Colors.grey.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: role == 'ADMIN'
+                                                  ? AppColors.primaryGreen
+                                                        .withOpacity(0.5)
+                                                  : Colors.grey.withOpacity(
+                                                      0.3,
+                                                    ),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            role,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: role == 'ADMIN'
+                                                  ? (Theme.of(
+                                                              context,
+                                                            ).brightness ==
+                                                            Brightness.dark
+                                                        ? Colors.green[200]
+                                                        : Colors.green[800])
+                                                  : (Theme.of(
+                                                              context,
+                                                            ).brightness ==
+                                                            Brightness.dark
+                                                        ? Colors.white70
+                                                        : Colors.black54),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: role == 'ADMIN'
-                                        ? AppColors.primaryGreen.withOpacity(
-                                            0.2,
-                                          )
-                                        : Colors.grey.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: role == 'ADMIN'
-                                          ? AppColors.primaryGreen.withOpacity(
-                                              0.5,
-                                            )
-                                          : Colors.grey.withOpacity(0.3),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Email: $email',
+                                      style: TextStyle(color: Colors.grey[700]),
                                     ),
-                                  ),
-                                  child: Text(
-                                    role,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: role == 'ADMIN'
-                                          ? (Theme.of(context).brightness ==
-                                                    Brightness.dark
-                                                ? Colors.green[200]
-                                                : Colors.green[800])
-                                          : (Theme.of(context).brightness ==
-                                                    Brightness.dark
-                                                ? Colors.white70
-                                                : Colors.black54),
+                                    Text(
+                                      'UID: $uid',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[500],
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            'Status: $status | Sub: $subscription',
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Created: ${_formatTs(ts)}',
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        const Text(
+                                          'Change Role:',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<UserRole>(
+                                              value: roleFromString(role),
+                                              isExpanded: true,
+                                              items: UserRole.values.where((r) => r != UserRole.superadmin).map((
+                                                r,
+                                              ) {
+                                                final rStr = roleToString(r);
+                                                return DropdownMenuItem<
+                                                  UserRole
+                                                >(
+                                                  value: r,
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(
+                                                        r == UserRole.admin
+                                                            ? CupertinoIcons
+                                                                  .checkmark_shield_fill
+                                                            : (r ==
+                                                                      UserRole
+                                                                          .educator
+                                                                  ? CupertinoIcons
+                                                                        .book_fill
+                                                                  : CupertinoIcons
+                                                                        .person_fill),
+                                                        size: 16,
+                                                        color:
+                                                            r == UserRole.admin
+                                                            ? Colors.green
+                                                            : (r ==
+                                                                      UserRole
+                                                                          .educator
+                                                                  ? Colors.blue
+                                                                  : Colors
+                                                                        .grey),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        rStr,
+                                                        style: const TextStyle(
+                                                          fontSize: 14,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              }).toList(),
+                                              onChanged: (newRole) async {
+                                                if (newRole != null &&
+                                                    roleToString(newRole) !=
+                                                        role) {
+                                                  await RoleService.instance
+                                                      .setUserRole(
+                                                        uid: uid,
+                                                        role: newRole,
+                                                      );
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Role updated to ${roleToString(newRole)}',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              );
+                            },
+                          );
+                        }
+
+                        // Wide screens: PaginatedDataTable inside GlassCard
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minWidth: constraints.maxWidth - 32,
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Email: $email',
-                              style: TextStyle(color: Colors.grey[700]),
-                            ),
-                            Text(
-                              'UID: $uid',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
+                            child: GlassCard(
+                              child: Theme(
+                                data: Theme.of(context).copyWith(
+                                  cardColor: Colors.transparent,
+                                  dividerColor: Colors.grey.withOpacity(0.2),
+                                  dataTableTheme: DataTableThemeData(
+                                    headingTextStyle: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                                child: PaginatedDataTable(
+                                  header: const Text('Users Management'),
+                                  rowsPerPage: _rowsPerPage,
+                                  onRowsPerPageChanged: (v) => setState(
+                                    () => _rowsPerPage = v ?? _rowsPerPage,
+                                  ),
+                                  headingRowHeight: 56,
+                                  columnSpacing: 24,
+                                  columns: const [
+                                    DataColumn(label: Text('Username')),
+                                    DataColumn(label: Text('Email')),
+                                    DataColumn(label: Text('UID')),
+                                    DataColumn(label: Text('Role')),
+                                    DataColumn(label: Text('Status')),
+                                    DataColumn(label: Text('Subscription')),
+                                    DataColumn(label: Text('Created At')),
+                                    DataColumn(label: Text('Actions')),
+                                  ],
+                                  source: _UsersDataSource(
+                                    context: context,
+                                    users: users,
+                                    onRoleChanged: (uid, email, newRole) async {
+                                      await RoleService.instance.setUserRole(
+                                        uid: uid,
+                                        role: newRole,
+                                      );
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Role updated to ${roleToString(newRole)} for $email',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    formatTs: _formatTs,
+                                  ),
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    'Status: $status | Sub: $subscription',
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Text(
-                                  'Created: ${_formatTs(ts)}',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                const Text(
-                                  'Change Role:',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<UserRole>(
-                                      value: roleFromString(role),
-                                      isExpanded: true,
-                                      items: UserRole.values
-                                          .where(
-                                            (r) => r != UserRole.superadmin,
-                                          )
-                                          .map((r) {
-                                            final rStr = roleToString(r);
-                                            return DropdownMenuItem<UserRole>(
-                                              value: r,
-                                              child: Row(
-                                                children: [
-                                                  Icon(
-                                                    r == UserRole.admin
-                                                        ? CupertinoIcons
-                                                              .checkmark_shield_fill
-                                                        : (r ==
-                                                                  UserRole
-                                                                      .educator
-                                                              ? CupertinoIcons
-                                                                    .book_fill
-                                                              : CupertinoIcons
-                                                                    .person_fill),
-                                                    size: 16,
-                                                    color: r == UserRole.admin
-                                                        ? Colors.green
-                                                        : (r ==
-                                                                  UserRole
-                                                                      .educator
-                                                              ? Colors.blue
-                                                              : Colors.grey),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    rStr,
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          })
-                                          .toList(),
-                                      onChanged: (newRole) async {
-                                        if (newRole != null &&
-                                            roleToString(newRole) != role) {
-                                          await RoleService.instance
-                                              .setUserRole(
-                                                uid: uid,
-                                                role: newRole,
-                                              );
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  'Role updated to ${roleToString(newRole)}',
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              );
-            }
-
-            // Wide screens: PaginatedDataTable inside GlassCard
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildSearchBar(),
-                  const SizedBox(height: 16),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minWidth: constraints.maxWidth - 32,
-                    ),
-                    child: GlassCard(
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          cardColor: Colors.transparent,
-                          dividerColor: Colors.grey.withOpacity(0.2),
-                          dataTableTheme: DataTableThemeData(
-                            headingTextStyle: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black87,
-                            ),
                           ),
-                        ),
-                        child: PaginatedDataTable(
-                          header: const Text('Users Management'),
-                          rowsPerPage: _rowsPerPage,
-                          onRowsPerPageChanged: (v) =>
-                              setState(() => _rowsPerPage = v ?? _rowsPerPage),
-                          headingRowHeight: 56,
-                          columnSpacing: 24,
-                          columns: const [
-                            DataColumn(label: Text('Username')),
-                            DataColumn(label: Text('Email')),
-                            DataColumn(label: Text('UID')),
-                            DataColumn(label: Text('Role')),
-                            DataColumn(label: Text('Status')),
-                            DataColumn(label: Text('Subscription')),
-                            DataColumn(label: Text('Created At')),
-                            DataColumn(label: Text('Actions')),
-                          ],
-                          source: _UsersDataSource(
-                            context: context,
-                            users: filteredUsers,
-                            onRoleChanged: (uid, email, newRole) async {
-                              await RoleService.instance.setUserRole(
-                                uid: uid,
-                                role: newRole,
-                              );
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Role updated to ${roleToString(newRole)} for $email',
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                            formatTs: _formatTs,
-                          ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -364,36 +373,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           },
         );
       },
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: TextField(
-        controller: _searchCtrl,
-        onSubmitted: (v) => setState(() => _searchQuery = v.trim()),
-        textInputAction: TextInputAction.search,
-        decoration: InputDecoration(
-          hintText: 'Search by username, email, or role',
-          prefixIcon: const Icon(CupertinoIcons.search),
-          suffixIcon: IconButton(
-            icon: const Icon(CupertinoIcons.arrow_right_circle_fill),
-            color: AppColors.primaryGreen,
-            onPressed: () =>
-                setState(() => _searchQuery = _searchCtrl.text.trim()),
-          ),
-          filled: true,
-          fillColor: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.grey.withValues(alpha: 0.1),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: EdgeInsets.zero,
-        ),
-      ),
     );
   }
 }

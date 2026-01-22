@@ -285,5 +285,5 @@ class _SecondaryNavButton extends StatelessWidget {
   }
 
   // Helper for minAxisSize which is MainAxisSize.min
-  getMainAxisSize() => MainAxisSize.min;
+  MainAxisSize getMainAxisSize() => MainAxisSize.min;
 }
