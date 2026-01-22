@@ -8,8 +8,8 @@ import '../../widgets/markdown_guide_button.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
-import '../lesson_page.dart';
 import '../../services/role_service.dart';
+import '../lesson_page.dart';
 
 class AdminLessonsTab extends StatefulWidget {
   const AdminLessonsTab({super.key});
@@ -141,49 +141,48 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
               StreamBuilder<List<Lesson>>(
                 stream: DatabaseService.instance.streamLessons(
                   approvedOnly: false,
+                  userRole: role,
+                  userId: user?.uid,
                 ),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   final lessons = snapshot.data!;
-                  final currentUser = AuthService.instance.currentUser;
-                  final filteredLessons = lessons.where((l) {
-                    final isAdmin = role == UserRole.admin;
-                    final isOwner = l.createdByUid == currentUser?.uid;
-                    if (isAdmin || isOwner) return true;
-                    return l.isVisible;
-                  }).toList();
 
-                  if (filteredLessons.isEmpty) {
+                  if (lessons.isEmpty) {
                     return const Center(child: Text('No lessons yet'));
                   }
 
                   return ListView.separated(
                     physics: const NeverScrollableScrollPhysics(),
                     shrinkWrap: true,
-                    itemCount: filteredLessons.length,
+                    itemCount: lessons.length,
                     separatorBuilder: (c, i) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final l = filteredLessons[index];
+                      final l = lessons[index];
+                      final currentUser = AuthService.instance.currentUser;
                       final isSelected = _selectedLessonId == l.id;
                       final color = AppColors.primaryGreen;
 
                       final isAdmin = role == UserRole.admin;
                       final isOwner = l.createdByUid == currentUser?.uid;
-                      final canEdit = isAdmin || isOwner;
+                      final canEdit = isOwner; // Only owners can edit
                       final isPending =
                           l.validationStatus == 'awaiting_approval';
 
                       return GlassCard(
                         onTap: () {
                           if (!canEdit) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    LessonPage(user: currentUser!, lesson: l),
-                              ),
-                            );
+                            // Enable preview for non-editable content
+                            if (currentUser != null) {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      LessonPage(user: currentUser, lesson: l),
+                                ),
+                              );
+                            }
                             return;
                           }
                           setState(() {

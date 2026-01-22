@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import '../../services/database_service.dart';
 import '../../widgets/glass_card.dart';
+import '../../services/auth_service.dart';
+import '../quiz_detail_page.dart';
+import '../lesson_page.dart';
 
 class AdminValidationTab extends StatefulWidget {
   const AdminValidationTab({super.key});
@@ -90,6 +93,32 @@ class _ValidationList extends StatelessWidget {
                 : 'N/A';
 
             return GlassCard(
+              onTap: () {
+                final user = AuthService.instance.currentUser;
+                if (user == null) return;
+
+                if (collection == 'lessons') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => LessonPage(
+                        user: user,
+                        lesson: item as Lesson,
+                        previewMode: true,
+                      ),
+                    ),
+                  );
+                } else {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => QuizDetailPage(
+                        user: user,
+                        quiz: item as Quiz,
+                        previewMode: true,
+                      ),
+                    ),
+                  );
+                }
+              },
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Row(
@@ -116,6 +145,36 @@ class _ValidationList extends StatelessWidget {
                           ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.eye, color: Colors.blue),
+                      tooltip: 'Preview',
+                      onPressed: () {
+                        final user = AuthService.instance.currentUser;
+                        if (user == null) return;
+
+                        if (collection == 'lessons') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => LessonPage(
+                                user: user,
+                                lesson: item as Lesson,
+                                previewMode: true,
+                              ),
+                            ),
+                          );
+                        } else {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => QuizDetailPage(
+                                user: user,
+                                quiz: item as Quiz,
+                                previewMode: true,
+                              ),
+                            ),
+                          );
+                        }
+                      },
                     ),
                     IconButton(
                       icon: const Icon(

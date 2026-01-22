@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'role_service.dart';
 
 class ImageUpload {
   final String id;
@@ -271,19 +272,37 @@ class DatabaseService {
     return snapshot.docs.map(Lesson.fromDoc).toList();
   }
 
-  Stream<List<Lesson>> streamLessons({bool approvedOnly = true}) {
+  Stream<List<Lesson>> streamLessons({
+    bool approvedOnly = true,
+    UserRole? userRole,
+    String? userId,
+  }) {
     // We order by createdAt. To avoid composite index requirements and support
     // legacy content (without validationStatus), we filter in Dart.
     return _lessons.orderBy('createdAt', descending: false).snapshots().map((
       snapshot,
     ) {
       final lessons = snapshot.docs.map(Lesson.fromDoc).toList();
+
+      // Educators see their own content + public content from admins
+      if (userRole == UserRole.educator && userId != null) {
+        return lessons.where((l) {
+          // Own content
+          if (l.createdByUid == userId) return true;
+          // Public admin content (visible and approved)
+          return l.isVisible && l.validationStatus != 'awaiting_approval';
+        }).toList();
+      }
+
       if (approvedOnly) {
-        return lessons
-            .where(
-              (l) => l.validationStatus != 'awaiting_approval' && l.isVisible,
-            )
-            .toList();
+        return lessons.where((l) {
+          // Admins can see all content regardless of isVisible
+          if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
+            return l.validationStatus != 'awaiting_approval';
+          }
+          // Other users must respect isVisible flag
+          return l.validationStatus != 'awaiting_approval' && l.isVisible;
+        }).toList();
       }
       return lessons;
     });
@@ -395,19 +414,37 @@ class DatabaseService {
     return snap.docs.map(Quiz.fromDoc).toList();
   }
 
-  Stream<List<Quiz>> streamQuizzes({bool approvedOnly = true}) {
+  Stream<List<Quiz>> streamQuizzes({
+    bool approvedOnly = true,
+    UserRole? userRole,
+    String? userId,
+  }) {
     // To avoid composite index requirements and support legacy content,
     // we filter out awaiting_approval docs in Dart.
     return _quizzes.orderBy('createdAt', descending: false).snapshots().map((
       snapshot,
     ) {
       final quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
+
+      // Educators see their own content + public content from admins
+      if (userRole == UserRole.educator && userId != null) {
+        return quizzes.where((q) {
+          // Own content
+          if (q.createdByUid == userId) return true;
+          // Public admin content (visible and approved)
+          return q.isVisible && q.validationStatus != 'awaiting_approval';
+        }).toList();
+      }
+
       if (approvedOnly) {
-        return quizzes
-            .where(
-              (q) => q.validationStatus != 'awaiting_approval' && q.isVisible,
-            )
-            .toList();
+        return quizzes.where((q) {
+          // Admins can see all content regardless of isVisible
+          if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
+            return q.validationStatus != 'awaiting_approval';
+          }
+          // Other users must respect isVisible flag
+          return q.validationStatus != 'awaiting_approval' && q.isVisible;
+        }).toList();
       }
       return quizzes;
     });

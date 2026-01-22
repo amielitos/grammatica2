@@ -121,34 +121,30 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
               StreamBuilder<List<Quiz>>(
                 stream: DatabaseService.instance.streamQuizzes(
                   approvedOnly: false,
+                  userRole: role,
+                  userId: user?.uid,
                 ),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   final items = snapshot.data!;
-                  final currentUser = AuthService.instance.currentUser;
-                  final filteredQuizzes = items.where((q) {
-                    final isAdmin = role == UserRole.admin;
-                    final isOwner = q.createdByUid == currentUser?.uid;
-                    if (isAdmin || isOwner) return true;
-                    return q.isVisible;
-                  }).toList();
 
-                  if (filteredQuizzes.isEmpty) {
+                  if (items.isEmpty) {
                     return const Center(child: Text('No quizzes yet'));
                   }
 
                   return ListView.separated(
                     physics: const NeverScrollableScrollPhysics(),
                     shrinkWrap: true,
-                    itemCount: filteredQuizzes.length,
+                    itemCount: items.length,
                     separatorBuilder: (c, i) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      final q = filteredQuizzes[index];
+                      final q = items[index];
+                      final currentUser = AuthService.instance.currentUser;
                       final isAdmin = role == UserRole.admin;
                       final isOwner = q.createdByUid == currentUser?.uid;
-                      final canEdit = isAdmin || isOwner;
+                      final canEdit = isOwner; // Only owners can edit
                       final isPending =
                           q.validationStatus == 'awaiting_approval';
                       final isSelected = _selectedQuizId == q.id;
@@ -162,12 +158,18 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                   : null),
                         onTap: () {
                           if (!canEdit) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    QuizDetailPage(user: currentUser!, quiz: q),
-                              ),
-                            );
+                            // If user cannot edit (e.g. educator viewing public content),
+                            // navigate to the detail page for viewing/taking the quiz.
+                            if (currentUser != null) {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => QuizDetailPage(
+                                    user: currentUser,
+                                    quiz: q,
+                                  ),
+                                ),
+                              );
+                            }
                             return;
                           }
                           setState(() {
@@ -327,10 +329,11 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                 ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(CupertinoIcons.graph_square),
-                              onPressed: () => _showResults(q.id, q.title),
-                            ),
+                            if (canEdit) // Only show stats to owner/editor
+                              IconButton(
+                                icon: const Icon(CupertinoIcons.graph_square),
+                                onPressed: () => _showResults(q.id, q.title),
+                              ),
                             if (canEdit)
                               IconButton(
                                 icon: const Icon(CupertinoIcons.trash),
