@@ -139,6 +139,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         score: score,
         totalQuestions: _shuffledQuestions.length,
         answers: userAnswers,
+        timeTaken: _timeTaken,
       );
 
       if (mounted) {
@@ -147,8 +148,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           _isCorrect = isCorrect;
           _lastScore = score;
           _completedLocal = true;
-          // We don't increment _attemptsUsed locally here anymore because
-          // the StreamBuilder will pick up the FieldValue.increment(1) from Firestore.
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -206,33 +205,32 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                                 final progressMap = snapshot.data ?? {};
                                 final myProgress = progressMap[widget.quiz.id];
 
-                                bool serverCompleted = false;
                                 if (myProgress != null) {
-                                  serverCompleted =
-                                      myProgress['completed'] == true;
                                   _attemptsUsed =
                                       (myProgress['attemptsUsed'] as num?)
                                           ?.toInt() ??
                                       0;
                                   _isCorrect = myProgress['isCorrect'] == true;
-                                  // Don't override _lastScore if we are in the middle of a submission
+
                                   if (!_submitting) {
                                     _lastScore = (myProgress['score'] as num?)
                                         ?.toInt();
+                                    final serverTime =
+                                        (myProgress['timeTaken'] as num?)
+                                            ?.toInt() ??
+                                        0;
+                                    // Only update _timeTaken from server if we aren't currently tracking local time
+                                    if (!_quizStarted) {
+                                      _timeTaken = serverTime;
+                                    }
                                   }
                                 }
 
                                 final maxAttempts = widget.quiz.maxAttempts;
-                                final hasAttemptsLeft =
-                                    _attemptsUsed < maxAttempts;
 
-                                // Show results if finished locally OR finished on server OR no attempts left
+                                // Show results if finished locally OR they have used attempts and aren't in a new one
                                 if (_completedLocal ||
-                                    serverCompleted ||
-                                    (!hasAttemptsLeft &&
-                                        !_quizStarted &&
-                                        !_isReviewing)) {
-                                  // Note: Added !_isReviewing to allow reviewing even if attempts are used (though reviewing is for validation mainly)
+                                    (_attemptsUsed > 0 && !_quizStarted)) {
                                   return _buildResultsArea(maxAttempts);
                                 }
 
@@ -451,6 +449,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                 ),
             ],
           ),
+          autofocus: true,
+          onChanged: (v) => setState(() {}),
+        ),
         const SizedBox(height: 32),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -678,15 +679,18 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             child: FilledButton(
               onPressed: () {
                 setState(() {
-                  _quizStarted = false;
+                  _quizStarted = true; // Directly start a new attempt
                   _completedLocal = false;
                   _currentQuestionIndex = 0;
                   for (var ctrl in _answerCtrls) {
                     ctrl.clear();
                   }
                   _secondsRemaining = widget.quiz.duration * 60;
-                  _startTime = null;
+                  _startTime = DateTime.now();
                 });
+                if (widget.quiz.duration > 0) {
+                  _startTimer();
+                }
               },
               child: const Text('Try Again'),
             ),
