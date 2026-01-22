@@ -86,9 +86,45 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _LessonsList extends StatelessWidget {
+class _LessonsList extends StatefulWidget {
   const _LessonsList({required this.user});
   final User user;
+
+  @override
+  State<_LessonsList> createState() => _LessonsListState();
+}
+
+class _LessonsListState extends State<_LessonsList> {
+  final _searchCtrl = TextEditingController();
+  Map<String, String> _usernames = {}; // uid -> username
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsernames();
+    // Removed listener to prevent rebuild on every keystroke
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchUsernames() async {
+    try {
+      final users = await DatabaseService.instance.fetchUsers();
+      if (mounted) {
+        setState(() {
+          _usernames = {
+            for (var u in users) u['uid'] as String: u['username'] as String,
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching usernames: $e');
+    }
+  }
 
   String _fmt(Timestamp ts) {
     final d = ts.toDate().toLocal();
@@ -100,36 +136,24 @@ class _LessonsList extends StatelessWidget {
     required String? fallbackEmail,
     TextStyle? style,
   }) {
-    if (uid == null || uid.isEmpty) {
-      return Text('By: ${fallbackEmail ?? 'Unknown'}', style: style);
-    }
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .snapshots(),
-      builder: (context, snap) {
-        final data = snap.data?.data();
-        final username = (data?['username'] as String?)?.trim();
-        final display = (username != null && username.isNotEmpty)
-            ? username
-            : (fallbackEmail ?? 'Unknown');
-        return Text('By: $display', style: style);
-      },
-    );
+    final username = _usernames[uid] ?? '';
+    final display = username.isNotEmpty
+        ? username
+        : (fallbackEmail ?? 'Unknown');
+    return Text('By: $display', style: style);
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<UserRole>(
-      stream: RoleService.instance.roleStream(user.uid),
+      stream: RoleService.instance.roleStream(widget.user.uid),
       builder: (context, roleSnapshot) {
         final role = roleSnapshot.data;
 
         return StreamBuilder<List<Lesson>>(
           stream: DatabaseService.instance.streamLessons(
             userRole: role,
-            userId: user.uid,
+            userId: widget.user.uid,
           ),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -143,99 +167,159 @@ class _LessonsList extends StatelessWidget {
                 ),
               );
             }
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(child: Text('No lessons available.'));
-            }
-            final lessons = snapshot.data!;
 
-            return StreamBuilder<Map<String, bool>>(
-              stream: DatabaseService.instance.progressStream(user),
-              builder: (context, progressSnap) {
-                final progress = progressSnap.data ?? const {};
+            final allLessons = snapshot.data ?? [];
+            final query = _searchCtrl.text.toLowerCase().trim();
+            final lessons = allLessons.where((l) {
+              if (query.isEmpty) return true;
+              final title = l.title.toLowerCase();
+              final email = (l.createdByEmail ?? '').toLowerCase();
+              final author = (_usernames[l.createdByUid] ?? '').toLowerCase();
+              return title.contains(query) ||
+                  email.contains(query) ||
+                  author.contains(query);
+            }).toList();
 
-                return ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: lessons.length,
-                  separatorBuilder: (c, i) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final lesson = lessons[index];
-                    final done = progress[lesson.id] == true;
-                    final createdAtStr = lesson.createdAt != null
-                        ? _fmt(lesson.createdAt!)
-                        : 'N/A';
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: TextField(
+                    controller: _searchCtrl,
+                    onSubmitted: (_) => setState(() {}),
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      hintText: 'Search by title, author name',
+                      prefixIcon: const Icon(CupertinoIcons.search),
+                      suffixIcon: IconButton(
+                        icon: const Icon(
+                          CupertinoIcons.arrow_right_circle_fill,
+                        ),
+                        color: AppColors.primaryGreen,
+                        onPressed: () => setState(() {}),
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : Colors.grey.withValues(alpha: 0.1),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+                if (lessons.isEmpty)
+                  const Expanded(
+                    child: Center(child: Text('No lessons found.')),
+                  )
+                else
+                  Expanded(
+                    child: StreamBuilder<Map<String, bool>>(
+                      stream: DatabaseService.instance.progressStream(
+                        widget.user,
+                      ),
+                      builder: (context, progressSnap) {
+                        final progress = progressSnap.data ?? const {};
 
-                    return GlassCard(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                LessonPage(user: user, lesson: lesson),
-                          ),
+                        return ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: lessons.length,
+                          separatorBuilder: (c, i) =>
+                              const SizedBox(height: 16),
+                          itemBuilder: (context, index) {
+                            final lesson = lessons[index];
+                            final done = progress[lesson.id] == true;
+                            final createdAtStr = lesson.createdAt != null
+                                ? _fmt(lesson.createdAt!)
+                                : 'N/A';
+
+                            return GlassCard(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => LessonPage(
+                                      user: widget.user,
+                                      lesson: lesson,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                children: [
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          lesson.title,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge
+                                              ?.copyWith(fontSize: 18),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          lesson.prompt,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 12,
+                                          children: [
+                                            _authorName(
+                                              uid: lesson.createdByUid,
+                                              fallbackEmail:
+                                                  lesson.createdByEmail,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color: Colors.grey,
+                                                  ),
+                                            ),
+                                            Text(
+                                              '• $createdAtStr',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                    color: Colors.grey,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (done)
+                                    Icon(
+                                      CupertinoIcons.check_mark_circled,
+                                      color: AppColors.primaryGreen,
+                                      size: 28,
+                                    )
+                                  else
+                                    Icon(
+                                      CupertinoIcons.chevron_right,
+                                      size: 16,
+                                      color: Colors.grey.withOpacity(0.5),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
                         );
                       },
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 8),
-                          // Content
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  lesson.title,
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(fontSize: 18),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  lesson.prompt,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 12,
-                                  children: [
-                                    _authorName(
-                                      uid: lesson.createdByUid,
-                                      fallbackEmail: lesson.createdByEmail,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(color: Colors.grey),
-                                    ),
-                                    Text(
-                                      '• $createdAtStr',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(color: Colors.grey),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Status Icon
-                          if (done)
-                            Icon(
-                              CupertinoIcons.check_mark_circled,
-                              color: AppColors.primaryGreen,
-                              size: 28,
-                            )
-                          else
-                            Icon(
-                              CupertinoIcons.chevron_right,
-                              size: 16,
-                              color: Colors.grey.withOpacity(0.5),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
+                    ),
+                  ),
+              ],
             );
           },
         );

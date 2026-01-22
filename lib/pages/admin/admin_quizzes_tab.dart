@@ -8,6 +8,7 @@ import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../quiz_detail_page.dart';
+import '../../widgets/user_search_picker.dart';
 
 class AdminQuizzesTab extends StatefulWidget {
   const AdminQuizzesTab({super.key});
@@ -24,6 +25,9 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
   String? _selectedQuizId;
   bool _creatingOrUpdating = false;
+  final _searchCtrl = TextEditingController();
+  Map<String, String> _usernames = {}; // uid -> username
+
   final _title = TextEditingController();
   final _description = TextEditingController();
   final _durationCtrl = TextEditingController(text: '0');
@@ -34,10 +38,43 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
   List<String> _questionTypes = ['text'];
   List<List<TextEditingController>> _optionsCtrls = [[]];
   bool _isVisible = true;
+  List<String> _allowedUserIds = [];
 
   List<PlatformFile> _selectedFiles = [];
   String? _currentAttachmentName;
   String? _currentAttachmentUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsernames();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _title.dispose();
+    _description.dispose();
+    _durationCtrl.dispose();
+    _maxAttemptsCtrl.dispose();
+    // Dispose other controllers if needed, but they are lists so maybe keep simple
+    super.dispose();
+  }
+
+  Future<void> _fetchUsernames() async {
+    try {
+      final users = await DatabaseService.instance.fetchUsers();
+      if (mounted) {
+        setState(() {
+          _usernames = {
+            for (var u in users) u['uid'] as String: u['username'] as String,
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching usernames: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +155,9 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 ),
               ),
               const SizedBox(height: 24),
+              // List of Quizzes
+              _buildSearchBar(),
+              const SizedBox(height: 12),
               StreamBuilder<List<Quiz>>(
                 stream: DatabaseService.instance.streamQuizzes(
                   approvedOnly: false,
@@ -128,10 +168,23 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final items = snapshot.data!;
+                  final allItems = snapshot.data!;
+                  final query = _searchCtrl.text.toLowerCase().trim();
+                  final items = allItems.where((q) {
+                    if (query.isEmpty) return true;
+                    final title = q.title.toLowerCase();
+                    final email = (q.createdByEmail ?? '').toLowerCase();
+                    final author = (_usernames[q.createdByUid] ?? '')
+                        .toLowerCase();
+                    return title.contains(query) ||
+                        email.contains(query) ||
+                        author.contains(query);
+                  }).toList();
 
-                  if (items.isEmpty) {
-                    return const Center(child: Text('No quizzes yet'));
+                  if (items.isEmpty && query.isNotEmpty) {
+                    return const Center(child: Text('No quizzes found.'));
+                  } else if (items.isEmpty) {
+                    return const Center(child: Text('No quizzes yet.'));
                   }
 
                   return ListView.separated(
@@ -211,6 +264,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                   )
                                   .toList();
                               _isVisible = q.isVisible;
+                              _allowedUserIds = List.from(q.allowedUserIds);
                               if (_questionCtrls.isEmpty) {
                                 _questionCtrls = [TextEditingController()];
                                 _answerCtrls = [TextEditingController()];
@@ -395,9 +449,25 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           title: const Text('Visible to Public'),
           subtitle: const Text('If off, learners cannot see this quiz'),
           value: _isVisible,
-          onChanged: (v) => setState(() => _isVisible = v),
+          onChanged: (v) => setState(() {
+            _isVisible = v;
+            if (v) _allowedUserIds = [];
+          }),
           activeThumbColor: AppColors.primaryGreen,
         ),
+        const SizedBox(height: 8),
+        UserSearchPicker(
+          selectedUserIds: _allowedUserIds,
+          onChanged: (ids) {
+            setState(() {
+              _allowedUserIds = ids;
+              if (_allowedUserIds.isNotEmpty) {
+                _isVisible = false;
+              }
+            });
+          },
+        ),
+        const SizedBox(height: 8),
         const SizedBox(height: 16),
         _buildUploadUI(),
         const SizedBox(height: 24),
@@ -603,6 +673,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _questionTypes = ['text'];
     _optionsCtrls = [[]];
     _isVisible = true;
+    _allowedUserIds = [];
     setState(() {});
   }
 
@@ -654,6 +725,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
           isVisible: _isVisible,
+          allowedUserIds: _allowedUserIds,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
@@ -679,6 +751,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           attachmentUrl: attachmentUrl,
           attachmentName: attachmentName,
           isVisible: _isVisible,
+          allowedUserIds: _allowedUserIds,
         );
         if (mounted) {
           ScaffoldMessenger.of(
@@ -809,6 +882,35 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: _searchCtrl,
+        onSubmitted: (_) => setState(() {}),
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'Search by title, author name',
+          prefixIcon: const Icon(CupertinoIcons.search),
+          suffixIcon: IconButton(
+            icon: const Icon(CupertinoIcons.arrow_right_circle_fill),
+            color: AppColors.primaryGreen,
+            onPressed: () => setState(() {}),
+          ),
+          filled: true,
+          fillColor: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.grey.withValues(alpha: 0.1),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ),
     );
   }
 }
