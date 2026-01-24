@@ -11,7 +11,6 @@ import 'admin/admin_validation_tab.dart';
 import '../../services/role_service.dart';
 
 import '../widgets/modern_bottom_nav.dart';
-import '../widgets/glass_card.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -93,7 +92,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ],
                 ),
               ),
-              const _SecondaryBottomNav(),
             ],
           );
         },
@@ -166,18 +164,45 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _index = navItems.length - 1;
               }
 
-              return ModernBottomNav(
-                currentIndex: _index,
-                onTap: (i) async {
-                  setState(() => _switching = true);
-                  await Future.delayed(const Duration(milliseconds: 250));
-                  if (!mounted) return;
-                  setState(() {
-                    _index = i;
-                    _switching = false;
-                  });
-                },
-                items: navItems,
+              return Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  ModernBottomNav(
+                    currentIndex: _index,
+                    onTap: (i) async {
+                      setState(() => _switching = true);
+                      await Future.delayed(const Duration(milliseconds: 250));
+                      if (!mounted) return;
+                      setState(() {
+                        _index = i;
+                        _switching = false;
+                      });
+                    },
+                    items: navItems,
+                  ),
+                  Positioned(
+                    left: 16,
+                    bottom: 28,
+                    child: _SecondaryNavButton(
+                      icon: CupertinoIcons.ant,
+                      label: 'Bee',
+                      onTap: () {},
+                      color: Colors.yellow.shade700,
+                      isDark: Theme.of(context).brightness == Brightness.dark,
+                    ),
+                  ),
+                  Positioned(
+                    right: 16,
+                    bottom: 28,
+                    child: _SecondaryNavButton(
+                      icon: CupertinoIcons.mic,
+                      label: 'Voice',
+                      onTap: () {},
+                      color: Colors.pink.shade300,
+                      isDark: Theme.of(context).brightness == Brightness.dark,
+                    ),
+                  ),
+                ],
               );
             },
           );
@@ -210,72 +235,42 @@ class _SubscriptionTab extends StatelessWidget {
   }
 }
 
-class _SecondaryBottomNav extends StatelessWidget {
-  const _SecondaryBottomNav();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-        child: Row(
-          children: [
-            Expanded(
-              child: _SecondaryNavButton(
-                icon: CupertinoIcons.ant,
-                label: 'Spelling Bee',
-                onTap: () {},
-                isDark: isDark,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _SecondaryNavButton(
-                icon: CupertinoIcons.mic,
-                label: 'Pronunciation',
-                onTap: () {},
-                isDark: isDark,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _SecondaryNavButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color color;
   final bool isDark;
 
   const _SecondaryNavButton({
     required this.icon,
     required this.label,
     required this.onTap,
+    required this.color,
     required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
+    return GestureDetector(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Column(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: AppColors.primaryGreen, size: 20),
-            const SizedBox(height: 4),
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                color: color,
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white70 : Colors.black87,
+                fontSize: 13,
               ),
             ),
           ],
@@ -283,7 +278,4 @@ class _SecondaryNavButton extends StatelessWidget {
       ),
     );
   }
-
-  // Helper for minAxisSize which is MainAxisSize.min
-  MainAxisSize getMainAxisSize() => MainAxisSize.min;
 }

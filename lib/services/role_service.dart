@@ -88,4 +88,16 @@ class RoleService {
   }) async {
     await _users.doc(uid).update({'username': username});
   }
+
+  Future<void> updateThemePreference({
+    required String uid,
+    required String theme,
+  }) async {
+    await _users.doc(uid).update({'theme_preference': theme});
+  }
+
+  Future<String?> getThemePreference(String uid) async {
+    final snap = await _users.doc(uid).get();
+    return snap.data()?['theme_preference'] as String?;
+  }
 }

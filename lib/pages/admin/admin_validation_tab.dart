@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import '../../services/database_service.dart';
 import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/author_name_widget.dart';
 import '../quiz_detail_page.dart';
 import '../lesson_page.dart';
 
@@ -135,8 +136,9 @@ class _ValidationList extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            'By: $createdBy',
+                          AuthorName(
+                            uid: item.createdByUid,
+                            fallbackEmail: item.createdByEmail,
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           Text(

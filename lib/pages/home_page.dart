@@ -40,45 +40,65 @@ class _HomePageState extends State<HomePage> {
           ).textTheme.displayLarge?.copyWith(fontSize: 28),
         ),
       ),
-      bottomNavigationBar: ModernBottomNav(
-        currentIndex: _tabIndex,
-        onTap: (index) {
-          setState(() => _tabIndex = index);
-          if (index == 3) {
-            _profileKey.currentState?.fetchProfile();
-          }
-        },
-        items: [
-          const ModernNavItem(icon: CupertinoIcons.book, label: 'Lessons'),
-          const ModernNavItem(
-            icon: CupertinoIcons.question_circle,
-            label: 'Quizzes',
+      bottomNavigationBar: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          ModernBottomNav(
+            currentIndex: _tabIndex,
+            onTap: (index) {
+              setState(() => _tabIndex = index);
+              if (index == 3) {
+                _profileKey.currentState?.fetchProfile();
+              }
+            },
+            items: [
+              const ModernNavItem(icon: CupertinoIcons.book, label: 'Lessons'),
+              const ModernNavItem(
+                icon: CupertinoIcons.question_circle,
+                label: 'Quizzes',
+              ),
+              const ModernNavItem(
+                icon: CupertinoIcons.creditcard,
+                label: 'Subscription',
+              ),
+              ModernNavItem(
+                icon: CupertinoIcons.person,
+                label: user.displayName?.split(' ').first ?? 'Profile',
+              ),
+            ],
           ),
-          const ModernNavItem(
-            icon: CupertinoIcons.creditcard,
-            label: 'Subscription',
+          Positioned(
+            left: 16,
+            bottom: 28,
+            child: _SecondaryNavButton(
+              icon: CupertinoIcons.ant,
+              label: 'Bee',
+              onTap: () {},
+              color: Colors.yellow.shade700,
+              isDark: Theme.of(context).brightness == Brightness.dark,
+            ),
           ),
-          ModernNavItem(
-            icon: CupertinoIcons.person,
-            label: user.displayName?.split(' ').first ?? 'Profile',
+          Positioned(
+            right: 16,
+            bottom: 28,
+            child: _SecondaryNavButton(
+              icon: CupertinoIcons.mic,
+              label: 'Voice',
+              onTap: () {},
+              color: Colors.pink.shade300,
+              isDark: Theme.of(context).brightness == Brightness.dark,
+            ),
           ),
         ],
       ),
       body: ResponsiveWrapper(
-        child: Column(
+        child: IndexedStack(
+          index: _tabIndex,
           children: [
-            Expanded(
-              child: IndexedStack(
-                index: _tabIndex,
-                children: [
-                  _LessonsList(user: user),
-                  QuizzesPage(user: user),
-                  const _SubscriptionTab(),
-                  ProfilePage(key: _profileKey, user: user),
-                ],
-              ),
-            ),
-            const _SecondaryBottomNav(),
+            _LessonsList(user: user),
+            QuizzesPage(user: user),
+            const _SubscriptionTab(),
+            ProfilePage(key: _profileKey, user: user),
           ],
         ),
       ),
@@ -267,72 +287,42 @@ class _SubscriptionTab extends StatelessWidget {
   }
 }
 
-class _SecondaryBottomNav extends StatelessWidget {
-  const _SecondaryBottomNav();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-        child: Row(
-          children: [
-            Expanded(
-              child: _SecondaryNavButton(
-                icon: CupertinoIcons.ant,
-                label: 'Spelling Bee',
-                onTap: () {},
-                isDark: isDark,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _SecondaryNavButton(
-                icon: CupertinoIcons.mic,
-                label: 'Pronunciation',
-                onTap: () {},
-                isDark: isDark,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _SecondaryNavButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color color;
   final bool isDark;
 
   const _SecondaryNavButton({
     required this.icon,
     required this.label,
     required this.onTap,
+    required this.color,
     required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
+    return GestureDetector(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Column(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: AppColors.primaryGreen, size: 20),
-            const SizedBox(height: 4),
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                color: color,
                 fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white70 : Colors.black87,
+                fontSize: 13,
               ),
             ),
           ],

@@ -10,6 +10,7 @@ import '../../services/role_service.dart';
 import '../quiz_detail_page.dart';
 import '../../widgets/app_search_bar.dart';
 import '../../widgets/user_visibility_selector.dart';
+import '../../widgets/author_name_widget.dart';
 
 class AdminQuizzesTab extends StatefulWidget {
   const AdminQuizzesTab({super.key});
@@ -251,7 +252,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                 });
                               },
                               child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Container(
                                     width: 4,
@@ -281,32 +282,6 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                                 ),
                                               ),
                                             ),
-                                            if (isPending)
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 2,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.orange
-                                                      .withValues(alpha: 0.2),
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                  border: Border.all(
-                                                    color: Colors.orange
-                                                        .withValues(alpha: 0.5),
-                                                  ),
-                                                ),
-                                                child: const Text(
-                                                  'Awaiting Approval',
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: Colors.orange,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
                                           ],
                                         ),
                                         const SizedBox(height: 4),
@@ -348,18 +323,66 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                                 context,
                                               ).textTheme.bodySmall,
                                             ),
-                                            if (q.createdByEmail != null)
-                                              Text(
-                                                'By: ${q.createdByEmail}',
-                                                style: Theme.of(
-                                                  context,
-                                                ).textTheme.bodySmall,
-                                              ),
+                                            AuthorName(
+                                              uid: q.createdByUid,
+                                              fallbackEmail: q.createdByEmail,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                            ),
                                           ],
                                         ),
                                       ],
                                     ),
                                   ),
+                                  if (isPending) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: Colors.orange.withOpacity(0.5),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Waiting for approval',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  if (isPending) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: Colors.orange.withOpacity(0.5),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Waiting for approval',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   if (canEdit) // Only show stats to owner/editor
                                     IconButton(
                                       icon: const Icon(

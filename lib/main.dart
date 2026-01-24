@@ -36,6 +36,26 @@ class GrammaticaApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: currentMode,
+          builder: (context, child) {
+            final mediaQueryData = MediaQuery.of(context);
+            // Calculate a scale factor based on screen width.
+            // On very small screens (< 360), we scale down slightly.
+            // On large screens, we might scale up or keep 1.0.
+            final screenWidth = mediaQueryData.size.width;
+            double scale = 1.0;
+            if (screenWidth < 360) {
+              scale = (screenWidth / 360).clamp(0.85, 1.0);
+            } else if (screenWidth > 600) {
+              scale = 1.1; // Slightly larger for tablets
+            }
+
+            return MediaQuery(
+              data: mediaQueryData.copyWith(
+                textScaler: TextScaler.linear(scale),
+              ),
+              child: child!,
+            );
+          },
           initialRoute: '/',
           routes: {
             '/': (context) => _AuthWrapper(),
@@ -92,6 +112,20 @@ class _AuthWrapper extends StatelessWidget {
                 ),
               );
             }
+            final data = userDocSnap.data?.data();
+            final themePref = data?['theme_preference'] as String?;
+            if (themePref != null) {
+              final mode = themePref == 'dark'
+                  ? ThemeMode.dark
+                  : ThemeMode.light;
+              if (themeNotifier.value != mode) {
+                // Update theme notifier from stored preference
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  themeNotifier.value = mode;
+                });
+              }
+            }
+
             return StreamBuilder<UserRole>(
               stream: RoleService.instance.roleStream(user.uid),
               builder: (context, roleSnap) {

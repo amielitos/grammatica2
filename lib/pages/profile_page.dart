@@ -470,6 +470,15 @@ class ProfilePageState extends State<ProfilePage> {
                                             onValueChanged: (newMode) {
                                               if (newMode != null) {
                                                 themeNotifier.value = newMode;
+                                                RoleService.instance
+                                                    .updateThemePreference(
+                                                      uid: widget.user.uid,
+                                                      theme:
+                                                          newMode ==
+                                                              ThemeMode.dark
+                                                          ? 'dark'
+                                                          : 'light',
+                                                    );
                                               }
                                             },
                                             children: const {
