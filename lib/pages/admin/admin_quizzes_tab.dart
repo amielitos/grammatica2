@@ -11,6 +11,7 @@ import '../quiz_detail_page.dart';
 import '../../widgets/app_search_bar.dart';
 import '../../widgets/user_visibility_selector.dart';
 import '../../widgets/author_name_widget.dart';
+import '../../models/content_visibility.dart';
 
 class AdminQuizzesTab extends StatefulWidget {
   const AdminQuizzesTab({super.key});
@@ -37,8 +38,11 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
   List<String> _questionTypes = ['text'];
   List<List<TextEditingController>> _optionsCtrls = [[]];
   bool _isVisible = true;
+  bool _isMembersOnly = false;
   List<String> _visibleTo = [];
   String _searchQuery = '';
+
+  ContentVisibility _visibility = ContentVisibility.public;
 
   List<PlatformFile> _selectedFiles = [];
   String? _currentAttachmentName;
@@ -239,7 +243,18 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                         )
                                         .toList();
                                     _isVisible = q.isVisible;
+                                    _isMembersOnly = q.isMembersOnly;
                                     _visibleTo = List<String>.from(q.visibleTo);
+
+                                    if (q.isMembersOnly) {
+                                      _visibility =
+                                          ContentVisibility.membersOnly;
+                                    } else if (!q.isVisible) {
+                                      _visibility =
+                                          ContentVisibility.certainUsers;
+                                    } else {
+                                      _visibility = ContentVisibility.public;
+                                    }
                                     if (_questionCtrls.isEmpty) {
                                       _questionCtrls = [
                                         TextEditingController(),
@@ -318,11 +333,47 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                                 ],
                                               ),
                                             Text(
-                                              'Created: ${_fmt(q.createdAt ?? Timestamp.now())} • Qs: ${q.questions.length} • ${q.duration}m • Attempts: ${q.maxAttempts} • Visible: ${q.isVisible ? 'Yes' : 'No'}',
+                                              'Created: ${_fmt(q.createdAt ?? Timestamp.now())} • Qs: ${q.questions.length} • ${q.duration}m • Attempts: ${q.maxAttempts} • ',
                                               style: Theme.of(
                                                 context,
                                               ).textTheme.bodySmall,
                                             ),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color:
+                                                    (q.isMembersOnly
+                                                            ? Colors.amber
+                                                            : Colors.blue)
+                                                        .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color:
+                                                      (q.isMembersOnly
+                                                              ? Colors.amber
+                                                              : Colors.blue)
+                                                          .withOpacity(0.5),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                q.isMembersOnly
+                                                    ? 'Members Only'
+                                                    : 'Public',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: q.isMembersOnly
+                                                      ? Colors.amber.shade900
+                                                      : Colors.blue.shade900,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
                                             AuthorName(
                                               uid: q.createdByUid,
                                               fallbackEmail: q.createdByEmail,
@@ -450,14 +501,49 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           ],
         ),
         const SizedBox(height: 16),
-        SwitchListTile(
-          title: const Text('Visible to Public'),
-          subtitle: const Text('If off, learners cannot see this quiz'),
-          value: _isVisible,
-          onChanged: (v) => setState(() => _isVisible = v),
-          activeThumbColor: AppColors.primaryGreen,
+        const SizedBox(height: 16),
+        const Text(
+          'Who can see this content?',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        if (!_isVisible) ...[
+        const SizedBox(height: 8),
+        SegmentedButton<ContentVisibility>(
+          segments: const [
+            ButtonSegment(
+              value: ContentVisibility.public,
+              label: Text('Public'),
+              icon: Icon(Icons.public),
+            ),
+            ButtonSegment(
+              value: ContentVisibility.certainUsers,
+              label: Text('Private'),
+              icon: Icon(Icons.people_outline),
+            ),
+            ButtonSegment(
+              value: ContentVisibility.membersOnly,
+              label: Text('Members'),
+              icon: Icon(Icons.star),
+            ),
+          ],
+          selected: {_visibility},
+          onSelectionChanged: (Set<ContentVisibility> newSelection) {
+            setState(() {
+              _visibility = newSelection.first;
+              // Map visibility to database flags
+              if (_visibility == ContentVisibility.public) {
+                _isVisible = true;
+                _isMembersOnly = false;
+              } else if (_visibility == ContentVisibility.certainUsers) {
+                _isVisible = false;
+                _isMembersOnly = false;
+              } else if (_visibility == ContentVisibility.membersOnly) {
+                _isVisible = true;
+                _isMembersOnly = true;
+              }
+            });
+          },
+        ),
+        if (_visibility == ContentVisibility.certainUsers) ...[
           const SizedBox(height: 16),
           UserVisibilitySelector(
             selectedUserIds: _visibleTo,
@@ -668,9 +754,9 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _currentAttachmentUrl = null;
     _questionCtrls = [TextEditingController()];
     _answerCtrls = [TextEditingController()];
-    _questionTypes = ['text'];
-    _optionsCtrls = [[]];
     _isVisible = true;
+    _isMembersOnly = false;
+    _visibility = ContentVisibility.public;
     _visibleTo = [];
     setState(() {});
   }
@@ -724,11 +810,13 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           attachmentName: attachmentName,
           isVisible: _isVisible,
           visibleTo: _visibleTo,
+          isMembersOnly: _isMembersOnly,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
             AuthService.instance.currentUser?.uid ?? '',
           );
+          if (!mounted) return;
           final isEducator = role == UserRole.educator;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -750,6 +838,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           attachmentName: attachmentName,
           isVisible: _isVisible,
           visibleTo: _visibleTo,
+          isMembersOnly: _isMembersOnly,
         );
         if (mounted) {
           ScaffoldMessenger.of(

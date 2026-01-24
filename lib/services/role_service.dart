@@ -101,4 +101,8 @@ class RoleService {
     final snap = await _users.doc(uid).get();
     return snap.data()?['theme_preference'] as String?;
   }
+
+  Future<void> updateBio({required String uid, required String bio}) async {
+    await _users.doc(uid).update({'bio': bio});
+  }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
+import '../services/role_service.dart';
 
 import 'dart:async';
 import '../widgets/glass_card.dart';
@@ -38,6 +39,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   bool _completedLocal = false;
   int _attemptsUsed = 0;
   int? _lastScore;
+  bool _isSubscribed = false;
+  bool _isAdminOrSuperAdmin = false;
+  bool _checkingSubscription = true;
 
   bool _isReviewing = false;
   bool get _previewMode =>
@@ -52,6 +56,37 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       (_) => TextEditingController(),
     );
     _secondsRemaining = widget.quiz.duration * 60;
+    _checkSubscription();
+  }
+
+  Future<void> _checkSubscription() async {
+    final role = await RoleService.instance.getRole(widget.user.uid);
+    if (role == UserRole.admin || role == UserRole.superadmin) {
+      if (mounted) {
+        setState(() {
+          _isSubscribed = true;
+          _isAdminOrSuperAdmin = true;
+          _checkingSubscription = false;
+        });
+      }
+      return;
+    }
+
+    if (!widget.quiz.isMembersOnly ||
+        widget.quiz.createdByUid == widget.user.uid) {
+      if (mounted) setState(() => _checkingSubscription = false);
+      return;
+    }
+    final isSub = await DatabaseService.instance.isSubscribed(
+      widget.quiz.createdByUid!,
+      widget.user.uid,
+    );
+    if (mounted) {
+      setState(() {
+        _isSubscribed = isSub;
+        _checkingSubscription = false;
+      });
+    }
   }
 
   @override
@@ -234,6 +269,12 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                                   return _buildResultsArea(maxAttempts);
                                 }
 
+                                if (_checkingSubscription) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                }
+
                                 if (!_quizStarted) {
                                   return _buildStartArea(maxAttempts);
                                 }
@@ -312,10 +353,38 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         if (!_previewMode && maxAttempts - _attemptsUsed > 0)
           SizedBox(
             width: double.infinity,
-            child: FilledButton(
-              onPressed: _startQuiz,
-              child: const Text('Start Quiz'),
-            ),
+            child:
+                _isSubscribed ||
+                    _isAdminOrSuperAdmin ||
+                    !widget.quiz.isMembersOnly ||
+                    widget.quiz.createdByUid == widget.user.uid
+                ? FilledButton(
+                    onPressed: _startQuiz,
+                    child: const Text('Start Quiz'),
+                  )
+                : Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.lock, color: Colors.orange),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Members Only Content',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'You must be subscribed to this educator to take this quiz.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
           ),
         if (_previewMode)
           SizedBox(
