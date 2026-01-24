@@ -520,7 +520,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _questionTypes[index],
+                      initialValue: _questionTypes[index],
                       decoration: const InputDecoration(labelText: 'Type'),
                       items: const [
                         DropdownMenuItem(

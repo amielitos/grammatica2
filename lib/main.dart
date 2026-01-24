@@ -13,6 +13,7 @@ import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
 import 'pages/admin_dashboard.dart';
 import 'pages/home_page.dart';
+import 'pages/onboarding_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -138,6 +139,13 @@ class _AuthWrapper extends StatelessWidget {
                 if (role == UserRole.admin || role == UserRole.educator) {
                   return const AdminDashboard();
                 }
+
+                final hasCompletedOnboarding =
+                    data?['has_completed_onboarding'] ?? true;
+                if (!hasCompletedOnboarding && role == UserRole.learner) {
+                  return OnboardingPage(user: user);
+                }
+
                 return HomePage(user: user);
               },
             );

@@ -53,6 +53,7 @@ class RoleService {
       'status': 'ACTIVE',
       'subscription_status': 'NONE',
       'username': 'Firstname Lastname',
+      'has_completed_onboarding': true,
     });
   }
 
