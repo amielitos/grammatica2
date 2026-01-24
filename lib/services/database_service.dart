@@ -58,6 +58,7 @@ class Lesson {
   final bool isVisible;
   final List<String> visibleTo;
   final bool isMembersOnly;
+  final bool isGrammaticaLesson;
 
   Lesson({
     required this.id,
@@ -73,6 +74,7 @@ class Lesson {
     this.isVisible = true,
     this.visibleTo = const [],
     this.isMembersOnly = false,
+    this.isGrammaticaLesson = false,
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -95,6 +97,7 @@ class Lesson {
       isVisible: data['isVisible'] ?? true,
       visibleTo: List<String>.from(data['visibleTo'] ?? []),
       isMembersOnly: data['isMembersOnly'] ?? false,
+      isGrammaticaLesson: data['isGrammaticaLesson'] ?? false,
     );
   }
 }
@@ -149,6 +152,7 @@ class Quiz {
   final bool isVisible;
   final List<String> visibleTo;
   final bool isMembersOnly;
+  final bool isGrammaticaQuiz;
 
   Quiz({
     required this.id,
@@ -166,6 +170,7 @@ class Quiz {
     this.isVisible = true,
     this.visibleTo = const [],
     this.isMembersOnly = false,
+    this.isGrammaticaQuiz = false,
   });
 
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -193,6 +198,7 @@ class Quiz {
       isVisible: d['isVisible'] ?? true,
       visibleTo: List<String>.from(d['visibleTo'] ?? []),
       isMembersOnly: d['isMembersOnly'] ?? false,
+      isGrammaticaQuiz: d['isGrammaticaQuiz'] ?? false,
     );
   }
 }
@@ -221,6 +227,7 @@ class DatabaseService {
     bool isVisible = true,
     List<String> visibleTo = const [],
     bool isMembersOnly = false,
+    bool isGrammaticaLesson = false,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -246,6 +253,7 @@ class DatabaseService {
       'isVisible': isVisible,
       'visibleTo': visibleTo,
       'isMembersOnly': isMembersOnly,
+      'isGrammaticaLesson': isGrammaticaLesson,
     });
     return doc.id;
   }
@@ -260,6 +268,7 @@ class DatabaseService {
     bool? isVisible,
     List<String>? visibleTo,
     bool? isMembersOnly,
+    bool? isGrammaticaLesson,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -270,6 +279,8 @@ class DatabaseService {
     if (isVisible != null) data['isVisible'] = isVisible;
     if (visibleTo != null) data['visibleTo'] = visibleTo;
     if (isMembersOnly != null) data['isMembersOnly'] = isMembersOnly;
+    if (isGrammaticaLesson != null)
+      data['isGrammaticaLesson'] = isGrammaticaLesson;
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
     }
@@ -354,11 +365,15 @@ class DatabaseService {
         );
   }
 
-  Stream<Map<String, bool>> progressStream(User user) {
+  Stream<Map<String, Map<String, dynamic>>> progressStream(User user) {
     return _userProgress(user.uid).snapshots().map((q) {
-      final map = <String, bool>{};
+      final map = <String, Map<String, dynamic>>{};
       for (final d in q.docs) {
-        map[d.id] = (d.data()['completed'] == true);
+        final data = d.data();
+        map[d.id] = {
+          'completed': data['completed'] == true,
+          'completedAt': data['completedAt'],
+        };
       }
       return map;
     });
@@ -385,6 +400,7 @@ class DatabaseService {
     bool isVisible = true,
     List<String> visibleTo = const [],
     bool isMembersOnly = false,
+    bool isGrammaticaQuiz = false,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -412,6 +428,7 @@ class DatabaseService {
       'isVisible': isVisible,
       'visibleTo': visibleTo,
       'isMembersOnly': isMembersOnly,
+      'isGrammaticaQuiz': isGrammaticaQuiz,
     });
     return doc.id;
   }
@@ -428,6 +445,7 @@ class DatabaseService {
     bool? isVisible,
     List<String>? visibleTo,
     bool? isMembersOnly,
+    bool? isGrammaticaQuiz,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -442,6 +460,7 @@ class DatabaseService {
     if (isVisible != null) data['isVisible'] = isVisible;
     if (visibleTo != null) data['visibleTo'] = visibleTo;
     if (isMembersOnly != null) data['isMembersOnly'] = isMembersOnly;
+    if (isGrammaticaQuiz != null) data['isGrammaticaQuiz'] = isGrammaticaQuiz;
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
     }
@@ -579,6 +598,9 @@ class DatabaseService {
           'completed': data['completed'] == true,
           'isCorrect': data['isCorrect'] == true,
           'attemptsUsed': data['attemptsUsed'] ?? 0,
+          'completedAt': data['completedAt'],
+          'score': data['score'],
+          'totalQuestions': data['totalQuestions'],
         };
       }
       return map;

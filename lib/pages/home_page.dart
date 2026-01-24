@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'lesson_page.dart';
 import 'quizzes_page.dart';
+import 'lesson_folder_page.dart';
 import 'profile_page.dart';
-import '../theme/app_colors.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../widgets/modern_bottom_nav.dart';
@@ -92,35 +91,6 @@ class _LessonsList extends StatelessWidget {
   const _LessonsList({required this.user});
   final User user;
 
-  String _fmt(Timestamp ts) {
-    final d = ts.toDate().toLocal();
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-  }
-
-  Widget _authorName({
-    required String? uid,
-    required String? fallbackEmail,
-    TextStyle? style,
-  }) {
-    if (uid == null || uid.isEmpty) {
-      return Text('By: ${fallbackEmail ?? 'Unknown'}', style: style);
-    }
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .snapshots(),
-      builder: (context, snap) {
-        final data = snap.data?.data();
-        final username = (data?['username'] as String?)?.trim();
-        final display = (username != null && username.isNotEmpty)
-            ? username
-            : (fallbackEmail ?? 'Unknown');
-        return Text('By: $display', style: style);
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<UserRole>(
@@ -138,12 +108,7 @@ class _LessonsList extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return Center(
-                child: Text(
-                  'Error loading lessons: ${snapshot.error}',
-                  style: const TextStyle(color: Colors.red),
-                ),
-              );
+              return Center(child: Text('Error: ${snapshot.error}'));
             }
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Center(child: Text('No lessons available.'));
@@ -161,163 +126,295 @@ class _LessonsList extends StatelessWidget {
                   ),
               builder: (context, subsSnap) {
                 final subscriptions = subsSnap.data ?? const {};
-                final visibleLessons = lessons.where((l) {
-                  if (role == UserRole.admin || role == UserRole.superadmin) {
-                    return true;
+
+                // 1. Grammatica Lessons
+                final grammaticaLessons = lessons
+                    .where((l) => l.isGrammaticaLesson == true)
+                    .toList();
+
+                // 2. Subscribed Educator Lessons (grouped)
+                final subscribedLessons = <String, List<Lesson>>{};
+                for (var l in lessons) {
+                  if (l.isGrammaticaLesson) continue; // Already handled
+                  if (subscriptions[l.createdByUid] == true) {
+                    // Include if not hidden members only (though if subscribed, they should see all)
+                    // The streamSchools already filters visibility based on role/subscription,
+                    // but let's be safe.
+                    subscribedLessons
+                        .putIfAbsent(l.createdByUid ?? 'Unknown', () => [])
+                        .add(l);
                   }
-                  if (!l.isMembersOnly) return true;
-                  if (l.createdByUid == user.uid) return true;
-                  return subscriptions[l.createdByUid] == true;
+                }
+
+                // 3. Public Content
+                final publicLessons = lessons.where((l) {
+                  if (l.isGrammaticaLesson) return false;
+                  if (subscriptions[l.createdByUid] == true)
+                    return false; // Already in subscribed
+                  if (l.createdByUid == user.uid)
+                    return false; // Own lessons don't go to public folder (maybe separate tab?)
+                  // Logic for "Public Content": content available publicly.
+                  // Stream already filters for validationStatus != awaiting_approval
+                  // and isVisible or visibleTo contains userId.
+
+                  // Filter out members only content if not subscribed?
+                  // But we want to show the folder?
+                  // The prompt says: "DO NOT show the folder if the content is members only."
+                  // So we only include lessons that are NOT members only here if not subscribed.
+                  if (l.isMembersOnly) return false;
+
+                  return true;
                 }).toList();
 
-                if (visibleLessons.isEmpty) {
+                // If admin/educator, they might see their own lessons.
+                // Let's decide where own lessons go. Maybe "Public" for now or ignored as this view is for consuming content.
+                // The current implementation hides own lessons from public folder above.
+
+                final List<Widget> folderCards = [];
+
+                // Grammatica Folder
+                if (grammaticaLessons.isNotEmpty) {
+                  folderCards.add(
+                    _buildFolderCard(
+                      context,
+                      title: 'Grammatica',
+                      description: 'Official lessons from the team',
+                      pillLabel: 'From Grammatica',
+                      pillColor: Colors.purple,
+                      iconColor: Colors.purpleAccent,
+                      onTap: () => _openFolder(
+                        context,
+                        title: 'Grammatica Lessons',
+                        pillLabel: 'From Grammatica',
+                        lessons: grammaticaLessons,
+                      ),
+                    ),
+                  );
+                }
+
+                // Subscribed Educators Folders
+                subscribedLessons.forEach((uid, educatorLessons) {
+                  // We need author name. We can fetch it or pass unknown.
+                  // Since we're inside a stream, fetching for each might be expensive if many.
+                  // Use a widget that fetches name.
+                  if (educatorLessons.isNotEmpty) {
+                    folderCards.add(
+                      _buildFolderCardWithAuthor(
+                        context,
+                        uid: uid,
+                        fallbackEmail: educatorLessons.first.createdByEmail,
+                        description: 'Content from this educator',
+                        pillLabel: 'Educator',
+                        pillColor: Colors.green,
+                        iconColor: Colors.greenAccent,
+                        onTap: () => _openFolder(
+                          context,
+                          title:
+                              'Educator Lessons', // Will be updated by author name ideally
+                          pillLabel: 'From your Educator',
+                          lessons: educatorLessons,
+                        ),
+                      ),
+                    );
+                  }
+                });
+
+                // Public Content Folder
+                if (publicLessons.isNotEmpty) {
+                  folderCards.add(
+                    _buildFolderCard(
+                      context,
+                      title: 'Public',
+                      description: 'Community lessons',
+                      pillLabel: 'Public',
+                      pillColor: Colors.blue,
+                      iconColor: Colors.lightBlueAccent,
+                      onTap: () => _openFolder(
+                        context,
+                        title: 'Public Content',
+                        pillLabel: 'Public',
+                        lessons: publicLessons,
+                        isPublicFolder: true,
+                      ),
+                    ),
+                  );
+                }
+
+                if (folderCards.isEmpty) {
                   return const Center(child: Text('No lessons available.'));
                 }
 
-                return StreamBuilder<Map<String, bool>>(
-                  stream: DatabaseService.instance.progressStream(user),
-                  builder: (context, progressSnap) {
-                    final progress = progressSnap.data ?? const {};
-
-                    return ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: visibleLessons.length,
-                      separatorBuilder: (c, i) => const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        final lesson = visibleLessons[index];
-                        final isSubbedMembersOnly =
-                            lesson.isMembersOnly &&
-                            subscriptions[lesson.createdByUid] == true;
-                        final done = progress[lesson.id] == true;
-                        final createdAtStr = lesson.createdAt != null
-                            ? _fmt(lesson.createdAt!)
-                            : 'N/A';
-
-                        return GlassCard(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    LessonPage(user: user, lesson: lesson),
-                              ),
-                            );
-                          },
-                          borderColor: isSubbedMembersOnly
-                              ? Colors.green
-                              : null,
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 8),
-                              // Content
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      lesson.title,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge
-                                          ?.copyWith(fontSize: 18),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color:
-                                                (lesson.isMembersOnly
-                                                        ? Colors.amber
-                                                        : Colors.blue)
-                                                    .withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                            border: Border.all(
-                                              color:
-                                                  (lesson.isMembersOnly
-                                                          ? Colors.amber
-                                                          : Colors.blue)
-                                                      .withOpacity(0.5),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            lesson.isMembersOnly
-                                                ? 'Members Only'
-                                                : 'Public',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              color: lesson.isMembersOnly
-                                                  ? Colors.amber.shade900
-                                                  : Colors.blue.shade900,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      lesson.prompt,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodyMedium,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 12,
-                                      children: [
-                                        _authorName(
-                                          uid: lesson.createdByUid,
-                                          fallbackEmail: lesson.createdByEmail,
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(color: Colors.grey),
-                                        ),
-                                        Text(
-                                          '• $createdAtStr',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(color: Colors.grey),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              // Status Icon
-                              if (done)
-                                Icon(
-                                  CupertinoIcons.check_mark_circled,
-                                  color: AppColors.primaryGreen,
-                                  size: 28,
-                                )
-                              else
-                                Icon(
-                                  CupertinoIcons.chevron_right,
-                                  size: 16,
-                                  color: Colors.grey.withOpacity(0.5),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  },
+                return GridView.count(
+                  padding: const EdgeInsets.all(16),
+                  crossAxisCount: 3,
+                  childAspectRatio: 0.75, // Adjust for new width
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  children: folderCards,
                 );
               },
             );
           },
         );
       },
+    );
+  }
+
+  void _openFolder(
+    BuildContext context, {
+    required String title,
+    required String pillLabel,
+    required List<Lesson> lessons,
+    bool isPublicFolder = false,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LessonFolderPage(
+          user: user,
+          title: title,
+          pillLabel: pillLabel,
+          lessons: lessons,
+          isPublicContentFolder: isPublicFolder,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFolderCard(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required String pillLabel,
+    required Color pillColor,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassCard(
+        child: Padding(
+          padding: const EdgeInsets.all(10.0), // Reduced padding
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                CupertinoIcons.folder_solid,
+                size: 32,
+                color: iconColor,
+              ), // Smaller icon, dynamic color
+              const Spacer(),
+              Text(
+                title,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontSize: 10),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: pillColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: pillColor.withOpacity(0.5)),
+                ),
+                child: Text(
+                  pillLabel,
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: pillColor.withOpacity(1.0), // Ensure text is visible
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFolderCardWithAuthor(
+    BuildContext context, {
+    required String uid,
+    required String? fallbackEmail,
+    required String description,
+    required String pillLabel,
+    required Color pillColor,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassCard(
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(CupertinoIcons.folder_solid, size: 32, color: iconColor),
+              const Spacer(),
+              StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(uid)
+                    .snapshots(),
+                builder: (context, snap) {
+                  final data = snap.data?.data();
+                  final username = (data?['username'] as String?)?.trim();
+                  final display = (username != null && username.isNotEmpty)
+                      ? username
+                      : (fallbackEmail ?? 'Unknown');
+                  return Text(
+                    display,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  );
+                },
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description, // "Check out content made by this educator!"
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontSize: 10),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: pillColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: pillColor.withOpacity(0.5)),
+                ),
+                child: Text(
+                  pillLabel,
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: pillColor.withOpacity(1.0),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
