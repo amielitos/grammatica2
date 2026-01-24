@@ -34,11 +34,18 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: isDark
           ? AppColors.backgroundDark
-          : AppColors.salmonBackground,
+          : AppColors.adminBackgroundLight,
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isDark ? AppColors.glassBlack : AppColors.glassWhite,
+        contentTextStyle: TextStyle(color: textColor),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        elevation: 4,
+      ),
       fontFamily: _fontFamily,
       textTheme: TextTheme(
         displayLarge: TextStyle(
-          fontSize: 40, // Increased for iOS style
+          fontSize: 40,
           fontWeight: FontWeight.w700,
           letterSpacing: -1.0,
           color: textColor,
@@ -59,12 +66,13 @@ class AppTheme {
           fontWeight: FontWeight.w600,
           color: textColor,
         ),
-        bodyLarge: TextStyle(
-          fontSize: 19, // Big iOS style
-          color: textColor,
-          height: 1.4,
-        ),
+        bodyLarge: TextStyle(fontSize: 19, color: textColor, height: 1.4),
         bodyMedium: TextStyle(fontSize: 17, color: secondaryTextColor),
+        labelLarge: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,

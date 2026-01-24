@@ -57,6 +57,7 @@ class Lesson {
   final String validationStatus; // 'approved', 'awaiting_approval'
   final bool isVisible;
   final List<String> visibleTo;
+  final bool isMembersOnly;
 
   Lesson({
     required this.id,
@@ -71,6 +72,7 @@ class Lesson {
     this.validationStatus = 'approved',
     this.isVisible = true,
     this.visibleTo = const [],
+    this.isMembersOnly = false,
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -92,6 +94,7 @@ class Lesson {
       validationStatus: (data['validationStatus'] ?? 'approved').toString(),
       isVisible: data['isVisible'] ?? true,
       visibleTo: List<String>.from(data['visibleTo'] ?? []),
+      isMembersOnly: data['isMembersOnly'] ?? false,
     );
   }
 }
@@ -145,6 +148,7 @@ class Quiz {
   final String validationStatus; // 'approved', 'awaiting_approval'
   final bool isVisible;
   final List<String> visibleTo;
+  final bool isMembersOnly;
 
   Quiz({
     required this.id,
@@ -161,6 +165,7 @@ class Quiz {
     this.validationStatus = 'approved',
     this.isVisible = true,
     this.visibleTo = const [],
+    this.isMembersOnly = false,
   });
 
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -187,6 +192,7 @@ class Quiz {
       validationStatus: (d['validationStatus'] ?? 'approved').toString(),
       isVisible: d['isVisible'] ?? true,
       visibleTo: List<String>.from(d['visibleTo'] ?? []),
+      isMembersOnly: d['isMembersOnly'] ?? false,
     );
   }
 }
@@ -214,6 +220,7 @@ class DatabaseService {
     String? attachmentName,
     bool isVisible = true,
     List<String> visibleTo = const [],
+    bool isMembersOnly = false,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -238,6 +245,7 @@ class DatabaseService {
       'attachmentName': attachmentName,
       'isVisible': isVisible,
       'visibleTo': visibleTo,
+      'isMembersOnly': isMembersOnly,
     });
     return doc.id;
   }
@@ -251,6 +259,7 @@ class DatabaseService {
     String? attachmentName,
     bool? isVisible,
     List<String>? visibleTo,
+    bool? isMembersOnly,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -260,6 +269,7 @@ class DatabaseService {
     if (attachmentName != null) data['attachmentName'] = attachmentName;
     if (isVisible != null) data['isVisible'] = isVisible;
     if (visibleTo != null) data['visibleTo'] = visibleTo;
+    if (isMembersOnly != null) data['isMembersOnly'] = isMembersOnly;
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
     }
@@ -294,23 +304,25 @@ class DatabaseService {
     ) {
       final lessons = snapshot.docs.map(Lesson.fromDoc).toList();
 
+      // Admins and Superadmins see all items
+      if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
+        return lessons;
+      }
+
       // Educators see their own content + public content from admins
       if (userRole == UserRole.educator && userId != null) {
         return lessons.where((l) {
           // Own content
           if (l.createdByUid == userId) return true;
-          // Public content or specifically shared, and approved
-          return (l.isVisible || (l.visibleTo.contains(userId))) &&
-              l.validationStatus != 'awaiting_approval';
+          // Approved content only
+          if (l.validationStatus == 'awaiting_approval') return false;
+
+          return (l.isVisible || (l.visibleTo.contains(userId)));
         }).toList();
       }
 
       if (approvedOnly) {
         return lessons.where((l) {
-          // Admins can see all content regardless of isVisible
-          if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
-            return l.validationStatus != 'awaiting_approval';
-          }
           // Other users must respect isVisible flag or be in visibleTo list
           return (l.validationStatus != 'awaiting_approval') &&
               (l.isVisible || (userId != null && l.visibleTo.contains(userId)));
@@ -318,6 +330,16 @@ class DatabaseService {
       }
       return lessons;
     });
+  }
+
+  Future<bool> isSubscribed(String educatorUid, String userId) async {
+    final doc = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('subscriptions')
+        .doc(educatorUid)
+        .get();
+    return doc.exists && doc.data()?['status'] == 'active';
   }
 
   Stream<List<Lesson>> streamAwaitingApprovalLessons() {
@@ -362,6 +384,7 @@ class DatabaseService {
     String? attachmentName,
     bool isVisible = true,
     List<String> visibleTo = const [],
+    bool isMembersOnly = false,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -388,6 +411,7 @@ class DatabaseService {
       'attachmentName': attachmentName,
       'isVisible': isVisible,
       'visibleTo': visibleTo,
+      'isMembersOnly': isMembersOnly,
     });
     return doc.id;
   }
@@ -403,6 +427,7 @@ class DatabaseService {
     String? attachmentName,
     bool? isVisible,
     List<String>? visibleTo,
+    bool? isMembersOnly,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -416,6 +441,7 @@ class DatabaseService {
     if (attachmentName != null) data['attachmentName'] = attachmentName;
     if (isVisible != null) data['isVisible'] = isVisible;
     if (visibleTo != null) data['visibleTo'] = visibleTo;
+    if (isMembersOnly != null) data['isMembersOnly'] = isMembersOnly;
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
     }
@@ -442,23 +468,25 @@ class DatabaseService {
     ) {
       final quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
 
+      // Admins and Superadmins see all items
+      if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
+        return quizzes;
+      }
+
       // Educators see their own content + public content from admins
       if (userRole == UserRole.educator && userId != null) {
         return quizzes.where((q) {
           // Own content
           if (q.createdByUid == userId) return true;
-          // Public content or specifically shared, and approved
-          return (q.isVisible || (q.visibleTo.contains(userId))) &&
-              q.validationStatus != 'awaiting_approval';
+          // Approved content only
+          if (q.validationStatus == 'awaiting_approval') return false;
+
+          return (q.isVisible || (q.visibleTo.contains(userId)));
         }).toList();
       }
 
       if (approvedOnly) {
         return quizzes.where((q) {
-          // Admins can see all content regardless of isVisible
-          if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
-            return q.validationStatus != 'awaiting_approval';
-          }
           // Other users must respect isVisible flag or be in visibleTo list
           return (q.validationStatus != 'awaiting_approval') &&
               (q.isVisible || (userId != null && q.visibleTo.contains(userId)));
@@ -645,5 +673,177 @@ class DatabaseService {
     } catch (e) {
       throw Exception('Failed to upload document: $e');
     }
+  }
+
+  Stream<List<Map<String, dynamic>>> streamEducators() {
+    return _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'EDUCATOR')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => {'uid': doc.id, ...doc.data()})
+              .toList(),
+        );
+  }
+
+  Stream<List<Lesson>> streamEducatorLessons(String educatorUid) {
+    return _lessons
+        .where('createdByUid', isEqualTo: educatorUid)
+        .where('isVisible', isEqualTo: true)
+        .where('validationStatus', isEqualTo: 'approved')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(Lesson.fromDoc).toList());
+  }
+
+  Stream<List<Quiz>> streamEducatorQuizzes(String educatorUid) {
+    return _quizzes
+        .where('createdByUid', isEqualTo: educatorUid)
+        .where('isVisible', isEqualTo: true)
+        .where('validationStatus', isEqualTo: 'approved')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(Quiz.fromDoc).toList());
+  }
+
+  Future<void> updateSubscriptionFee(String uid, int amount) async {
+    await _firestore.collection('users').doc(uid).update({
+      'subscription_fee': amount,
+    });
+  }
+
+  Future<void> subscribeToEducator(String educatorUid) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final batch = _firestore.batch();
+
+    // Educator's view: list of active subscribers
+    batch.set(
+      _firestore
+          .collection('users')
+          .doc(educatorUid)
+          .collection('subscribers')
+          .doc(user.uid),
+      {'subscribedAt': FieldValue.serverTimestamp()},
+    );
+
+    // Learner's view: list of their subscriptions
+    batch.set(
+      _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('subscriptions')
+          .doc(educatorUid),
+      {
+        'educatorUid': educatorUid,
+        'status': 'active',
+        'billingCycle': 'monthly',
+        'subscribedAt': FieldValue.serverTimestamp(),
+        'cancelledAt': null,
+      },
+      SetOptions(merge: true),
+    );
+
+    await batch.commit();
+  }
+
+  Future<void> unsubscribeFromEducator(String educatorUid) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final batch = _firestore.batch();
+
+    // Remove from educator's active list
+    batch.delete(
+      _firestore
+          .collection('users')
+          .doc(educatorUid)
+          .collection('subscribers')
+          .doc(user.uid),
+    );
+
+    // Mark as cancelled in learner's list
+    batch.update(
+      _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('subscriptions')
+          .doc(educatorUid),
+      {'status': 'cancelled', 'cancelledAt': FieldValue.serverTimestamp()},
+    );
+
+    await batch.commit();
+  }
+
+  Future<void> updateSubscriptionBillingCycle(
+    String educatorUid,
+    String cycle,
+  ) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('subscriptions')
+        .doc(educatorUid)
+        .update({'billingCycle': cycle});
+  }
+
+  Stream<bool> isSubscribedStream(String educatorUid) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return Stream.value(false);
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('subscriptions')
+        .doc(educatorUid)
+        .snapshots()
+        .map((doc) => doc.exists && doc.data()?['status'] == 'active');
+  }
+
+  Stream<List<Map<String, dynamic>>> streamLearnerSubscriptions(
+    String learnerUid,
+  ) {
+    return _firestore
+        .collection('users')
+        .doc(learnerUid)
+        .collection('subscriptions')
+        .snapshots()
+        .asyncMap((snapshot) async {
+          final List<Map<String, dynamic>> subscriptions = [];
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            final eduUid = data['educatorUid'] as String;
+            final eduDoc = await _firestore
+                .collection('users')
+                .doc(eduUid)
+                .get();
+            if (eduDoc.exists) {
+              subscriptions.add({'educatorData': eduDoc.data(), ...data});
+            }
+          }
+          return subscriptions;
+        });
+  }
+
+  Stream<List<Map<String, dynamic>>> streamEducatorSubscribers(
+    String educatorUid,
+  ) {
+    return _firestore
+        .collection('users')
+        .doc(educatorUid)
+        .collection('subscribers')
+        .snapshots()
+        .asyncMap((snapshot) async {
+          final List<Map<String, dynamic>> subscribers = [];
+          for (final doc in snapshot.docs) {
+            final userDoc = await _firestore
+                .collection('users')
+                .doc(doc.id)
+                .get();
+            if (userDoc.exists) {
+              subscribers.add({'uid': doc.id, ...userDoc.data()!});
+            }
+          }
+          return subscribers;
+        });
   }
 }

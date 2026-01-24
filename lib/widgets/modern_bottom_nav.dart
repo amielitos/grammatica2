@@ -44,7 +44,9 @@ class ModernBottomNav extends StatelessWidget {
                 final index = entry.key;
                 final item = entry.value;
                 final isSelected = currentIndex == index;
-                final color = isSelected ? AppColors.primaryGreen : Colors.grey;
+                final selectedColor =
+                    item.selectedColor ?? AppColors.primaryGreen;
+                final color = isSelected ? selectedColor : Colors.grey;
 
                 return GestureDetector(
                   onTap: () => onTap(index),
@@ -90,6 +92,11 @@ class ModernBottomNav extends StatelessWidget {
 class ModernNavItem {
   final IconData icon;
   final String label;
+  final Color? selectedColor;
 
-  const ModernNavItem({required this.icon, required this.label});
+  const ModernNavItem({
+    required this.icon,
+    required this.label,
+    this.selectedColor,
+  });
 }

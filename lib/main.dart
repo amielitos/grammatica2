@@ -13,6 +13,7 @@ import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
 import 'pages/admin_dashboard.dart';
 import 'pages/home_page.dart';
+import 'pages/onboarding_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,26 @@ class GrammaticaApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: currentMode,
+          builder: (context, child) {
+            final mediaQueryData = MediaQuery.of(context);
+            // Calculate a scale factor based on screen width.
+            // On very small screens (< 360), we scale down slightly.
+            // On large screens, we might scale up or keep 1.0.
+            final screenWidth = mediaQueryData.size.width;
+            double scale = 1.0;
+            if (screenWidth < 360) {
+              scale = (screenWidth / 360).clamp(0.85, 1.0);
+            } else if (screenWidth > 600) {
+              scale = 1.1; // Slightly larger for tablets
+            }
+
+            return MediaQuery(
+              data: mediaQueryData.copyWith(
+                textScaler: TextScaler.linear(scale),
+              ),
+              child: child!,
+            );
+          },
           initialRoute: '/',
           routes: {
             '/': (context) => _AuthWrapper(),
@@ -92,6 +113,20 @@ class _AuthWrapper extends StatelessWidget {
                 ),
               );
             }
+            final data = userDocSnap.data?.data();
+            final themePref = data?['theme_preference'] as String?;
+            if (themePref != null) {
+              final mode = themePref == 'dark'
+                  ? ThemeMode.dark
+                  : ThemeMode.light;
+              if (themeNotifier.value != mode) {
+                // Update theme notifier from stored preference
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  themeNotifier.value = mode;
+                });
+              }
+            }
+
             return StreamBuilder<UserRole>(
               stream: RoleService.instance.roleStream(user.uid),
               builder: (context, roleSnap) {
@@ -102,8 +137,15 @@ class _AuthWrapper extends StatelessWidget {
                 }
                 final role = roleSnap.data!;
                 if (role == UserRole.admin || role == UserRole.educator) {
-                  return const AdminDashboard();
+                  return AdminDashboard(user: user);
                 }
+
+                final hasCompletedOnboarding =
+                    data?['has_completed_onboarding'] ?? true;
+                if (!hasCompletedOnboarding && role == UserRole.learner) {
+                  return OnboardingPage(user: user);
+                }
+
                 return HomePage(user: user);
               },
             );

@@ -9,6 +9,9 @@ import '../services/auth_service.dart';
 import '../widgets/glass_card.dart';
 import '../theme/app_colors.dart';
 import '../main.dart';
+import '../services/database_service.dart';
+
+import 'manage_subscriptions_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -31,6 +34,7 @@ class ProfilePageState extends State<ProfilePage> {
   }
 
   final _usernameCtrl = TextEditingController();
+  final _bioCtrl = TextEditingController();
   final _currentPasswordCtrl = TextEditingController();
   final _newPasswordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
@@ -76,6 +80,7 @@ class ProfilePageState extends State<ProfilePage> {
       final data = doc.data();
       final fetchedUsername = (data?['username'] as String?)?.trim();
       final fetchedPhoto = (data?['photoUrl'] as String?);
+      final fetchedBio = (data?['bio'] as String?)?.trim() ?? '';
 
       if (mounted) {
         setState(() {
@@ -83,6 +88,7 @@ class ProfilePageState extends State<ProfilePage> {
               ? fetchedUsername!
               : (widget.user.displayName ?? 'User');
           _photoUrl = fetchedPhoto ?? widget.user.photoURL;
+          _bioCtrl.text = fetchedBio;
         });
       }
     } catch (e) {
@@ -90,13 +96,14 @@ class ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _promptAndUpdateUsername() async {
+  Future<void> _updateUsername() async {
     final email = widget.user.email;
     if (email == null) {
       _showSnack('No email on account', error: true);
       return;
     }
     final newName = _usernameCtrl.text.trim();
+
     if (newName.isEmpty) {
       _showSnack('Please enter a username', error: true);
       return;
@@ -112,7 +119,9 @@ class ProfilePageState extends State<ProfilePage> {
     if (password == null || password.isEmpty) return;
 
     try {
-      await widget.user.updateDisplayName(newName);
+      if (newName != widget.user.displayName) {
+        await widget.user.updateDisplayName(newName);
+      }
       await RoleService.instance.updateUsername(
         uid: widget.user.uid,
         username: newName,
@@ -126,6 +135,22 @@ class ProfilePageState extends State<ProfilePage> {
       _showSnack(e.message ?? 'Failed to update username', error: true);
     } catch (_) {
       _showSnack('Failed to update username', error: true);
+    }
+  }
+
+  Future<void> _updateBio() async {
+    final newBio = _bioCtrl.text.trim();
+
+    if (newBio.length > 300) {
+      _showSnack('Bio cannot exceed 300 characters', error: true);
+      return;
+    }
+
+    try {
+      await RoleService.instance.updateBio(uid: widget.user.uid, bio: newBio);
+      _showSnack('Bio updated');
+    } catch (e) {
+      _showSnack('Failed to update bio', error: true);
     }
   }
 
@@ -343,9 +368,94 @@ class ProfilePageState extends State<ProfilePage> {
                                   ),
                                   const SizedBox(height: 16),
                                   FilledButton(
-                                    onPressed: _promptAndUpdateUsername,
+                                    onPressed: _updateUsername,
                                     child: const Text('Update Username'),
                                   ),
+                                  const SizedBox(height: 16),
+                                  TextField(
+                                    controller: _bioCtrl,
+                                    maxLength: 300,
+                                    maxLines: 3,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Bio',
+                                      hintText: 'Tell us about yourself...',
+                                      alignLabelWithHint: true,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  FilledButton(
+                                    onPressed: _updateBio,
+                                    child: const Text('Update Bio'),
+                                  ),
+                                  if (roleSnap.data == UserRole.educator) ...[
+                                    const Divider(height: 48),
+                                    Text(
+                                      'Subscription Settings',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleLarge,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Set your monthly subscription fee for learners:',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(color: Colors.grey[600]),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    StreamBuilder<
+                                      DocumentSnapshot<Map<String, dynamic>>
+                                    >(
+                                      stream: FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(widget.user.uid)
+                                          .snapshots(),
+                                      builder: (context, userSnap) {
+                                        final currentFee =
+                                            userSnap.data
+                                                ?.data()?['subscription_fee'] ??
+                                            3;
+                                        return CupertinoSlidingSegmentedControl<
+                                          int
+                                        >(
+                                          groupValue: currentFee,
+                                          children: const {
+                                            3: Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 20,
+                                              ),
+                                              child: Text('\$3'),
+                                            ),
+                                            5: Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 20,
+                                              ),
+                                              child: Text('\$5'),
+                                            ),
+                                            7: Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 20,
+                                              ),
+                                              child: Text('\$7'),
+                                            ),
+                                          },
+                                          onValueChanged: (val) {
+                                            if (val != null) {
+                                              DatabaseService.instance
+                                                  .updateSubscriptionFee(
+                                                    widget.user.uid,
+                                                    val,
+                                                  );
+                                              _showSnack(
+                                                'Subscription fee updated to \$$val',
+                                              );
+                                            }
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ],
                                   const Divider(height: 48),
                                   Text(
                                     'Change Password',
@@ -450,6 +560,49 @@ class ProfilePageState extends State<ProfilePage> {
                                     child: const Text('Update Password'),
                                   ),
                                   const Divider(height: 48),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Text(
+                                        'Subscriptions',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleLarge,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      OutlinedButton.icon(
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  ManageSubscriptionsPage(
+                                                    user: widget.user,
+                                                  ),
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(
+                                          CupertinoIcons.creditcard_fill,
+                                        ),
+                                        label: const Text(
+                                          'Manage Subscriptions',
+                                        ),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 16,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const Divider(height: 48),
+                                    ],
+                                  ),
                                   Row(
                                     children: [
                                       Expanded(
@@ -470,6 +623,15 @@ class ProfilePageState extends State<ProfilePage> {
                                             onValueChanged: (newMode) {
                                               if (newMode != null) {
                                                 themeNotifier.value = newMode;
+                                                RoleService.instance
+                                                    .updateThemePreference(
+                                                      uid: widget.user.uid,
+                                                      theme:
+                                                          newMode ==
+                                                              ThemeMode.dark
+                                                          ? 'dark'
+                                                          : 'light',
+                                                    );
                                               }
                                             },
                                             children: const {

@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import '../../services/database_service.dart';
 import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/author_name_widget.dart';
 import '../quiz_detail_page.dart';
 import '../lesson_page.dart';
 
@@ -135,10 +136,50 @@ class _ValidationList extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            'By: $createdBy',
+                          AuthorName(
+                            uid: item.createdByUid,
+                            fallbackEmail: item.createdByEmail,
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      (item.isMembersOnly
+                                              ? Colors.amber
+                                              : Colors.blue)
+                                          .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color:
+                                        (item.isMembersOnly
+                                                ? Colors.amber
+                                                : Colors.blue)
+                                            .withOpacity(0.5),
+                                  ),
+                                ),
+                                child: Text(
+                                  item.isMembersOnly
+                                      ? 'Members Only'
+                                      : 'Public',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: item.isMembersOnly
+                                        ? Colors.amber.shade900
+                                        : Colors.blue.shade900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
                           Text(
                             'Submitted: $createdAtStr',
                             style: Theme.of(context).textTheme.bodySmall,

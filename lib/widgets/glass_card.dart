@@ -9,6 +9,7 @@ class GlassCard extends StatelessWidget {
   final EdgeInsetsGeometry margin;
   final VoidCallback? onTap;
   final Color? backgroundColor;
+  final Color? borderColor;
 
   /// If true, the card uses a solid background (no blur).
   /// If false, it applies a BackdropFilter (glass effect).
@@ -23,6 +24,7 @@ class GlassCard extends StatelessWidget {
     this.margin = EdgeInsets.zero,
     this.onTap,
     this.backgroundColor,
+    this.borderColor,
     this.isSolid = false, // Default to glass
   });
 
@@ -37,8 +39,9 @@ class GlassCard extends StatelessWidget {
 
     // 2. Determine border
     BorderSide borderSide = BorderSide(
-      color: isDark ? AppColors.darkBorder : AppColors.softBorder,
-      width: 1.0,
+      color:
+          borderColor ?? (isDark ? AppColors.darkBorder : AppColors.softBorder),
+      width: borderColor != null ? 2.0 : 1.0,
     );
 
     Widget content = Container(

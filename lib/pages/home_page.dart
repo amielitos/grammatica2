@@ -11,6 +11,8 @@ import '../widgets/glass_card.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../services/role_service.dart';
+import 'browse_educators_tab.dart';
+import 'practice_tab.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -21,7 +23,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _tabIndex = 0; // 0=Lessons,1=Quizzes,2=Profile,3=Subscription
+  int _tabIndex =
+      0; // 0=Lessons, 1=Practice, 2=Quizzes, 3=Subscription, 4=Profile
   final _profileKey = GlobalKey<ProfilePageState>();
 
   @override
@@ -44,12 +47,17 @@ class _HomePageState extends State<HomePage> {
         currentIndex: _tabIndex,
         onTap: (index) {
           setState(() => _tabIndex = index);
-          if (index == 3) {
+          if (index == 4) {
             _profileKey.currentState?.fetchProfile();
           }
         },
         items: [
           const ModernNavItem(icon: CupertinoIcons.book, label: 'Lessons'),
+          ModernNavItem(
+            icon: CupertinoIcons.sparkles,
+            label: 'Practice',
+            selectedColor: Colors.orange.shade400,
+          ),
           const ModernNavItem(
             icon: CupertinoIcons.question_circle,
             label: 'Quizzes',
@@ -65,20 +73,14 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: ResponsiveWrapper(
-        child: Column(
+        child: IndexedStack(
+          index: _tabIndex,
           children: [
-            Expanded(
-              child: IndexedStack(
-                index: _tabIndex,
-                children: [
-                  _LessonsList(user: user),
-                  QuizzesPage(user: user),
-                  const _SubscriptionTab(),
-                  ProfilePage(key: _profileKey, user: user),
-                ],
-              ),
-            ),
-            const _SecondaryBottomNav(),
+            _LessonsList(user: user),
+            const PracticeTab(),
+            QuizzesPage(user: user),
+            BrowseEducatorsTab(user: user),
+            ProfilePage(key: _profileKey, user: user),
           ],
         ),
       ),
@@ -148,90 +150,166 @@ class _LessonsList extends StatelessWidget {
             }
             final lessons = snapshot.data!;
 
-            return StreamBuilder<Map<String, bool>>(
-              stream: DatabaseService.instance.progressStream(user),
-              builder: (context, progressSnap) {
-                final progress = progressSnap.data ?? const {};
+            return StreamBuilder<Map<String, dynamic>>(
+              stream: DatabaseService.instance
+                  .streamLearnerSubscriptions(user.uid)
+                  .map(
+                    (subs) => {
+                      for (var s in subs)
+                        s['educatorUid']: s['status'] == 'active',
+                    },
+                  ),
+              builder: (context, subsSnap) {
+                final subscriptions = subsSnap.data ?? const {};
+                final visibleLessons = lessons.where((l) {
+                  if (role == UserRole.admin || role == UserRole.superadmin) {
+                    return true;
+                  }
+                  if (!l.isMembersOnly) return true;
+                  if (l.createdByUid == user.uid) return true;
+                  return subscriptions[l.createdByUid] == true;
+                }).toList();
 
-                return ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: lessons.length,
-                  separatorBuilder: (c, i) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final lesson = lessons[index];
-                    final done = progress[lesson.id] == true;
-                    final createdAtStr = lesson.createdAt != null
-                        ? _fmt(lesson.createdAt!)
-                        : 'N/A';
+                if (visibleLessons.isEmpty) {
+                  return const Center(child: Text('No lessons available.'));
+                }
 
-                    return GlassCard(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                LessonPage(user: user, lesson: lesson),
-                          ),
-                        );
-                      },
-                      child: Row(
-                        children: [
-                          const SizedBox(width: 8),
-                          // Content
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  lesson.title,
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(fontSize: 18),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  lesson.prompt,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 12,
+                return StreamBuilder<Map<String, bool>>(
+                  stream: DatabaseService.instance.progressStream(user),
+                  builder: (context, progressSnap) {
+                    final progress = progressSnap.data ?? const {};
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: visibleLessons.length,
+                      separatorBuilder: (c, i) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final lesson = visibleLessons[index];
+                        final isSubbedMembersOnly =
+                            lesson.isMembersOnly &&
+                            subscriptions[lesson.createdByUid] == true;
+                        final done = progress[lesson.id] == true;
+                        final createdAtStr = lesson.createdAt != null
+                            ? _fmt(lesson.createdAt!)
+                            : 'N/A';
+
+                        return GlassCard(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    LessonPage(user: user, lesson: lesson),
+                              ),
+                            );
+                          },
+                          borderColor: isSubbedMembersOnly
+                              ? Colors.green
+                              : null,
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 8),
+                              // Content
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _authorName(
-                                      uid: lesson.createdByUid,
-                                      fallbackEmail: lesson.createdByEmail,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(color: Colors.grey),
-                                    ),
                                     Text(
-                                      '• $createdAtStr',
+                                      lesson.title,
                                       style: Theme.of(context)
                                           .textTheme
-                                          .bodySmall
-                                          ?.copyWith(color: Colors.grey),
+                                          .titleLarge
+                                          ?.copyWith(fontSize: 18),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                (lesson.isMembersOnly
+                                                        ? Colors.amber
+                                                        : Colors.blue)
+                                                    .withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color:
+                                                  (lesson.isMembersOnly
+                                                          ? Colors.amber
+                                                          : Colors.blue)
+                                                      .withOpacity(0.5),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            lesson.isMembersOnly
+                                                ? 'Members Only'
+                                                : 'Public',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: lesson.isMembersOnly
+                                                  ? Colors.amber.shade900
+                                                  : Colors.blue.shade900,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      lesson.prompt,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 12,
+                                      children: [
+                                        _authorName(
+                                          uid: lesson.createdByUid,
+                                          fallbackEmail: lesson.createdByEmail,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(color: Colors.grey),
+                                        ),
+                                        Text(
+                                          '• $createdAtStr',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(color: Colors.grey),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
+                              ),
+                              // Status Icon
+                              if (done)
+                                Icon(
+                                  CupertinoIcons.check_mark_circled,
+                                  color: AppColors.primaryGreen,
+                                  size: 28,
+                                )
+                              else
+                                Icon(
+                                  CupertinoIcons.chevron_right,
+                                  size: 16,
+                                  color: Colors.grey.withOpacity(0.5),
+                                ),
+                            ],
                           ),
-                          // Status Icon
-                          if (done)
-                            Icon(
-                              CupertinoIcons.check_mark_circled,
-                              color: AppColors.primaryGreen,
-                              size: 28,
-                            )
-                          else
-                            Icon(
-                              CupertinoIcons.chevron_right,
-                              size: 16,
-                              color: Colors.grey.withOpacity(0.5),
-                            ),
-                        ],
-                      ),
+                        );
+                      },
                     );
                   },
                 );
@@ -240,104 +318,6 @@ class _LessonsList extends StatelessWidget {
           },
         );
       },
-    );
-  }
-}
-
-class _SubscriptionTab extends StatelessWidget {
-  const _SubscriptionTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(CupertinoIcons.creditcard, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Subscription Plan',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Text('Coming Soon', style: TextStyle(color: Colors.grey)),
-        ],
-      ),
-    );
-  }
-}
-
-class _SecondaryBottomNav extends StatelessWidget {
-  const _SecondaryBottomNav();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-        child: Row(
-          children: [
-            Expanded(
-              child: _SecondaryNavButton(
-                icon: CupertinoIcons.ant,
-                label: 'Spelling Bee',
-                onTap: () {},
-                isDark: isDark,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _SecondaryNavButton(
-                icon: CupertinoIcons.mic,
-                label: 'Pronunciation',
-                onTap: () {},
-                isDark: isDark,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SecondaryNavButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool isDark;
-
-  const _SecondaryNavButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: AppColors.primaryGreen, size: 20),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white70 : Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

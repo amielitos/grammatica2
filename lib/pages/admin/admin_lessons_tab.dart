@@ -12,6 +12,8 @@ import '../../services/role_service.dart';
 import '../lesson_page.dart';
 import '../../widgets/app_search_bar.dart';
 import '../../widgets/user_visibility_selector.dart';
+import '../../widgets/author_name_widget.dart';
+import '../../models/content_visibility.dart';
 
 class AdminLessonsTab extends StatefulWidget {
   const AdminLessonsTab({super.key});
@@ -32,8 +34,11 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
   final _prompt = TextEditingController();
   List<PlatformFile> _selectedFiles = [];
   bool _isVisible = true;
+  bool _isMembersOnly = false;
   List<String> _visibleTo = [];
   String _searchQuery = '';
+
+  ContentVisibility _visibility = ContentVisibility.public;
 
   @override
   Widget build(BuildContext context) {
@@ -214,14 +219,22 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                 setState(() {
                                   if (isSelected) {
                                     _resetForm();
-                                  } else {
-                                    _selectedLessonId = l.id;
-                                    _selectedLesson = l;
                                     _title.text = l.title;
                                     _prompt.text = l.prompt;
                                     _selectedFiles = [];
                                     _isVisible = l.isVisible;
+                                    _isMembersOnly = l.isMembersOnly;
                                     _visibleTo = List<String>.from(l.visibleTo);
+
+                                    if (l.isMembersOnly) {
+                                      _visibility =
+                                          ContentVisibility.membersOnly;
+                                    } else if (!l.isVisible) {
+                                      _visibility =
+                                          ContentVisibility.certainUsers;
+                                    } else {
+                                      _visibility = ContentVisibility.public;
+                                    }
                                   }
                                 });
                               },
@@ -231,7 +244,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                         ? Colors.grey.withValues(alpha: 0.05)
                                         : null),
                               child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Container(
                                     width: 4,
@@ -261,32 +274,6 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                                 ),
                                               ),
                                             ),
-                                            if (isPending)
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 2,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.orange
-                                                      .withOpacity(0.2),
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                  border: Border.all(
-                                                    color: Colors.orange
-                                                        .withValues(alpha: 0.5),
-                                                  ),
-                                                ),
-                                                child: const Text(
-                                                  'Awaiting Approval',
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    color: Colors.orange,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
                                           ],
                                         ),
                                         const SizedBox(height: 4),
@@ -323,23 +310,83 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                                 ],
                                               ),
                                             Text(
-                                              'Created: ${_fmt(l.createdAt ?? Timestamp.now())} • Visible: ${l.isVisible ? 'Yes' : 'No'}',
+                                              'Created: ${_fmt(l.createdAt ?? Timestamp.now())} • ',
                                               style: Theme.of(
                                                 context,
                                               ).textTheme.bodySmall,
                                             ),
-                                            if (l.createdByEmail != null)
-                                              Text(
-                                                'By: ${l.createdByEmail}',
-                                                style: Theme.of(
-                                                  context,
-                                                ).textTheme.bodySmall,
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color:
+                                                    (l.isMembersOnly
+                                                            ? Colors.amber
+                                                            : Colors.blue)
+                                                        .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color:
+                                                      (l.isMembersOnly
+                                                              ? Colors.amber
+                                                              : Colors.blue)
+                                                          .withOpacity(0.5),
+                                                ),
                                               ),
+                                              child: Text(
+                                                l.isMembersOnly
+                                                    ? 'Members Only'
+                                                    : 'Public',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: l.isMembersOnly
+                                                      ? Colors.amber.shade900
+                                                      : Colors.blue.shade900,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            AuthorName(
+                                              uid: l.createdByUid,
+                                              fallbackEmail: l.createdByEmail,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                            ),
                                           ],
                                         ),
                                       ],
                                     ),
                                   ),
+                                  if (isPending) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: Colors.orange.withOpacity(0.5),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Waiting for approval',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   if (canEdit)
                                     IconButton(
                                       icon: const Icon(CupertinoIcons.trash),
@@ -383,14 +430,49 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 16),
-        SwitchListTile(
-          title: const Text('Visible to Public'),
-          subtitle: const Text('If off, learners cannot see this lesson'),
-          value: _isVisible,
-          onChanged: (v) => setState(() => _isVisible = v),
-          activeThumbColor: AppColors.primaryGreen,
+        const SizedBox(height: 16),
+        const Text(
+          'Who can see this content?',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        if (!_isVisible) ...[
+        const SizedBox(height: 8),
+        SegmentedButton<ContentVisibility>(
+          segments: const [
+            ButtonSegment(
+              value: ContentVisibility.public,
+              label: Text('Public'),
+              icon: Icon(Icons.public),
+            ),
+            ButtonSegment(
+              value: ContentVisibility.certainUsers,
+              label: Text('Private'),
+              icon: Icon(Icons.people_outline),
+            ),
+            ButtonSegment(
+              value: ContentVisibility.membersOnly,
+              label: Text('Members'),
+              icon: Icon(Icons.star),
+            ),
+          ],
+          selected: {_visibility},
+          onSelectionChanged: (Set<ContentVisibility> newSelection) {
+            setState(() {
+              _visibility = newSelection.first;
+              // Map visibility to database flags
+              if (_visibility == ContentVisibility.public) {
+                _isVisible = true;
+                _isMembersOnly = false;
+              } else if (_visibility == ContentVisibility.certainUsers) {
+                _isVisible = false;
+                _isMembersOnly = false;
+              } else if (_visibility == ContentVisibility.membersOnly) {
+                _isVisible = true;
+                _isMembersOnly = true;
+              }
+            });
+          },
+        ),
+        if (_visibility == ContentVisibility.certainUsers) ...[
           const SizedBox(height: 16),
           UserVisibilitySelector(
             selectedUserIds: _visibleTo,
@@ -486,6 +568,8 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
     _prompt.clear();
     _selectedFiles = [];
     _isVisible = true;
+    _isMembersOnly = false;
+    _visibility = ContentVisibility.public;
     _visibleTo = [];
     setState(() {});
   }
@@ -523,11 +607,13 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           attachmentName: attachmentName,
           isVisible: _isVisible,
           visibleTo: _visibleTo,
+          isMembersOnly: _isMembersOnly,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
             AuthService.instance.currentUser?.uid ?? '',
           );
+          if (!mounted) return;
           final isEducator = role == UserRole.educator;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -547,6 +633,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           attachmentName: attachmentName,
           isVisible: _isVisible,
           visibleTo: _visibleTo,
+          isMembersOnly: _isMembersOnly,
         );
         if (mounted) {
           ScaffoldMessenger.of(
