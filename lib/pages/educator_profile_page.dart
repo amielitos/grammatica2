@@ -146,7 +146,10 @@ class EducatorProfilePage extends StatelessWidget {
                 // Lessons Section
                 _ContentSection(
                   title: 'Lessons',
-                  stream: DatabaseService.instance.streamEducatorLessons(uid),
+                  stream: DatabaseService.instance.streamEducatorLessons(
+                    uid,
+                    publicOnly: true,
+                  ),
                   itemBuilder: (context, lesson) {
                     return GlassCard(
                       onTap: () {
@@ -183,7 +186,10 @@ class EducatorProfilePage extends StatelessWidget {
                 // Quizzes Section
                 _ContentSection(
                   title: 'Quizzes',
-                  stream: DatabaseService.instance.streamEducatorQuizzes(uid),
+                  stream: DatabaseService.instance.streamEducatorQuizzes(
+                    uid,
+                    publicOnly: true,
+                  ),
                   itemBuilder: (context, quiz) {
                     return GlassCard(
                       onTap: () {
