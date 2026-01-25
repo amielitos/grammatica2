@@ -39,7 +39,11 @@ class QuizzesPage extends StatelessWidget {
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text('No quizzes available.'));
               }
-              final quizzes = snapshot.data!;
+              final allQuizzes = snapshot.data!;
+              final quizzes = allQuizzes.where((q) {
+                if (q.isAssessment == false) return true;
+                return role == UserRole.admin || role == UserRole.superadmin;
+              }).toList();
 
               return StreamBuilder<Map<String, dynamic>>(
                 stream: DatabaseService.instance

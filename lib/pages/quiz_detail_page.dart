@@ -453,23 +453,23 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   ),
                   child: Row(
                     children: [
-                      if (_isReviewing)
-                        Icon(
-                          isCorrectAnswer
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                          color: isCorrectAnswer ? Colors.green : Colors.grey,
-                        )
-                      else
-                        Icon(
-                          isSelected
-                              ? CupertinoIcons.check_mark_circled_solid
-                              : CupertinoIcons.circle,
-                          color: isSelected
-                              ? AppColors.primaryGreen
-                              : Colors.grey,
-                        ),
-                      const SizedBox(width: 12),
+                      Radio<String>(
+                        value: opt.trim(),
+                        groupValue: _answerCtrls[_currentQuestionIndex].text
+                            .trim(),
+                        onChanged: _isReviewing
+                            ? null
+                            : (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _answerCtrls[_currentQuestionIndex].text =
+                                        val;
+                                  });
+                                }
+                              },
+                        activeColor: AppColors.primaryGreen,
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           opt,

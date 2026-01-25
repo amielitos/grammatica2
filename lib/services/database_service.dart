@@ -155,6 +155,7 @@ class Quiz {
   final List<String> visibleTo;
   final bool isMembersOnly;
   final bool isGrammaticaQuiz;
+  final bool isAssessment;
 
   Quiz({
     required this.id,
@@ -173,6 +174,7 @@ class Quiz {
     this.visibleTo = const [],
     this.isMembersOnly = false,
     this.isGrammaticaQuiz = false,
+    this.isAssessment = false,
   });
 
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -201,6 +203,7 @@ class Quiz {
       visibleTo: List<String>.from(d['visibleTo'] ?? []),
       isMembersOnly: d['isMembersOnly'] ?? false,
       isGrammaticaQuiz: d['isGrammaticaQuiz'] ?? false,
+      isAssessment: d['isAssessment'] ?? false,
     );
   }
 }
@@ -406,6 +409,7 @@ class DatabaseService {
     List<String> visibleTo = const [],
     bool isMembersOnly = false,
     bool isGrammaticaQuiz = false,
+    bool isAssessment = false,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -434,6 +438,7 @@ class DatabaseService {
       'visibleTo': visibleTo,
       'isMembersOnly': isMembersOnly,
       'isGrammaticaQuiz': isGrammaticaQuiz,
+      'isAssessment': isAssessment,
     });
     return doc.id;
   }
@@ -451,6 +456,7 @@ class DatabaseService {
     List<String>? visibleTo,
     bool? isMembersOnly,
     bool? isGrammaticaQuiz,
+    bool? isAssessment,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -466,6 +472,7 @@ class DatabaseService {
     if (visibleTo != null) data['visibleTo'] = visibleTo;
     if (isMembersOnly != null) data['isMembersOnly'] = isMembersOnly;
     if (isGrammaticaQuiz != null) data['isGrammaticaQuiz'] = isGrammaticaQuiz;
+    if (isAssessment != null) data['isAssessment'] = isAssessment;
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
     }
