@@ -40,6 +40,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
   bool _isVisible = true;
   bool _isMembersOnly = false;
   bool _isGrammaticaQuiz = false;
+  bool _isAssessment = false;
   List<String> _visibleTo = [];
   String _searchQuery = '';
 
@@ -259,6 +260,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                       _visibility = ContentVisibility.public;
                                     }
                                     _isGrammaticaQuiz = q.isGrammaticaQuiz;
+                                    _isAssessment = q.isAssessment;
                                     if (_questionCtrls.isEmpty) {
                                       _questionCtrls = [
                                         TextEditingController(),
@@ -377,6 +379,34 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                                 ),
                                               ),
                                             ),
+                                            const SizedBox(width: 8),
+                                            if (q.isAssessment)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.withOpacity(
+                                                    0.1,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: Colors.red
+                                                        .withOpacity(0.5),
+                                                  ),
+                                                ),
+                                                child: const Text(
+                                                  'Assessment',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.red,
+                                                  ),
+                                                ),
+                                              ),
                                             const SizedBox(width: 8),
                                             AuthorName(
                                               uid: q.createdByUid,
@@ -507,56 +537,68 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
         ),
         const SizedBox(height: 16),
         const SizedBox(height: 16),
-        const Text(
-          'Who can see this content?',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        SegmentedButton<ContentVisibility>(
-          segments: const [
-            ButtonSegment(
-              value: ContentVisibility.public,
-              label: Text('Public'),
-              icon: Icon(Icons.public),
+        Opacity(
+          opacity: _isAssessment ? 0.5 : 1.0,
+          child: AbsorbPointer(
+            absorbing: _isAssessment,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Who can see this content?',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<ContentVisibility>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ContentVisibility.public,
+                      label: Text('Public'),
+                      icon: Icon(Icons.public),
+                    ),
+                    ButtonSegment(
+                      value: ContentVisibility.certainUsers,
+                      label: Text('Private'),
+                      icon: Icon(Icons.people_outline),
+                    ),
+                    ButtonSegment(
+                      value: ContentVisibility.membersOnly,
+                      label: Text('Members'),
+                      icon: Icon(Icons.star),
+                    ),
+                  ],
+                  selected: {_visibility},
+                  onSelectionChanged: (Set<ContentVisibility> newSelection) {
+                    setState(() {
+                      _visibility = newSelection.first;
+                      // Map visibility to database flags
+                      if (_visibility == ContentVisibility.public) {
+                        _isVisible = true;
+                        _isMembersOnly = false;
+                      } else if (_visibility ==
+                          ContentVisibility.certainUsers) {
+                        _isVisible = false;
+                        _isMembersOnly = false;
+                      } else if (_visibility == ContentVisibility.membersOnly) {
+                        _isVisible = true;
+                        _isMembersOnly = true;
+                      }
+                    });
+                  },
+                ),
+                if (_visibility == ContentVisibility.certainUsers) ...[
+                  const SizedBox(height: 16),
+                  UserVisibilitySelector(
+                    selectedUserIds: _visibleTo,
+                    onChanged: (users) {
+                      setState(() => _visibleTo = users);
+                    },
+                  ),
+                ],
+              ],
             ),
-            ButtonSegment(
-              value: ContentVisibility.certainUsers,
-              label: Text('Private'),
-              icon: Icon(Icons.people_outline),
-            ),
-            ButtonSegment(
-              value: ContentVisibility.membersOnly,
-              label: Text('Members'),
-              icon: Icon(Icons.star),
-            ),
-          ],
-          selected: {_visibility},
-          onSelectionChanged: (Set<ContentVisibility> newSelection) {
-            setState(() {
-              _visibility = newSelection.first;
-              // Map visibility to database flags
-              if (_visibility == ContentVisibility.public) {
-                _isVisible = true;
-                _isMembersOnly = false;
-              } else if (_visibility == ContentVisibility.certainUsers) {
-                _isVisible = false;
-                _isMembersOnly = false;
-              } else if (_visibility == ContentVisibility.membersOnly) {
-                _isVisible = true;
-                _isMembersOnly = true;
-              }
-            });
-          },
-        ),
-        if (_visibility == ContentVisibility.certainUsers) ...[
-          const SizedBox(height: 16),
-          UserVisibilitySelector(
-            selectedUserIds: _visibleTo,
-            onChanged: (users) {
-              setState(() => _visibleTo = users);
-            },
           ),
-        ],
+        ),
         const SizedBox(height: 16),
         StreamBuilder<UserRole>(
           stream: RoleService.instance.roleStream(
@@ -565,24 +607,50 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           builder: (context, snapshot) {
             final role = snapshot.data;
             if (role == UserRole.admin || role == UserRole.superadmin) {
-              return CheckboxListTile(
-                title: const Text('Upload as Grammatica Quiz'),
-                subtitle: const Text(
-                  'This will appear in the official "Grammatica Quizzes" folder',
-                ),
-                value: _isGrammaticaQuiz,
-                onChanged: (val) {
-                  setState(() {
-                    _isGrammaticaQuiz = val ?? false;
-                    if (_isGrammaticaQuiz) {
-                      _maxAttemptsCtrl.text = '1000000';
-                    } else {
-                      _maxAttemptsCtrl.text = '1';
-                    }
-                  });
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
+              return Column(
+                children: [
+                  CheckboxListTile(
+                    title: const Text('Upload as Grammatica Assessment'),
+                    subtitle: const Text(
+                      'Appear under "English Assessment" in Practice tab. Enforces public visibility.',
+                    ),
+                    value: _isAssessment,
+                    onChanged: (val) {
+                      setState(() {
+                        _isAssessment = val ?? false;
+                        if (_isAssessment) {
+                          _isGrammaticaQuiz = false;
+                          _isVisible = true;
+                          _isMembersOnly = false;
+                          _visibility = ContentVisibility.public;
+                        }
+                      });
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  CheckboxListTile(
+                    title: const Text('Upload as Grammatica Quiz'),
+                    subtitle: const Text(
+                      'This will appear in the official "Grammatica Quizzes" folder',
+                    ),
+                    value: _isGrammaticaQuiz,
+                    onChanged: _isAssessment
+                        ? null
+                        : (val) {
+                            setState(() {
+                              _isGrammaticaQuiz = val ?? false;
+                              if (_isGrammaticaQuiz) {
+                                _maxAttemptsCtrl.text = '1000000';
+                              } else {
+                                _maxAttemptsCtrl.text = '1';
+                              }
+                            });
+                          },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ],
               );
             }
             return const SizedBox.shrink();
@@ -678,12 +746,46 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       ...List.generate(_optionsCtrls[index].length, (optIdx) {
                         return Row(
                           children: [
+                            Radio<int>(
+                              value: optIdx,
+                              groupValue: () {
+                                final correctText = _answerCtrls[index].text;
+                                if (correctText.isEmpty) return -1;
+                                return _optionsCtrls[index].indexWhere(
+                                  (ctrl) => ctrl.text == correctText,
+                                );
+                              }(),
+                              onChanged: (int? val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _answerCtrls[index].text =
+                                        _optionsCtrls[index][val].text;
+                                  });
+                                }
+                              },
+                            ),
                             Expanded(
                               child: TextField(
                                 controller: _optionsCtrls[index][optIdx],
                                 decoration: InputDecoration(
                                   labelText: 'Option ${optIdx + 1}',
                                 ),
+                                onChanged: (val) {
+                                  // Find if this option is currently selected as correct
+                                  final correctText = _answerCtrls[index].text;
+                                  // If the correct answer text matches the OLD value of this controller,
+                                  // we might want to update it. But simpler:
+                                  // just check if the index matches.
+                                  final selectedIdx = _optionsCtrls[index]
+                                      .indexWhere(
+                                        (ctrl) => ctrl.text == correctText,
+                                      );
+
+                                  if (selectedIdx == optIdx) {
+                                    _answerCtrls[index].text = val;
+                                  }
+                                  setState(() {});
+                                },
                               ),
                             ),
                             IconButton(
@@ -708,13 +810,21 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       ),
                     ],
                     const SizedBox(height: 8),
-                    TextField(
-                      controller: _answerCtrls[index],
-                      decoration: const InputDecoration(
-                        labelText: 'Correct Answer',
-                        hintText: 'Should match one of the options for MC',
+                    if (_questionTypes[index] == 'text')
+                      TextField(
+                        controller: _answerCtrls[index],
+                        decoration: const InputDecoration(
+                          labelText: 'Correct Answer',
+                        ),
+                      )
+                    else
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          'Correct Answer: ${_answerCtrls[index].text.isEmpty ? "(None selected)" : _answerCtrls[index].text}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -793,6 +903,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _isVisible = true;
     _isMembersOnly = false;
     _isGrammaticaQuiz = false;
+    _isAssessment = false;
     _visibility = ContentVisibility.public;
     _visibleTo = [];
     setState(() {});
@@ -849,6 +960,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
           isGrammaticaQuiz: _isGrammaticaQuiz,
+          isAssessment: _isAssessment,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
@@ -878,6 +990,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
           isGrammaticaQuiz: _isGrammaticaQuiz,
+          isAssessment: _isAssessment,
         );
         if (mounted) {
           ScaffoldMessenger.of(

@@ -24,7 +24,10 @@ class QuizFolderPage extends StatefulWidget {
     required this.pillLabel,
     required this.quizzes,
     this.isPublicContentFolder = false,
+    this.onBack,
   });
+
+  final VoidCallback? onBack;
 
   @override
   State<QuizFolderPage> createState() => _QuizFolderPageState();
@@ -80,6 +83,12 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
         title: Text(widget.title),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: widget.onBack != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+              )
+            : null,
       ),
       body: Column(
         children: [
@@ -220,6 +229,12 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
         title: Text(widget.title),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: widget.onBack != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+              )
+            : null,
       ),
       body: StreamBuilder<Map<String, Map<String, dynamic>>>(
         stream: DatabaseService.instance.quizProgressStream(widget.user),

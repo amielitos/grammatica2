@@ -4,6 +4,9 @@ import '../widgets/glass_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'spelling_bee_page.dart';
 import 'pronunciation_quiz_page.dart';
+import '../services/database_service.dart';
+import '../services/role_service.dart';
+import 'quiz_folder_page.dart';
 
 class PracticeTab extends StatefulWidget {
   const PracticeTab({super.key});
@@ -13,7 +16,7 @@ class PracticeTab extends StatefulWidget {
 }
 
 class _PracticeTabState extends State<PracticeTab> {
-  int? _selectedSubTab; // null = Selection, 0 = Bee, 1 = Voice
+  int? _selectedSubTab; // null = Selection, 0 = Bee, 1 = Voice, 2 = Assessment
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +34,39 @@ class _PracticeTabState extends State<PracticeTab> {
       return PronunciationQuizPage(
         user: user,
         onBack: () => setState(() => _selectedSubTab = null),
+      );
+    }
+    if (_selectedSubTab == 2) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return const Center(child: Text("Please login first"));
+
+      return StreamBuilder<UserRole>(
+        stream: RoleService.instance.roleStream(user.uid),
+        builder: (context, roleSnap) {
+          final role = roleSnap.data;
+          return StreamBuilder<List<Quiz>>(
+            stream: DatabaseService.instance.streamQuizzes(
+              userRole: role,
+              userId: user.uid,
+            ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final assessments = (snapshot.data ?? [])
+                  .where((q) => q.isAssessment)
+                  .toList();
+
+              return QuizFolderPage(
+                user: user,
+                title: 'English Assessment',
+                pillLabel: 'Assessment',
+                quizzes: assessments,
+                onBack: () => setState(() => _selectedSubTab = null),
+              );
+            },
+          );
+        },
       );
     }
 
@@ -71,6 +107,14 @@ class _PracticeTabState extends State<PracticeTab> {
             icon: Icons.mic,
             backgroundColor: Colors.pink.shade300,
             onTap: () => setState(() => _selectedSubTab = 1),
+          ),
+          const SizedBox(height: 20),
+          _PracticeCard(
+            title: 'English Assessment',
+            subtitle: 'Take your formal English evaluation',
+            icon: Icons.assignment_turned_in,
+            backgroundColor: Colors.blue.shade600,
+            onTap: () => setState(() => _selectedSubTab = 2),
           ),
         ],
       ),
