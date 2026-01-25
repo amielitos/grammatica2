@@ -4,6 +4,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; // For kIsWeb
+import 'dart:js_interop'; // For JS interop
+import 'package:web/web.dart' as web; // For native web APIs
 import '../models/spelling_word.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
@@ -41,12 +44,23 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     _initTts();
   }
 
-  void _initTts() {
+  Future<void> _initTts() async {
     _flutterTts.setStartHandler(() => setState(() => _isPlaying = true));
     _flutterTts.setCompletionHandler(() => setState(() => _isPlaying = false));
-    _flutterTts.setErrorHandler((msg) => setState(() => _isPlaying = false));
-    _flutterTts.setLanguage("en-US");
-    _flutterTts.setSpeechRate(0.5);
+    _flutterTts.setErrorHandler((msg) {
+      debugPrint("TTS Error: $msg");
+      setState(() => _isPlaying = false);
+    });
+
+    try {
+      // Small delay to ensure voices are available on some browsers
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _flutterTts.setLanguage("en-US");
+      await _flutterTts.setSpeechRate(0.4);
+      await _flutterTts.setVolume(1.0);
+    } catch (e) {
+      debugPrint("Error initializing TTS: $e");
+    }
   }
 
   @override
@@ -104,22 +118,57 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     final random = Random();
     final List<SpellingWord> shuffled = List.from(allWords)..shuffle(random);
 
-    setState(() {
-      _selectedDifficulty = difficulty;
-      _sessionWords = shuffled.take(10).toList();
-      _currentIndex = 0;
-      _score = 0;
-      _isGameOver = false;
-      _answerController.clear();
-    });
+    try {
+      setState(() {
+        _selectedDifficulty = difficulty;
+        _sessionWords = shuffled.take(10).toList();
+        _currentIndex = 0;
+        _score = 0;
+        _isGameOver = false;
+        _answerController.clear();
+      });
 
-    _speakWord();
-    _startTimer();
+      await _speakWord();
+      _startTimer();
+    } catch (e) {
+      debugPrint("Error starting session: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to start session: $e')));
+      }
+    }
   }
 
   Future<void> _speakWord() async {
     if (_sessionWords.isEmpty) return;
-    await _flutterTts.speak(_sessionWords[_currentIndex].word);
+    final word = _sessionWords[_currentIndex].word;
+
+    bool pluginSuccess = false;
+    try {
+      await _flutterTts.speak(word);
+      pluginSuccess = true;
+    } catch (e) {
+      debugPrint("TTS Plugin Error: $e");
+    }
+
+    // Fallback to native Web Speech API if plugin fails on Web
+    if (!pluginSuccess && kIsWeb) {
+      try {
+        final utterance = web.SpeechSynthesisUtterance(word);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.8;
+        web.window.speechSynthesis.speak(utterance);
+
+        // Manual state update since we bypass plugin handlers
+        setState(() => _isPlaying = true);
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) setState(() => _isPlaying = false);
+        });
+      } catch (e) {
+        debugPrint("Native Web Speech Fallback Error: $e");
+      }
+    }
   }
 
   void _submitAnswer() {
@@ -154,7 +203,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(CupertinoIcons.back),
+          icon: const Icon(Icons.arrow_back), // Material fallback
           onPressed: widget.onBack,
         ),
         title: const Text('Spelling Bee'),
@@ -167,7 +216,10 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
               if (snapshot.data == UserRole.admin ||
                   snapshot.data == UserRole.superadmin) {
                 return IconButton(
-                  icon: const Icon(CupertinoIcons.settings, size: 32),
+                  icon: const Icon(
+                    Icons.settings,
+                    size: 32,
+                  ), // Material fallback
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const AdminSpellingWordsTab(),
@@ -205,7 +257,11 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            const Icon(CupertinoIcons.ant, size: 80, color: Colors.amber),
+            const Icon(
+              Icons.bug_report,
+              size: 80,
+              color: Colors.amber,
+            ), // Material fallback for ant
             const SizedBox(height: 24),
             Text(
               'Select Difficulty',
@@ -271,7 +327,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                 child: Row(
                   children: [
                     Icon(
-                      CupertinoIcons.timer,
+                      Icons.timer,
                       size: 18,
                       color: _timeLeft < 10 ? Colors.red : Colors.blue,
                     ),
@@ -297,8 +353,8 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                 iconSize: 64,
                 icon: Icon(
                   _isPlaying
-                      ? CupertinoIcons.pause_circle_fill
-                      : CupertinoIcons.play_circle_fill,
+                      ? Icons.pause_circle_filled
+                      : Icons.play_circle_filled,
                   color: Colors.amber,
                 ),
                 onPressed: _speakWord,
@@ -307,7 +363,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
               IconButton(
                 iconSize: 48,
                 icon: const Icon(
-                  CupertinoIcons.arrow_2_circlepath_circle_fill,
+                  Icons.replay_circle_filled,
                   color: Colors.blueGrey,
                 ),
                 onPressed: _speakWord,
@@ -379,11 +435,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              CupertinoIcons.checkmark_seal_fill,
-              size: 80,
-              color: Colors.green,
-            ),
+            const Icon(Icons.check_circle, size: 80, color: Colors.green),
             const SizedBox(height: 24),
             const Text(
               'Session Complete!',

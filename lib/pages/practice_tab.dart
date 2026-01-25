@@ -54,7 +54,7 @@ class _PracticeTabState extends State<PracticeTab> {
           _PracticeCard(
             title: 'Spelling Bee',
             subtitle: 'Master spelling through fun challenges',
-            icon: CupertinoIcons.ant,
+            icon: Icons.bug_report,
             backgroundColor: Colors.yellow.shade700,
             onTap: () => setState(() => _selectedSubTab = 0),
           ),
@@ -62,7 +62,7 @@ class _PracticeTabState extends State<PracticeTab> {
           _PracticeCard(
             title: 'Pronunciation',
             subtitle: 'Practice speaking with voice feedback',
-            icon: CupertinoIcons.mic,
+            icon: Icons.mic,
             backgroundColor: Colors.pink.shade300,
             onTap: () => setState(() => _selectedSubTab = 1),
           ),
@@ -129,11 +129,7 @@ class _PracticeCard extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
-              CupertinoIcons.chevron_right,
-              color: backgroundColor,
-              size: 20,
-            ),
+            Icon(Icons.chevron_right, color: backgroundColor, size: 20),
           ],
         ),
       ),
@@ -151,7 +147,7 @@ class _VoiceView extends StatelessWidget {
       children: [
         AppBar(
           leading: IconButton(
-            icon: const Icon(CupertinoIcons.back),
+            icon: const Icon(Icons.arrow_back),
             onPressed: onBack,
           ),
           title: const Text('Pronunciation'),
@@ -163,7 +159,7 @@ class _VoiceView extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(CupertinoIcons.mic, size: 80, color: Colors.pink),
+                Icon(Icons.mic, size: 80, color: Colors.pink),
                 SizedBox(height: 24),
                 Text(
                   'Pronunciation',

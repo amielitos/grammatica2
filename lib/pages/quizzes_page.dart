@@ -222,7 +222,7 @@ class QuizzesPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
-                CupertinoIcons.folder_solid,
+                Icons.folder,
                 size: 42, // Increased icon size
                 color: iconColor,
               ),

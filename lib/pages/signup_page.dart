@@ -94,7 +94,7 @@ class _SignupPageState extends State<SignupPage> {
                         controller: _emailController,
                         decoration: const InputDecoration(
                           labelText: 'Email',
-                          prefixIcon: Icon(CupertinoIcons.mail),
+                          prefixIcon: Icon(Icons.email),
                         ),
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
@@ -124,12 +124,12 @@ class _SignupPageState extends State<SignupPage> {
                         },
                         decoration: InputDecoration(
                           labelText: 'Password',
-                          prefixIcon: const Icon(CupertinoIcons.lock),
+                          prefixIcon: const Icon(Icons.lock),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword
-                                  ? CupertinoIcons.eye
-                                  : CupertinoIcons.eye_slash,
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
                             ),
                             onPressed: () {
                               setState(() {
@@ -154,12 +154,12 @@ class _SignupPageState extends State<SignupPage> {
                         },
                         decoration: InputDecoration(
                           labelText: 'Confirm Password',
-                          prefixIcon: const Icon(CupertinoIcons.lock),
+                          prefixIcon: const Icon(Icons.lock),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword
-                                  ? CupertinoIcons.eye
-                                  : CupertinoIcons.eye_slash,
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
                             ),
                             onPressed: () {
                               setState(() {

@@ -137,8 +137,9 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
                   );
                 }).toList(),
                 onChanged: (val) {
-                  if (val != null)
+                  if (val != null) {
                     setDialogState(() => selectedDifficulty = val);
+                  }
                 },
               ),
             ],
@@ -280,7 +281,7 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
                               if (confirm) {
                                 await DatabaseService.instance
                                     .deleteSpellingWord(sw.id);
-                                setState(() {}); // Refresh
+                                setState(() {}); // Refresh list
                               }
                             },
                           ),

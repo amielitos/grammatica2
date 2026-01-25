@@ -282,8 +282,9 @@ class DatabaseService {
     if (isVisible != null) data['isVisible'] = isVisible;
     if (visibleTo != null) data['visibleTo'] = visibleTo;
     if (isMembersOnly != null) data['isMembersOnly'] = isMembersOnly;
-    if (isGrammaticaLesson != null)
+    if (isGrammaticaLesson != null) {
       data['isGrammaticaLesson'] = isGrammaticaLesson;
+    }
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
     }
@@ -827,8 +828,9 @@ class DatabaseService {
         .limit(1)
         .get();
 
-    if (existing.docs.isNotEmpty)
+    if (existing.docs.isNotEmpty) {
       return; // Silent ignore or throw error? Let's ignore for now.
+    }
 
     await _spellingWords.add({
       'word': word.trim(),
@@ -852,6 +854,7 @@ class DatabaseService {
     }
   }
 
+  /// Deletes a specific spelling word by its document ID.
   Future<void> deleteSpellingWord(String id) async {
     await _spellingWords.doc(id).delete();
   }

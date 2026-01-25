@@ -590,7 +590,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ), // "Success Rate"
                 Text(
-                  'Based on ${completedCount} completed quizzes',
+                  'Based on $completedCount completed quizzes',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],

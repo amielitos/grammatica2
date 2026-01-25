@@ -51,22 +51,16 @@ class _HomePageState extends State<HomePage> {
           }
         },
         items: [
-          const ModernNavItem(icon: CupertinoIcons.book, label: 'Lessons'),
+          const ModernNavItem(icon: Icons.book, label: 'Lessons'),
           ModernNavItem(
-            icon: CupertinoIcons.sparkles,
+            icon: Icons.auto_awesome,
             label: 'Practice',
             selectedColor: Colors.orange.shade400,
           ),
-          const ModernNavItem(
-            icon: CupertinoIcons.question_circle,
-            label: 'Quizzes',
-          ),
-          const ModernNavItem(
-            icon: CupertinoIcons.creditcard,
-            label: 'Subscription',
-          ),
+          const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
+          const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
           ModernNavItem(
-            icon: CupertinoIcons.person,
+            icon: Icons.person,
             label: user.displayName?.split(' ').first ?? 'Profile',
           ),
         ],
@@ -304,7 +298,7 @@ class _LessonsList extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
-                CupertinoIcons.folder_solid,
+                Icons.folder,
                 size: 42, // Increased icon size
                 color: iconColor,
               ),
