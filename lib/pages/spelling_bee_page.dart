@@ -68,9 +68,14 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
 
       // Small delay to ensure voices are available on some browsers
       await Future.delayed(const Duration(milliseconds: 500));
-      await _flutterTts.setLanguage("en-US");
-      await _flutterTts.setSpeechRate(0.4);
-      await _flutterTts.setVolume(1.0);
+
+      try {
+        await _flutterTts.setLanguage("en-US");
+        await _flutterTts.setSpeechRate(0.4);
+        await _flutterTts.setVolume(1.0);
+      } catch (e) {
+        debugPrint("TTS Configuration Error (likely MissingPlugin on Web): $e");
+      }
     } catch (e) {
       debugPrint("Robust TTS Init Catch: $e");
       // On Web, MissingPluginException is common if registration fails.
@@ -81,8 +86,16 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   @override
   void dispose() {
     _timer?.cancel();
-    _flutterTts.stop();
-    _audioPlayer.dispose();
+    try {
+      _flutterTts.stop();
+    } catch (e) {
+      debugPrint("Error stopping TTS in dispose: $e");
+    }
+    try {
+      _audioPlayer.dispose();
+    } catch (e) {
+      debugPrint("Error disposing audio player: $e");
+    }
     _answerController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -165,8 +178,16 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     final word = currentWordObj.word;
 
     // Stop ongoing audio/TTS
-    await _audioPlayer.stop();
-    await _flutterTts.stop();
+    try {
+      await _audioPlayer.stop();
+    } catch (e) {
+      debugPrint("Error stopping audio player: $e");
+    }
+    try {
+      await _flutterTts.stop();
+    } catch (e) {
+      debugPrint("Error stopping TTS: $e");
+    }
 
     // Prioritize recorded audio
     if (currentWordObj.audioUrl != null &&
@@ -181,6 +202,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       } catch (e) {
         debugPrint("Error playing recorded audio: $e");
         // Fallback to TTS if audio play fails
+        if (mounted) setState(() => _isPlaying = false);
       }
     }
 
@@ -189,7 +211,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       await _flutterTts.speak(word);
       pluginSuccess = true;
     } catch (e) {
-      debugPrint("TTS Plugin Error: $e");
+      debugPrint("TTS Plugin Error (Speak): $e");
     }
 
     // Fallback to native Web Speech API if plugin fails on Web

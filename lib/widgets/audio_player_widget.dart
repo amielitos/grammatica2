@@ -86,15 +86,19 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   }
 
   Future<void> _play() async {
-    Source source;
-    if (widget.url != null) {
-      source = UrlSource(widget.url!);
-    } else if (widget.bytes != null) {
-      source = BytesSource(widget.bytes!);
-    } else {
-      source = DeviceFileSource(widget.path!);
+    try {
+      Source source;
+      if (widget.url != null) {
+        source = UrlSource(widget.url!);
+      } else if (widget.bytes != null) {
+        source = BytesSource(widget.bytes!);
+      } else {
+        source = DeviceFileSource(widget.path!);
+      }
+      await _player.play(source);
+    } catch (e) {
+      debugPrint("AudioPlayer play error: $e");
     }
-    await _player.play(source);
   }
 
   Future<void> _pause() async {
@@ -102,7 +106,11 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
   }
 
   Future<void> _stop() async {
-    await _player.stop();
+    try {
+      await _player.stop();
+    } catch (e) {
+      debugPrint("AudioPlayer stop error: $e");
+    }
     setState(() {
       _playerState = PlayerState.stopped;
       _position = Duration.zero;

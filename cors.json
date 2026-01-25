@@ -1,7 +1,21 @@
 [
   {
-    "origin": ["*"],
-    "method": ["GET"],
+    "origin": [
+      "*"
+    ],
+    "method": [
+      "GET",
+      "HEAD",
+      "PUT",
+      "POST",
+      "DELETE"
+    ],
+    "responseHeader": [
+      "Content-Type",
+      "x-goog-resumable",
+      "Access-Control-Allow-Origin",
+      "Range"
+    ],
     "maxAgeSeconds": 3600
   }
 ]

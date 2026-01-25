@@ -330,7 +330,14 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
 
   Future<void> _startRecording() async {
     try {
-      if (await widget.recorder.hasPermission()) {
+      // On web, record package might throw MissingPluginException for hasPermission
+      // because browser handles this through start() or native APIs.
+      bool hasPermission = true;
+      if (!kIsWeb) {
+        hasPermission = await widget.recorder.hasPermission();
+      }
+
+      if (hasPermission) {
         String? path;
 
         if (!kIsWeb) {
@@ -340,12 +347,17 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
                 '${directory.path}/recording_${DateTime.now().millisecondsSinceEpoch}.m4a';
           } catch (e) {
             debugPrint('Failed to get temp directory: $e');
-            // If path provider fails, we can try to start without path,
-            // though some platforms might require it.
           }
         }
 
-        await widget.recorder.start(const RecordConfig(), path: path ?? '');
+        // On web, we should NOT pass a path, even an empty one can sometimes cause issues
+        // with the web implementation if it expects null for blob recording.
+        if (kIsWeb) {
+          await widget.recorder.start(const RecordConfig(), path: '');
+        } else {
+          await widget.recorder.start(const RecordConfig(), path: path ?? '');
+        }
+
         setState(() {
           _isRecording = true;
           _audioPath = path;
@@ -361,39 +373,55 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
           }
         });
       }
-    } catch (e) {
+    } catch (e, stack) {
       debugPrint('Recording error: $e');
+      debugPrint('Stack trace: $stack');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Recording failed. Please check microphone permissions: $e',
+            ),
+          ),
+        );
+      }
     }
   }
 
   Future<void> _stopRecording() async {
-    _recordingTimer?.cancel();
-    final path = await widget.recorder.stop();
-    setState(() {
-      _isRecording = false;
-      if (path != null) {
-        _audioPath = path;
-      }
-    });
-
-    if (path != null) {
-      if (kIsWeb) {
-        // On web, we might need to fetch the blob
-        try {
-          final response = await web.window.fetch(path.toJS).toDart;
-          final blob = await response.blob().toDart;
-          final arrayBuffer = await blob.arrayBuffer().toDart;
-          setState(() {
-            _audioBytes = arrayBuffer.toDart.asUint8List();
-          });
-        } catch (e) {
-          debugPrint('Web blob fetch error: $e');
+    try {
+      _recordingTimer?.cancel();
+      final path = await widget.recorder.stop();
+      setState(() {
+        _isRecording = false;
+        if (path != null) {
+          _audioPath = path;
         }
-      } else {
-        setState(() {
-          _audioBytes = File(path).readAsBytesSync();
-        });
+      });
+
+      if (path != null) {
+        if (kIsWeb) {
+          // On web, we might need to fetch the blob
+          try {
+            final response = await web.window.fetch(path.toJS).toDart;
+            final blob = await response.blob().toDart;
+            final arrayBuffer = await blob.arrayBuffer().toDart;
+            setState(() {
+              _audioBytes = arrayBuffer.toDart.asUint8List();
+            });
+          } catch (e) {
+            debugPrint('Web blob fetch error: $e');
+          }
+        } else {
+          setState(() {
+            _audioBytes = File(path).readAsBytesSync();
+          });
+        }
       }
+    } catch (e, stack) {
+      debugPrint('Stop recording error: $e');
+      debugPrint('Stack trace: $stack');
+      setState(() => _isRecording = false);
     }
   }
 
