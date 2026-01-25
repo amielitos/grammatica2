@@ -2,47 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'quiz_detail_page.dart';
+
+import 'quiz_folder_page.dart';
 import '../widgets/glass_card.dart';
 import '../services/role_service.dart';
 
 class QuizzesPage extends StatelessWidget {
   final User user;
   const QuizzesPage({super.key, required this.user});
-
-  // Author name helper
-  Widget _authorName({
-    required String? uid,
-    required String? fallbackEmail,
-    TextStyle? style,
-  }) {
-    if (uid == null || uid.isEmpty) {
-      return Text('By: ${fallbackEmail ?? 'Unknown'}', style: style);
-    }
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .snapshots(),
-      builder: (context, snap) {
-        final data = snap.data?.data();
-        final username = (data?['username'] as String?)?.trim();
-        final display = (username != null && username.isNotEmpty)
-            ? username
-            : (fallbackEmail ?? 'Unknown');
-        return Text('By: $display', style: style);
-      },
-    );
-  }
-
-  String _fmt(Timestamp ts) {
-    final d = ts.toDate().toLocal();
-    final m = d.month.toString().padLeft(2, '0');
-    final da = d.day.toString().padLeft(2, '0');
-    final y = d.year.toString();
-    return '$m-$da-$y';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,12 +34,7 @@ class QuizzesPage extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'Error loading quizzes: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                );
+                return Center(child: Text('Error: ${snapshot.error}'));
               }
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text('No quizzes available.'));
@@ -90,189 +52,126 @@ class QuizzesPage extends StatelessWidget {
                     ),
                 builder: (context, subsSnap) {
                   final subscriptions = subsSnap.data ?? const {};
-                  final visibleQuizzes = quizzes.where((q) {
-                    if (role == UserRole.admin || role == UserRole.superadmin) {
+
+                  // 1. Grammatica Quizzes
+                  final grammaticaQuizzes = quizzes
+                      .where((q) => q.isGrammaticaQuiz == true)
+                      .toList();
+
+                  // 2. Subscribed Educator Quizzes (Members Only)
+                  final subscribedQuizzes = quizzes.where((q) {
+                    if (q.isGrammaticaQuiz) return false;
+                    // Only include subscribed & members only
+                    if (subscriptions[q.createdByUid] == true &&
+                        q.isMembersOnly) {
                       return true;
                     }
-                    if (!q.isMembersOnly) return true;
-                    if (q.createdByUid == user.uid) return true;
-                    return subscriptions[q.createdByUid] == true;
+                    return false;
                   }).toList();
 
-                  if (visibleQuizzes.isEmpty) {
+                  // 3. Public Quizzes
+                  final publicQuizzes = quizzes.where((q) {
+                    if (q.isGrammaticaQuiz) return false;
+                    // Exclude members only (they go to subscribed or filtered out)
+                    if (q.isMembersOnly) return false;
+                    // Everything else public
+                    if (!q.isVisible) return false;
+                    return true;
+                  }).toList();
+
+                  final List<Widget> folderCards = [];
+
+                  // Grammatica Folder
+                  if (grammaticaQuizzes.isNotEmpty) {
+                    folderCards.add(
+                      _buildFolderCard(
+                        context,
+                        title: 'Grammatica',
+                        description: 'Official quizzes',
+                        pillLabel: 'Grammatica',
+                        pillColor: Colors.purple,
+                        iconColor: Colors.purpleAccent,
+                        onTap: () => _openFolder(
+                          context,
+                          title: 'Grammatica Quizzes',
+                          pillLabel: 'From Grammatica',
+                          quizzes: grammaticaQuizzes,
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Your Educators Folder
+                  if (subscribedQuizzes.isNotEmpty) {
+                    folderCards.add(
+                      _buildFolderCard(
+                        context,
+                        title: 'Your Educators',
+                        description: 'Members-only content',
+                        pillLabel: 'Subscribed',
+                        pillColor: Colors.green,
+                        iconColor: Colors.greenAccent,
+                        onTap: () => _openFolder(
+                          context,
+                          title: 'Your Educators',
+                          pillLabel: 'Members Only',
+                          quizzes: subscribedQuizzes,
+                          isPublicFolder: true, // Use nesting logic
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Public Content
+                  if (publicQuizzes.isNotEmpty) {
+                    folderCards.add(
+                      _buildFolderCard(
+                        context,
+                        title: 'Public',
+                        description: 'Community quizzes',
+                        pillLabel: 'Public',
+                        pillColor: Colors.blue,
+                        iconColor: Colors.lightBlueAccent,
+                        onTap: () => _openFolder(
+                          context,
+                          title: 'Public Content',
+                          pillLabel: 'Public',
+                          quizzes: publicQuizzes,
+                          isPublicFolder: true,
+                        ),
+                      ),
+                    );
+                  }
+
+                  if (folderCards.isEmpty) {
                     return const Center(child: Text('No quizzes available.'));
                   }
 
-                  return StreamBuilder<Map<String, Map<String, dynamic>>>(
-                    stream: DatabaseService.instance.quizProgressStream(user),
-                    builder: (context, progSnap) {
-                      final progress = progSnap.data ?? const {};
-                      return ListView.separated(
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
                         padding: const EdgeInsets.all(16),
-                        itemCount: visibleQuizzes.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final q = visibleQuizzes[index];
-                          final isSubbedMembersOnly =
-                              q.isMembersOnly &&
-                              subscriptions[q.createdByUid] == true;
-                          final progData = progress[q.id];
-                          final completed = progData?['completed'] == true;
-                          final isCorrect = progData?['isCorrect'] == true;
-                          final attempts =
-                              (progData?['attemptsUsed'] as int?) ?? 0;
-                          final max = q.maxAttempts;
-
-                          bool failed = !isCorrect && attempts >= max;
-
-                          String createdAtStr = q.createdAt != null
-                              ? _fmt(q.createdAt!)
-                              : 'N/A';
-
-                          return GlassCard(
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    QuizDetailPage(user: user, quiz: q),
-                              ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight - 32,
+                          ),
+                          child: Center(
+                            child: Wrap(
+                              spacing: 16,
+                              runSpacing: 16,
+                              alignment: WrapAlignment.center,
+                              children: folderCards
+                                  .map(
+                                    (w) => SizedBox(
+                                      width: 234, // 50% Bigger card width
+                                      height: 324, // 50% Bigger card height
+                                      child: w,
+                                    ),
+                                  )
+                                  .toList(),
                             ),
-                            borderColor: isSubbedMembersOnly
-                                ? Colors.green
-                                : null,
-                            child: Padding(
-                              padding: const EdgeInsets.all(4.0),
-                              child: ListTile(
-                                title: Text(
-                                  q.title,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color:
-                                                (q.isMembersOnly
-                                                        ? Colors.amber
-                                                        : Colors.blue)
-                                                    .withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                            border: Border.all(
-                                              color:
-                                                  (q.isMembersOnly
-                                                          ? Colors.amber
-                                                          : Colors.blue)
-                                                      .withOpacity(0.5),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            q.isMembersOnly
-                                                ? 'Members Only'
-                                                : 'Public',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              color: q.isMembersOnly
-                                                  ? Colors.amber.shade900
-                                                  : Colors.blue.shade900,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Flexible(
-                                          child: _authorName(
-                                            uid: q.createdByUid,
-                                            fallbackEmail: q.createdByEmail,
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.bodySmall,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Text(
-                                      'Created: $createdAtStr',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                  ],
-                                ),
-                                trailing: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    if (completed)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.green.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.green,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'Passed',
-                                          style: TextStyle(
-                                            color: Colors.green,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      )
-                                    else if (failed)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          border: Border.all(color: Colors.red),
-                                        ),
-                                        child: const Text(
-                                          'Failed',
-                                          style: TextStyle(
-                                            color: Colors.red,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      )
-                                    else
-                                      Icon(
-                                        CupertinoIcons.chevron_right,
-                                        color: Colors.grey[400],
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
+                          ),
+                        ),
                       );
                     },
                   );
@@ -281,6 +180,93 @@ class QuizzesPage extends StatelessWidget {
             },
           );
         },
+      ),
+    );
+  }
+
+  void _openFolder(
+    BuildContext context, {
+    required String title,
+    required String pillLabel,
+    required List<Quiz> quizzes,
+    bool isPublicFolder = false,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => QuizFolderPage(
+          user: user,
+          title: title,
+          pillLabel: pillLabel,
+          quizzes: quizzes,
+          isPublicContentFolder: isPublicFolder,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFolderCard(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required String pillLabel,
+    required Color pillColor,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: GlassCard(
+        child: Padding(
+          padding: const EdgeInsets.all(12.0), // Increased padding
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                CupertinoIcons.folder_solid,
+                size: 42, // Increased icon size
+                color: iconColor,
+              ),
+              const Spacer(),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontSize: 14),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: pillColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: pillColor.withOpacity(0.5)),
+                ),
+                child: Text(
+                  pillLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: pillColor.withOpacity(1.0),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

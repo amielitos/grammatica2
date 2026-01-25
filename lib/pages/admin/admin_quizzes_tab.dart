@@ -39,6 +39,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
   List<List<TextEditingController>> _optionsCtrls = [[]];
   bool _isVisible = true;
   bool _isMembersOnly = false;
+  bool _isGrammaticaQuiz = false;
   List<String> _visibleTo = [];
   String _searchQuery = '';
 
@@ -244,6 +245,8 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                         .toList();
                                     _isVisible = q.isVisible;
                                     _isMembersOnly = q.isMembersOnly;
+                                    _isVisible = q.isVisible;
+                                    _isMembersOnly = q.isMembersOnly;
                                     _visibleTo = List<String>.from(q.visibleTo);
 
                                     if (q.isMembersOnly) {
@@ -255,6 +258,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                     } else {
                                       _visibility = ContentVisibility.public;
                                     }
+                                    _isGrammaticaQuiz = q.isGrammaticaQuiz;
                                     if (_questionCtrls.isEmpty) {
                                       _questionCtrls = [
                                         TextEditingController(),
@@ -496,6 +500,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 controller: _maxAttemptsCtrl,
                 decoration: const InputDecoration(labelText: 'Max Attempts'),
                 keyboardType: TextInputType.number,
+                enabled: !_isGrammaticaQuiz,
               ),
             ),
           ],
@@ -552,6 +557,37 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
             },
           ),
         ],
+        const SizedBox(height: 16),
+        StreamBuilder<UserRole>(
+          stream: RoleService.instance.roleStream(
+            AuthService.instance.currentUser?.uid ?? '',
+          ),
+          builder: (context, snapshot) {
+            final role = snapshot.data;
+            if (role == UserRole.admin || role == UserRole.superadmin) {
+              return CheckboxListTile(
+                title: const Text('Upload as Grammatica Quiz'),
+                subtitle: const Text(
+                  'This will appear in the official "Grammatica Quizzes" folder',
+                ),
+                value: _isGrammaticaQuiz,
+                onChanged: (val) {
+                  setState(() {
+                    _isGrammaticaQuiz = val ?? false;
+                    if (_isGrammaticaQuiz) {
+                      _maxAttemptsCtrl.text = '1000000';
+                    } else {
+                      _maxAttemptsCtrl.text = '1';
+                    }
+                  });
+                },
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
         const SizedBox(height: 16),
         _buildUploadUI(),
         const SizedBox(height: 24),
@@ -756,6 +792,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _answerCtrls = [TextEditingController()];
     _isVisible = true;
     _isMembersOnly = false;
+    _isGrammaticaQuiz = false;
     _visibility = ContentVisibility.public;
     _visibleTo = [];
     setState(() {});
@@ -811,6 +848,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           isVisible: _isVisible,
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
+          isGrammaticaQuiz: _isGrammaticaQuiz,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
@@ -839,6 +877,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
           isVisible: _isVisible,
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
+          isGrammaticaQuiz: _isGrammaticaQuiz,
         );
         if (mounted) {
           ScaffoldMessenger.of(

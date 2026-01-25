@@ -35,6 +35,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
   List<PlatformFile> _selectedFiles = [];
   bool _isVisible = true;
   bool _isMembersOnly = false;
+  bool _isGrammaticaLesson = false;
   List<String> _visibleTo = [];
   String _searchQuery = '';
 
@@ -196,205 +197,250 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                             final color = AppColors.primaryGreen;
 
                             final isOwner = l.createdByUid == currentUser?.uid;
-                            final canEdit = isOwner; // Only owners can edit
                             final isPending =
                                 l.validationStatus == 'awaiting_approval';
 
-                            return GlassCard(
-                              onTap: () {
-                                if (!canEdit) {
-                                  // Enable preview for non-editable content
-                                  if (currentUser != null) {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => LessonPage(
-                                          user: currentUser,
-                                          lesson: l,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  return;
-                                }
-                                setState(() {
-                                  if (isSelected) {
-                                    _resetForm();
-                                    _title.text = l.title;
-                                    _prompt.text = l.prompt;
-                                    _selectedFiles = [];
-                                    _isVisible = l.isVisible;
-                                    _isMembersOnly = l.isMembersOnly;
-                                    _visibleTo = List<String>.from(l.visibleTo);
+                            return FutureBuilder<bool>(
+                              future: _checkEditPermission(
+                                l,
+                                currentUser?.uid,
+                                role,
+                              ),
+                              initialData: isOwner,
+                              builder: (context, editSnap) {
+                                final canEdit = editSnap.data ?? false;
 
-                                    if (l.isMembersOnly) {
-                                      _visibility =
-                                          ContentVisibility.membersOnly;
-                                    } else if (!l.isVisible) {
-                                      _visibility =
-                                          ContentVisibility.certainUsers;
-                                    } else {
-                                      _visibility = ContentVisibility.public;
-                                    }
-                                  }
-                                });
-                              },
-                              backgroundColor: isSelected
-                                  ? color
-                                  : (!canEdit
-                                        ? Colors.grey.withValues(alpha: 0.05)
-                                        : null),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 4,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      color: isPending ? Colors.orange : color,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                l.title,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
-                                                  color: !canEdit
-                                                      ? Colors.grey
-                                                      : null,
-                                                ),
-                                              ),
+                                return GlassCard(
+                                  onTap: () {
+                                    if (!canEdit) {
+                                      // Enable preview for non-editable content
+                                      if (currentUser != null) {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => LessonPage(
+                                              user: currentUser,
+                                              lesson: l,
                                             ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          l.prompt,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: !canEdit
-                                                ? Colors.grey
-                                                : null,
+                                          ),
+                                        );
+                                      }
+                                      return;
+                                    }
+                                    setState(() {
+                                      if (isSelected) {
+                                        _resetForm();
+                                      } else {
+                                        _selectedLessonId = l.id;
+                                        _selectedLesson = l;
+                                        _title.text = l.title;
+                                        _prompt.text = l.prompt;
+                                        _selectedFiles = [];
+                                        _isVisible = l.isVisible;
+                                        _isMembersOnly = l.isMembersOnly;
+                                        _visibleTo = List<String>.from(
+                                          l.visibleTo,
+                                        );
+
+                                        if (l.isMembersOnly) {
+                                          _visibility =
+                                              ContentVisibility.membersOnly;
+                                        } else if (!l.isVisible) {
+                                          _visibility =
+                                              ContentVisibility.certainUsers;
+                                        } else {
+                                          _visibility =
+                                              ContentVisibility.public;
+                                        }
+                                        _isGrammaticaLesson =
+                                            l.isGrammaticaLesson;
+                                      }
+                                    });
+                                  },
+                                  backgroundColor: isSelected
+                                      ? color
+                                      : (!canEdit
+                                            ? Colors.grey.withOpacity(0.05)
+                                            : null),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        width: 4,
+                                        height: 60,
+                                        decoration: BoxDecoration(
+                                          color: isPending
+                                              ? Colors.orange
+                                              : color,
+                                          borderRadius: BorderRadius.circular(
+                                            4,
                                           ),
                                         ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 12,
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            if (l.attachmentName != null &&
-                                                l.attachmentName!.isNotEmpty)
-                                              Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  const Icon(
-                                                    CupertinoIcons.paperclip,
-                                                    size: 14,
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    l.title,
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 16,
+                                                      color: !canEdit
+                                                          ? Colors.grey
+                                                          : null,
+                                                    ),
                                                   ),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    l.attachmentName!,
-                                                    style: Theme.of(
-                                                      context,
-                                                    ).textTheme.bodySmall,
-                                                  ),
-                                                ],
-                                              ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
                                             Text(
-                                              'Created: ${_fmt(l.createdAt ?? Timestamp.now())} • ',
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodySmall,
+                                              l.prompt,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: !canEdit
+                                                    ? Colors.grey
+                                                    : null,
+                                              ),
                                             ),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 2,
+                                            const SizedBox(height: 8),
+                                            Wrap(
+                                              spacing: 12,
+                                              children: [
+                                                if (l.attachmentName != null &&
+                                                    l
+                                                        .attachmentName!
+                                                        .isNotEmpty)
+                                                  Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(
+                                                        CupertinoIcons
+                                                            .paperclip,
+                                                        size: 14,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        l.attachmentName!,
+                                                        style: Theme.of(
+                                                          context,
+                                                        ).textTheme.bodySmall,
+                                                      ),
+                                                    ],
                                                   ),
-                                              decoration: BoxDecoration(
-                                                color:
-                                                    (l.isMembersOnly
-                                                            ? Colors.amber
-                                                            : Colors.blue)
-                                                        .withOpacity(0.1),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                border: Border.all(
-                                                  color:
-                                                      (l.isMembersOnly
-                                                              ? Colors.amber
-                                                              : Colors.blue)
-                                                          .withOpacity(0.5),
+                                                Text(
+                                                  'Created: ${_fmt(l.createdAt ?? Timestamp.now())} • ',
+                                                  style: Theme.of(
+                                                    context,
+                                                  ).textTheme.bodySmall,
                                                 ),
-                                              ),
-                                              child: Text(
-                                                l.isMembersOnly
-                                                    ? 'Members Only'
-                                                    : 'Public',
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: l.isMembersOnly
-                                                      ? Colors.amber.shade900
-                                                      : Colors.blue.shade900,
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        (l.isMembersOnly
+                                                                ? Colors.amber
+                                                                : Colors.blue)
+                                                            .withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                    border: Border.all(
+                                                      color:
+                                                          (l.isMembersOnly
+                                                                  ? Colors.amber
+                                                                  : Colors.blue)
+                                                              .withOpacity(0.5),
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    l.isMembersOnly
+                                                        ? 'Members Only'
+                                                        : 'Public',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: l.isMembersOnly
+                                                          ? Colors
+                                                                .amber
+                                                                .shade900
+                                                          : Colors
+                                                                .blue
+                                                                .shade900,
+                                                    ),
+                                                  ),
                                                 ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            AuthorName(
-                                              uid: l.createdByUid,
-                                              fallbackEmail: l.createdByEmail,
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodySmall,
+                                                const SizedBox(width: 8),
+                                                AuthorName(
+                                                  uid: l.createdByUid,
+                                                  fallbackEmail:
+                                                      l.createdByEmail,
+                                                  style: Theme.of(
+                                                    context,
+                                                  ).textTheme.bodySmall,
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),
+                                      ),
+                                      if (isPending) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.withOpacity(
+                                              0.1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.orange.withOpacity(
+                                                0.5,
+                                              ),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Waiting for approval',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.orange,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
                                       ],
-                                    ),
+                                      if (canEdit)
+                                        IconButton(
+                                          icon: const Icon(
+                                            CupertinoIcons.trash,
+                                          ),
+                                          color: Colors.red[300],
+                                          onPressed: () => _deleteLesson(l),
+                                        ),
+                                    ],
                                   ),
-                                  if (isPending) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: Colors.orange.withOpacity(0.5),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Waiting for approval',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.orange,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  if (canEdit)
-                                    IconButton(
-                                      icon: const Icon(CupertinoIcons.trash),
-                                      color: Colors.red[300],
-                                      onPressed: () => _deleteLesson(l),
-                                    ),
-                                ],
-                              ),
+                                );
+                              },
                             );
                           },
                         ),
@@ -486,6 +532,29 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           alignment: Alignment.centerLeft,
           child: MarkdownGuideButton(),
         ),
+        const SizedBox(height: 16),
+        StreamBuilder<UserRole>(
+          stream: RoleService.instance.roleStream(
+            AuthService.instance.currentUser?.uid ?? '',
+          ),
+          builder: (context, snapshot) {
+            final role = snapshot.data;
+            if (role == UserRole.admin || role == UserRole.superadmin) {
+              return CheckboxListTile(
+                title: const Text('Upload as Grammatica Lesson'),
+                subtitle: const Text(
+                  'This will appear in the official "Grammatica Lessons" folder',
+                ),
+                value: _isGrammaticaLesson,
+                onChanged: (val) =>
+                    setState(() => _isGrammaticaLesson = val ?? false),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        ),
       ],
     );
   }
@@ -568,7 +637,9 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
     _prompt.clear();
     _selectedFiles = [];
     _isVisible = true;
+    _isVisible = true;
     _isMembersOnly = false;
+    _isGrammaticaLesson = false;
     _visibility = ContentVisibility.public;
     _visibleTo = [];
     setState(() {});
@@ -608,6 +679,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           isVisible: _isVisible,
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
+          isGrammaticaLesson: _isGrammaticaLesson,
         );
         if (mounted) {
           final role = await RoleService.instance.getRole(
@@ -634,6 +706,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
           isVisible: _isVisible,
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
+          isGrammaticaLesson: _isGrammaticaLesson,
         );
         if (mounted) {
           ScaffoldMessenger.of(
@@ -687,5 +760,20 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
         ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
       }
     }
+  }
+
+  Future<bool> _checkEditPermission(
+    Lesson l,
+    String? currentUid,
+    UserRole currentRole,
+  ) async {
+    if (l.createdByUid == currentUid) return true;
+    if (currentRole != UserRole.admin && currentRole != UserRole.superadmin) {
+      return false;
+    }
+    if (l.createdByUid == null) return false;
+    // Check creator role
+    final r = await RoleService.instance.getRole(l.createdByUid!);
+    return r == UserRole.admin || r == UserRole.superadmin;
   }
 }
