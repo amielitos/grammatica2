@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../widgets/glass_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'spelling_bee_page.dart';
+import 'pronunciation_quiz_page.dart';
 
 class PracticeTab extends StatefulWidget {
   const PracticeTab({super.key});
@@ -25,7 +26,12 @@ class _PracticeTabState extends State<PracticeTab> {
       );
     }
     if (_selectedSubTab == 1) {
-      return _VoiceView(onBack: () => setState(() => _selectedSubTab = null));
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return const Center(child: Text("Please login first"));
+      return PronunciationQuizPage(
+        user: user,
+        onBack: () => setState(() => _selectedSubTab = null),
+      );
     }
 
     return SingleChildScrollView(
@@ -133,45 +139,6 @@ class _PracticeCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _VoiceView extends StatelessWidget {
-  final VoidCallback onBack;
-  const _VoiceView({required this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: onBack,
-          ),
-          title: const Text('Pronunciation'),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-        const Expanded(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.mic, size: 80, color: Colors.pink),
-                SizedBox(height: 24),
-                Text(
-                  'Pronunciation',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text('Coming Soon', style: TextStyle(color: Colors.grey)),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
