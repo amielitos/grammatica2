@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'role_service.dart';
+import '../models/spelling_word.dart';
 
 class ImageUpload {
   final String id;
@@ -217,6 +218,8 @@ class DatabaseService {
       _firestore.collection('users').doc(uid).collection('progress');
   CollectionReference<Map<String, dynamic>> _userQuizProgress(String uid) =>
       _firestore.collection('users').doc(uid).collection('quizProgress');
+  CollectionReference<Map<String, dynamic>> get _spellingWords =>
+      _firestore.collection('spelling_words');
 
   Future<String> createLesson({
     required String title,
@@ -807,6 +810,109 @@ class DatabaseService {
         .collection('subscriptions')
         .doc(educatorUid)
         .update({'billingCycle': cycle});
+  }
+
+  // Spelling Bee Methods
+
+  Future<void> createSpellingWord({
+    required String word,
+    required SpellingDifficulty difficulty,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final normalized = word.trim().toLowerCase();
+
+    // Check for duplicates
+    final existing = await _spellingWords
+        .where('word_lowercase', isEqualTo: normalized)
+        .limit(1)
+        .get();
+
+    if (existing.docs.isNotEmpty)
+      return; // Silent ignore or throw error? Let's ignore for now.
+
+    await _spellingWords.add({
+      'word': word.trim(),
+      'word_lowercase': normalized,
+      'difficulty': difficulty.name.toUpperCase(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'createdByUid': user?.uid,
+    });
+  }
+
+  Future<void> updateSpellingWord({
+    required String id,
+    String? word,
+    SpellingDifficulty? difficulty,
+  }) async {
+    final data = <String, dynamic>{};
+    if (word != null) data['word'] = word;
+    if (difficulty != null) data['difficulty'] = difficulty.name.toUpperCase();
+    if (data.isNotEmpty) {
+      await _spellingWords.doc(id).update(data);
+    }
+  }
+
+  Future<void> deleteSpellingWord(String id) async {
+    await _spellingWords.doc(id).delete();
+  }
+
+  Future<void> deleteAllSpellingWords() async {
+    final batch = _firestore.batch();
+    final snapshot = await _spellingWords.get();
+    for (var doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  Future<int> cleanupDuplicateSpellingWords() async {
+    final snapshot = await _spellingWords.get();
+    final seen = <String, String>{}; // word_lowercase -> first doc id
+    int count = 0;
+
+    final batch = _firestore.batch();
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final wordRaw = data['word'] as String?;
+      if (wordRaw == null) continue;
+
+      final word =
+          (data['word_lowercase'] as String?) ?? wordRaw.trim().toLowerCase();
+
+      if (seen.containsKey(word)) {
+        batch.delete(doc.reference);
+        count++;
+      } else {
+        seen[word] = doc.id;
+        // Also ensure word_lowercase exists
+        if (data['word_lowercase'] == null) {
+          batch.update(doc.reference, {'word_lowercase': word});
+        }
+      }
+    }
+    await batch.commit();
+    return count;
+  }
+
+  Future<List<SpellingWord>> fetchSpellingWords({
+    SpellingDifficulty? difficulty,
+  }) async {
+    // To avoid composite index requirements, we fetch all and filter in memory.
+    final snapshot = await _spellingWords.get();
+    var words = snapshot.docs.map(SpellingWord.fromDoc).toList();
+
+    if (difficulty != null) {
+      words = words.where((w) => w.difficulty == difficulty).toList();
+    }
+
+    // Sort by createdAt descending, handling nulls (newly added words)
+    words.sort((a, b) {
+      final aTime = a.createdAt?.toDate() ?? DateTime.now();
+      final bTime = b.createdAt?.toDate() ?? DateTime.now();
+      return bTime.compareTo(aTime);
+    });
+
+    return words;
   }
 
   Stream<bool> isSubscribedStream(String educatorUid) {

@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../widgets/glass_card.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'spelling_bee_page.dart';
 
 class PracticeTab extends StatefulWidget {
   const PracticeTab({super.key});
@@ -15,7 +17,12 @@ class _PracticeTabState extends State<PracticeTab> {
   @override
   Widget build(BuildContext context) {
     if (_selectedSubTab == 0) {
-      return _BeeView(onBack: () => setState(() => _selectedSubTab = null));
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return const Center(child: Text("Please login first"));
+      return SpellingBeePage(
+        user: user,
+        onBack: () => setState(() => _selectedSubTab = null),
+      );
     }
     if (_selectedSubTab == 1) {
       return _VoiceView(onBack: () => setState(() => _selectedSubTab = null));
@@ -130,45 +137,6 @@ class _PracticeCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _BeeView extends StatelessWidget {
-  final VoidCallback onBack;
-  const _BeeView({required this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        AppBar(
-          leading: IconButton(
-            icon: const Icon(CupertinoIcons.back),
-            onPressed: onBack,
-          ),
-          title: const Text('Spelling Bee'),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-        ),
-        const Expanded(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.ant, size: 80, color: Colors.amber),
-                SizedBox(height: 24),
-                Text(
-                  'Spelling Bee',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text('Coming Soon', style: TextStyle(color: Colors.grey)),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
