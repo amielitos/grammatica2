@@ -721,22 +721,40 @@ class DatabaseService {
         );
   }
 
-  Stream<List<Lesson>> streamEducatorLessons(String educatorUid) {
+  Stream<List<Lesson>> streamEducatorLessons(
+    String educatorUid, {
+    bool publicOnly = false,
+  }) {
     return _lessons
         .where('createdByUid', isEqualTo: educatorUid)
         .where('isVisible', isEqualTo: true)
         .where('validationStatus', isEqualTo: 'approved')
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(Lesson.fromDoc).toList());
+        .map((snapshot) {
+          final lessons = snapshot.docs.map(Lesson.fromDoc).toList();
+          if (publicOnly) {
+            return lessons.where((l) => !l.isMembersOnly).toList();
+          }
+          return lessons;
+        });
   }
 
-  Stream<List<Quiz>> streamEducatorQuizzes(String educatorUid) {
+  Stream<List<Quiz>> streamEducatorQuizzes(
+    String educatorUid, {
+    bool publicOnly = false,
+  }) {
     return _quizzes
         .where('createdByUid', isEqualTo: educatorUid)
         .where('isVisible', isEqualTo: true)
         .where('validationStatus', isEqualTo: 'approved')
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(Quiz.fromDoc).toList());
+        .map((snapshot) {
+          final quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
+          if (publicOnly) {
+            return quizzes.where((q) => !q.isMembersOnly).toList();
+          }
+          return quizzes;
+        });
   }
 
   Future<void> updateSubscriptionFee(String uid, int amount) async {
