@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb; // For kIsWeb
 import 'dart:js_interop'; // For JS interop
 import 'package:web/web.dart' as web; // For native web APIs
+import 'package:audioplayers/audioplayers.dart';
 import '../models/spelling_word.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
@@ -31,8 +32,13 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   bool _isGameOver = false;
 
   final FlutterTts _flutterTts = FlutterTts();
+  final AudioPlayer _audioPlayer = AudioPlayer();
   final TextEditingController _answerController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+
+  // List to track user answers for the preview pane
+  List<String?> _userAnswers = [];
+  bool _showPreview = false;
 
   // Timer fields
   Timer? _timer;
@@ -45,21 +51,30 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   }
 
   Future<void> _initTts() async {
-    _flutterTts.setStartHandler(() => setState(() => _isPlaying = true));
-    _flutterTts.setCompletionHandler(() => setState(() => _isPlaying = false));
-    _flutterTts.setErrorHandler((msg) {
-      debugPrint("TTS Error: $msg");
-      setState(() => _isPlaying = false);
-    });
-
     try {
+      _flutterTts.setStartHandler(() => setState(() => _isPlaying = true));
+      _flutterTts.setCompletionHandler(
+        () => setState(() => _isPlaying = false),
+      );
+      _flutterTts.setErrorHandler((msg) {
+        debugPrint("TTS Error: $msg");
+        setState(() => _isPlaying = false);
+      });
+
+      // Avoid plugin initialization crash on Web if implementation is missing
+      if (kIsWeb) {
+        debugPrint("Initializing TTS on Web - check for plugin availability");
+      }
+
       // Small delay to ensure voices are available on some browsers
       await Future.delayed(const Duration(milliseconds: 500));
       await _flutterTts.setLanguage("en-US");
       await _flutterTts.setSpeechRate(0.4);
       await _flutterTts.setVolume(1.0);
     } catch (e) {
-      debugPrint("Error initializing TTS: $e");
+      debugPrint("Robust TTS Init Catch: $e");
+      // On Web, MissingPluginException is common if registration fails.
+      // We don't rethrow here so the app remains functional with manual fallback.
     }
   }
 
@@ -67,6 +82,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   void dispose() {
     _timer?.cancel();
     _flutterTts.stop();
+    _audioPlayer.dispose();
     _answerController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -101,6 +117,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   }
 
   void _onTimeout() {
+    _userAnswers.add(null); // Record null for timeout
     _nextWord();
   }
 
@@ -126,6 +143,8 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         _score = 0;
         _isGameOver = false;
         _answerController.clear();
+        _userAnswers = [];
+        _showPreview = false;
       });
 
       await _speakWord();
@@ -142,7 +161,28 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
 
   Future<void> _speakWord() async {
     if (_sessionWords.isEmpty) return;
-    final word = _sessionWords[_currentIndex].word;
+    final currentWordObj = _sessionWords[_currentIndex];
+    final word = currentWordObj.word;
+
+    // Stop ongoing audio/TTS
+    await _audioPlayer.stop();
+    await _flutterTts.stop();
+
+    // Prioritize recorded audio
+    if (currentWordObj.audioUrl != null &&
+        currentWordObj.audioUrl!.isNotEmpty) {
+      try {
+        setState(() => _isPlaying = true);
+        await _audioPlayer.play(UrlSource(currentWordObj.audioUrl!));
+        _audioPlayer.onPlayerComplete.first.then((_) {
+          if (mounted) setState(() => _isPlaying = false);
+        });
+        return;
+      } catch (e) {
+        debugPrint("Error playing recorded audio: $e");
+        // Fallback to TTS if audio play fails
+      }
+    }
 
     bool pluginSuccess = false;
     try {
@@ -172,8 +212,11 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   }
 
   void _submitAnswer() {
-    final answer = _answerController.text.trim().toLowerCase();
+    final rawAnswer = _answerController.text.trim();
+    final answer = rawAnswer.toLowerCase();
     final correctWord = _sessionWords[_currentIndex].word.toLowerCase();
+
+    _userAnswers.add(rawAnswer);
 
     if (answer == correctWord) {
       _score++;
@@ -196,6 +239,11 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         _isGameOver = true;
       });
     }
+  }
+
+  void _skipWord() {
+    _userAnswers.add(""); // Record empty string for skipped word
+    _nextWord();
   }
 
   @override
@@ -346,29 +394,13 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
             ],
           ),
           const SizedBox(height: 40),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                iconSize: 64,
-                icon: Icon(
-                  _isPlaying
-                      ? Icons.pause_circle_filled
-                      : Icons.play_circle_filled,
-                  color: Colors.amber,
-                ),
-                onPressed: _speakWord,
-              ),
-              const SizedBox(width: 16),
-              IconButton(
-                iconSize: 48,
-                icon: const Icon(
-                  Icons.replay_circle_filled,
-                  color: Colors.blueGrey,
-                ),
-                onPressed: _speakWord,
-              ),
-            ],
+          IconButton(
+            iconSize: 80,
+            icon: Icon(
+              _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+              color: Colors.amber,
+            ),
+            onPressed: _speakWord,
           ),
           const SizedBox(height: 40),
           TextField(
@@ -406,7 +438,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
           ),
           const SizedBox(height: 16),
           TextButton(
-            onPressed: _nextWord,
+            onPressed: _skipWord,
             child: const Text(
               'Skip this word',
               style: TextStyle(color: Colors.grey),
@@ -430,7 +462,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
 
   Widget _buildGameOver() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -446,16 +478,94 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
               'Your Score: $_score / ${_sessionWords.length}',
               style: const TextStyle(fontSize: 24),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 32),
+            OutlinedButton.icon(
+              onPressed: () => setState(() => _showPreview = !_showPreview),
+              icon: Icon(_showPreview ? Icons.expand_less : Icons.expand_more),
+              label: Text(_showPreview ? 'Hide Preview' : 'Show Preview'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(200, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+            ),
+            if (_showPreview) ...[
+              const SizedBox(height: 24),
+              ...List.generate(_sessionWords.length, (index) {
+                final wordObj = _sessionWords[index];
+                final userAnswer = _userAnswers[index];
+                final isCorrect =
+                    userAnswer != null &&
+                    userAnswer.trim().toLowerCase() ==
+                        wordObj.word.toLowerCase();
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isCorrect
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isCorrect
+                          ? Colors.green.withOpacity(0.3)
+                          : Colors.red.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Correct: ${wordObj.word}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Your Answer: ${userAnswer == null
+                                  ? "(Timeout)"
+                                  : userAnswer.isEmpty
+                                  ? "(Skipped)"
+                                  : userAnswer}',
+                              style: TextStyle(
+                                color: isCorrect ? Colors.green : Colors.red,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        isCorrect ? Icons.check : Icons.close,
+                        color: isCorrect ? Colors.green : Colors.red,
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+            const SizedBox(height: 32),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 56),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
+                backgroundColor: Colors.amber.shade700,
+                foregroundColor: Colors.white,
               ),
               onPressed: () => setState(() => _selectedDifficulty = null),
-              child: const Text('Back to Menu'),
+              child: const Text(
+                'Back to Menu',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),

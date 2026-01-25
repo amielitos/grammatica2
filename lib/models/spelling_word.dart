@@ -8,6 +8,7 @@ class SpellingWord {
   final SpellingDifficulty difficulty;
   final Timestamp? createdAt;
   final String? createdByUid;
+  final String? audioUrl;
 
   SpellingWord({
     required this.id,
@@ -15,6 +16,7 @@ class SpellingWord {
     required this.difficulty,
     this.createdAt,
     this.createdByUid,
+    this.audioUrl,
   });
 
   factory SpellingWord.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -25,16 +27,17 @@ class SpellingWord {
       difficulty: _difficultyFromString(data['difficulty'] as String?),
       createdAt: data['createdAt'] as Timestamp?,
       createdByUid: data['createdByUid'] as String?,
+      audioUrl: data['audioUrl'] as String?,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'word': word,
-      'difficulty': difficulty.name
-          .toUpperCase(), // Store as string for easy reading
+      'difficulty': difficulty.name.toUpperCase(),
       'createdAt': createdAt ?? FieldValue.serverTimestamp(),
       'createdByUid': createdByUid,
+      'audioUrl': audioUrl,
     };
   }
 

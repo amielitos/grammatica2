@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -818,6 +819,7 @@ class DatabaseService {
   Future<void> createSpellingWord({
     required String word,
     required SpellingDifficulty difficulty,
+    String? audioUrl,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     final normalized = word.trim().toLowerCase();
@@ -838,7 +840,41 @@ class DatabaseService {
       'difficulty': difficulty.name.toUpperCase(),
       'createdAt': FieldValue.serverTimestamp(),
       'createdByUid': user?.uid,
+      'audioUrl': audioUrl,
     });
+  }
+
+  Future<String> uploadSpellingAudio({
+    required Uint8List fileBytes,
+    required String fileName,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      debugPrint('UPLOAD ERROR: No authenticated user found.');
+    } else {
+      debugPrint('UPLOAD ATTEMPT: User UID is ${user.uid}');
+    }
+
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('spelling_audio')
+          .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
+
+      String contentType = 'audio/mpeg';
+      if (fileName.endsWith('.m4a')) contentType = 'audio/mp4';
+      if (fileName.endsWith('.wav')) contentType = 'audio/wav';
+
+      final uploadTask = storageRef.putData(
+        fileBytes,
+        SettableMetadata(contentType: contentType),
+      );
+
+      final snapshot = await uploadTask.whenComplete(() => null);
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      throw Exception('Failed to upload audio: $e');
+    }
   }
 
   Future<void> updateSpellingWord({
