@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'quiz_folder_page.dart';
 import '../widgets/glass_card.dart';
 import '../services/role_service.dart';
@@ -58,23 +58,24 @@ class QuizzesPage extends StatelessWidget {
                       .where((q) => q.isGrammaticaQuiz == true)
                       .toList();
 
-                  // 2. Subscribed Educator Quizzes
-                  final subscribedQuizzes = <String, List<Quiz>>{};
-                  for (var q in quizzes) {
-                    if (q.isGrammaticaQuiz) continue;
-                    if (subscriptions[q.createdByUid] == true) {
-                      subscribedQuizzes
-                          .putIfAbsent(q.createdByUid ?? 'Unknown', () => [])
-                          .add(q);
+                  // 2. Subscribed Educator Quizzes (Members Only)
+                  final subscribedQuizzes = quizzes.where((q) {
+                    if (q.isGrammaticaQuiz) return false;
+                    // Only include subscribed & members only
+                    if (subscriptions[q.createdByUid] == true &&
+                        q.isMembersOnly) {
+                      return true;
                     }
-                  }
+                    return false;
+                  }).toList();
 
                   // 3. Public Quizzes
                   final publicQuizzes = quizzes.where((q) {
                     if (q.isGrammaticaQuiz) return false;
-                    if (subscriptions[q.createdByUid] == true) return false;
-                    if (q.createdByUid == user.uid) return false;
+                    // Exclude members only (they go to subscribed or filtered out)
                     if (q.isMembersOnly) return false;
+                    // Everything else public
+                    if (!q.isVisible) return false;
                     return true;
                   }).toList();
 
@@ -100,28 +101,26 @@ class QuizzesPage extends StatelessWidget {
                     );
                   }
 
-                  // Subscribed Educators
-                  subscribedQuizzes.forEach((uid, educatorQuizzes) {
-                    if (educatorQuizzes.isNotEmpty) {
-                      folderCards.add(
-                        _buildFolderCardWithAuthor(
+                  // Your Educators Folder
+                  if (subscribedQuizzes.isNotEmpty) {
+                    folderCards.add(
+                      _buildFolderCard(
+                        context,
+                        title: 'Your Educators',
+                        description: 'Members-only content',
+                        pillLabel: 'Subscribed',
+                        pillColor: Colors.green,
+                        iconColor: Colors.greenAccent,
+                        onTap: () => _openFolder(
                           context,
-                          uid: uid,
-                          fallbackEmail: educatorQuizzes.first.createdByEmail,
-                          description: 'From your educator',
-                          pillLabel: 'Educator',
-                          pillColor: Colors.green,
-                          iconColor: Colors.greenAccent,
-                          onTap: () => _openFolder(
-                            context,
-                            title: 'Educator Quizzes',
-                            pillLabel: 'From your Educator',
-                            quizzes: educatorQuizzes,
-                          ),
+                          title: 'Your Educators',
+                          pillLabel: 'Members Only',
+                          quizzes: subscribedQuizzes,
+                          isPublicFolder: true, // Use nesting logic
                         ),
-                      );
-                    }
-                  });
+                      ),
+                    );
+                  }
 
                   // Public Content
                   if (publicQuizzes.isNotEmpty) {
@@ -148,13 +147,33 @@ class QuizzesPage extends StatelessWidget {
                     return const Center(child: Text('No quizzes available.'));
                   }
 
-                  return GridView.count(
-                    padding: const EdgeInsets.all(16),
-                    crossAxisCount: 3,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    children: folderCards,
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight - 32,
+                          ),
+                          child: Center(
+                            child: Wrap(
+                              spacing: 16,
+                              runSpacing: 16,
+                              alignment: WrapAlignment.center,
+                              children: folderCards
+                                  .map(
+                                    (w) => SizedBox(
+                                      width: 234, // 50% Bigger card width
+                                      height: 324, // 50% Bigger card height
+                                      child: w,
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               );
@@ -198,32 +217,37 @@ class QuizzesPage extends StatelessWidget {
       onTap: onTap,
       child: GlassCard(
         child: Padding(
-          padding: const EdgeInsets.all(10.0),
+          padding: const EdgeInsets.all(12.0), // Increased padding
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(CupertinoIcons.folder_solid, size: 32, color: iconColor),
+              Icon(
+                CupertinoIcons.folder_solid,
+                size: 42, // Increased icon size
+                color: iconColor,
+              ),
               const Spacer(),
               Text(
                 title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 description,
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(fontSize: 10),
+                ).textTheme.bodySmall?.copyWith(fontSize: 14),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: pillColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
@@ -231,82 +255,10 @@ class QuizzesPage extends StatelessWidget {
                 ),
                 child: Text(
                   pillLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    color: pillColor.withOpacity(1.0),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFolderCardWithAuthor(
-    BuildContext context, {
-    required String uid,
-    required String? fallbackEmail,
-    required String description,
-    required String pillLabel,
-    required Color pillColor,
-    required Color iconColor,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: GlassCard(
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(CupertinoIcons.folder_solid, size: 32, color: iconColor),
-              const Spacer(),
-              StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(uid)
-                    .snapshots(),
-                builder: (context, snap) {
-                  final data = snap.data?.data();
-                  final username = (data?['username'] as String?)?.trim();
-                  final display = (username != null && username.isNotEmpty)
-                      ? username
-                      : (fallbackEmail ?? 'Unknown');
-                  return Text(
-                    display,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  );
-                },
-              ),
-              const SizedBox(height: 2),
-              Text(
-                description,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(fontSize: 10),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: pillColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: pillColor.withOpacity(0.5)),
-                ),
-                child: Text(
-                  pillLabel,
-                  style: TextStyle(
-                    fontSize: 8,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: pillColor.withOpacity(1.0),
                   ),

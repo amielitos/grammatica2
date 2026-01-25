@@ -91,84 +91,109 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
             ),
           ),
           Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3, // Smaller cards 3 col
-                childAspectRatio: 0.75, // Adjust ratio
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: filteredAuthors.length,
-              itemBuilder: (context, index) {
-                final authorUid = filteredAuthors[index];
-                final quizzes = authorQuizzes[authorUid]!;
-                final authorEmail = quizzes.first.createdByEmail;
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 32,
+                    ),
+                    child: Center(
+                      child: Wrap(
+                        spacing: 16,
+                        runSpacing: 16,
+                        alignment: WrapAlignment.center,
+                        children: filteredAuthors.map((authorUid) {
+                          final quizzes = authorQuizzes[authorUid]!;
+                          final authorEmail = quizzes.first.createdByEmail;
 
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => QuizFolderPage(
-                          user: widget.user,
-                          title: 'Public Quizzes',
-                          pillLabel: 'Public',
-                          quizzes: quizzes, // Show quizzes for this author
-                          isPublicContentFolder: false,
-                        ),
-                      ),
-                    );
-                  },
-                  child: GlassCard(
-                    child: Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            CupertinoIcons.folder_solid,
-                            size: 32,
-                            color: Colors.lightBlueAccent,
-                          ),
-                          const Spacer(),
-                          AuthorName(
-                            uid: authorUid == 'Unknown' ? null : authorUid,
-                            fallbackEmail: authorEmail,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Quizzes by this author',
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodySmall?.copyWith(fontSize: 10),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: Colors.blue.withOpacity(0.5),
+                          return SizedBox(
+                            width: 234, // 50% Bigger card width
+                            height: 324, // 50% Bigger card height
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => QuizFolderPage(
+                                      user: widget.user,
+                                      title: 'Public Quizzes',
+                                      pillLabel: 'Public',
+                                      quizzes: quizzes,
+                                      isPublicContentFolder: false,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: GlassCard(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        CupertinoIcons.folder_solid,
+                                        size: 42,
+                                        color: Colors.lightBlueAccent,
+                                      ),
+                                      const Spacer(),
+                                      AuthorName(
+                                        uid: authorUid == 'Unknown'
+                                            ? null
+                                            : authorUid,
+                                        fallbackEmail: authorEmail,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall
+                                            ?.copyWith(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Quizzes by this author',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(fontSize: 14),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.blue.withOpacity(0.5),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Public',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.blue.withOpacity(1.0),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                            child: Text(
-                              'Public',
-                              style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.withOpacity(1.0),
-                              ),
-                            ),
-                          ),
-                        ],
+                          );
+                        }).toList(),
                       ),
                     ),
                   ),

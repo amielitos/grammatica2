@@ -97,82 +97,109 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             ),
           ),
           Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.85,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              itemCount: filteredAuthors.length,
-              itemBuilder: (context, index) {
-                final authorUid = filteredAuthors[index];
-                final lessons = authorLessons[authorUid]!;
-                final authorEmail = lessons.first.createdByEmail;
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 32,
+                    ),
+                    child: Center(
+                      child: Wrap(
+                        spacing: 16,
+                        runSpacing: 16,
+                        alignment: WrapAlignment.center,
+                        children: filteredAuthors.map((authorUid) {
+                          final lessons = authorLessons[authorUid]!;
+                          final authorEmail = lessons.first.createdByEmail;
 
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => LessonFolderPage(
-                          user: widget.user,
-                          title: 'Public Lessons',
-                          pillLabel: 'Public',
-                          lessons: lessons, // Show lessons for this author
-                          isPublicContentFolder: false,
-                        ),
-                      ),
-                    );
-                  },
-                  child: GlassCard(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            CupertinoIcons.folder_solid,
-                            size: 40,
-                            color: AppColors.primaryGreen,
-                          ),
-                          const Spacer(),
-                          AuthorName(
-                            uid: authorUid == 'Unknown' ? null : authorUid,
-                            fallbackEmail: authorEmail,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Check out content made by this author!',
-                            style: Theme.of(context).textTheme.bodySmall,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.blue.withOpacity(0.5),
+                          return SizedBox(
+                            width: 234, // 50% Bigger card width
+                            height: 324, // 50% Bigger card height
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => LessonFolderPage(
+                                      user: widget.user,
+                                      title: 'Public Lessons',
+                                      pillLabel: 'Public',
+                                      lessons: lessons,
+                                      isPublicContentFolder: false,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: GlassCard(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        CupertinoIcons.folder_solid,
+                                        size: 42,
+                                        color: AppColors.primaryGreen,
+                                      ),
+                                      const Spacer(),
+                                      AuthorName(
+                                        uid: authorUid == 'Unknown'
+                                            ? null
+                                            : authorUid,
+                                        fallbackEmail: authorEmail,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall
+                                            ?.copyWith(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Check out content!',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(fontSize: 14),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.blue.withOpacity(0.5),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Public',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.blue.shade900,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                            child: Text(
-                              'Public',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade900,
-                              ),
-                            ),
-                          ),
-                        ],
+                          );
+                        }).toList(),
                       ),
                     ),
                   ),

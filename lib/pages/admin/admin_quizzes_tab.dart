@@ -500,6 +500,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 controller: _maxAttemptsCtrl,
                 decoration: const InputDecoration(labelText: 'Max Attempts'),
                 keyboardType: TextInputType.number,
+                enabled: !_isGrammaticaQuiz,
               ),
             ),
           ],
@@ -570,8 +571,16 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   'This will appear in the official "Grammatica Quizzes" folder',
                 ),
                 value: _isGrammaticaQuiz,
-                onChanged: (val) =>
-                    setState(() => _isGrammaticaQuiz = val ?? false),
+                onChanged: (val) {
+                  setState(() {
+                    _isGrammaticaQuiz = val ?? false;
+                    if (_isGrammaticaQuiz) {
+                      _maxAttemptsCtrl.text = '1000000';
+                    } else {
+                      _maxAttemptsCtrl.text = '1';
+                    }
+                  });
+                },
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
               );

@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'quizzes_page.dart';
 import 'lesson_folder_page.dart';
 import 'profile_page.dart';
@@ -132,43 +132,34 @@ class _LessonsList extends StatelessWidget {
                     .where((l) => l.isGrammaticaLesson == true)
                     .toList();
 
-                // 2. Subscribed Educator Lessons (grouped)
-                final subscribedLessons = <String, List<Lesson>>{};
-                for (var l in lessons) {
-                  if (l.isGrammaticaLesson) continue; // Already handled
-                  if (subscriptions[l.createdByUid] == true) {
-                    // Include if not hidden members only (though if subscribed, they should see all)
-                    // The streamSchools already filters visibility based on role/subscription,
-                    // but let's be safe.
-                    subscribedLessons
-                        .putIfAbsent(l.createdByUid ?? 'Unknown', () => [])
-                        .add(l);
+                // 2. Subscribed Educator Lessons (Members Only)
+                final subscribedLessons = lessons.where((l) {
+                  if (l.isGrammaticaLesson) return false;
+                  // Only include if subscribed AND members only?
+                  // User said: "Educator ... > Content from educators that are 'members only'"
+                  // So if subscription is active, include ONLY if isMembersOnly (or maybe all content from them?)
+                  // "Content from educators that are 'members only'" implies filtering for membersOnly flag.
+                  if (subscriptions[l.createdByUid] == true &&
+                      l.isMembersOnly) {
+                    return true;
                   }
-                }
+                  return false;
+                }).toList();
 
                 // 3. Public Content
                 final publicLessons = lessons.where((l) {
                   if (l.isGrammaticaLesson) return false;
-                  if (subscriptions[l.createdByUid] == true)
-                    return false; // Already in subscribed
-                  if (l.createdByUid == user.uid)
-                    return false; // Own lessons don't go to public folder (maybe separate tab?)
-                  // Logic for "Public Content": content available publicly.
-                  // Stream already filters for validationStatus != awaiting_approval
-                  // and isVisible or visibleTo contains userId.
-
-                  // Filter out members only content if not subscribed?
-                  // But we want to show the folder?
-                  // The prompt says: "DO NOT show the folder if the content is members only."
-                  // So we only include lessons that are NOT members only here if not subscribed.
+                  // Public content logic:
+                  // "Content from educators / admins that are available publicly"
+                  // So anything NOT members only.
                   if (l.isMembersOnly) return false;
-
+                  // Even if subscribed, if it's public, it arguably goes to public folder?
+                  // Or should subscribed folder have ALL subscribed content?
+                  // User said: "Public > Content from educators / admins that are available publicly".
+                  // This implies Public folder gets ALL public content.
+                  if (!l.isVisible) return false;
                   return true;
                 }).toList();
-
-                // If admin/educator, they might see their own lessons.
-                // Let's decide where own lessons go. Maybe "Public" for now or ignored as this view is for consuming content.
-                // The current implementation hides own lessons from public folder above.
 
                 final List<Widget> folderCards = [];
 
@@ -178,8 +169,8 @@ class _LessonsList extends StatelessWidget {
                     _buildFolderCard(
                       context,
                       title: 'Grammatica',
-                      description: 'Official lessons from the team',
-                      pillLabel: 'From Grammatica',
+                      description: 'Official lessons',
+                      pillLabel: 'Grammatica',
                       pillColor: Colors.purple,
                       iconColor: Colors.purpleAccent,
                       onTap: () => _openFolder(
@@ -192,34 +183,28 @@ class _LessonsList extends StatelessWidget {
                   );
                 }
 
-                // Subscribed Educators Folders
-                subscribedLessons.forEach((uid, educatorLessons) {
-                  // We need author name. We can fetch it or pass unknown.
-                  // Since we're inside a stream, fetching for each might be expensive if many.
-                  // Use a widget that fetches name.
-                  if (educatorLessons.isNotEmpty) {
-                    folderCards.add(
-                      _buildFolderCardWithAuthor(
+                // Your Educators Folder (Groups Subscribed Content)
+                if (subscribedLessons.isNotEmpty) {
+                  folderCards.add(
+                    _buildFolderCard(
+                      context,
+                      title: 'Your Educators',
+                      description: 'Members-only content',
+                      pillLabel: 'Subscribed',
+                      pillColor: Colors.green,
+                      iconColor: Colors.greenAccent,
+                      onTap: () => _openFolder(
                         context,
-                        uid: uid,
-                        fallbackEmail: educatorLessons.first.createdByEmail,
-                        description: 'Content from this educator',
-                        pillLabel: 'Educator',
-                        pillColor: Colors.green,
-                        iconColor: Colors.greenAccent,
-                        onTap: () => _openFolder(
-                          context,
-                          title:
-                              'Educator Lessons', // Will be updated by author name ideally
-                          pillLabel: 'From your Educator',
-                          lessons: educatorLessons,
-                        ),
+                        title: 'Your Educators',
+                        pillLabel: 'Members Only',
+                        lessons: subscribedLessons,
+                        isPublicFolder: true, // Use nesting logic
                       ),
-                    );
-                  }
-                });
+                    ),
+                  );
+                }
 
-                // Public Content Folder
+                // Public Folder
                 if (publicLessons.isNotEmpty) {
                   folderCards.add(
                     _buildFolderCard(
@@ -244,13 +229,34 @@ class _LessonsList extends StatelessWidget {
                   return const Center(child: Text('No lessons available.'));
                 }
 
-                return GridView.count(
-                  padding: const EdgeInsets.all(16),
-                  crossAxisCount: 3,
-                  childAspectRatio: 0.75, // Adjust for new width
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  children: folderCards,
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight:
+                              constraints.maxHeight - 32, // Adjust for padding
+                        ),
+                        child: Center(
+                          child: Wrap(
+                            spacing: 16, // Increased spacing
+                            runSpacing: 16,
+                            alignment: WrapAlignment.center,
+                            children: folderCards
+                                .map(
+                                  (w) => SizedBox(
+                                    width: 234, // 50% Bigger card width
+                                    height: 324, // 50% Bigger card height
+                                    child: w,
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             );
@@ -293,36 +299,37 @@ class _LessonsList extends StatelessWidget {
       onTap: onTap,
       child: GlassCard(
         child: Padding(
-          padding: const EdgeInsets.all(10.0), // Reduced padding
+          padding: const EdgeInsets.all(12.0), // Increased padding
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
                 CupertinoIcons.folder_solid,
-                size: 32,
+                size: 42, // Increased icon size
                 color: iconColor,
-              ), // Smaller icon, dynamic color
+              ),
               const Spacer(),
               Text(
                 title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 description,
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(fontSize: 10),
+                ).textTheme.bodySmall?.copyWith(fontSize: 14),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: pillColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(6),
@@ -330,82 +337,10 @@ class _LessonsList extends StatelessWidget {
                 ),
                 child: Text(
                   pillLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    color: pillColor.withOpacity(1.0), // Ensure text is visible
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFolderCardWithAuthor(
-    BuildContext context, {
-    required String uid,
-    required String? fallbackEmail,
-    required String description,
-    required String pillLabel,
-    required Color pillColor,
-    required Color iconColor,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: GlassCard(
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(CupertinoIcons.folder_solid, size: 32, color: iconColor),
-              const Spacer(),
-              StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(uid)
-                    .snapshots(),
-                builder: (context, snap) {
-                  final data = snap.data?.data();
-                  final username = (data?['username'] as String?)?.trim();
-                  final display = (username != null && username.isNotEmpty)
-                      ? username
-                      : (fallbackEmail ?? 'Unknown');
-                  return Text(
-                    display,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  );
-                },
-              ),
-              const SizedBox(height: 2),
-              Text(
-                description, // "Check out content made by this educator!"
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(fontSize: 10),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: pillColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: pillColor.withOpacity(0.5)),
-                ),
-                child: Text(
-                  pillLabel,
-                  style: TextStyle(
-                    fontSize: 8,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: pillColor.withOpacity(1.0),
                   ),
