@@ -1,11 +1,10 @@
 import 'dart:math';
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb; // For kIsWeb
-import 'dart:js_interop'; // For JS interop
+// For JS interop
 import 'package:web/web.dart' as web; // For native web APIs
 import 'package:audioplayers/audioplayers.dart';
 import '../models/spelling_word.dart';

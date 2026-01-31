@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   AuthService._();
@@ -8,6 +8,7 @@ class AuthService {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
 
@@ -35,9 +36,39 @@ class AuthService {
       email: email,
       password: password,
     );
-    final user = cred.user;
-    if (user != null) {
-      // Create users/{uid} with defaults
+    await _createUserInFirestore(cred.user);
+    return cred;
+  }
+
+  Future<UserCredential> signInWithGoogle() async {
+    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) {
+      throw FirebaseAuthException(
+        code: 'ERROR_ABORTED_BY_USER',
+        message: 'Sign in aborted by user',
+      );
+    }
+
+    final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
+    final OAuthCredential credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    final UserCredential userCredential = await _auth.signInWithCredential(
+      credential,
+    );
+    await _createUserInFirestore(userCredential.user);
+    return userCredential;
+  }
+
+  Future<void> _createUserInFirestore(User? user) async {
+    if (user == null) return;
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+    if (!userDoc.exists) {
       await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'email': user.email,
@@ -45,16 +76,18 @@ class AuthService {
         'role': 'LEARNER',
         'status': 'ACTIVE',
         'subscription_status': 'NONE',
-        'username': 'Firstname Lastname',
-        'photoUrl': '', // Initialize with empty photo URL
+        'username': user.displayName ?? 'Learner',
+        'photoUrl': user.photoURL ?? '',
         'has_completed_onboarding': false,
-      }, SetOptions(merge: true));
+      });
+    } else {
+      // Optionally update fields if they are missing or need refreshing
+      // But respecting existing data is usually safer.
     }
-    return cred;
   }
 
   Future<void> signOut() async {
-    // Sign out of FirebaseAuth
+    await _googleSignIn.signOut();
     await _auth.signOut();
   }
 }
