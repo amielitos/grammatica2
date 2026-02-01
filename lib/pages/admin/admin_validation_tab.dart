@@ -7,6 +7,8 @@ import '../../services/auth_service.dart';
 import '../../widgets/author_name_widget.dart';
 import '../quiz_detail_page.dart';
 import '../lesson_page.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../services/role_service.dart';
 
 class AdminValidationTab extends StatefulWidget {
   const AdminValidationTab({super.key});
@@ -24,13 +26,14 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(
         children: [
           const TabBar(
             tabs: [
               Tab(text: 'Lessons'),
               Tab(text: 'Quizzes'),
+              Tab(text: 'Educators'),
             ],
           ),
           Expanded(
@@ -48,12 +51,234 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
                   collection: 'quizzes',
                   formatDate: _fmt,
                 ),
+                _EducatorApplicationsList(formatDate: _fmt),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+class _EducatorApplicationsList extends StatelessWidget {
+  final String Function(Timestamp) formatDate;
+
+  const _EducatorApplicationsList({required this.formatDate});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<EducatorApplication>>(
+      stream: DatabaseService.instance.streamEducatorApplications(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final items = snapshot.data ?? [];
+        if (items.isEmpty) {
+          return const Center(child: Text('No educator applications pending.'));
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final app = items[index];
+            final email = app.applicantEmail;
+            final appliedAtStr = app.appliedAt != null
+                ? formatDate(app.appliedAt!)
+                : 'N/A';
+
+            return GlassCard(
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          CupertinoIcons.person_crop_circle_fill,
+                          size: 40,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                email,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              Text(
+                                'Applied: $appliedAtStr',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                CupertinoIcons.checkmark_circle,
+                                color: Colors.green,
+                              ),
+                              onPressed: () =>
+                                  _approveApplication(context, app),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                CupertinoIcons.xmark_circle,
+                                color: Colors.red,
+                              ),
+                              onPressed: () =>
+                                  _rejectApplication(context, app.id),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 24),
+                    const Text(
+                      'Credentials:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () => _launchURL(app.videoUrl),
+                          icon: const Icon(CupertinoIcons.play_circle),
+                          label: const Text('View Video Demo'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.blue.withOpacity(0.1),
+                            foregroundColor: Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        FilledButton.icon(
+                          onPressed: () => _launchURL(app.syllabusUrl),
+                          icon: const Icon(CupertinoIcons.doc_text),
+                          label: const Text('View Syllabus'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.orange.withOpacity(0.1),
+                            foregroundColor: Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _launchURL(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  Future<void> _approveApplication(
+    BuildContext context,
+    EducatorApplication app,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Approve Educator'),
+        content: Text(
+          'Are you sure you want to approve ${app.applicantEmail} as an educator?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        // Update user role
+        await RoleService.instance.setUserRole(
+          uid: app.applicantUid,
+          role: UserRole.educator,
+        );
+        // Update application status
+        await DatabaseService.instance.updateApplicationStatus(
+          app.id,
+          'approved',
+        );
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Educator approved successfully')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error approving educator: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _rejectApplication(BuildContext context, String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reject Application'),
+        content: const Text(
+          'Are you sure you want to reject this educator application?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await DatabaseService.instance.updateApplicationStatus(id, 'rejected');
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Application rejected')));
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error rejecting application: $e')),
+          );
+        }
+      }
+    }
   }
 }
 

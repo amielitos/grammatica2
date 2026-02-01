@@ -38,6 +38,9 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
   bool _isGrammaticaLesson = false;
   List<String> _visibleTo = [];
   String _searchQuery = '';
+  String _selectedFilter = 'Status'; // Default
+
+  final List<String> _filterOptions = ['Name', 'Status', 'Create Date'];
 
   ContentVisibility _visibility = ContentVisibility.public;
 
@@ -169,6 +172,47 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                     }).toList();
                   }
 
+                  // Apply sorting based on filter
+                  lessons.sort((a, b) {
+                    int cmp = 0;
+                    if (_selectedFilter == 'Name') {
+                      cmp = a.title.toLowerCase().compareTo(
+                        b.title.toLowerCase(),
+                      );
+                    } else if (_selectedFilter == 'Status') {
+                      // Prioritize awaiting_approval
+                      if (a.validationStatus == 'awaiting_approval' &&
+                          b.validationStatus != 'awaiting_approval') {
+                        cmp = -1;
+                      } else if (a.validationStatus != 'awaiting_approval' &&
+                          b.validationStatus == 'awaiting_approval') {
+                        cmp = 1;
+                      } else {
+                        cmp = 0;
+                      }
+                    } else if (_selectedFilter == 'Create Date') {
+                      final tsA = a.createdAt;
+                      final tsB = b.createdAt;
+                      if (tsA == null && tsB == null) {
+                        cmp = 0;
+                      } else if (tsA == null) {
+                        cmp = 1;
+                      } else if (tsB == null) {
+                        cmp = -1;
+                      } else {
+                        cmp = tsB.compareTo(tsA); // Newest first
+                      }
+                    }
+
+                    if (cmp == 0) {
+                      // Secondary sort by Name A-Z
+                      return a.title.toLowerCase().compareTo(
+                        b.title.toLowerCase(),
+                      );
+                    }
+                    return cmp;
+                  });
+
                   return Column(
                     children: [
                       AppSearchBar(
@@ -177,6 +221,40 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                           setState(() {
                             _searchQuery = value;
                           });
+                        },
+                        onFilterPressed: () {
+                          showCupertinoModalPopup(
+                            context: context,
+                            builder: (context) => CupertinoActionSheet(
+                              title: const Text('Filter Lessons By'),
+                              actions: _filterOptions.map((option) {
+                                return CupertinoActionSheetAction(
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedFilter = option;
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                  child: Text(
+                                    option,
+                                    style: TextStyle(
+                                      color: _selectedFilter == option
+                                          ? AppColors.primaryGreen
+                                          : null,
+                                      fontWeight: _selectedFilter == option
+                                          ? FontWeight.bold
+                                          : null,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              cancelButton: CupertinoActionSheetAction(
+                                onPressed: () => Navigator.pop(context),
+                                isDestructiveAction: true,
+                                child: const Text('Cancel'),
+                              ),
+                            ),
+                          );
                         },
                       ),
                       const SizedBox(height: 16),

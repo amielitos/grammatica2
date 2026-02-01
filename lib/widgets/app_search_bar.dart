@@ -5,11 +5,13 @@ import '../theme/app_colors.dart';
 class AppSearchBar extends StatefulWidget {
   final String hintText;
   final ValueChanged<String> onSearch;
+  final VoidCallback? onFilterPressed;
 
   const AppSearchBar({
     super.key,
     required this.hintText,
     required this.onSearch,
+    this.onFilterPressed,
   });
 
   @override
@@ -61,6 +63,13 @@ class _AppSearchBarState extends State<AppSearchBar> {
             vertical: 16,
           ),
           border: InputBorder.none,
+          prefixIcon: widget.onFilterPressed != null
+              ? IconButton(
+                  icon: const Icon(CupertinoIcons.slider_horizontal_3),
+                  color: Colors.grey,
+                  onPressed: widget.onFilterPressed,
+                )
+              : null,
           suffixIcon: IconButton(
             icon: const Icon(CupertinoIcons.search),
             color: AppColors.primaryGreen,

@@ -45,6 +45,52 @@ class ImageUpload {
   }
 }
 
+class EducatorApplication {
+  final String id;
+  final String applicantUid;
+  final String applicantEmail;
+  final String videoUrl;
+  final String syllabusUrl;
+  final String status; // 'pending', 'approved', 'rejected'
+  final Timestamp? appliedAt;
+
+  EducatorApplication({
+    required this.id,
+    required this.applicantUid,
+    required this.applicantEmail,
+    required this.videoUrl,
+    required this.syllabusUrl,
+    required this.status,
+    required this.appliedAt,
+  });
+
+  factory EducatorApplication.fromDoc(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? {};
+    return EducatorApplication(
+      id: doc.id,
+      applicantUid: data['applicantUid'] ?? '',
+      applicantEmail: data['applicantEmail'] ?? '',
+      videoUrl: data['videoUrl'] ?? '',
+      syllabusUrl: data['syllabusUrl'] ?? '',
+      status: data['status'] ?? 'pending',
+      appliedAt: data['appliedAt'] as Timestamp?,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'applicantUid': applicantUid,
+      'applicantEmail': applicantEmail,
+      'videoUrl': videoUrl,
+      'syllabusUrl': syllabusUrl,
+      'status': status,
+      'appliedAt': appliedAt ?? FieldValue.serverTimestamp(),
+    };
+  }
+}
+
 class Lesson {
   final String id;
   final String title;
@@ -212,6 +258,18 @@ class DatabaseService {
   static final instance = DatabaseService._();
 
   final _firestore = FirebaseFirestore.instance;
+  final _storage = FirebaseStorage.instance;
+
+  Future<void> _deleteFileFromUrl(String? url) async {
+    if (url == null || url.isEmpty) return;
+    try {
+      final ref = _storage.refFromURL(url);
+      await ref.delete();
+    } catch (e) {
+      debugPrint('Error deleting file from storage ($url): $e');
+      // We don't rethrow here to allow Firestore deletion to proceed
+    }
+  }
 
   CollectionReference<Map<String, dynamic>> get _lessons =>
       _firestore.collection('lessons');
@@ -223,6 +281,74 @@ class DatabaseService {
       _firestore.collection('users').doc(uid).collection('quizProgress');
   CollectionReference<Map<String, dynamic>> get _spellingWords =>
       _firestore.collection('spelling_words');
+
+  CollectionReference<Map<String, dynamic>> get _educatorApplications =>
+      _firestore.collection('educator_applications');
+
+  Future<void> submitEducatorApplication({
+    required String uid,
+    required String email,
+    required String videoUrl,
+    required String syllabusUrl,
+  }) async {
+    await _educatorApplications.add({
+      'applicantUid': uid,
+      'applicantEmail': email,
+      'videoUrl': videoUrl,
+      'syllabusUrl': syllabusUrl,
+      'status': 'pending',
+      'appliedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Stream<List<EducatorApplication>> streamEducatorApplications() {
+    return _educatorApplications
+        .where('status', isEqualTo: 'pending')
+        .orderBy('appliedAt', descending: false)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map(EducatorApplication.fromDoc).toList(),
+        );
+  }
+
+  Stream<EducatorApplication?> streamUserApplication(String uid) {
+    return _educatorApplications
+        .where('applicantUid', isEqualTo: uid)
+        .orderBy('appliedAt', descending: true)
+        .limit(1)
+        .snapshots()
+        .map((snapshot) {
+          if (snapshot.docs.isEmpty) return null;
+          return EducatorApplication.fromDoc(snapshot.docs.first);
+        });
+  }
+
+  Future<void> updateApplicationStatus(String id, String status) async {
+    await _educatorApplications.doc(id).update({'status': status});
+  }
+
+  Future<String> uploadApplicationFile({
+    required Uint8List fileBytes,
+    required String fileName,
+    required String contentType,
+  }) async {
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('educator_applications')
+          .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
+
+      final uploadTask = storageRef.putData(
+        fileBytes,
+        SettableMetadata(contentType: contentType),
+      );
+
+      final snapshot = await uploadTask.whenComplete(() => null);
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      throw Exception('Failed to upload application file: $e');
+    }
+  }
 
   Future<String> createLesson({
     required String title,
@@ -294,6 +420,11 @@ class DatabaseService {
   }
 
   Future<void> deleteLesson(String id) async {
+    final doc = await _lessons.doc(id).get();
+    if (doc.exists) {
+      final data = doc.data();
+      await _deleteFileFromUrl(data?['attachmentUrl']);
+    }
     await _lessons.doc(id).delete();
   }
 
@@ -478,6 +609,11 @@ class DatabaseService {
   }
 
   Future<void> deleteQuiz(String id) async {
+    final doc = await _quizzes.doc(id).get();
+    if (doc.exists) {
+      final data = doc.data();
+      await _deleteFileFromUrl(data?['attachmentUrl']);
+    }
     await _quizzes.doc(id).delete();
   }
 
@@ -667,16 +803,7 @@ class DatabaseService {
   Future<void> deleteImage(String imageId, String imageUrl) async {
     try {
       await _images.doc(imageId).delete();
-
-      final RegExp regExp = RegExp(r'/(.+)/o/(.+)\?');
-      final Match? match = regExp.firstMatch(imageUrl);
-      if (match != null) {
-        final filePath = match.group(2);
-        if (filePath != null) {
-          final storageRef = FirebaseStorage.instance.ref().child(filePath);
-          await storageRef.delete();
-        }
-      }
+      await _deleteFileFromUrl(imageUrl);
     } catch (e) {
       throw Exception('Failed to delete image: $e');
     }
@@ -916,6 +1043,11 @@ class DatabaseService {
 
   /// Deletes a specific spelling word by its document ID.
   Future<void> deleteSpellingWord(String id) async {
+    final doc = await _spellingWords.doc(id).get();
+    if (doc.exists) {
+      final data = doc.data();
+      await _deleteFileFromUrl(data?['audioUrl']);
+    }
     await _spellingWords.doc(id).delete();
   }
 
@@ -1036,5 +1168,105 @@ class DatabaseService {
           }
           return subscribers;
         });
+  }
+
+  Future<void> deleteUserAccount(String uid) async {
+    try {
+      // 1. Delete all user content (Lessons)
+      final lessonSnap = await _lessons
+          .where('createdByUid', isEqualTo: uid)
+          .get();
+      for (final doc in lessonSnap.docs) {
+        await deleteLesson(doc.id);
+      }
+
+      // 2. Delete all user content (Quizzes)
+      final quizSnap = await _quizzes
+          .where('createdByUid', isEqualTo: uid)
+          .get();
+      for (final doc in quizSnap.docs) {
+        await deleteQuiz(doc.id);
+      }
+
+      // 3. Delete all user images
+      final imageSnap = await _images.where('userId', isEqualTo: uid).get();
+      for (final doc in imageSnap.docs) {
+        await deleteImage(doc.id, doc.data()['imageUrl'] ?? '');
+      }
+
+      // 4. Delete educator applications
+      final appSnap = await _educatorApplications
+          .where('applicantUid', isEqualTo: uid)
+          .get();
+      for (final doc in appSnap.docs) {
+        final data = doc.data();
+        await _deleteFileFromUrl(data['videoUrl']);
+        await _deleteFileFromUrl(data['syllabusUrl']);
+        await doc.reference.delete();
+      }
+
+      // 5. Delete specific collections
+      // Progress
+      final progressSnap = await _userProgress(uid).get();
+      for (final doc in progressSnap.docs) {
+        await doc.reference.delete();
+      }
+
+      // Quiz Progress
+      final qProgressSnap = await _userQuizProgress(uid).get();
+      for (final doc in qProgressSnap.docs) {
+        await doc.reference.delete();
+      }
+
+      // Subscriptions (Learner side)
+      final subsSnap = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('subscriptions')
+          .get();
+      for (final doc in subsSnap.docs) {
+        // Also remove learner from educator's subscriber list
+        final educatorUid = doc.id;
+        await _firestore
+            .collection('users')
+            .doc(educatorUid)
+            .collection('subscribers')
+            .doc(uid)
+            .delete();
+        await doc.reference.delete();
+      }
+
+      // Subscribers (Educator side)
+      final followersSnap = await _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('subscribers')
+          .get();
+      for (final doc in followersSnap.docs) {
+        // Also remove educator from learner's subscription list
+        final learnerUid = doc.id;
+        await _firestore
+            .collection('users')
+            .doc(learnerUid)
+            .collection('subscriptions')
+            .doc(uid)
+            .delete();
+        await doc.reference.delete();
+      }
+
+      // 6. Delete user profile photo if exists
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        final photoUrl = userDoc.data()?['photoUrl'];
+        if (photoUrl != null && photoUrl.toString().isNotEmpty) {
+          await _deleteFileFromUrl(photoUrl);
+        }
+      }
+
+      // 7. Finally delete user doc
+      await _firestore.collection('users').doc(uid).delete();
+    } catch (e) {
+      throw Exception('Failed to delete user account: $e');
+    }
   }
 }

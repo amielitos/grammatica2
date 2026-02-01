@@ -12,6 +12,7 @@ import '../main.dart';
 import '../services/database_service.dart';
 
 import 'manage_subscriptions_page.dart';
+import 'educator_application_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -603,6 +604,88 @@ class ProfilePageState extends State<ProfilePage> {
                                       const Divider(height: 48),
                                     ],
                                   ),
+                                  if (roleSnap.data == UserRole.learner) ...[
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        Text(
+                                          'Educator Role',
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.titleLarge,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        StreamBuilder<EducatorApplication?>(
+                                          stream: DatabaseService.instance
+                                              .streamUserApplication(
+                                                widget.user.uid,
+                                              ),
+                                          builder: (context, appSnap) {
+                                            final application = appSnap.data;
+                                            if (application != null &&
+                                                (application.status ==
+                                                        'pending' ||
+                                                    application.status ==
+                                                        'rejected')) {
+                                              return FilledButton.icon(
+                                                onPressed: () =>
+                                                    _showApplicationStatusDialog(
+                                                      application,
+                                                    ),
+                                                icon: const Icon(
+                                                  CupertinoIcons.doc_text_fill,
+                                                ),
+                                                label: const Text(
+                                                  'View Application',
+                                                ),
+                                                style: FilledButton.styleFrom(
+                                                  backgroundColor:
+                                                      application.status ==
+                                                          'pending'
+                                                      ? Colors.orange
+                                                      : Colors.red,
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 16,
+                                                      ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          16,
+                                                        ),
+                                                  ),
+                                                ),
+                                              );
+                                            }
+
+                                            return FilledButton.icon(
+                                              onPressed: () =>
+                                                  _showBecomeEducatorDialog(),
+                                              icon: const Icon(
+                                                CupertinoIcons.briefcase_fill,
+                                              ),
+                                              label: const Text(
+                                                'Become an Educator',
+                                              ),
+                                              style: FilledButton.styleFrom(
+                                                backgroundColor: Colors.blue,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 16,
+                                                    ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(16),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        const Divider(height: 48),
+                                      ],
+                                    ),
+                                  ],
                                   Row(
                                     children: [
                                       Expanded(
@@ -723,13 +806,14 @@ class ProfilePageState extends State<ProfilePage> {
                                             );
                                             if (confirm == true) {
                                               try {
-                                                await FirebaseFirestore.instance
-                                                    .collection('users')
-                                                    .doc(widget.user.uid)
-                                                    .delete();
-                                                await widget.user.delete();
+                                                await AuthService.instance
+                                                    .deleteAccount();
+                                                // Auth changes will trigger navigation to login/onboarding automatically via main.dart
                                               } catch (e) {
-                                                _showSnack('Delete failed: $e');
+                                                _showSnack(
+                                                  'Delete failed: $e',
+                                                  error: true,
+                                                );
                                               }
                                             }
                                           },
@@ -752,6 +836,177 @@ class ProfilePageState extends State<ProfilePage> {
           ),
         );
       },
+    );
+  }
+
+  void _showBecomeEducatorDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Become an Educator'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Unlock powerful features to teach and monetize your content:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            const Text('• Monetize your lessons and quizzes'),
+            const Text('• Create and manage learner groups'),
+            const Text('• Detailed student progress tracking'),
+            const Text('• Direct interaction with your students'),
+            const SizedBox(height: 16),
+            const Text(
+              'Cost: \$5.00 / month',
+              style: TextStyle(
+                color: Colors.green,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.withOpacity(0.5)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(CupertinoIcons.info_circle, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Applications are subject to approval. Note that you may lose your educator role if you violate our teaching guidelines.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Maybe Later'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EducatorApplicationPage(user: widget.user),
+                ),
+              );
+            },
+            child: const Text('Apply Now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showApplicationStatusDialog(EducatorApplication application) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Application Status'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  'Status: ',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: application.status == 'pending'
+                        ? Colors.orange.withOpacity(0.2)
+                        : Colors.red.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    application.status.toUpperCase(),
+                    style: TextStyle(
+                      color: application.status == 'pending'
+                          ? Colors.orange
+                          : Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              application.status == 'pending'
+                  ? 'Your application for the Educator role is currently being reviewed by our super admins.'
+                  : 'Unfortunately, your application was not approved at this time. You can try applying again with updated credentials.',
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Submitted Credentials:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                CupertinoIcons.videocam_fill,
+                color: Colors.blue,
+              ),
+              title: const Text('Teaching Demo Video'),
+              trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
+              onTap: () {
+                _showSnack('Opening video link...');
+                // You could use url_launcher here if desired
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(CupertinoIcons.doc_fill, color: Colors.red),
+              title: const Text('Teaching Syllabus PDF'),
+              trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
+              onTap: () {
+                _showSnack('Opening syllabus link...');
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          if (application.status == 'rejected')
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EducatorApplicationPage(user: widget.user),
+                  ),
+                );
+              },
+              child: const Text('Re-apply'),
+            ),
+        ],
+      ),
     );
   }
 }

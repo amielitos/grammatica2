@@ -22,66 +22,74 @@ class ModernBottomNav extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 24),
         child: Center(
           heightFactor: 1.0,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.black.withOpacity(0.7)
-                  : Colors.white.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(40),
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isSmallScreen = MediaQuery.of(context).size.width < 500;
+              return Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 8 : 12,
+                  vertical: 8,
                 ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: items.asMap().entries.map((entry) {
-                final index = entry.key;
-                final item = entry.value;
-                final isSelected = currentIndex == index;
-                final selectedColor =
-                    item.selectedColor ?? AppColors.primaryGreen;
-                final color = isSelected ? selectedColor : Colors.grey;
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.black.withOpacity(0.7)
+                      : Colors.white.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(40),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: items.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final item = entry.value;
+                    final isSelected = currentIndex == index;
+                    final selectedColor =
+                        item.selectedColor ?? AppColors.primaryGreen;
+                    final color = isSelected ? selectedColor : Colors.grey;
 
-                return GestureDetector(
-                  onTap: () => onTap(index),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? color.withOpacity(0.15)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(item.icon, color: color, size: 24),
-                        if (isSelected) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            item.label,
-                            style: TextStyle(
-                              color: color,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
+                    return GestureDetector(
+                      onTap: () => onTap(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isSmallScreen ? 12 : 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? color.withOpacity(0.15)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(item.icon, color: color, size: 24),
+                            if (isSelected && !isSmallScreen) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                item.label,
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              );
+            },
           ),
         ),
       ),

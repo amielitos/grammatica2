@@ -35,6 +35,10 @@ class QuizFolderPage extends StatefulWidget {
 
 class _QuizFolderPageState extends State<QuizFolderPage> {
   String _searchQuery = '';
+  String _selectedFilter = 'Name'; // Default
+
+  final List<String> _filterOptions = ['Name', 'Create Date'];
+
   final _searchController = TextEditingController();
 
   @override
@@ -97,6 +101,11 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
             child: AppSearchBar(
               hintText: 'Search public quizzes...',
               onSearch: (val) => setState(() => _searchQuery = val),
+              onFilterPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Filter options coming soon!')),
+                );
+              },
             ),
           ),
           Expanded(
@@ -224,6 +233,32 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
           );
     }).toList();
 
+    // Apply sorting based on filter
+    filteredQuizzes.sort((a, b) {
+      int cmp = 0;
+      if (_selectedFilter == 'Name') {
+        cmp = a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      } else if (_selectedFilter == 'Create Date') {
+        final tsA = a.createdAt;
+        final tsB = b.createdAt;
+        if (tsA == null && tsB == null) {
+          cmp = 0;
+        } else if (tsA == null) {
+          cmp = 1;
+        } else if (tsB == null) {
+          cmp = -1;
+        } else {
+          cmp = tsB.compareTo(tsA); // Newest first
+        }
+      }
+
+      if (cmp == 0) {
+        // Secondary sort by Name A-Z
+        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      }
+      return cmp;
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -252,6 +287,40 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                     child: AppSearchBar(
                       hintText: 'Search quizzes...',
                       onSearch: (val) => setState(() => _searchQuery = val),
+                      onFilterPressed: () {
+                        showCupertinoModalPopup(
+                          context: context,
+                          builder: (context) => CupertinoActionSheet(
+                            title: const Text('Filter Quizzes By'),
+                            actions: _filterOptions.map((option) {
+                              return CupertinoActionSheetAction(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedFilter = option;
+                                  });
+                                  Navigator.pop(context);
+                                },
+                                child: Text(
+                                  option,
+                                  style: TextStyle(
+                                    color: _selectedFilter == option
+                                        ? AppColors.primaryGreen
+                                        : null,
+                                    fontWeight: _selectedFilter == option
+                                        ? FontWeight.bold
+                                        : null,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            cancelButton: CupertinoActionSheetAction(
+                              onPressed: () => Navigator.pop(context),
+                              isDestructiveAction: true,
+                              child: const Text('Cancel'),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   Expanded(

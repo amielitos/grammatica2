@@ -5,6 +5,7 @@ import '../../widgets/glass_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import '../../widgets/app_search_bar.dart';
+import '../../services/database_service.dart';
 
 class AdminUsersTab extends StatefulWidget {
   const AdminUsersTab({super.key});
@@ -15,6 +16,9 @@ class AdminUsersTab extends StatefulWidget {
 class _AdminUsersTabState extends State<AdminUsersTab> {
   int _rowsPerPage = PaginatedDataTable.defaultRowsPerPage;
   String _searchQuery = '';
+  String _selectedFilter = 'Create Date'; // Default
+
+  final List<String> _filterOptions = ['Name', 'Role', 'Status', 'Create Date'];
 
   String _formatTs(dynamic ts) {
     if (ts is Timestamp) {
@@ -48,6 +52,44 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               }).toList();
             }
 
+            // Apply sorting based on filter
+            users.sort((a, b) {
+              int cmp = 0;
+              if (_selectedFilter == 'Name') {
+                cmp = (a['username'] ?? '').toString().toLowerCase().compareTo(
+                  (b['username'] ?? '').toString().toLowerCase(),
+                );
+              } else if (_selectedFilter == 'Role') {
+                cmp = (a['role'] ?? '').toString().compareTo(
+                  (b['role'] ?? '').toString(),
+                );
+              } else if (_selectedFilter == 'Status') {
+                cmp = (a['status'] ?? '').toString().compareTo(
+                  (b['status'] ?? '').toString(),
+                );
+              } else if (_selectedFilter == 'Create Date') {
+                final tsA = a['createdAt'] as Timestamp?;
+                final tsB = b['createdAt'] as Timestamp?;
+                if (tsA == null && tsB == null) {
+                  cmp = 0;
+                } else if (tsA == null) {
+                  cmp = 1;
+                } else if (tsB == null) {
+                  cmp = -1;
+                } else {
+                  cmp = tsB.compareTo(tsA); // Newest first
+                }
+              }
+
+              if (cmp == 0) {
+                // Secondary sort by Name A-Z
+                return (a['username'] ?? '').toString().toLowerCase().compareTo(
+                  (b['username'] ?? '').toString().toLowerCase(),
+                );
+              }
+              return cmp;
+            });
+
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
@@ -59,6 +101,40 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       setState(() {
                         _searchQuery = value;
                       });
+                    },
+                    onFilterPressed: () {
+                      showCupertinoModalPopup(
+                        context: context,
+                        builder: (context) => CupertinoActionSheet(
+                          title: const Text('Filter Users By'),
+                          actions: _filterOptions.map((option) {
+                            return CupertinoActionSheetAction(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedFilter = option;
+                                });
+                                Navigator.pop(context);
+                              },
+                              child: Text(
+                                option,
+                                style: TextStyle(
+                                  color: _selectedFilter == option
+                                      ? AppColors.primaryGreen
+                                      : null,
+                                  fontWeight: _selectedFilter == option
+                                      ? FontWeight.bold
+                                      : null,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          cancelButton: CupertinoActionSheetAction(
+                            onPressed: () => Navigator.pop(context),
+                            isDestructiveAction: true,
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                      );
                     },
                   ),
                   const SizedBox(height: 16),
@@ -287,6 +363,19 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                             ),
                                           ),
                                         ),
+                                        const SizedBox(width: 8),
+                                        IconButton(
+                                          icon: const Icon(
+                                            CupertinoIcons.trash,
+                                            color: Colors.red,
+                                            size: 20,
+                                          ),
+                                          onPressed: () =>
+                                              _showDeleteConfirmation(
+                                                uid,
+                                                username,
+                                              ),
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -335,7 +424,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                     DataColumn(label: Text('Status')),
                                     DataColumn(label: Text('Subscription')),
                                     DataColumn(label: Text('Created At')),
-                                    DataColumn(label: Text('Actions')),
+                                    DataColumn(label: Text('Role Action')),
+                                    DataColumn(label: Text('Delete')),
                                   ],
                                   source: _UsersDataSource(
                                     context: context,
@@ -358,6 +448,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                       }
                                     },
                                     formatTs: _formatTs,
+                                    onDeleteRequested: _showDeleteConfirmation,
                                   ),
                                 ),
                               ),
@@ -375,6 +466,47 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       },
     );
   }
+
+  void _showDeleteConfirmation(String uid, String username) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Delete Account'),
+        content: Text(
+          'Are you sure you want to delete $username\'s account? This will also delete all their lessons, quizzes, and files. This action cannot be undone.',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await DatabaseService.instance.deleteUserAccount(uid);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Account deleted successfully'),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error deleting account: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _UsersDataSource extends DataTableSource {
@@ -382,12 +514,14 @@ class _UsersDataSource extends DataTableSource {
   final Future<void> Function(String uid, String email, UserRole newRole)
   onRoleChanged;
   final String Function(dynamic ts) formatTs;
+  final Function(String uid, String username) onDeleteRequested;
   final BuildContext context;
   _UsersDataSource({
     required this.context,
     required this.users,
     required this.onRoleChanged,
     required this.formatTs,
+    required this.onDeleteRequested,
   });
   @override
   DataRow? getRow(int index) {
@@ -513,6 +647,12 @@ class _UsersDataSource extends DataTableSource {
                 }
               },
             ),
+          ),
+        ),
+        DataCell(
+          IconButton(
+            icon: const Icon(CupertinoIcons.trash, color: Colors.red),
+            onPressed: () => onDeleteRequested(uid, username),
           ),
         ),
       ],
