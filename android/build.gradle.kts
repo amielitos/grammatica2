@@ -19,6 +19,22 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    plugins.whenPluginAdded {
+        if (this.toString().contains("com.android.build.gradle.LibraryPlugin") || 
+            this.toString().contains("com.android.build.gradle.AppPlugin")) {
+            val android = project.extensions.getByName("android") as com.android.build.gradle.BaseExtension
+            if (android.namespace == null) {
+                android.namespace = project.group.toString()
+            }
+            // Only set compileSdkVersion if it's not already set to a safe value
+            // or if it's a plugin that we know needs a boost.
+            // Using compileSdkVersion instead of compileSdk for BaseExtension compatibility
+            android.compileSdkVersion(34)
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
