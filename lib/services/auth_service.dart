@@ -160,9 +160,11 @@ class AuthService {
         'date_of_birth': Timestamp.fromDate(dateOfBirth),
         'photoUrl': '', // Initialize with empty photo URL
         'has_completed_onboarding': false,
-      }, SetOptions(merge: true));
+      });
+    } else {
+      // Optionally update fields if they are missing or need refreshing
+      // But respecting existing data is usually safer.
     }
-    return cred;
   }
 
   Future<void> signOut() async {

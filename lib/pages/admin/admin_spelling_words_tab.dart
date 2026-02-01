@@ -546,7 +546,7 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
             ),
             const SizedBox(height: 20),
             DropdownButtonFormField<SpellingDifficulty>(
-              value: _difficulty,
+              initialValue: _difficulty,
               decoration: InputDecoration(
                 labelText: 'Difficulty',
                 border: OutlineInputBorder(
