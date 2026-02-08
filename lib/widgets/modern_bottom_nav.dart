@@ -5,12 +5,14 @@ class ModernBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
   final List<ModernNavItem> items;
+  final bool showProfileWarning;
 
   const ModernBottomNav({
     super.key,
     required this.currentIndex,
     required this.onTap,
     required this.items,
+    this.showProfileWarning = false,
   });
 
   @override
@@ -70,7 +72,26 @@ class ModernBottomNav extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            Icon(item.icon, color: color, size: 24),
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Icon(item.icon, color: color, size: 24),
+                                if (index == items.length - 1 &&
+                                    showProfileWarning)
+                                  Positioned(
+                                    top: -2,
+                                    right: -2,
+                                    child: Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.amber,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                             if (isSelected && !isSmallScreen) ...[
                               const SizedBox(width: 8),
                               Text(

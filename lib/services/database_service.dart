@@ -285,6 +285,10 @@ class DatabaseService {
   CollectionReference<Map<String, dynamic>> get _educatorApplications =>
       _firestore.collection('educator_applications');
 
+  Future<void> updateUserField(String uid, String field, dynamic value) async {
+    await _firestore.collection('users').doc(uid).update({field: value});
+  }
+
   Future<void> submitEducatorApplication({
     required String uid,
     required String email,

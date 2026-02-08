@@ -2,9 +2,8 @@ import 'dart:math';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:js_interop';
-import 'package:web/web.dart' as web;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import '../services/web_service.dart';
 import 'package:string_similarity/string_similarity.dart';
 import '../services/vosk_service.dart';
 import '../models/spelling_word.dart'; // Reusing SpellingWord model
@@ -12,19 +11,6 @@ import '../services/database_service.dart';
 import '../services/role_service.dart';
 import '../widgets/glass_card.dart';
 import 'admin/admin_spelling_words_tab.dart';
-
-@JS('webkitSpeechRecognition')
-extension type SpeechRecognition._(JSObject _) implements JSObject {
-  external SpeechRecognition();
-  external set continuous(bool value);
-  external set interimResults(bool value);
-  external set lang(String value);
-  external set onresult(JSFunction value);
-  external set onerror(JSFunction value);
-  external set onend(JSFunction value);
-  external void start();
-  external void stop();
-}
 
 class PronunciationQuizPage extends StatefulWidget {
   final User user;
@@ -51,7 +37,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   // Audio removed for Pronunciation Quiz
 
   // Web Speech Specifics
-  SpeechRecognition? _webSpeech;
+  dynamic _webSpeech;
 
   // List to track user answers for the preview pane
   List<String?> _userAnswers = [];
@@ -82,38 +68,31 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 
   void _initWebSpeech() {
     try {
-      _webSpeech = SpeechRecognition();
-      _webSpeech!.continuous = false;
-      _webSpeech!.interimResults = true;
-      _webSpeech!.lang = 'en-US';
-
-      _webSpeech!.onresult = (web.SpeechRecognitionEvent event) {
-        final results = event.results;
-        if (results.length > 0) {
-          final result = results.item(results.length - 1);
-          final transcript = result.item(0).transcript;
-          if (mounted) {
-            setState(() {
-              _recognizedText = transcript;
-            });
-          }
-          if (result.isFinal) {
+      _webSpeech = WebService.instance.createSpeechRecognition();
+      if (_webSpeech != null) {
+        WebService.instance.configureSpeechRecognition(
+          recognition: _webSpeech,
+          onResult: (transcript, isFinal) {
+            if (mounted) {
+              setState(() {
+                _recognizedText = transcript;
+              });
+            }
+            if (isFinal) {
+              _stopRecording();
+            }
+          },
+          onError: (error) {
+            debugPrint("Web Speech Error: $error");
             _stopRecording();
-            // _submitAnswer(); // Disabled auto-submission
-          }
-        }
-      }.toJS;
-
-      _webSpeech!.onerror = (JSObject error) {
-        debugPrint("Web Speech Error: $error");
-        _stopRecording();
-      }.toJS;
-
-      _webSpeech!.onend = () {
-        if (_isRecording) {
-          _stopRecording();
-        }
-      }.toJS;
+          },
+          onEnd: () {
+            if (_isRecording) {
+              _stopRecording();
+            }
+          },
+        );
+      }
     } catch (e) {
       debugPrint("Web Speech Init Error: $e");
     }
@@ -200,7 +179,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     }
 
     if (kIsWeb) {
-      _webSpeech?.start();
+      WebService.instance.startSpeechRecognition(_webSpeech);
     } else {
       // Native Vosk Logic placeholder
       debugPrint("Native recording started (via placeholder)");
@@ -223,7 +202,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       });
     }
     if (kIsWeb) {
-      _webSpeech?.stop();
+      WebService.instance.stopSpeechRecognition(_webSpeech);
     } else {
       // Native Vosk Stop logic
     }

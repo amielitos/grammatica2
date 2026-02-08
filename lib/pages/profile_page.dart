@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/role_service.dart';
@@ -39,6 +40,9 @@ class ProfilePageState extends State<ProfilePage> {
   final _currentPasswordCtrl = TextEditingController();
   final _newPasswordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
+  // New controller for phone number
+  final _phoneCtrl = TextEditingController();
+  final _phoneFocus = FocusNode();
   String? _info;
   String? _error;
 
@@ -46,6 +50,9 @@ class ProfilePageState extends State<ProfilePage> {
   String _displayName = 'User';
   String _displayEmail = '';
   String? _photoUrl;
+  Timestamp? _dob;
+  String? _phoneNumber;
+  String? _completePhoneNumber;
 
   @override
   void initState() {
@@ -54,6 +61,18 @@ class ProfilePageState extends State<ProfilePage> {
     _photoUrl = widget.user.photoURL;
     _displayName = widget.user.displayName ?? 'User';
     fetchProfile();
+  }
+
+  @override
+  void dispose() {
+    _usernameCtrl.dispose();
+    _bioCtrl.dispose();
+    _currentPasswordCtrl.dispose();
+    _newPasswordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
+    _phoneCtrl.dispose();
+    _phoneFocus.dispose();
+    super.dispose();
   }
 
   Future<void> fetchProfile() async {
@@ -82,6 +101,8 @@ class ProfilePageState extends State<ProfilePage> {
       final fetchedUsername = (data?['username'] as String?)?.trim();
       final fetchedPhoto = (data?['photoUrl'] as String?);
       final fetchedBio = (data?['bio'] as String?)?.trim() ?? '';
+      final fetchedPhone = (data?['phone_number'] as String?);
+      final fetchedDob = (data?['date_of_birth'] as Timestamp?);
 
       if (mounted) {
         setState(() {
@@ -90,12 +111,22 @@ class ProfilePageState extends State<ProfilePage> {
               : (widget.user.displayName ?? 'User');
           _photoUrl = fetchedPhoto ?? widget.user.photoURL;
           _bioCtrl.text = fetchedBio;
+          _phoneNumber = fetchedPhone;
+          _dob = fetchedDob;
+          if (_phoneNumber != null) {
+            // NOTE: IntlPhoneField might struggle to parse this back into CC + Number key without parsing logic.
+            // For now we just set the text, but the country code might default to PH if not parsed.
+            // A robust solution parses the number. passing it to initialValue of IntlPhoneField is better if supported.
+            _phoneCtrl.text = _phoneNumber!;
+          }
         });
       }
     } catch (e) {
       print('Error fetching profile: $e');
     }
   }
+
+  // ... (keeping _updateUsername and _updateBio as is)
 
   Future<void> _updateUsername() async {
     final email = widget.user.email;
@@ -152,6 +183,72 @@ class ProfilePageState extends State<ProfilePage> {
       _showSnack('Bio updated');
     } catch (e) {
       _showSnack('Failed to update bio', error: true);
+    }
+  }
+
+  Future<void> _updatePhone() async {
+    // Use the complete number from IntlPhoneField if available, otherwise fallback to controller
+    final phone = _completePhoneNumber ?? _phoneCtrl.text.trim();
+
+    if (phone.isEmpty) {
+      _showSnack('Please enter a phone number', error: true);
+      return;
+    }
+
+    try {
+      await DatabaseService.instance.updateUserField(
+        widget.user.uid,
+        'phone_number',
+        phone,
+      );
+      if (mounted) {
+        fetchProfile(); // Refresh
+        _showSnack('Phone number updated');
+      }
+    } catch (e) {
+      _showSnack('Failed to update phone number', error: true);
+    }
+  }
+
+  // Keeping the dialog version for the "warning" section if needed,
+  // or we can remove it if the inline field is sufficient.
+  // For now, I'll remove _showUpdatePhoneDialog as it's redundant with the inline field.
+
+  Future<void> _updateDob() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now().subtract(const Duration(days: 365 * 7)),
+    );
+    if (picked == null) return;
+
+    // Validate Age >= 7
+    final now = DateTime.now();
+    final age =
+        now.year -
+        picked.year -
+        ((now.month < picked.month ||
+                (now.month == picked.month && now.day < picked.day))
+            ? 1
+            : 0);
+    if (age < 7) {
+      _showSnack('You must be at least 7 years old.', error: true);
+      return;
+    }
+
+    try {
+      await DatabaseService.instance.updateUserField(
+        widget.user.uid,
+        'date_of_birth',
+        Timestamp.fromDate(picked),
+      );
+      if (mounted) {
+        fetchProfile();
+        _showSnack('Date of birth updated');
+      }
+    } catch (e) {
+      _showSnack('Failed to update date of birth', error: true);
     }
   }
 
@@ -353,7 +450,87 @@ class ProfilePageState extends State<ProfilePage> {
                                         .bodyMedium
                                         ?.copyWith(color: Colors.grey[600]),
                                   ),
-                                  const SizedBox(height: 32),
+                                  const SizedBox(height: 24),
+                                  // WARNING FOR MISSING INFO
+                                  if (_phoneNumber == null ||
+                                      _phoneNumber!.isEmpty ||
+                                      _dob == null) ...[
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.amber),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.warning_amber_rounded,
+                                                color: Colors.amber,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Actions Required',
+                                                style: TextStyle(
+                                                  color: Colors.amber[800],
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Please complete your profile to continue using all features features.',
+                                            style: TextStyle(
+                                              color: Colors.amber[900],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          if (_phoneNumber == null ||
+                                              _phoneNumber!.isEmpty) ...[
+                                            ElevatedButton.icon(
+                                              onPressed: () =>
+                                                  _phoneFocus.requestFocus(),
+                                              icon: const Icon(
+                                                Icons.phone,
+                                                size: 16,
+                                              ),
+                                              label: const Text(
+                                                'Add Phone Number',
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.amber,
+                                                foregroundColor: Colors.white,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                          ],
+                                          if (_dob == null)
+                                            ElevatedButton.icon(
+                                              onPressed: _updateDob,
+                                              icon: const Icon(
+                                                Icons.calendar_today,
+                                                size: 16,
+                                              ),
+                                              label: const Text(
+                                                'Add Date of Birth',
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.amber,
+                                                foregroundColor: Colors.white,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 32),
+                                  ],
+
                                   Text(
                                     'Update Details',
                                     style: Theme.of(
@@ -387,6 +564,51 @@ class ProfilePageState extends State<ProfilePage> {
                                   FilledButton(
                                     onPressed: _updateBio,
                                     child: const Text('Update Bio'),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  IntlPhoneField(
+                                    controller: _phoneCtrl,
+                                    focusNode: _phoneFocus,
+                                    initialCountryCode:
+                                        'PH', // Default to Philippines
+                                    decoration: const InputDecoration(
+                                      labelText: 'Phone Number',
+                                      border: OutlineInputBorder(
+                                        borderSide: BorderSide(),
+                                      ),
+                                    ),
+                                    onChanged: (phone) {
+                                      _completePhoneNumber =
+                                          phone.completeNumber;
+                                    },
+                                    onCountryChanged: (country) {
+                                      // print('Country changed to: ' + country.name);
+                                    },
+                                  ),
+                                  const SizedBox(height: 8),
+                                  FilledButton(
+                                    onPressed: _updatePhone,
+                                    child: const Text('Update Phone Number'),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  InkWell(
+                                    onTap: _updateDob,
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: InputDecorator(
+                                      decoration: const InputDecoration(
+                                        labelText: 'Date of Birth',
+                                        prefixIcon: Icon(Icons.calendar_today),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      child: Text(
+                                        _dob != null
+                                            ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}'
+                                            : 'Select Date of Birth',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodyLarge,
+                                      ),
+                                    ),
                                   ),
                                   if (roleSnap.data == UserRole.educator) ...[
                                     const Divider(height: 48),

@@ -8,6 +8,13 @@ class AuthService {
   AuthService._() {
     // Listen to Google Sign-In events (especially useful for Web GIS button)
     _googleSignIn.authenticationEvents.listen(_handleGoogleSignInEvent);
+
+    // Initialize early on web to ensure GIS is ready for buttons
+    if (kIsWeb) {
+      _ensureGoogleSignInInitialized().catchError((e) {
+        debugPrint('Early web GoogleSignIn initialization failed: $e');
+      });
+    }
   }
   static final instance = AuthService._();
 
@@ -22,7 +29,7 @@ class AuthService {
   ) async {
     if (event is GoogleSignInAuthenticationEventSignIn) {
       try {
-        final googleAuth = await event.user.authentication;
+        final googleAuth = event.user.authentication;
         final credential = GoogleAuthProvider.credential(
           idToken: googleAuth.idToken,
         );
@@ -55,19 +62,21 @@ class AuthService {
 
   Future<void> _ensureGoogleSignInInitialized() async {
     if (_isGoogleSignInInitialized) return;
+    if (_googleSignInInit != null) return _googleSignInInit;
 
-    _googleSignInInit ??= () async {
-      try {
-        await _googleSignIn.initialize();
-        _isGoogleSignInInitialized = true;
-      } catch (e) {
-        debugPrint('GoogleSignIn initialization error: $e');
-        _googleSignInInit = null;
-        rethrow;
-      }
-    }();
+    _googleSignInInit = _googleSignIn.initialize(
+      clientId: kIsWeb
+          ? '458713583940-v6j8pjs8bj4ftmibm8ml78rl1qrm6ib5.apps.googleusercontent.com'
+          : null,
+    );
 
-    return _googleSignInInit;
+    try {
+      await _googleSignInInit;
+      _isGoogleSignInInitialized = true;
+    } catch (e) {
+      _googleSignInInit = null;
+      rethrow;
+    }
   }
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
@@ -119,6 +128,13 @@ class AuthService {
       );
     }
 
+    if (googleUser == null) {
+      throw FirebaseAuthException(
+        code: 'ERROR_ABORTED_BY_USER',
+        message: 'Sign in aborted by user',
+      );
+    }
+
     final GoogleSignInAuthentication googleAuth =
         await googleUser.authentication;
 
@@ -161,10 +177,8 @@ class AuthService {
         'photoUrl': '', // Initialize with empty photo URL
         'has_completed_onboarding': false,
       });
-    } else {
-      // Optionally update fields if they are missing or need refreshing
-      // But respecting existing data is usually safer.
     }
+    return cred;
   }
 
   Future<void> signOut() async {

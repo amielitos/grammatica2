@@ -136,6 +136,12 @@ class _AuthWrapper extends StatelessWidget {
               }
             }
 
+            // Check for missing info (Google Sign-In usually)
+            final phone = data?['phone_number'] as String?;
+            final dobTimestamp = data?['date_of_birth'] as Timestamp?;
+            final hasMissingInfo =
+                (phone == null || phone.isEmpty) || (dobTimestamp == null);
+
             return StreamBuilder<UserRole>(
               stream: RoleService.instance.roleStream(user.uid),
               builder: (context, roleSnap) {
@@ -146,7 +152,10 @@ class _AuthWrapper extends StatelessWidget {
                 }
                 final role = roleSnap.data!;
                 if (role == UserRole.admin || role == UserRole.educator) {
-                  return AdminDashboard(user: user);
+                  return AdminDashboard(
+                    user: user,
+                    showProfileWarning: hasMissingInfo,
+                  );
                 }
 
                 final hasCompletedOnboarding =
@@ -155,7 +164,7 @@ class _AuthWrapper extends StatelessWidget {
                   return OnboardingPage(user: user);
                 }
 
-                return HomePage(user: user);
+                return HomePage(user: user, showProfileWarning: hasMissingInfo);
               },
             );
           },

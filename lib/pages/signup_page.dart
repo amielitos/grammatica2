@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
-import '../widgets/terms_and_conditions_dialog.dart';
 import '../widgets/google_sign_in_button.dart';
 
 class SignupPage extends StatefulWidget {
@@ -25,17 +25,17 @@ class _SignupPageState extends State<SignupPage> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _isGoogleLoading = false;
-  bool _agreedToTerms = false;
   DateTime? _selectedDate;
+  String? _completePhoneNumber;
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now().subtract(
-        const Duration(days: 365 * 18),
-      ), // Default to 18 years ago
+        const Duration(days: 365 * 7 + 2),
+      ), // Default to ~7 years ago
       firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+      lastDate: DateTime.now().subtract(const Duration(days: 365 * 7)),
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
@@ -91,7 +91,7 @@ class _SignupPageState extends State<SignupPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         fullName: _fullNameController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
+        phoneNumber: _completePhoneNumber ?? _phoneController.text.trim(),
         dateOfBirth:
             _selectedDate ?? DateTime.now(), // Should be validated by validator
       );
@@ -167,15 +167,21 @@ class _SignupPageState extends State<SignupPage> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
+                      IntlPhoneField(
                         controller: _phoneController,
+                        initialCountryCode: 'PH', // Default to Philippines
                         decoration: const InputDecoration(
                           labelText: 'Phone Number',
-                          prefixIcon: Icon(Icons.phone),
+                          border: OutlineInputBorder(borderSide: BorderSide()),
                         ),
-                        keyboardType: TextInputType.phone,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
+                        onChanged: (phone) {
+                          _completePhoneNumber = phone.completeNumber;
+                        },
+                        onCountryChanged: (country) {
+                          // print('Country changed to: ' + country.name);
+                        },
+                        validator: (phone) {
+                          if (phone == null || phone.number.isEmpty) {
                             return 'Please enter your phone number';
                           }
                           return null;
@@ -193,6 +199,23 @@ class _SignupPageState extends State<SignupPage> {
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please select your date of birth';
+                          }
+                          if (_selectedDate != null) {
+                            final now = DateTime.now();
+                            final age = now.year - _selectedDate!.year;
+                            if (now.month < _selectedDate!.month ||
+                                (now.month == _selectedDate!.month &&
+                                    now.day < _selectedDate!.day)) {
+                              // age--; // Not strictly needed if we rely on lastDate of picker, but good for safety
+                            }
+                            if (age < 7 &&
+                                now.isBefore(
+                                  _selectedDate!.add(
+                                    const Duration(days: 365 * 7),
+                                  ),
+                                )) {
+                              return 'You must be at least 7 years old.';
+                            }
                           }
                           return null;
                         },
@@ -278,54 +301,11 @@ class _SignupPageState extends State<SignupPage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _agreedToTerms,
-                            onChanged: (value) {
-                              setState(() {
-                                _agreedToTerms = value ?? false;
-                              });
-                            },
-                            activeColor: Theme.of(context).primaryColor,
-                          ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) =>
-                                      const TermsAndConditionsDialog(),
-                                );
-                              },
-                              child: RichText(
-                                text: TextSpan(
-                                  text: 'I agree to the ',
-                                  style: const TextStyle(color: Colors.black87),
-                                  children: [
-                                    TextSpan(
-                                      text: 'Terms and Conditions',
-                                      style: TextStyle(
-                                        color: Theme.of(context).primaryColor,
-                                        fontWeight: FontWeight.bold,
-                                        decoration: TextDecoration.underline,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
                         height: 54,
                         child: ElevatedButton(
-                          onPressed: (_isLoading || !_agreedToTerms)
-                              ? null
-                              : _register,
+                          onPressed: _isLoading ? null : _register,
                           child: _isLoading
                               ? const SizedBox(
                                   height: 24,

@@ -7,11 +7,11 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:js_interop';
-import 'package:web/web.dart' as web;
+import '../../services/web_service.dart';
 import '../../models/spelling_word.dart';
 import '../../services/database_service.dart';
 import '../../widgets/audio_player_widget.dart';
+import '../../services/ai_service.dart';
 
 class AdminSpellingWordsTab extends StatefulWidget {
   const AdminSpellingWordsTab({super.key});
@@ -142,6 +142,13 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
     );
   }
 
+  void _showGenerateAIDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const _GenerateAIWordsDialog(),
+    ).then((_) => setState(() {}));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -149,13 +156,14 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
         title: const Text('Word Bank Management'),
         actions: [
           TextButton.icon(
-            onPressed: _seedInitialWords,
-            icon: const Icon(Icons.auto_awesome, color: Colors.amber),
+            onPressed: _showGenerateAIDialog,
+            icon: const Icon(Icons.psychology, color: Colors.purple),
             label: const Text(
-              'Seed Words',
-              style: TextStyle(color: Colors.amber),
+              'AI Generate',
+              style: TextStyle(color: Colors.purple),
             ),
           ),
+
           TextButton.icon(
             onPressed: _showDeleteAllConfirmation,
             icon: const Icon(Icons.delete_forever, color: Colors.red),
@@ -403,12 +411,12 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
         if (kIsWeb) {
           // On web, we might need to fetch the blob
           try {
-            final response = await web.window.fetch(path.toJS).toDart;
-            final blob = await response.blob().toDart;
-            final arrayBuffer = await blob.arrayBuffer().toDart;
-            setState(() {
-              _audioBytes = arrayBuffer.toDart.asUint8List();
-            });
+            final bytes = await WebService.instance.fetchBlobAsBytes(path);
+            if (bytes != null) {
+              setState(() {
+                _audioBytes = bytes;
+              });
+            }
           } catch (e) {
             debugPrint('Web blob fetch error: $e');
           }
@@ -665,6 +673,265 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _GenerateAIWordsDialog extends StatefulWidget {
+  const _GenerateAIWordsDialog();
+
+  @override
+  State<_GenerateAIWordsDialog> createState() => _GenerateAIWordsDialogState();
+}
+
+class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
+  int _count = 5;
+  SpellingDifficulty _difficulty = SpellingDifficulty.amateur;
+  final _topicCtrl = TextEditingController();
+  bool _isLoading = false;
+  List<SpellingWord>? _generatedWords;
+  Set<int> _selectedIndices = {};
+  String? _error;
+
+  @override
+  void dispose() {
+    _topicCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generate() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _generatedWords = null;
+    });
+
+    try {
+      final words = await AIService.instance.generateWords(
+        count: _count,
+        difficulty: _difficulty,
+        topic: _topicCtrl.text.trim(),
+      );
+
+      if (mounted) {
+        setState(() {
+          _generatedWords = words;
+          _selectedIndices = List.generate(words.length, (i) => i).toSet();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _saveSelected() async {
+    if (_generatedWords == null) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      int savedCount = 0;
+      for (final index in _selectedIndices) {
+        final word = _generatedWords![index];
+        await DatabaseService.instance.createSpellingWord(
+          word: word.word,
+          difficulty: word.difficulty,
+          // audioUrl is null for AI words
+        );
+        savedCount++;
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Saved $savedCount words successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to save words: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_generatedWords != null) {
+      return AlertDialog(
+        title: const Text('Review Generated Words'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Select words to add to the bank (${_selectedIndices.length}/${_generatedWords!.length})',
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _generatedWords!.length,
+                  itemBuilder: (context, index) {
+                    final word = _generatedWords![index];
+                    final isSelected = _selectedIndices.contains(index);
+                    return CheckboxListTile(
+                      value: isSelected,
+                      title: Text(
+                        word.word,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(word.difficulty.name),
+                      onChanged: (val) {
+                        setState(() {
+                          if (val == true) {
+                            _selectedIndices.add(index);
+                          } else {
+                            _selectedIndices.remove(index);
+                          }
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => setState(() => _generatedWords = null),
+            child: const Text('Back'),
+          ),
+          FilledButton(
+            onPressed: _selectedIndices.isEmpty || _isLoading
+                ? null
+                : _saveSelected,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text('Save Selected (${_selectedIndices.length})'),
+          ),
+        ],
+      );
+    }
+
+    return AlertDialog(
+      title: const Row(
+        children: [
+          Icon(Icons.psychology, color: Colors.purple),
+          SizedBox(width: 8),
+          Text('AI Word Generator'),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Automatically generate spelling words using Gemini AI.',
+            ),
+            const SizedBox(height: 20),
+
+            const Text(
+              'Difficulty',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            DropdownButtonFormField<SpellingDifficulty>(
+              value: _difficulty,
+              items: SpellingDifficulty.values.map((d) {
+                return DropdownMenuItem(
+                  value: d,
+                  child: Text(
+                    d.name.substring(0, 1).toUpperCase() + d.name.substring(1),
+                  ),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) setState(() => _difficulty = val);
+              },
+            ),
+            const SizedBox(height: 16),
+
+            const Text(
+              'Topic (Optional)',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            TextField(
+              controller: _topicCtrl,
+              decoration: const InputDecoration(
+                hintText: 'e.g., Animals, Science, Space',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            const Text('Count', style: TextStyle(fontWeight: FontWeight.bold)),
+            Slider(
+              value: _count.toDouble(),
+              min: 1,
+              max: 20,
+              divisions: 19,
+              label: _count.toString(),
+              onChanged: (val) => setState(() => _count = val.toInt()),
+            ),
+            Center(child: Text('$_count words')),
+
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(8),
+                color: Colors.red.withOpacity(0.1),
+                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Text(
+              'Note: Daily usage limits apply.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: _isLoading ? null : _generate,
+          icon: _isLoading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.auto_awesome),
+          label: const Text('Generate'),
+          style: FilledButton.styleFrom(backgroundColor: Colors.purple),
+        ),
+      ],
     );
   }
 }

@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb; // For kIsWeb
-// For JS interop
-import 'package:web/web.dart' as web; // For native web APIs
+import '../services/web_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../models/spelling_word.dart';
 import '../services/database_service.dart';
@@ -216,10 +215,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     // Fallback to native Web Speech API if plugin fails on Web
     if (!pluginSuccess && kIsWeb) {
       try {
-        final utterance = web.SpeechSynthesisUtterance(word);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.8;
-        web.window.speechSynthesis.speak(utterance);
+        WebService.instance.speak(word);
 
         // Manual state update since we bypass plugin handlers
         setState(() => _isPlaying = true);

@@ -313,7 +313,6 @@ class _ValidationList extends StatelessWidget {
           itemBuilder: (context, index) {
             final item = items[index];
             final title = item.title;
-            final createdBy = item.createdByEmail ?? 'Unknown';
             final createdAtStr = item.createdAt != null
                 ? formatDate(item.createdAt!)
                 : 'N/A';

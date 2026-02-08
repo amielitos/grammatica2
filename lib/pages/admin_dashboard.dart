@@ -18,7 +18,12 @@ import 'practice_tab.dart';
 
 class AdminDashboard extends StatefulWidget {
   final User user;
-  const AdminDashboard({super.key, required this.user});
+  final bool showProfileWarning;
+  const AdminDashboard({
+    super.key,
+    required this.user,
+    this.showProfileWarning = false,
+  });
 
   @override
   State<AdminDashboard> createState() => _AdminDashboardState();
@@ -165,6 +170,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
               bottomNavigationBar: ModernBottomNav(
                 currentIndex: _index,
+                showProfileWarning: widget.showProfileWarning,
                 onTap: (i) async {
                   setState(() => _switching = true);
                   await Future.delayed(const Duration(milliseconds: 250));

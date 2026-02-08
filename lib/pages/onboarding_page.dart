@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_colors.dart';
+import '../widgets/terms_and_conditions_dialog.dart';
 
 class OnboardingPage extends StatefulWidget {
   final User user;
@@ -15,6 +16,7 @@ class OnboardingPage extends StatefulWidget {
 class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  bool _agreedToTerms = false;
 
   final List<OnboardingStep> _steps = [
     OnboardingStep(
@@ -127,6 +129,65 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                   ).textTheme.bodyMedium?.color,
                                 ),
                           ),
+
+                          if (step.isLast) ...[
+                            const SizedBox(height: 24),
+                            // Terms and Conditions Logic
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Checkbox(
+                                  value: _agreedToTerms,
+                                  activeColor: AppColors.primaryGreen,
+                                  onChanged: (val) async {
+                                    if (val == true) {
+                                      // User trying to check - show dialog
+                                      final accepted = await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) =>
+                                            const TermsAndConditionsDialog(),
+                                      );
+                                      if (accepted == true) {
+                                        setState(() => _agreedToTerms = true);
+                                      }
+                                    } else {
+                                      // User unchecking - allow immediately
+                                      setState(() => _agreedToTerms = false);
+                                    }
+                                  },
+                                ),
+                                Flexible(
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      if (!_agreedToTerms) {
+                                        final accepted = await showDialog<bool>(
+                                          context: context,
+                                          builder: (context) =>
+                                              const TermsAndConditionsDialog(),
+                                        );
+                                        if (accepted == true) {
+                                          setState(() => _agreedToTerms = true);
+                                        }
+                                      } else {
+                                        setState(() => _agreedToTerms = false);
+                                      }
+                                    },
+                                    child: Text(
+                                      'I agree to the Terms and Conditions',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            decoration:
+                                                TextDecoration.underline,
+                                            color: Colors.blue,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     );
@@ -161,9 +222,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     // Button
                     if (_steps[_currentPage].isLast)
                       ElevatedButton(
-                        onPressed: _completeOnboarding,
+                        onPressed: _agreedToTerms ? _completeOnboarding : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryGreen,
+                          disabledBackgroundColor: Colors.grey.shade300,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 32,
                             vertical: 16,

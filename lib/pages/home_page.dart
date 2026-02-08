@@ -14,7 +14,12 @@ import 'practice_tab.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
-  const HomePage({super.key, required this.user});
+  final bool showProfileWarning;
+  const HomePage({
+    super.key,
+    required this.user,
+    this.showProfileWarning = false,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -63,6 +68,7 @@ class _HomePageState extends State<HomePage> {
             label: user.displayName?.split(' ').first ?? 'Profile',
           ),
         ],
+        showProfileWarning: widget.showProfileWarning,
       ),
       body: ResponsiveWrapper(
         child: IndexedStack(

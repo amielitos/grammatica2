@@ -2,21 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in_platform_interface/google_sign_in_platform_interface.dart';
 import 'package:google_sign_in_web/google_sign_in_web.dart' as web;
 
-Widget buildWebButton() {
+Widget buildWebButton({bool enabled = true, VoidCallback? onDisabledPress}) {
   final platform = GoogleSignInPlatform.instance;
   if (platform is web.GoogleSignInPlugin) {
     return SizedBox(
       height: 54,
       width: double.infinity,
-      child: platform.renderButton(
-        configuration: web.GSIButtonConfiguration(
-          type: web.GSIButtonType.standard,
-          theme: web.GSIButtonTheme.outline,
-          size: web.GSIButtonSize.large,
-          text: web.GSIButtonText.continueWith,
-          shape: web.GSIButtonShape.rectangular,
-          logoAlignment: web.GSIButtonLogoAlignment.left,
-        ),
+      child: Stack(
+        children: [
+          Opacity(
+            opacity: enabled ? 1.0 : 0.5,
+            child: platform.renderButton(
+              configuration: web.GSIButtonConfiguration(
+                type: web.GSIButtonType.standard,
+                theme: web.GSIButtonTheme.outline,
+                size: web.GSIButtonSize.large,
+                text: web.GSIButtonText.continueWith,
+                shape: web.GSIButtonShape.rectangular,
+                logoAlignment: web.GSIButtonLogoAlignment.left,
+              ),
+            ),
+          ),
+          if (!enabled)
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onDisabledPress,
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+        ],
       ),
     );
   }

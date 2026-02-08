@@ -9,12 +9,24 @@ class GoogleSignInButton extends StatelessWidget {
   final VoidCallback onPressed;
   final Widget? child;
 
-  const GoogleSignInButton({super.key, required this.onPressed, this.child});
+  final bool enabled;
+  final VoidCallback? onDisabledPress;
+
+  const GoogleSignInButton({
+    super.key,
+    required this.onPressed,
+    this.child,
+    this.enabled = true,
+    this.onDisabledPress,
+  });
 
   @override
   Widget build(BuildContext context) {
     if (kIsWeb) {
-      return platform_button.buildWebButton();
+      return platform_button.buildWebButton(
+        enabled: enabled,
+        onDisabledPress: onDisabledPress,
+      );
     }
 
     return child ?? const SizedBox.shrink();
