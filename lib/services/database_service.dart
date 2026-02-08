@@ -331,6 +331,22 @@ class DatabaseService {
     await _educatorApplications.doc(id).update({'status': status});
   }
 
+  Future<void> rejectEducatorApplication(EducatorApplication app) async {
+    // Delete files from storage
+    if (app.videoUrl.isNotEmpty) {
+      await _deleteFileFromUrl(app.videoUrl);
+    }
+    if (app.syllabusUrl.isNotEmpty) {
+      await _deleteFileFromUrl(app.syllabusUrl);
+    }
+    // Update status and clear URLs in Firestore
+    await _educatorApplications.doc(app.id).update({
+      'status': 'rejected',
+      'videoUrl': '', // Clear URLs to indicate files are gone
+      'syllabusUrl': '',
+    });
+  }
+
   Future<String> uploadApplicationFile({
     required String uid,
     required Uint8List fileBytes,

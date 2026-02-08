@@ -155,8 +155,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                                 CupertinoIcons.xmark_circle,
                                 color: Colors.red,
                               ),
-                              onPressed: () =>
-                                  _rejectApplication(context, app.id),
+                              onPressed: () => _rejectApplication(context, app),
                             ),
                           ],
                         ),
@@ -266,7 +265,10 @@ class _EducatorApplicationsList extends StatelessWidget {
     }
   }
 
-  Future<void> _rejectApplication(BuildContext context, String id) async {
+  Future<void> _rejectApplication(
+    BuildContext context,
+    EducatorApplication app,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -290,7 +292,7 @@ class _EducatorApplicationsList extends StatelessWidget {
 
     if (confirm == true) {
       try {
-        await DatabaseService.instance.updateApplicationStatus(id, 'rejected');
+        await DatabaseService.instance.rejectEducatorApplication(app);
         if (context.mounted) {
           ScaffoldMessenger.of(
             context,
