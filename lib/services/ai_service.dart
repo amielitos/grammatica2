@@ -1,6 +1,5 @@
-import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'dart:math';
+import 'package:english_words/english_words.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/spelling_word.dart';
 
@@ -9,108 +8,58 @@ class AIService {
   static AIService get instance => _instance;
   AIService._internal();
 
-  GenerativeModel? _model;
-
-  // Initialize with API Key (should be loaded from secure storage/env)
-  void init() {
-    // For now, we'll assume the API key is in .env or compile-time const
-    // In a real app, use flutter_dotenv or similar
-    final apiKey =
-        dotenv.env['GEMINI_API_KEY'] ??
-        const String.fromEnvironment('GEMINI_API_KEY');
-    if (apiKey.isEmpty) {
-      print('Warning: GEMINI_API_KEY is not set');
-      return;
-    }
-    _model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
-  }
-
   Future<List<SpellingWord>> generateWords({
     required int count,
     required SpellingDifficulty difficulty,
-    String? topic,
+    String? topic, // Ignored for local generation
   }) async {
-    if (_model == null) {
-      init();
-      if (_model == null) {
-        throw Exception(
-          'Gemini API Key not found. Please configure GEMINI_API_KEY in .env',
-        );
-      }
+    // 1. Get all nouns from english_words
+    // 2. Filter by difficulty (length)
+    // 3. Shuffle and take 'count'
+
+    final random = Random();
+    List<String> candidates = nouns;
+
+    // Filter based on difficulty (approximate mapping)
+    switch (difficulty) {
+      case SpellingDifficulty.novice:
+        // Short words: 3-4 letters
+        candidates = candidates
+            .where((w) => w.length >= 3 && w.length <= 4)
+            .toList();
+        break;
+      case SpellingDifficulty.amateur:
+        // Medium words: 5-7 letters
+        candidates = candidates
+            .where((w) => w.length >= 5 && w.length <= 7)
+            .toList();
+        break;
+      case SpellingDifficulty.professional:
+        // Long words: 8+ letters
+        candidates = candidates.where((w) => w.length >= 8).toList();
+        break;
     }
 
-    final diffStr = '${difficulty.name} difficulty';
-
-    final topicStr = topic != null && topic.isNotEmpty
-        ? 'related to "$topic"'
-        : '';
-
-    final prompt =
-        '''
-    Generate a JSON array of $count spelling words of $diffStr $topicStr.
-    Do NOT generate sentences or phrases. Only single words.
-    Each object in the array must have:
-    - "word": The word itself (string, single word only)
-    - "difficulty": One of "easy", "medium", "hard" (string)
-    
-    Example output:
-    [
-      {"word": "cat", "difficulty": "easy"},
-      {"word": "photosynthesis", "difficulty": "hard"}
-    ]
-    ''';
-
-    try {
-      final response = await _model!.generateContent([Content.text(prompt)]);
-
-      if (response.text == null) {
-        throw Exception('Empty response from AI');
-      }
-
-      // Clean the response if it contains markdown formatting
-      String jsonStr = response.text!;
-      if (jsonStr.startsWith('```json')) {
-        jsonStr = jsonStr.replaceAll('```json', '').replaceAll('```', '');
-      }
-
-      final List<dynamic> jsonList = jsonDecode(jsonStr);
-
-      return jsonList.map((json) {
-        return SpellingWord(
-          id: DateTime.now().microsecondsSinceEpoch.toString(), // Temporary ID
-          word: json['word'],
-          difficulty: _parseDifficulty(json['difficulty']),
-          createdAt: Timestamp.now(),
-          createdByUid: 'ai_generated', // Marker for AI words
-          audioUrl: null, // AI words won't have audio initially
-        );
-      }).toList();
-    } on GenerativeAIException catch (e) {
-      if (e.message.contains('429') ||
-          e.message.contains('ResourceExhausted')) {
-        throw Exception(
-          'Daily AI generation limit reached. Please try again tomorrow to keep this service free.',
-        );
-      }
-      rethrow;
-    } catch (e) {
-      throw Exception('Failed to generate words: $e');
+    if (candidates.isEmpty) {
+      // Fallback if strict filtering fails (shouldn't happen with standard dict)
+      candidates = nouns;
     }
-  }
 
-  SpellingDifficulty _parseDifficulty(String? diff) {
-    switch (diff?.toLowerCase()) {
-      case 'easy':
-      case 'novice':
-        return SpellingDifficulty.novice;
-      case 'medium':
-      case 'amateur':
-        return SpellingDifficulty.amateur;
-      case 'hard':
-      case 'professional':
-        return SpellingDifficulty.professional;
-      default:
-        return SpellingDifficulty.amateur;
-    }
+    // Shuffle to get random words
+    candidates.shuffle(random);
+    final selectedWords = candidates.take(count).toList();
+
+    return selectedWords.map((word) {
+      return SpellingWord(
+        id:
+            DateTime.now().microsecondsSinceEpoch.toString() +
+            random.nextInt(1000).toString(),
+        word: word, // english_words are usually lowercase
+        difficulty: difficulty,
+        createdAt: Timestamp.now(),
+        createdByUid: 'auto_generated',
+        audioUrl: null,
+      );
+    }).toList();
   }
 }

@@ -11,6 +11,7 @@ import '../widgets/glass_card.dart';
 import '../theme/app_colors.dart';
 import '../main.dart';
 import '../services/database_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'manage_subscriptions_page.dart';
 import 'educator_application_page.dart';
@@ -117,7 +118,12 @@ class ProfilePageState extends State<ProfilePage> {
             // NOTE: IntlPhoneField might struggle to parse this back into CC + Number key without parsing logic.
             // For now we just set the text, but the country code might default to PH if not parsed.
             // A robust solution parses the number. passing it to initialValue of IntlPhoneField is better if supported.
-            _phoneCtrl.text = _phoneNumber!;
+            // Fix: Strip +63 if present to avoid duplication in the text field
+            String phoneText = _phoneNumber!;
+            if (phoneText.startsWith('+63')) {
+              phoneText = phoneText.substring(3);
+            }
+            _phoneCtrl.text = phoneText;
           }
         });
       }
@@ -844,6 +850,30 @@ class ProfilePageState extends State<ProfilePage> {
                                                 widget.user.uid,
                                               ),
                                           builder: (context, appSnap) {
+                                            if (appSnap.hasError) {
+                                              return Container(
+                                                padding: const EdgeInsets.all(
+                                                  12,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.withOpacity(
+                                                    0.1,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: Colors.red,
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  'Error loading application: ${appSnap.error}',
+                                                  style: const TextStyle(
+                                                    color: Colors.red,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              );
+                                            }
                                             final application = appSnap.data;
                                             if (application != null &&
                                                 (application.status ==
@@ -1193,9 +1223,15 @@ class ProfilePageState extends State<ProfilePage> {
               ),
               title: const Text('Teaching Demo Video'),
               trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
-              onTap: () {
-                _showSnack('Opening video link...');
-                // You could use url_launcher here if desired
+              onTap: () async {
+                final uri = Uri.parse(application.videoUrl);
+                try {
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                } catch (e) {
+                  debugPrint('Error: $e');
+                }
               },
             ),
             ListTile(
@@ -1203,8 +1239,15 @@ class ProfilePageState extends State<ProfilePage> {
               leading: const Icon(CupertinoIcons.doc_fill, color: Colors.red),
               title: const Text('Teaching Syllabus PDF'),
               trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
-              onTap: () {
-                _showSnack('Opening syllabus link...');
+              onTap: () async {
+                final uri = Uri.parse(application.syllabusUrl);
+                try {
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                } catch (e) {
+                  debugPrint('Error: $e');
+                }
               },
             ),
           ],

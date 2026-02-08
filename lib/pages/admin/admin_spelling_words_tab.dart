@@ -687,15 +687,20 @@ class _GenerateAIWordsDialog extends StatefulWidget {
 class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
   int _count = 5;
   SpellingDifficulty _difficulty = SpellingDifficulty.amateur;
-  final _topicCtrl = TextEditingController();
+  // final _topicCtrl = TextEditingController(); // Removed
   bool _isLoading = false;
   List<SpellingWord>? _generatedWords;
   Set<int> _selectedIndices = {};
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    // No initial cooldown, or could check last run time if we persisted it
+  }
+
+  @override
   void dispose() {
-    _topicCtrl.dispose();
     super.dispose();
   }
 
@@ -706,11 +711,13 @@ class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
       _generatedWords = null;
     });
 
+    // Simulate AI "thinking" time
+    await Future.delayed(const Duration(seconds: 2));
+
     try {
       final words = await AIService.instance.generateWords(
         count: _count,
         difficulty: _difficulty,
-        topic: _topicCtrl.text.trim(),
       );
 
       if (mounted) {
@@ -844,9 +851,7 @@ class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Automatically generate spelling words using Gemini AI.',
-            ),
+            const Text('Automatically generate spelling words.'),
             const SizedBox(height: 20),
 
             const Text(
@@ -869,19 +874,9 @@ class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
             ),
             const SizedBox(height: 16),
 
-            const Text(
-              'Topic (Optional)',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            TextField(
-              controller: _topicCtrl,
-              decoration: const InputDecoration(
-                hintText: 'e.g., Animals, Science, Space',
-                border: OutlineInputBorder(),
-              ),
-            ),
             const SizedBox(height: 16),
 
+            // Topic field removed as local generation doesn't support semantic topics
             const Text('Count', style: TextStyle(fontWeight: FontWeight.bold)),
             Slider(
               value: _count.toDouble(),
@@ -903,7 +898,7 @@ class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
             ],
             const SizedBox(height: 8),
             Text(
-              'Note: Daily usage limits apply.',
+              'Note: Words are generated locally.',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: Colors.grey),

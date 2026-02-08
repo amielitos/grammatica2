@@ -332,6 +332,7 @@ class DatabaseService {
   }
 
   Future<String> uploadApplicationFile({
+    required String uid,
     required Uint8List fileBytes,
     required String fileName,
     required String contentType,
@@ -340,6 +341,7 @@ class DatabaseService {
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('educator_applications')
+          .child(uid)
           .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
 
       final uploadTask = storageRef.putData(

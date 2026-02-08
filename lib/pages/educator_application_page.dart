@@ -66,6 +66,7 @@ class _EducatorApplicationPageState extends State<EducatorApplicationPage> {
       // Upload Video
       setState(() => _uploadProgress = 0.2);
       final videoUrl = await DatabaseService.instance.uploadApplicationFile(
+        uid: widget.user.uid,
         fileBytes: _videoFile!.bytes!,
         fileName: _videoFile!.name,
         contentType:
@@ -75,6 +76,7 @@ class _EducatorApplicationPageState extends State<EducatorApplicationPage> {
       // Upload Syllabus
       setState(() => _uploadProgress = 0.6);
       final syllabusUrl = await DatabaseService.instance.uploadApplicationFile(
+        uid: widget.user.uid,
         fileBytes: _syllabusFile!.bytes!,
         fileName: _syllabusFile!.name,
         contentType: 'application/pdf',
