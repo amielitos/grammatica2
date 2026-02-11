@@ -5,6 +5,7 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/google_sign_in_button.dart';
+import '../services/notification_service.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -96,7 +97,11 @@ class _SignupPageState extends State<SignupPage> {
             _selectedDate ?? DateTime.now(), // Should be validated by validator
       );
 
-      // Registration successful, redirect to login or home
+      // Registration successful, send welcome notification and redirect to login or home
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await NotificationService.instance.sendWelcomeNotification(user.uid);
+      }
       if (mounted) {
         Navigator.pop(context); // Go back to login page
       }

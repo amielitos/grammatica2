@@ -6,6 +6,9 @@ import '../services/role_service.dart';
 import 'dart:async';
 import '../widgets/glass_card.dart';
 import '../theme/app_colors.dart';
+import '../widgets/notification_widgets.dart';
+import '../services/notification_service.dart';
+import '../main.dart';
 
 class QuizDetailPage extends StatefulWidget {
   final User user;
@@ -184,6 +187,20 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           _completedLocal = true;
         });
 
+        // Trigger Achievement Notification for first quiz
+        DatabaseService.instance
+            .checkAndAwardAchievement(widget.user.uid, 'first_quiz')
+            .then((awarded) {
+              if (awarded) {
+                NotificationService.instance.sendAchievementNotification(
+                  uid: widget.user.uid,
+                  title: 'First Quiz Completed!',
+                  message:
+                      'Congratulations on completing your first quiz on Grammatica!',
+                );
+              }
+            });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -212,6 +229,15 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         title: const Text('Grammatica'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          NotificationIconButton(
+            userId: widget.user.uid,
+            onTap: () {
+              notificationVisibleNotifier.value =
+                  !notificationVisibleNotifier.value;
+            },
+          ),
+        ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {

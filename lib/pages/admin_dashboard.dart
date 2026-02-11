@@ -15,6 +15,8 @@ import '../widgets/modern_bottom_nav.dart';
 import 'browse_educators_tab.dart';
 import 'admin/educator_groups_tab.dart';
 import 'practice_tab.dart';
+import '../widgets/notification_widgets.dart';
+import '../main.dart';
 
 class AdminDashboard extends StatefulWidget {
   final User user;
@@ -149,6 +151,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
+                actions: [
+                  NotificationIconButton(
+                    userId: widget.user.uid,
+                    onTap: () {
+                      notificationVisibleNotifier.value =
+                          !notificationVisibleNotifier.value;
+                    },
+                  ),
+                ],
               ),
               body: Column(
                 children: [

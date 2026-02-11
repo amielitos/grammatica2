@@ -9,6 +9,7 @@ import '../quiz_detail_page.dart';
 import '../lesson_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/role_service.dart';
+import '../../services/notification_service.dart';
 
 class AdminValidationTab extends StatefulWidget {
   const AdminValidationTab({super.key});
@@ -250,6 +251,11 @@ class _EducatorApplicationsList extends StatelessWidget {
           'approved',
         );
 
+        // Notify the applicant
+        await NotificationService.instance.sendApprovalNotification(
+          app.applicantUid,
+        );
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Educator approved successfully')),
@@ -269,12 +275,45 @@ class _EducatorApplicationsList extends StatelessWidget {
     BuildContext context,
     EducatorApplication app,
   ) async {
+    final reasonController = TextEditingController();
+    final descController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reject Application'),
-        content: const Text(
-          'Are you sure you want to reject this educator application?',
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Please provide a reason for rejecting this educator application.',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Reason',
+                  hintText: 'e.g., Incomplete documentation',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: descController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Provide more details...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -283,7 +322,11 @@ class _EducatorApplicationsList extends StatelessWidget {
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(context, true);
+              }
+            },
             child: const Text('Reject'),
           ),
         ],
@@ -292,11 +335,24 @@ class _EducatorApplicationsList extends StatelessWidget {
 
     if (confirm == true) {
       try {
-        await DatabaseService.instance.rejectEducatorApplication(app);
+        await DatabaseService.instance.rejectEducatorApplication(
+          app,
+          reason: reasonController.text,
+          description: descController.text,
+        );
+        // Send notification to the user
+        await NotificationService.instance.sendRejectionNotification(
+          uid: app.applicantUid,
+          reason: reasonController.text,
+          description: descController.text,
+        );
+
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Application rejected')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Application rejected and user notified'),
+            ),
+          );
         }
       } catch (e) {
         if (context.mounted) {

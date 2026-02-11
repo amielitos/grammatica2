@@ -11,6 +11,10 @@ import '../widgets/modern_bottom_nav.dart';
 import '../services/role_service.dart';
 import 'browse_educators_tab.dart';
 import 'practice_tab.dart';
+import '../widgets/notification_widgets.dart';
+import '../services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../main.dart'; // To access notificationVisibleNotifier
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -29,6 +33,66 @@ class _HomePageState extends State<HomePage> {
   int _tabIndex =
       0; // 0=Lessons, 1=Practice, 2=Quizzes, 3=Subscription, 4=Profile
   final _profileKey = GlobalKey<ProfilePageState>();
+  final _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkProfileCompletion();
+    });
+  }
+
+  Future<void> _checkProfileCompletion() async {
+    try {
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(widget.user.uid)
+          .get();
+      if (!userDoc.exists) return;
+
+      final data = userDoc.data()!;
+      final String? phone = data['phone_number'];
+      final String? dob = data['date_of_birth'];
+
+      if (phone == null || phone.isEmpty || dob == null || dob.isEmpty) {
+        // Check if we should send a reminder
+        final achRef = _firestore
+            .collection('users')
+            .doc(widget.user.uid)
+            .collection('achievements')
+            .doc('profile_reminder');
+
+        final achDoc = await achRef.get();
+        bool shouldNotify = false;
+
+        if (!achDoc.exists) {
+          shouldNotify = true;
+        } else {
+          final lastSent = (achDoc.data()?['achievedAt'] as Timestamp?)
+              ?.toDate();
+          if (lastSent != null) {
+            final daysSince = DateTime.now().difference(lastSent).inDays;
+            if (daysSince >= 7) {
+              shouldNotify = true;
+            }
+          }
+        }
+
+        if (shouldNotify) {
+          await NotificationService.instance.sendProfileReminderNotification(
+            widget.user.uid,
+          );
+          await achRef.set({
+            'achievedAt': FieldValue.serverTimestamp(),
+            'id': 'profile_reminder',
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking profile completion: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +109,15 @@ class _HomePageState extends State<HomePage> {
             context,
           ).textTheme.displayLarge?.copyWith(fontSize: 28),
         ),
+        actions: [
+          NotificationIconButton(
+            userId: user.uid,
+            onTap: () {
+              notificationVisibleNotifier.value =
+                  !notificationVisibleNotifier.value;
+            },
+          ),
+        ],
       ),
       bottomNavigationBar: ModernBottomNav(
         currentIndex: _tabIndex,

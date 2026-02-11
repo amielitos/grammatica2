@@ -8,6 +8,7 @@ import '../services/web_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../models/spelling_word.dart';
 import '../services/database_service.dart';
+import '../services/notification_service.dart';
 import '../services/role_service.dart';
 import '../widgets/glass_card.dart';
 import 'admin/admin_spelling_words_tab.dart';
@@ -255,6 +256,20 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       setState(() {
         _isGameOver = true;
       });
+
+      // Trigger Achievement Notification for first spelling bee
+      DatabaseService.instance
+          .checkAndAwardAchievement(widget.user.uid, 'first_spelling_bee')
+          .then((awarded) {
+            if (awarded) {
+              NotificationService.instance.sendAchievementNotification(
+                uid: widget.user.uid,
+                title: 'Spelling Bee Master!',
+                message:
+                    'Congratulations on completing your first Spelling Bee session!',
+              );
+            }
+          });
     }
   }
 
