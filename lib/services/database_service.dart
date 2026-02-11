@@ -331,7 +331,11 @@ class DatabaseService {
     await _educatorApplications.doc(id).update({'status': status});
   }
 
-  Future<void> rejectEducatorApplication(EducatorApplication app) async {
+  Future<void> rejectEducatorApplication(
+    EducatorApplication app, {
+    String? reason,
+    String? description,
+  }) async {
     // Delete files from storage
     if (app.videoUrl.isNotEmpty) {
       await _deleteFileFromUrl(app.videoUrl);
@@ -344,6 +348,8 @@ class DatabaseService {
       'status': 'rejected',
       'videoUrl': '', // Clear URLs to indicate files are gone
       'syllabusUrl': '',
+      'rejectionReason': reason,
+      'rejectionDescription': description,
     });
   }
 
@@ -909,6 +915,31 @@ class DatabaseService {
     await _firestore.collection('users').doc(uid).update({
       'subscription_fee': amount,
     });
+  }
+
+  /// Checks if a user has already achieved a specific milestone.
+  /// If not, it records the achievement and returns true.
+  /// Returns false if already achieved.
+  Future<bool> checkAndAwardAchievement(
+    String uid,
+    String achievementId,
+  ) async {
+    final docRef = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('achievements')
+        .doc(achievementId);
+
+    final doc = await docRef.get();
+    if (doc.exists) {
+      return false;
+    }
+
+    await docRef.set({
+      'achievedAt': FieldValue.serverTimestamp(),
+      'id': achievementId,
+    });
+    return true;
   }
 
   Future<void> subscribeToEducator(String educatorUid) async {

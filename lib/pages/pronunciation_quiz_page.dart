@@ -8,6 +8,7 @@ import 'package:string_similarity/string_similarity.dart';
 import '../services/vosk_service.dart';
 import '../models/spelling_word.dart'; // Reusing SpellingWord model
 import '../services/database_service.dart';
+import '../services/notification_service.dart';
 import '../services/role_service.dart';
 import '../widgets/glass_card.dart';
 import 'admin/admin_spelling_words_tab.dart';
@@ -252,6 +253,20 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       setState(() {
         _isGameOver = true;
       });
+
+      // Trigger Achievement Notification for first pronunciation
+      DatabaseService.instance
+          .checkAndAwardAchievement(widget.user.uid, 'first_pronunciation')
+          .then((awarded) {
+            if (awarded) {
+              NotificationService.instance.sendAchievementNotification(
+                uid: widget.user.uid,
+                title: 'Pronunciation Pro!',
+                message:
+                    'Congratulations on completing your first Pronunciation Quiz session!',
+              );
+            }
+          });
     }
   }
 

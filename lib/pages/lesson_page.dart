@@ -4,6 +4,9 @@ import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/notification_widgets.dart';
+import '../services/notification_service.dart';
+import '../main.dart';
 
 class LessonPage extends StatefulWidget {
   final User user;
@@ -63,6 +66,21 @@ class _LessonPageState extends State<LessonPage> {
   void initState() {
     super.initState();
     _lesson = widget.lesson;
+
+    // Trigger Achievement Notification for first lesson
+    if (!widget.previewMode) {
+      DatabaseService.instance
+          .checkAndAwardAchievement(widget.user.uid, 'first_lesson')
+          .then((awarded) {
+            if (awarded) {
+              NotificationService.instance.sendAchievementNotification(
+                uid: widget.user.uid,
+                title: 'First Lesson Viewed!',
+                message: 'You started your learning journey! Keep it up.',
+              );
+            }
+          });
+    }
   }
 
   @override
@@ -72,6 +90,15 @@ class _LessonPageState extends State<LessonPage> {
         title: const Text('Grammatica'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          NotificationIconButton(
+            userId: widget.user.uid,
+            onTap: () {
+              notificationVisibleNotifier.value =
+                  !notificationVisibleNotifier.value;
+            },
+          ),
+        ],
       ),
       body: Center(
         child: SingleChildScrollView(

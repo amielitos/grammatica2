@@ -8,6 +8,7 @@ import 'services/auth_service.dart';
 import 'services/role_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'theme/app_theme.dart';
+import 'widgets/notification_widgets.dart';
 
 // Pages
 import 'pages/login_page.dart';
@@ -31,6 +32,7 @@ void main() async {
 }
 
 final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.light);
+final notificationVisibleNotifier = ValueNotifier<bool>(false);
 
 class GrammaticaApp extends StatelessWidget {
   const GrammaticaApp({super.key});
@@ -59,11 +61,44 @@ class GrammaticaApp extends StatelessWidget {
               scale = 1.1; // Slightly larger for tablets
             }
 
-            return MediaQuery(
-              data: mediaQueryData.copyWith(
-                textScaler: TextScaler.linear(scale),
-              ),
-              child: child!,
+            return Overlay(
+              initialEntries: [
+                OverlayEntry(
+                  builder: (context) => MediaQuery(
+                    data: mediaQueryData.copyWith(
+                      textScaler: TextScaler.linear(scale),
+                    ),
+                    child: Stack(
+                      children: [
+                        child!,
+                        ValueListenableBuilder<bool>(
+                          valueListenable: notificationVisibleNotifier,
+                          builder: (context, isVisible, _) {
+                            if (!isVisible) return const SizedBox.shrink();
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user == null) return const SizedBox.shrink();
+                            return Positioned(
+                              top: 80,
+                              right: 20,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxHeight: 500,
+                                  maxWidth: 350,
+                                ),
+                                child: NotificationOverlay(
+                                  userId: user.uid,
+                                  onClose: () =>
+                                      notificationVisibleNotifier.value = false,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             );
           },
           initialRoute: '/',
