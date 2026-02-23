@@ -34,13 +34,15 @@ class ModernBottomNav extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: isDark
-                      ? Colors.black.withOpacity(0.7)
-                      : Colors.white.withOpacity(0.8),
+                      ? Colors.black.withValues(alpha: 0.7)
+                      : Colors.white.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(40),
-                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.2),
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -66,7 +68,7 @@ class ModernBottomNav extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? color.withOpacity(0.15)
+                              ? color.withValues(alpha: 0.15)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(25),
                         ),

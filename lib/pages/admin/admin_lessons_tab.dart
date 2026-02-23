@@ -22,8 +22,16 @@ class AdminLessonsTab extends StatefulWidget {
 }
 
 class _AdminLessonsTabState extends State<AdminLessonsTab> {
-  String _fmt(Timestamp ts) {
-    final d = ts.toDate().toLocal();
+  String _formatTs(dynamic ts) {
+    if (ts == null) return 'N/A';
+    DateTime d;
+    if (ts is Timestamp) {
+      d = ts.toDate().toLocal();
+    } else if (ts is DateTime) {
+      d = ts.toLocal();
+    } else {
+      return 'N/A';
+    }
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
@@ -69,7 +77,11 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
+                              Wrap(
+                                spacing: 16,
+                                runSpacing: 12,
+                                alignment: WrapAlignment.spaceBetween,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Text(
                                     'Manage Lessons',
@@ -77,42 +89,47 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                       context,
                                     ).textTheme.titleLarge,
                                   ),
-                                  const Spacer(),
-                                  FilledButton.icon(
-                                    onPressed:
-                                        (_creatingLesson ||
-                                            _title.text.trim().isEmpty)
-                                        ? null
-                                        : _saveLesson,
-                                    icon: _creatingLesson
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : const Icon(
-                                            CupertinoIcons.floppy_disk,
-                                          ),
-                                    label: Text(
-                                      _selectedLessonId == null
-                                          ? 'Create'
-                                          : 'Update',
-                                    ),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.primaryGreen,
-                                    ),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      FilledButton.icon(
+                                        onPressed:
+                                            (_creatingLesson ||
+                                                _title.text.trim().isEmpty)
+                                            ? null
+                                            : _saveLesson,
+                                        icon: _creatingLesson
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Colors.white,
+                                                    ),
+                                              )
+                                            : const Icon(
+                                                CupertinoIcons.floppy_disk,
+                                              ),
+                                        label: Text(
+                                          _selectedLessonId == null
+                                              ? 'Create'
+                                              : 'Update',
+                                        ),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor:
+                                              AppColors.primaryGreen,
+                                        ),
+                                      ),
+                                      if (_selectedLessonId != null)
+                                        OutlinedButton(
+                                          onPressed: () =>
+                                              setState(() => _resetForm()),
+                                          child: const Text('Cancel'),
+                                        ),
+                                    ],
                                   ),
-                                  if (_selectedLessonId != null) ...[
-                                    const SizedBox(width: 8),
-                                    OutlinedButton(
-                                      onPressed: () =>
-                                          setState(() => _resetForm()),
-                                      child: const Text('Cancel'),
-                                    ),
-                                  ],
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -159,9 +176,13 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                 ),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryGreen,
+                      ),
+                    );
                   }
-                  var lessons = snapshot.data!;
+                  var lessons = snapshot.data!.toList();
                   if (_searchQuery.isNotEmpty) {
                     final query = _searchQuery.toLowerCase();
                     lessons = lessons.where((l) {
@@ -337,8 +358,10 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                   backgroundColor: isSelected
                                       ? color
                                       : (!canEdit
-                                            ? Colors.grey.withOpacity(0.05)
-                                            : null),
+                                            ? AppColors.getCardColor(
+                                                context,
+                                              ).withValues(alpha: 0.5)
+                                            : AppColors.getCardColor(context)),
                                   child: Row(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.center,
@@ -348,7 +371,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                         height: 60,
                                         decoration: BoxDecoration(
                                           color: isPending
-                                              ? Colors.orange
+                                              ? Colors.teal
                                               : color,
                                           borderRadius: BorderRadius.circular(
                                             4,
@@ -371,8 +394,14 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                                           FontWeight.bold,
                                                       fontSize: 16,
                                                       color: !canEdit
-                                                          ? Colors.grey
-                                                          : null,
+                                                          ? AppColors.getTextColor(
+                                                              context,
+                                                            ).withValues(
+                                                              alpha: 0.5,
+                                                            )
+                                                          : AppColors.getTextColor(
+                                                              context,
+                                                            ),
                                                     ),
                                                   ),
                                                 ),
@@ -385,8 +414,12 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
                                                 color: !canEdit
-                                                    ? Colors.grey
-                                                    : null,
+                                                    ? AppColors.getTextColor(
+                                                        context,
+                                                      ).withValues(alpha: 0.5)
+                                                    : AppColors.getTextColor(
+                                                        context,
+                                                      ),
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -416,7 +449,7 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                                     ],
                                                   ),
                                                 Text(
-                                                  'Created: ${_fmt(l.createdAt ?? Timestamp.now())} • ',
+                                                  'Created: ${_formatTs(l.createdAt ?? Timestamp.now())} • ',
                                                   style: Theme.of(
                                                     context,
                                                   ).textTheme.bodySmall,
@@ -432,7 +465,9 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                                         (l.isMembersOnly
                                                                 ? Colors.amber
                                                                 : Colors.blue)
-                                                            .withOpacity(0.1),
+                                                            .withValues(
+                                                              alpha: 0.1,
+                                                            ),
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                           8,
@@ -442,7 +477,9 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                                           (l.isMembersOnly
                                                                   ? Colors.amber
                                                                   : Colors.blue)
-                                                              .withOpacity(0.5),
+                                                              .withValues(
+                                                                alpha: 0.5,
+                                                              ),
                                                     ),
                                                   ),
                                                   child: Text(
@@ -454,12 +491,8 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       color: l.isMembersOnly
-                                                          ? Colors
-                                                                .amber
-                                                                .shade900
-                                                          : Colors
-                                                                .blue
-                                                                .shade900,
+                                                          ? Colors.amber
+                                                          : Colors.blue,
                                                     ),
                                                   ),
                                                 ),
@@ -479,30 +512,33 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
                                       ),
                                       if (isPending) ...[
                                         const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange.withOpacity(
-                                              0.1,
+                                        Flexible(
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
                                             ),
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.orange.withOpacity(
-                                                0.5,
+                                            decoration: BoxDecoration(
+                                              color: Colors.teal.withValues(
+                                                alpha: 0.1,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: Colors.teal.withValues(
+                                                  alpha: 0.5,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          child: const Text(
-                                            'Waiting for approval',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.orange,
-                                              fontWeight: FontWeight.bold,
+                                            child: const Text(
+                                              'Waiting for approval',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.teal,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -855,3 +891,4 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
     return r == UserRole.admin || r == UserRole.superadmin;
   }
 }
+

@@ -20,6 +20,7 @@ class ManageSubscriptionsPage extends StatelessWidget {
           'Manage Subscriptions',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(CupertinoIcons.back),
           onPressed: () => Navigator.pop(context),
@@ -31,8 +32,8 @@ class ManageSubscriptionsPage extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.primaryGreen.withOpacity(0.05),
-              Colors.blue.withOpacity(0.05),
+              AppColors.primaryGreen.withValues(alpha: 0.05),
+              Colors.blue.withValues(alpha: 0.05),
             ],
           ),
         ),
@@ -43,7 +44,11 @@ class ManageSubscriptionsPage extends StatelessWidget {
             ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primaryGreen,
+                  ),
+                );
               }
               if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
@@ -154,7 +159,7 @@ class ManageSubscriptionsPage extends StatelessWidget {
             ListTile(
               contentPadding: const EdgeInsets.all(16),
               leading: CircleAvatar(
-                backgroundColor: AppColors.primaryGreen.withOpacity(0.1),
+                backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
                 backgroundImage:
                     (eduData['photoUrl'] as String?)?.isNotEmpty == true
                     ? NetworkImage(eduData['photoUrl'])

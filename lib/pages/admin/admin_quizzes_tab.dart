@@ -21,8 +21,16 @@ class AdminQuizzesTab extends StatefulWidget {
 }
 
 class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
-  String _fmt(Timestamp ts) {
-    final d = ts.toDate().toLocal();
+  String _formatTs(dynamic ts) {
+    if (ts == null) return 'N/A';
+    DateTime d;
+    if (ts is Timestamp) {
+      d = ts.toDate().toLocal();
+    } else if (ts is DateTime) {
+      d = ts.toLocal();
+    } else {
+      return 'N/A';
+    }
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
@@ -76,7 +84,11 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
+                              Wrap(
+                                spacing: 16,
+                                runSpacing: 12,
+                                alignment: WrapAlignment.spaceBetween,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   Text(
                                     'Manage Quizzes',
@@ -84,41 +96,48 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                       context,
                                     ).textTheme.titleLarge,
                                   ),
-                                  const Spacer(),
-                                  FilledButton.icon(
-                                    onPressed:
-                                        (_creatingOrUpdating ||
-                                            _title.text.trim().isEmpty)
-                                        ? null
-                                        : _saveQuiz,
-                                    icon: _creatingOrUpdating
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : const Icon(
-                                            CupertinoIcons.floppy_disk,
-                                          ),
-                                    label: Text(
-                                      _selectedQuizId == null
-                                          ? 'Create'
-                                          : 'Update',
-                                    ),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.primaryGreen,
-                                    ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      FilledButton.icon(
+                                        onPressed:
+                                            (_creatingOrUpdating ||
+                                                _title.text.trim().isEmpty)
+                                            ? null
+                                            : _saveQuiz,
+                                        icon: _creatingOrUpdating
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: AppColors
+                                                          .primaryGreen,
+                                                    ),
+                                              )
+                                            : const Icon(
+                                                CupertinoIcons.floppy_disk,
+                                              ),
+                                        label: Text(
+                                          _selectedQuizId == null
+                                              ? 'Create'
+                                              : 'Update',
+                                        ),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor:
+                                              AppColors.primaryGreen,
+                                        ),
+                                      ),
+                                      if (_selectedQuizId != null) ...[
+                                        const SizedBox(width: 8),
+                                        OutlinedButton(
+                                          onPressed: _resetForm,
+                                          child: const Text('Cancel'),
+                                        ),
+                                      ],
+                                    ],
                                   ),
-                                  if (_selectedQuizId != null) ...[
-                                    const SizedBox(width: 8),
-                                    OutlinedButton(
-                                      onPressed: _resetForm,
-                                      child: const Text('Cancel'),
-                                    ),
-                                  ],
                                 ],
                               ),
                               const SizedBox(height: 16),
@@ -140,9 +159,13 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 ),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryGreen,
+                      ),
+                    );
                   }
-                  var items = snapshot.data!;
+                  var items = snapshot.data!.toList();
                   if (_searchQuery.isNotEmpty) {
                     final query = _searchQuery.toLowerCase();
                     items = items.where((q) {
@@ -263,8 +286,10 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                               backgroundColor: isSelected
                                   ? color
                                   : (!canEdit
-                                        ? Colors.grey.withValues(alpha: 0.05)
-                                        : null),
+                                        ? AppColors.getCardColor(
+                                            context,
+                                          ).withValues(alpha: 0.5)
+                                        : AppColors.getCardColor(context)),
                               onTap: () {
                                 if (!canEdit) {
                                   // If user cannot edit (e.g. educator viewing public content),
@@ -357,7 +382,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                     width: 4,
                                     height: 60,
                                     decoration: BoxDecoration(
-                                      color: isPending ? Colors.orange : color,
+                                      color: isPending ? Colors.teal : color,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                   ),
@@ -376,8 +401,12 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 16,
                                                   color: !canEdit
-                                                      ? Colors.grey
-                                                      : null,
+                                                      ? AppColors.getTextColor(
+                                                          context,
+                                                        ).withValues(alpha: 0.5)
+                                                      : AppColors.getTextColor(
+                                                          context,
+                                                        ),
                                                 ),
                                               ),
                                             ),
@@ -390,8 +419,12 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             color: !canEdit
-                                                ? Colors.grey
-                                                : null,
+                                                ? AppColors.getTextColor(
+                                                    context,
+                                                  ).withValues(alpha: 0.5)
+                                                : AppColors.getTextColor(
+                                                    context,
+                                                  ),
                                           ),
                                         ),
                                         const SizedBox(height: 8),
@@ -417,7 +450,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                                 ],
                                               ),
                                             Text(
-                                              'Created: ${_fmt(q.createdAt ?? Timestamp.now())} • Qs: ${q.questions.length} • ${q.duration}m • Attempts: ${q.maxAttempts} • ',
+                                              'Created: ${_formatTs(q.createdAt ?? Timestamp.now())} • Qs: ${q.questions.length} • ${q.duration}m • Attempts: ${q.maxAttempts} • ',
                                               style: Theme.of(
                                                 context,
                                               ).textTheme.bodySmall,
@@ -433,7 +466,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                                     (q.isMembersOnly
                                                             ? Colors.amber
                                                             : Colors.blue)
-                                                        .withOpacity(0.1),
+                                                        .withValues(alpha: 0.1),
                                                 borderRadius:
                                                     BorderRadius.circular(8),
                                                 border: Border.all(
@@ -441,7 +474,9 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                                       (q.isMembersOnly
                                                               ? Colors.amber
                                                               : Colors.blue)
-                                                          .withOpacity(0.5),
+                                                          .withValues(
+                                                            alpha: 0.5,
+                                                          ),
                                                 ),
                                               ),
                                               child: Text(
@@ -452,8 +487,8 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.bold,
                                                   color: q.isMembersOnly
-                                                      ? Colors.amber.shade900
-                                                      : Colors.blue.shade900,
+                                                      ? Colors.amber
+                                                      : Colors.blue,
                                                 ),
                                               ),
                                             ),
@@ -466,14 +501,14 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                                       vertical: 2,
                                                     ),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.red.withOpacity(
-                                                    0.1,
+                                                  color: Colors.red.withValues(
+                                                    alpha: 0.1,
                                                   ),
                                                   borderRadius:
                                                       BorderRadius.circular(8),
                                                   border: Border.all(
                                                     color: Colors.red
-                                                        .withOpacity(0.5),
+                                                        .withValues(alpha: 0.5),
                                                   ),
                                                 ),
                                                 child: const Text(
@@ -506,17 +541,21 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                         vertical: 6,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.orange.withOpacity(0.1),
+                                        color: Colors.teal.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(20),
                                         border: Border.all(
-                                          color: Colors.orange.withOpacity(0.5),
+                                          color: Colors.teal.withValues(
+                                            alpha: 0.5,
+                                          ),
                                         ),
                                       ),
                                       child: const Text(
                                         'Waiting for approval',
                                         style: TextStyle(
                                           fontSize: 11,
-                                          color: Colors.orange,
+                                          color: Colors.teal,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -776,6 +815,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                           child: Text('Multiple Choice'),
                         ),
                       ],
+                      dropdownColor: AppColors.getCardColor(context),
                       onChanged: (v) {
                         if (v != null) {
                           setState(() {
@@ -1105,7 +1145,11 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
               future: DatabaseService.instance.fetchQuizResults(quizId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primaryGreen,
+                    ),
+                  );
                 }
                 final results = snapshot.data ?? [];
                 if (results.isEmpty) {
@@ -1113,7 +1157,7 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 }
                 return ListView.separated(
                   itemCount: results.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final r = results[index];
                     final passed = r['completed'] == true;
@@ -1178,3 +1222,4 @@ class _AdminQuizzesTabState extends State<AdminQuizzesTab> {
     );
   }
 }
+

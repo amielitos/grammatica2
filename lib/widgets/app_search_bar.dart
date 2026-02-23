@@ -37,17 +37,17 @@ class _AppSearchBarState extends State<AppSearchBar> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark
-              ? Colors.white.withOpacity(0.1)
-              : Colors.grey.withOpacity(0.2),
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.grey.withValues(alpha: 0.2),
         ),
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

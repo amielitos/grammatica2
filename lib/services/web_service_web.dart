@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'dart:js_interop';
 import 'package:web/web.dart' as web;

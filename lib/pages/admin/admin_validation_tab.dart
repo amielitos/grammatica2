@@ -10,6 +10,7 @@ import '../lesson_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/role_service.dart';
 import '../../services/notification_service.dart';
+import '../../theme/app_colors.dart';
 
 class AdminValidationTab extends StatefulWidget {
   const AdminValidationTab({super.key});
@@ -19,8 +20,16 @@ class AdminValidationTab extends StatefulWidget {
 }
 
 class _AdminValidationTabState extends State<AdminValidationTab> {
-  String _fmt(Timestamp ts) {
-    final d = ts.toDate().toLocal();
+  String _formatTs(dynamic ts) {
+    if (ts == null) return 'N/A';
+    DateTime d;
+    if (ts is Timestamp) {
+      d = ts.toDate().toLocal();
+    } else if (ts is DateTime) {
+      d = ts.toLocal();
+    } else {
+      return 'N/A';
+    }
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
@@ -30,8 +39,13 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
       length: 3,
       child: Column(
         children: [
-          const TabBar(
-            tabs: [
+          TabBar(
+            labelColor: AppColors.primaryGreen,
+            unselectedLabelColor: AppColors.getTextColor(
+              context,
+            ).withValues(alpha: 0.6),
+            indicatorColor: AppColors.primaryGreen,
+            tabs: const [
               Tab(text: 'Lessons'),
               Tab(text: 'Quizzes'),
               Tab(text: 'Educators'),
@@ -44,15 +58,15 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
                   stream: DatabaseService.instance
                       .streamAwaitingApprovalLessons(),
                   collection: 'lessons',
-                  formatDate: _fmt,
+                  formatDate: _formatTs,
                 ),
                 _ValidationList(
                   stream: DatabaseService.instance
                       .streamAwaitingApprovalQuizzes(),
                   collection: 'quizzes',
-                  formatDate: _fmt,
+                  formatDate: _formatTs,
                 ),
-                _EducatorApplicationsList(formatDate: _fmt),
+                _EducatorApplicationsList(formatDate: _formatTs),
               ],
             ),
           ),
@@ -63,7 +77,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
 }
 
 class _EducatorApplicationsList extends StatelessWidget {
-  final String Function(Timestamp) formatDate;
+  final String Function(dynamic) formatDate;
 
   const _EducatorApplicationsList({required this.formatDate});
 
@@ -92,7 +106,9 @@ class _EducatorApplicationsList extends StatelessWidget {
           );
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: CircularProgressIndicator(color: AppColors.primaryGreen),
+          );
         }
         final items = snapshot.data ?? [];
         if (items.isEmpty) {
@@ -102,7 +118,7 @@ class _EducatorApplicationsList extends StatelessWidget {
         return ListView.separated(
           padding: const EdgeInsets.all(16),
           itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final app = items[index];
             final email = app.applicantEmail;
@@ -111,37 +127,46 @@ class _EducatorApplicationsList extends StatelessWidget {
                 : 'N/A';
 
             return GlassCard(
+              backgroundColor: AppColors.getCardColor(context),
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 12,
+                      runSpacing: 8,
                       children: [
-                        const Icon(
-                          CupertinoIcons.person_crop_circle_fill,
-                          size: 40,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                email,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              CupertinoIcons.person_crop_circle_fill,
+                              size: 40,
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  email,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                'Applied: $appliedAtStr',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
+                                Text(
+                                  'Applied: $appliedAtStr',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
                               icon: const Icon(
@@ -168,25 +193,28 @@ class _EducatorApplicationsList extends StatelessWidget {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
-                    Row(
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
                       children: [
                         FilledButton.icon(
                           onPressed: () => _launchURL(app.videoUrl),
                           icon: const Icon(CupertinoIcons.play_circle),
                           label: const Text('View Video Demo'),
                           style: FilledButton.styleFrom(
-                            backgroundColor: Colors.blue.withOpacity(0.1),
+                            backgroundColor: Colors.blue.withValues(alpha: 0.1),
                             foregroundColor: Colors.blue,
                           ),
                         ),
-                        const SizedBox(width: 12),
                         FilledButton.icon(
                           onPressed: () => _launchURL(app.syllabusUrl),
                           icon: const Icon(CupertinoIcons.doc_text),
                           label: const Text('View Syllabus'),
                           style: FilledButton.styleFrom(
-                            backgroundColor: Colors.orange.withOpacity(0.1),
-                            foregroundColor: Colors.orange,
+                            backgroundColor: Colors.teal.withValues(
+                              alpha: 0.1,
+                            ),
+                            foregroundColor: Colors.teal,
                           ),
                         ),
                       ],
@@ -368,7 +396,7 @@ class _EducatorApplicationsList extends StatelessWidget {
 class _ValidationList extends StatelessWidget {
   final Stream<List<dynamic>> stream;
   final String collection;
-  final String Function(Timestamp) formatDate;
+  final String Function(dynamic) formatDate;
 
   const _ValidationList({
     required this.stream,
@@ -401,7 +429,9 @@ class _ValidationList extends StatelessWidget {
           );
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: CircularProgressIndicator(color: AppColors.primaryGreen),
+          );
         }
         final items = snapshot.data ?? [];
         if (items.isEmpty) {
@@ -411,7 +441,7 @@ class _ValidationList extends StatelessWidget {
         return ListView.separated(
           padding: const EdgeInsets.all(16),
           itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final item = items[index];
             final title = item.title;
@@ -420,6 +450,7 @@ class _ValidationList extends StatelessWidget {
                 : 'N/A';
 
             return GlassCard(
+              backgroundColor: AppColors.getCardColor(context),
               onTap: () {
                 final user = AuthService.instance.currentUser;
                 if (user == null) return;
@@ -448,9 +479,16 @@ class _ValidationList extends StatelessWidget {
               },
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Row(
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    Expanded(
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width - 200,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -480,14 +518,14 @@ class _ValidationList extends StatelessWidget {
                                       (item.isMembersOnly
                                               ? Colors.amber
                                               : Colors.blue)
-                                          .withOpacity(0.1),
+                                          .withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color:
                                         (item.isMembersOnly
                                                 ? Colors.amber
                                                 : Colors.blue)
-                                            .withOpacity(0.5),
+                                            .withValues(alpha: 0.5),
                                   ),
                                 ),
                                 child: Text(
@@ -498,8 +536,8 @@ class _ValidationList extends StatelessWidget {
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
                                     color: item.isMembersOnly
-                                        ? Colors.amber.shade900
-                                        : Colors.blue.shade900,
+                                        ? Colors.amber
+                                        : Colors.blue,
                                   ),
                                 ),
                               ),
@@ -513,49 +551,57 @@ class _ValidationList extends StatelessWidget {
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.eye, color: Colors.blue),
-                      tooltip: 'Preview',
-                      onPressed: () {
-                        final user = AuthService.instance.currentUser;
-                        if (user == null) return;
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            CupertinoIcons.eye,
+                            color: Colors.blue,
+                          ),
+                          tooltip: 'Preview',
+                          onPressed: () {
+                            final user = AuthService.instance.currentUser;
+                            if (user == null) return;
 
-                        if (collection == 'lessons') {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => LessonPage(
-                                user: user,
-                                lesson: item as Lesson,
-                                previewMode: true,
-                              ),
-                            ),
-                          );
-                        } else {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => QuizDetailPage(
-                                user: user,
-                                quiz: item as Quiz,
-                                previewMode: true,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        CupertinoIcons.checkmark_circle,
-                        color: Colors.green,
-                      ),
-                      onPressed: () => _approve(context, item.id),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        CupertinoIcons.xmark_circle,
-                        color: Colors.red,
-                      ),
-                      onPressed: () => _reject(context, item.id),
+                            if (collection == 'lessons') {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => LessonPage(
+                                    user: user,
+                                    lesson: item as Lesson,
+                                    previewMode: true,
+                                  ),
+                                ),
+                              );
+                            } else {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => QuizDetailPage(
+                                    user: user,
+                                    quiz: item as Quiz,
+                                    previewMode: true,
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            CupertinoIcons.checkmark_circle,
+                            color: Colors.green,
+                          ),
+                          onPressed: () => _approve(context, item.id),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            CupertinoIcons.xmark_circle,
+                            color: Colors.red,
+                          ),
+                          onPressed: () => _reject(context, item.id),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -631,3 +677,4 @@ class _ValidationList extends StatelessWidget {
     }
   }
 }
+

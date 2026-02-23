@@ -132,6 +132,7 @@ class _EducatorApplicationPageState extends State<EducatorApplicationPage> {
         title: const Text('Educator Application'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -159,10 +160,12 @@ class _EducatorApplicationPageState extends State<EducatorApplicationPage> {
                     constraints: BoxConstraints(maxWidth: contentWidth),
                     child: Card(
                       elevation: 0,
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.white.withValues(alpha: 0.05),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
-                        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
                       ),
                       child: Padding(
                         padding: EdgeInsets.all(isLargeScreen ? 40.0 : 20.0),
@@ -242,6 +245,9 @@ class _EducatorApplicationPageState extends State<EducatorApplicationPage> {
                                 children: [
                                   LinearProgressIndicator(
                                     value: _uploadProgress,
+                                    color: AppColors.primaryGreen,
+                                    backgroundColor: AppColors.primaryGreen
+                                        .withValues(alpha: 0.1),
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
@@ -320,7 +326,7 @@ class _FilePickerButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         side: BorderSide(
-          color: isUploaded ? Colors.green : Colors.grey.withOpacity(0.3),
+          color: isUploaded ? Colors.green : Colors.grey.withValues(alpha: 0.3),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

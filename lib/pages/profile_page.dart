@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -128,7 +129,7 @@ class ProfilePageState extends State<ProfilePage> {
         });
       }
     } catch (e) {
-      print('Error fetching profile: $e');
+      debugPrint('Error fetching profile: $e');
     }
   }
 
@@ -267,7 +268,9 @@ class ProfilePageState extends State<ProfilePage> {
             !roleSnap.hasData) {
           return const Scaffold(
             backgroundColor: Colors.transparent,
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(
+              child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            ),
           );
         }
 
@@ -295,6 +298,7 @@ class ProfilePageState extends State<ProfilePage> {
                             ),
                           ),
                           GlassCard(
+                            showHoverEffect: false,
                             child: Padding(
                               padding: const EdgeInsets.all(24),
                               child: Column(
@@ -306,7 +310,7 @@ class ProfilePageState extends State<ProfilePage> {
                                         CircleAvatar(
                                           radius: 50,
                                           backgroundColor: Colors.grey
-                                              .withOpacity(0.2),
+                                              .withValues(alpha: 0.2),
                                           child:
                                               (_photoUrl != null &&
                                                   _photoUrl!.isNotEmpty)
@@ -464,7 +468,9 @@ class ProfilePageState extends State<ProfilePage> {
                                     Container(
                                       padding: const EdgeInsets.all(16),
                                       decoration: BoxDecoration(
-                                        color: Colors.amber.withOpacity(0.1),
+                                        color: Colors.amber.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(color: Colors.amber),
                                       ),
@@ -583,6 +589,11 @@ class ProfilePageState extends State<ProfilePage> {
                                         borderSide: BorderSide(),
                                       ),
                                     ),
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(10),
+                                    ],
                                     onChanged: (phone) {
                                       _completePhoneNumber =
                                           phone.completeNumber;
@@ -735,8 +746,7 @@ class ProfilePageState extends State<ProfilePage> {
                                   const SizedBox(height: 24),
                                   FilledButton(
                                     style: FilledButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
+                                      // No explicit color set to follow theme
                                     ),
                                     onPressed: () async {
                                       setState(() {
@@ -800,7 +810,7 @@ class ProfilePageState extends State<ProfilePage> {
                                         ).textTheme.titleLarge,
                                       ),
                                       const SizedBox(height: 16),
-                                      OutlinedButton.icon(
+                                      FilledButton.icon(
                                         onPressed: () {
                                           Navigator.push(
                                             context,
@@ -818,7 +828,7 @@ class ProfilePageState extends State<ProfilePage> {
                                         label: const Text(
                                           'Manage Subscriptions',
                                         ),
-                                        style: OutlinedButton.styleFrom(
+                                        style: FilledButton.styleFrom(
                                           padding: const EdgeInsets.symmetric(
                                             vertical: 16,
                                           ),
@@ -856,8 +866,8 @@ class ProfilePageState extends State<ProfilePage> {
                                                   12,
                                                 ),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.red.withOpacity(
-                                                    0.1,
+                                                  color: Colors.red.withValues(
+                                                    alpha: 0.1,
                                                   ),
                                                   borderRadius:
                                                       BorderRadius.circular(8),
@@ -895,7 +905,7 @@ class ProfilePageState extends State<ProfilePage> {
                                                   backgroundColor:
                                                       application.status ==
                                                           'pending'
-                                                      ? Colors.orange
+                                                      ? Colors.teal
                                                       : Colors.red,
                                                   padding:
                                                       const EdgeInsets.symmetric(
@@ -1122,9 +1132,9 @@ class ProfilePageState extends State<ProfilePage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.1),
+                color: Colors.amber.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
               ),
               child: Row(
                 children: [
@@ -1186,15 +1196,15 @@ class ProfilePageState extends State<ProfilePage> {
                   ),
                   decoration: BoxDecoration(
                     color: application.status == 'pending'
-                        ? Colors.orange.withOpacity(0.2)
-                        : Colors.red.withOpacity(0.2),
+                        ? Colors.teal.withValues(alpha: 0.2)
+                        : Colors.red.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     application.status.toUpperCase(),
                     style: TextStyle(
                       color: application.status == 'pending'
-                          ? Colors.orange
+                          ? Colors.teal
                           : Colors.red,
                       fontWeight: FontWeight.bold,
                     ),
@@ -1338,9 +1348,9 @@ class _ReauthDialogState extends State<_ReauthDialog> {
             Text(errText!, style: const TextStyle(color: Colors.red)),
           ],
           if (loading)
-            const Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: CircularProgressIndicator(),
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: CircularProgressIndicator(color: AppColors.primaryGreen),
             ),
         ],
       ),
@@ -1361,3 +1371,4 @@ class _ReauthDialogState extends State<_ReauthDialog> {
     );
   }
 }
+

@@ -138,9 +138,11 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       difficulty: difficulty,
     );
     if (allWords.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No words found. Admin must add some!')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No words found. Admin must add some!')),
+        );
+      }
       return;
     }
 
@@ -289,6 +291,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         title: const Text('Spelling Bee'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
         actions: [
           StreamBuilder<UserRole>(
             stream: RoleService.instance.roleStream(widget.user.uid),
@@ -359,7 +362,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
             const SizedBox(height: 16),
             _DifficultyCard(
               title: 'Amateur',
-              color: Colors.orange,
+              color: Colors.teal,
               onTap: () => _startSession(SpellingDifficulty.amateur),
             ),
             const SizedBox(height: 16),
@@ -397,8 +400,8 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                 ),
                 decoration: BoxDecoration(
                   color: _timeLeft < 10
-                      ? Colors.red.withOpacity(0.1)
-                      : Colors.blue.withOpacity(0.1),
+                      ? Colors.red.withValues(alpha: 0.1)
+                      : Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: _timeLeft < 10 ? Colors.red : Colors.blue,
@@ -537,13 +540,13 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: isCorrect
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.red.withOpacity(0.1),
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isCorrect
-                          ? Colors.green.withOpacity(0.3)
-                          : Colors.red.withOpacity(0.3),
+                          ? Colors.green.withValues(alpha: 0.3)
+                          : Colors.red.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
@@ -625,9 +628,9 @@ class _DifficultyCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          border: Border.all(color: color.withOpacity(0.5)),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
           borderRadius: BorderRadius.circular(15),
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
         ),
         child: Center(
           child: Text(
@@ -643,3 +646,4 @@ class _DifficultyCard extends StatelessWidget {
     );
   }
 }
+

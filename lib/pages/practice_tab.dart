@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../widgets/glass_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'spelling_bee_page.dart';
@@ -50,7 +51,11 @@ class _PracticeTabState extends State<PracticeTab> {
             ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primaryGreen,
+                  ),
+                );
               }
               final assessments = (snapshot.data ?? [])
                   .where((q) => q.isAssessment)
@@ -141,12 +146,13 @@ class _PracticeCard extends StatelessWidget {
     return GlassCard(
       onTap: onTap,
       padding: EdgeInsets.zero,
+      hoverBorderColor: backgroundColor.withValues(alpha: 0.3),
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: backgroundColor.withOpacity(0.15),
+          color: backgroundColor.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: backgroundColor.withOpacity(0.3)),
+          border: Border.all(color: backgroundColor.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
@@ -165,7 +171,7 @@ class _PracticeCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -173,7 +179,10 @@ class _PracticeCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.getSecondaryTextColor(context),
+                      fontSize: 14,
+                    ),
                   ),
                 ],
               ),
