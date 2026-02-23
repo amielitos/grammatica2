@@ -286,6 +286,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         title: const Text('Pronunciation Quiz'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
         actions: [
           StreamBuilder<UserRole>(
             stream: RoleService.instance.roleStream(widget.user.uid),
@@ -347,7 +348,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
             const SizedBox(height: 16),
             _DifficultyCard(
               title: 'Amateur',
-              color: Colors.orange,
+              color: Colors.teal,
               onTap: () => _startSession(SpellingDifficulty.amateur),
             ),
             const SizedBox(height: 16),
@@ -691,3 +692,4 @@ class _DifficultyCard extends StatelessWidget {
     );
   }
 }
+

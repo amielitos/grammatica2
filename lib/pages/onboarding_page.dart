@@ -24,7 +24,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       description:
           'Your journey to mastering grammar starts here. Let\'s get you settled in.',
       icon: CupertinoIcons.sparkles,
-      color: AppColors.salmonBackground,
+      color: AppColors.primaryGreen,
     ),
     OnboardingStep(
       title: 'Learn with Lessons',
@@ -38,14 +38,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
       description:
           'Take quizzes to track your progress and reinforce what you\'ve learned.',
       icon: CupertinoIcons.question_circle,
-      color: Colors.blue,
+      color: AppColors.primaryGreen,
     ),
     OnboardingStep(
       title: 'Personalize Your Profile',
       description:
           'Keep track of your achievements and customize your learning experience.',
       icon: CupertinoIcons.person,
-      color: Colors.purple,
+      color: AppColors.registrationGreen,
     ),
     OnboardingStep(
       title: 'You\'re all set!',
@@ -72,8 +72,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Theme.of(context).scaffoldBackgroundColor,
-              AppColors.salmonBackground.withOpacity(0.1),
+              AppColors.authGradient.colors[0],
+              AppColors.authGradient.colors[1],
             ],
           ),
         ),
@@ -97,7 +97,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           Container(
                             padding: const EdgeInsets.all(30),
                             decoration: BoxDecoration(
-                              color: step.color.withOpacity(0.1),
+                              color: step.color.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -212,8 +212,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           width: _currentPage == index ? 24 : 8,
                           decoration: BoxDecoration(
                             color: _currentPage == index
-                                ? AppColors.salmonBackground
-                                : Colors.grey.withOpacity(0.3),
+                                ? AppColors.primaryGreen
+                                : Colors.grey.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -242,7 +242,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           );
                         },
                         iconSize: 32,
-                        color: AppColors.salmonBackground,
+                        color: AppColors.primaryGreen,
                         icon: const Icon(
                           CupertinoIcons.arrow_right_circle_fill,
                         ),

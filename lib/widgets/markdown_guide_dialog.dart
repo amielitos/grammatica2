@@ -10,6 +10,7 @@ class MarkdownGuideDialog extends StatelessWidget {
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Markdown Guide'),
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(CupertinoIcons.xmark),
           onPressed: () => Navigator.of(context).pop(),
@@ -103,11 +104,13 @@ class MarkdownGuideDialog extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[200],
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.grey[200],
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isDark
-                    ? Colors.white.withOpacity(0.1)
+                    ? Colors.white.withValues(alpha: 0.1)
                     : Colors.grey[300]!,
               ),
             ),
@@ -116,7 +119,9 @@ class MarkdownGuideDialog extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'monospace',
                 fontSize: 14,
-                color: isDark ? Colors.white.withOpacity(0.9) : Colors.black87,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.9)
+                    : Colors.black87,
               ),
             ),
           ),

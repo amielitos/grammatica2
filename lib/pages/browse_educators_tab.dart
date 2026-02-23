@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import '../widgets/glass_card.dart';
+import '../theme/app_colors.dart';
 import 'educator_profile_page.dart';
 
 class BrowseEducatorsTab extends StatefulWidget {
@@ -57,7 +58,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                         )
                       : null,
                   filled: true,
-                  fillColor: Colors.grey.withOpacity(0.1),
+                  fillColor: Colors.grey.withValues(alpha: 0.1),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(30),
                     borderSide: BorderSide.none,
@@ -74,7 +75,11 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
             stream: DatabaseService.instance.streamEducators(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primaryGreen,
+                  ),
+                );
               }
               if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
@@ -97,7 +102,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
               return ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                 itemCount: filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
+                separatorBuilder: (_, _) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
                   final educator = filtered[index];
                   final photoUrl = educator['photoUrl'] as String?;
@@ -123,7 +128,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                         children: [
                           CircleAvatar(
                             radius: 30,
-                            backgroundColor: Colors.grey.withOpacity(0.2),
+                            backgroundColor: Colors.grey.withValues(alpha: 0.2),
                             backgroundImage:
                                 (photoUrl != null && photoUrl.isNotEmpty)
                                 ? NetworkImage(photoUrl)

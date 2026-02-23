@@ -29,6 +29,7 @@ class EducatorProfilePage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(CupertinoIcons.back),
           onPressed: () => Navigator.pop(context),
@@ -40,8 +41,8 @@ class EducatorProfilePage extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.primaryGreen.withOpacity(0.1),
-              Colors.blue.withOpacity(0.05),
+              AppColors.primaryGreen.withValues(alpha: 0.1),
+              Colors.blue.withValues(alpha: 0.05),
             ],
           ),
         ),
@@ -57,7 +58,7 @@ class EducatorProfilePage extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 60,
-                        backgroundColor: Colors.grey.withOpacity(0.2),
+                        backgroundColor: Colors.grey.withValues(alpha: 0.2),
                         backgroundImage:
                             (photoUrl != null && photoUrl.isNotEmpty)
                             ? NetworkImage(photoUrl)
@@ -204,7 +205,7 @@ class EducatorProfilePage extends StatelessWidget {
                       child: ListTile(
                         leading: const Icon(
                           CupertinoIcons.question_circle,
-                          color: Colors.orange,
+                          color: Colors.teal,
                         ),
                         title: Text(quiz.title),
                         subtitle: Text(
@@ -257,10 +258,12 @@ class _ContentSection<T> extends StatelessWidget {
           stream: stream,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
+              return Center(
                 child: Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: CupertinoActivityIndicator(),
+                  padding: const EdgeInsets.all(8.0),
+                  child: CircularProgressIndicator(
+                    color: AppColors.primaryGreen,
+                  ),
                 ),
               );
             }
@@ -281,7 +284,7 @@ class _ContentSection<T> extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) =>
                   itemBuilder(context, items[index]),
             );
@@ -291,3 +294,4 @@ class _ContentSection<T> extends StatelessWidget {
     );
   }
 }
+

@@ -122,9 +122,9 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: widget.activeColor.withOpacity(0.05),
+        color: widget.activeColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: widget.activeColor.withOpacity(0.2)),
+        border: Border.all(color: widget.activeColor.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -168,13 +168,17 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: widget.activeColor.withOpacity(onPressed == null ? 0.05 : 0.1),
+        color: widget.activeColor.withValues(
+          alpha: onPressed == null ? 0.05 : 0.1,
+        ),
         shape: BoxShape.circle,
       ),
       child: IconButton(
         icon: Icon(
           icon,
-          color: widget.activeColor.withOpacity(onPressed == null ? 0.3 : 1.0),
+          color: widget.activeColor.withValues(
+            alpha: onPressed == null ? 0.3 : 1.0,
+          ),
           size: size * 0.6,
         ),
         onPressed: onPressed,

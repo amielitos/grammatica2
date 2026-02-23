@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import 'lesson_page.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/author_name_widget.dart';
+import '../widgets/animations.dart';
 
 class LessonFolderPage extends StatefulWidget {
   final User user;
@@ -17,6 +18,8 @@ class LessonFolderPage extends StatefulWidget {
   // If true, this is the "Public Content" top folder which contains sub-folders
   final bool isPublicContentFolder;
 
+  final VoidCallback? onBack;
+
   const LessonFolderPage({
     super.key,
     required this.user,
@@ -24,6 +27,7 @@ class LessonFolderPage extends StatefulWidget {
     required this.pillLabel,
     required this.lessons,
     this.isPublicContentFolder = false,
+    this.onBack,
   });
 
   @override
@@ -44,20 +48,42 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     super.dispose();
   }
 
-  String _fmt(Timestamp ts) {
-    final d = ts.toDate().toLocal();
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (widget.isPublicContentFolder) {
-      return _buildPublicContentFolder(context);
+    if (widget.onBack != null) {
+      return _buildContent(context);
     }
-    return _buildLessonList(context);
+
+    return Container(
+      decoration: BoxDecoration(gradient: AppColors.getMainGradient(context)),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Text(
+            widget.title,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        body: _buildContent(context),
+      ),
+    );
   }
 
-  Widget _buildPublicContentFolder(BuildContext context) {
+  Widget _buildContent(BuildContext context) {
+    if (widget.isPublicContentFolder) {
+      return _buildPublicContentBody(context);
+    }
+    return _buildLessonListBody(context);
+  }
+
+  Widget _buildPublicContentBody(BuildContext context) {
     // Group lessons by author
     final Map<String, List<Lesson>> authorLessons = {};
     for (var lesson in widget.lessons) {
@@ -68,13 +94,6 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     // Filter by search query
     final filteredAuthors = authorLessons.keys.where((uid) {
       if (_searchQuery.isEmpty) return true;
-      // Search in author name (need to fetch?) or title of lessons
-      // Ideally, we search the visible list.
-      // For simplicity, we search lesson titles within the author's folder for now as a proxy,
-      // or we can allow searching author names if we had them pre-fetched.
-      // But author names are async. Let's filter by lesson content match?
-      // Or simply filter authors whose lessons match.
-
       final lessons = authorLessons[uid]!;
       return lessons.any(
         (l) =>
@@ -85,143 +104,164 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       );
     }).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
+    return Column(
+      children: [
+        if (widget.onBack != null)
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: AppSearchBar(
-              hintText: 'Search public lessons...',
-              onSearch: (val) => setState(() => _searchQuery = val),
-              onFilterPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Filter options coming soon!')),
-                );
-              },
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: widget.onBack,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  widget.title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight - 32,
-                    ),
-                    child: Center(
-                      child: Wrap(
-                        spacing: 16,
-                        runSpacing: 16,
-                        alignment: WrapAlignment.center,
-                        children: filteredAuthors.map((authorUid) {
-                          final lessons = authorLessons[authorUid]!;
-                          final authorEmail = lessons.first.createdByEmail;
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width > 600
+                    ? MediaQuery.of(context).size.width * 0.6
+                    : double.infinity,
+              ),
+              child: AppSearchBar(
+                hintText: 'Search public lessons...',
+                onSearch: (val) => setState(() => _searchQuery = val),
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Wrap(
+                    spacing: 24,
+                    runSpacing: 24,
+                    alignment: WrapAlignment.center,
+                    children: filteredAuthors.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final authorUid = entry.value;
+                      final lessons = authorLessons[authorUid]!;
+                      final authorEmail = lessons.first.createdByEmail;
 
-                          return SizedBox(
-                            width: 234, // 50% Bigger card width
-                            height: 324, // 50% Bigger card height
-                            child: GestureDetector(
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => LessonFolderPage(
-                                      user: widget.user,
-                                      title: 'Public Lessons',
-                                      pillLabel: 'Public',
-                                      lessons: lessons,
-                                      isPublicContentFolder: false,
+                      return FadeInSlide(
+                        delay: Duration(milliseconds: index * 100),
+                        child: HoverScale(
+                          scale: 1.0, // Stable size on hover
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => LessonFolderPage(
+                                    user: widget.user,
+                                    title: 'Public Lessons',
+                                    pillLabel: 'Public',
+                                    lessons: lessons,
+                                    isPublicContentFolder: false,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: GlassCard(
+                              width: 240,
+                              height: 320,
+                              isSolid: true,
+                              backgroundColor: AppColors.getCardColor(context),
+                              hoverBorderColor: Colors.yellow,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.folder,
+                                      size: 48,
+                                      color: Colors.blue,
                                     ),
-                                  ),
-                                );
-                              },
-                              child: GlassCard(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(
-                                        CupertinoIcons.folder_solid,
-                                        size: 42,
-                                        color: AppColors.primaryGreen,
-                                      ),
-                                      const Spacer(),
-                                      AuthorName(
-                                        uid: authorUid == 'Unknown'
-                                            ? null
-                                            : authorUid,
-                                        fallbackEmail: authorEmail,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleSmall
-                                            ?.copyWith(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Check out content!',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(fontSize: 14),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.blue.withOpacity(0.5),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          'Public',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 12,
+                                    const Spacer(),
+                                    AuthorName(
+                                      uid: authorUid == 'Unknown'
+                                          ? null
+                                          : authorUid,
+                                      fallbackEmail: authorEmail,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontSize: 18,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.blue.shade900,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Check out content!',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(fontSize: 14),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: Colors.blue.withValues(
+                                            alpha: 0.5,
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                      child: const Text(
+                                        'Public',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildLessonList(BuildContext context) {
+  Widget _buildLessonListBody(BuildContext context) {
     final filteredLessons = widget.lessons.where((l) {
       if (_searchQuery.isEmpty) return true;
       return l.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -230,7 +270,6 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
           );
     }).toList();
 
-    // Apply sorting based on filter
     filteredLessons.sort((a, b) {
       int cmp = 0;
       if (_selectedFilter == 'Name') {
@@ -245,228 +284,227 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
         } else if (tsB == null) {
           cmp = -1;
         } else {
-          cmp = tsB.compareTo(tsA); // Newest first
+          cmp = tsB.compareTo(tsA);
         }
       }
-
-      if (cmp == 0) {
-        // Secondary sort by Name A-Z
-        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
-      }
-      return cmp;
+      return cmp == 0
+          ? a.title.toLowerCase().compareTo(b.title.toLowerCase())
+          : cmp;
     });
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: StreamBuilder<Map<String, Map<String, dynamic>>>(
-        stream: DatabaseService.instance.progressStream(widget.user),
-        builder: (context, progressSnap) {
-          final progress = progressSnap.data ?? const {};
+    return StreamBuilder<Map<String, Map<String, dynamic>>>(
+      stream: DatabaseService.instance.progressStream(widget.user),
+      builder: (context, progressSnap) {
+        final progress = progressSnap.data ?? const {};
 
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth >= 900;
+        return Column(
+          children: [
+            if (widget.onBack != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: widget.onBack,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width > 600
+                        ? MediaQuery.of(context).size.width * 0.6
+                        : double.infinity,
+                    minWidth: MediaQuery.of(context).size.width > 600
+                        ? 0
+                        : double.infinity,
+                  ),
+                  child: AppSearchBar(
+                    hintText: 'Search lessons...',
+                    onSearch: (val) => setState(() => _searchQuery = val),
+                    onFilterPressed: () {
+                      showCupertinoModalPopup(
+                        context: context,
+                        builder: (context) => CupertinoActionSheet(
+                          title: const Text('Filter Lessons By'),
+                          actions: _filterOptions.map((option) {
+                            return CupertinoActionSheetAction(
+                              onPressed: () {
+                                setState(() => _selectedFilter = option);
+                                Navigator.pop(context);
+                              },
+                              child: Text(
+                                option,
+                                style: TextStyle(
+                                  color: _selectedFilter == option
+                                      ? Colors.yellow
+                                      : null,
+                                  fontWeight: _selectedFilter == option
+                                      ? FontWeight.bold
+                                      : null,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          cancelButton: CupertinoActionSheetAction(
+                            onPressed: () => Navigator.pop(context),
+                            isDestructiveAction: true,
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 900;
+                  final lessonsBlock = filteredLessons.isEmpty
+                      ? const Center(child: Text('No lessons found.'))
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(24),
+                          itemCount: filteredLessons.length,
+                          separatorBuilder: (c, i) =>
+                              const SizedBox(height: 16),
+                          itemBuilder: (context, index) {
+                            final lesson = filteredLessons[index];
+                            final completed =
+                                progress[lesson.id]?['completed'] == true;
 
-              final listWidget = Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: AppSearchBar(
-                      hintText: 'Search lessons...',
-                      onSearch: (val) => setState(() => _searchQuery = val),
-                      onFilterPressed: () {
-                        showCupertinoModalPopup(
-                          context: context,
-                          builder: (context) => CupertinoActionSheet(
-                            title: const Text('Filter Lessons By'),
-                            actions: _filterOptions.map((option) {
-                              return CupertinoActionSheetAction(
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedFilter = option;
-                                  });
-                                  Navigator.pop(context);
-                                },
-                                child: Text(
-                                  option,
-                                  style: TextStyle(
-                                    color: _selectedFilter == option
-                                        ? AppColors.primaryGreen
-                                        : null,
-                                    fontWeight: _selectedFilter == option
-                                        ? FontWeight.bold
-                                        : null,
+                            return FadeInSlide(
+                              delay: Duration(milliseconds: index * 50),
+                              child: HoverScale(
+                                scale: 1.0, // Stable size on hover
+                                child: GlassCard(
+                                  isSolid: true,
+                                  backgroundColor: AppColors.getCardColor(
+                                    context,
+                                  ),
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => LessonPage(
+                                          user: widget.user,
+                                          lesson: lesson,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.play_circle_fill,
+                                        color: Colors.yellow,
+                                        size: 32,
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              lesson.title,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleLarge
+                                                  ?.copyWith(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              lesson.prompt,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    color: Colors.grey[600],
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (completed)
+                                        const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.green,
+                                          size: 28,
+                                        )
+                                      else
+                                        const Icon(
+                                          Icons.chevron_right,
+                                          color: Colors.yellow,
+                                          size: 20,
+                                        ),
+                                    ],
                                   ),
                                 ),
-                              );
-                            }).toList(),
-                            cancelButton: CupertinoActionSheetAction(
-                              onPressed: () => Navigator.pop(context),
-                              isDestructiveAction: true,
-                              child: const Text('Cancel'),
-                            ),
-                          ),
+                              ),
+                            );
+                          },
                         );
-                      },
-                    ),
-                  ),
-                  Expanded(
-                    child: filteredLessons.isEmpty
-                        ? const Center(child: Text('No lessons found.'))
-                        : ListView.separated(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: filteredLessons.length,
-                            separatorBuilder: (c, i) =>
-                                const SizedBox(height: 16),
-                            itemBuilder: (context, index) {
-                              final lesson = filteredLessons[index];
-                              final pData = progress[lesson.id];
-                              final done = pData?['completed'] == true;
-                              final createdAtStr = lesson.createdAt != null
-                                  ? _fmt(lesson.createdAt!)
-                                  : 'N/A';
 
-                              return GlassCard(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => LessonPage(
-                                        user: widget.user,
-                                        lesson: lesson,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: Row(
-                                  children: [
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            lesson.title,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleLarge
-                                                ?.copyWith(fontSize: 18),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            lesson.prompt,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.bodyMedium,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Wrap(
-                                            spacing: 12,
-                                            children: [
-                                              AuthorName(
-                                                uid: lesson.createdByUid,
-                                                fallbackEmail:
-                                                    lesson.createdByEmail,
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall
-                                                    ?.copyWith(
-                                                      color: Colors.grey,
-                                                    ),
-                                              ),
-                                              Text(
-                                                '• $createdAtStr',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall
-                                                    ?.copyWith(
-                                                      color: Colors.grey,
-                                                    ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    if (done)
-                                      Icon(
-                                        CupertinoIcons.check_mark_circled,
-                                        color: AppColors.primaryGreen,
-                                        size: 28,
-                                      )
-                                    else
-                                      Icon(
-                                        CupertinoIcons.chevron_right,
-                                        size: 16,
-                                        color: Colors.grey.withOpacity(0.5),
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
+                  final metricsBlock = _buildMetricsSection(
+                    context,
+                    widget.lessons,
+                    progress,
+                  );
+
+                  if (isWide) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 6, child: lessonsBlock),
+                        Expanded(
+                          flex: 4,
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.only(
+                              right: 24,
+                              top: 24,
+                              bottom: 24,
+                            ),
+                            child: metricsBlock,
                           ),
-                  ),
-                ],
-              );
-
-              final metricsWidget = _buildMetricsSection(
-                context,
-                widget.lessons,
-                progress,
-                isWide,
-              );
-
-              if (isWide) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 3, child: listWidget),
-                    Container(
-                      width: 350,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          left: BorderSide(color: Colors.grey.withOpacity(0.1)),
                         ),
-                      ),
-                      child: metricsWidget,
-                    ),
-                  ],
-                );
-              } else {
-                return Column(
-                  children: [
-                    Expanded(child: listWidget),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        border: Border(
-                          top: BorderSide(color: Colors.grey.withOpacity(0.1)),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        Expanded(child: lessonsBlock),
+                        Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: metricsBlock,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, -4),
-                          ),
-                        ],
-                      ),
-                      child: metricsWidget,
-                    ),
-                  ],
-                );
-              }
-            },
-          );
-        },
-      ),
+                      ],
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -474,7 +512,6 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     BuildContext context,
     List<Lesson> lessons,
     Map<String, dynamic> progress,
-    bool isWide,
   ) {
     int completedCount = 0;
     List<Map<String, dynamic>> recentlyCompleted = [];
@@ -486,7 +523,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
         Timestamp? ts = p['completedAt'] as Timestamp?;
         recentlyCompleted.add({
           'title': l.title,
-          'completedAt': ts ?? Timestamp.now(), // Fallback
+          'completedAt': ts ?? Timestamp.now(),
         });
       }
     }
@@ -498,114 +535,104 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       ),
     );
 
-    // Take top 5
     if (recentlyCompleted.length > 5) {
       recentlyCompleted = recentlyCompleted.sublist(0, 5);
     }
 
     return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Folder Progress',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            SizedBox(
-              height: 60,
-              width: 60,
-              child: Stack(
-                children: [
-                  Center(
-                    child: CircularProgressIndicator(
-                      value: percent,
-                      backgroundColor: Colors.grey.withOpacity(0.2),
-                      color: AppColors.primaryGreen,
-                      strokeWidth: 6,
-                    ),
-                  ),
-                  Center(
-                    child: Text(
-                      '${(percent * 100).toInt()}%',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Column(
+        GlassCard(
+          isSolid: true,
+          backgroundColor: AppColors.getCardColor(context),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '$completedCount / ${lessons.length} Completed',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                const Text(
+                  'Folder Progress',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: percent,
+                    minHeight: 12,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Colors.yellow,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Text(
-                  completedCount == lessons.length
-                      ? 'All done! Great job!'
-                      : 'Keep going!',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                  '$completedCount / ${lessons.length} Lessons Completed',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
-          ],
+          ),
         ),
         const SizedBox(height: 24),
-        Text(
-          'Recent Activity',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        if (recentlyCompleted.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'No activity yet.',
-              style: TextStyle(color: Colors.grey),
+        GlassCard(
+          isSolid: true,
+          backgroundColor: AppColors.getCardColor(context),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Recent Activity',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                if (recentlyCompleted.isEmpty)
+                  const Text(
+                    'No activity yet.',
+                    style: TextStyle(color: Colors.grey),
+                  )
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: recentlyCompleted.length,
+                    separatorBuilder: (c, i) =>
+                        Divider(color: Colors.grey[100]),
+                    itemBuilder: (context, index) {
+                      final item = recentlyCompleted[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.green,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                item['title'],
+                                style: const TextStyle(fontSize: 14),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+              ],
             ),
-          )
-        else
-          ...recentlyCompleted.map((item) {
-            final date = (item['completedAt'] as Timestamp).toDate().toLocal();
-            final dateStr =
-                '${date.month}/${date.day} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  const Icon(
-                    CupertinoIcons.check_mark_circled_solid,
-                    size: 14,
-                    color: AppColors.primaryGreen,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      item['title'],
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  ),
-                  Text(
-                    dateStr,
-                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }),
+          ),
+        ),
       ],
     );
   }

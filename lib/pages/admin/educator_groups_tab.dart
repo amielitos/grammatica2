@@ -20,16 +20,17 @@ class EducatorGroupsTab extends StatelessWidget {
             children: [
               Text(
                 'Educator Groups',
-                style: Theme.of(
-                  context,
-                ).textTheme.displaySmall?.copyWith(fontSize: 24),
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                  fontSize: 24,
+                  color: AppColors.getTextColor(context),
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'View and manage your subscribers.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.getTextColor(context).withValues(alpha: 0.7),
+                ),
               ),
             ],
           ),
@@ -41,7 +42,11 @@ class EducatorGroupsTab extends StatelessWidget {
             ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primaryGreen,
+                  ),
+                );
               }
               if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
@@ -85,7 +90,7 @@ class EducatorGroupsTab extends StatelessWidget {
                   vertical: 8,
                 ),
                 itemCount: subscribers.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final sub = subscribers[index];
                   final photoUrl = sub['photoUrl'] as String?;
@@ -96,10 +101,11 @@ class EducatorGroupsTab extends StatelessWidget {
                   final email = sub['email'] as String? ?? 'No email';
 
                   return GlassCard(
+                    backgroundColor: AppColors.getCardColor(context),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: AppColors.primaryGreen.withOpacity(
-                          0.1,
+                        backgroundColor: AppColors.primaryGreen.withValues(
+                          alpha: 0.1,
                         ),
                         backgroundImage:
                             (photoUrl != null && photoUrl.isNotEmpty)
@@ -114,9 +120,19 @@ class EducatorGroupsTab extends StatelessWidget {
                       ),
                       title: Text(
                         username,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.getTextColor(context),
+                        ),
                       ),
-                      subtitle: Text(email),
+                      subtitle: Text(
+                        email,
+                        style: TextStyle(
+                          color: AppColors.getTextColor(
+                            context,
+                          ).withValues(alpha: 0.7),
+                        ),
+                      ),
                       trailing: const Icon(
                         CupertinoIcons.checkmark_seal_fill,
                         color: Colors.green,

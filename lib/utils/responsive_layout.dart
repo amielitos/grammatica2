@@ -229,7 +229,7 @@ class ResponsiveScaffold extends StatelessWidget {
             body: Row(
               children: [
                 if (drawer != null) drawer!,
-                Expanded(child: body!),
+                if (body != null) Expanded(child: body!),
               ],
             ),
             floatingActionButton: floatingActionButton,

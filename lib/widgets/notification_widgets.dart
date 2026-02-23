@@ -4,6 +4,7 @@ import '../models/notification.dart';
 import '../services/notification_service.dart';
 import 'glass_card.dart';
 import 'package:intl/intl.dart';
+import '../theme/app_colors.dart';
 
 class NotificationIconButton extends StatelessWidget {
   final String userId;
@@ -119,7 +120,11 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
                 ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryGreen,
+                      ),
+                    );
                   }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Center(
@@ -148,6 +153,131 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showDetails(BuildContext context, NotificationModel n) {
+    if (!n.isRead) {
+      NotificationService.instance.markAsRead(n.id);
+    }
+    showDialog(
+      context: context,
+      builder: (context) => NotificationDetailDialog(notification: n),
+    );
+  }
+}
+
+class NotificationsDialog extends StatefulWidget {
+  final String userId;
+
+  const NotificationsDialog({super.key, required this.userId});
+
+  @override
+  State<NotificationsDialog> createState() => _NotificationsDialogState();
+}
+
+class _NotificationsDialogState extends State<NotificationsDialog> {
+  bool _showArchived = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      alignment: Alignment.topRight,
+      insetPadding: const EdgeInsets.only(
+        top: 70,
+        right: 20,
+        left: 20,
+        bottom: 20,
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+        child: GlassCard(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _showArchived ? 'Archive' : 'Notifications',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            _showArchived
+                                ? CupertinoIcons.list_bullet
+                                : CupertinoIcons.archivebox,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _showArchived = !_showArchived;
+                            });
+                          },
+                          tooltip: _showArchived
+                              ? 'Show Active'
+                              : 'Show Archive',
+                        ),
+                        IconButton(
+                          icon: const Icon(CupertinoIcons.xmark),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: StreamBuilder<List<NotificationModel>>(
+                  stream: NotificationService.instance.streamNotifications(
+                    widget.userId,
+                    archived: _showArchived,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primaryGreen,
+                        ),
+                      );
+                    }
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return Center(
+                        child: Text(
+                          _showArchived
+                              ? 'No archived notifications'
+                              : 'No notifications yet',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      );
+                    }
+
+                    final notifications = snapshot.data!;
+                    return ListView.separated(
+                      itemCount: notifications.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final n = notifications[index];
+                        return NotificationTile(
+                          notification: n,
+                          onTap: () => _showDetails(context, n),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -209,7 +339,7 @@ class NotificationTile extends StatelessWidget {
       case NotificationType.appApproved:
         return Colors.green;
       case NotificationType.achievement:
-        return Colors.orange;
+        return Colors.teal;
       case NotificationType.profileReminder:
         return Colors.blue;
       default:
@@ -300,3 +430,4 @@ class NotificationDetailDialog extends StatelessWidget {
     );
   }
 }
+

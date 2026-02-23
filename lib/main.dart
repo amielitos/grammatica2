@@ -8,7 +8,7 @@ import 'services/auth_service.dart';
 import 'services/role_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'theme/app_theme.dart';
-import 'widgets/notification_widgets.dart';
+import 'theme/app_colors.dart';
 
 // Pages
 import 'pages/login_page.dart';
@@ -22,10 +22,16 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   if (kIsWeb) {
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      webExperimentalForceLongPolling: true,
-    );
+    try {
+      // Clear any corrupted persistence state on web to fix b815 assertion
+      await FirebaseFirestore.instance.clearPersistence();
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: false,
+        webExperimentalForceLongPolling: true,
+      );
+    } catch (e) {
+      debugPrint('Firestore initialization error: $e');
+    }
   }
 
   runApp(const GrammaticaApp());
@@ -57,8 +63,8 @@ class GrammaticaApp extends StatelessWidget {
             double scale = 1.0;
             if (screenWidth < 360) {
               scale = (screenWidth / 360).clamp(0.85, 1.0);
-            } else if (screenWidth > 600) {
-              scale = 1.1; // Slightly larger for tablets
+            } else if (screenWidth > 1200) {
+              scale = 1.05; // Less aggressive scaling for large screens
             }
 
             return Overlay(
@@ -68,33 +74,11 @@ class GrammaticaApp extends StatelessWidget {
                     data: mediaQueryData.copyWith(
                       textScaler: TextScaler.linear(scale),
                     ),
-                    child: Stack(
-                      children: [
-                        child!,
-                        ValueListenableBuilder<bool>(
-                          valueListenable: notificationVisibleNotifier,
-                          builder: (context, isVisible, _) {
-                            if (!isVisible) return const SizedBox.shrink();
-                            final user = FirebaseAuth.instance.currentUser;
-                            if (user == null) return const SizedBox.shrink();
-                            return Positioned(
-                              top: 80,
-                              right: 20,
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxHeight: 500,
-                                  maxWidth: 350,
-                                ),
-                                child: NotificationOverlay(
-                                  userId: user.uid,
-                                  onClose: () =>
-                                      notificationVisibleNotifier.value = false,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: AppColors.getMainGradient(context),
+                      ),
+                      child: child!,
                     ),
                   ),
                 ),
@@ -121,7 +105,9 @@ class _AuthWrapper extends StatelessWidget {
       builder: (context, authSnap) {
         if (authSnap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(
+              child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            ),
           );
         }
         final user = authSnap.data;
@@ -129,7 +115,7 @@ class _AuthWrapper extends StatelessWidget {
           return Theme(data: AppTheme.lightTheme, child: const LoginPage());
         }
 
-        // Verify user document exists. If missing (e.g., account deleted), sign out.
+        // Single Firestore listener for the user's document
         return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('users')
@@ -138,18 +124,20 @@ class _AuthWrapper extends StatelessWidget {
           builder: (context, userDocSnap) {
             if (userDocSnap.connectionState == ConnectionState.waiting) {
               return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
+                body: Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primaryGreen,
+                  ),
+                ),
               );
             }
             if (!userDocSnap.hasData || !(userDocSnap.data?.exists ?? false)) {
-              // Document creation might be in progress (race condition).
-              // Show loading instead of signing out immediately.
               return const Scaffold(
                 body: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(),
+                      CircularProgressIndicator(color: AppColors.primaryGreen),
                       SizedBox(height: 16),
                       Text("Setting up your account..."),
                     ],
@@ -157,50 +145,52 @@ class _AuthWrapper extends StatelessWidget {
                 ),
               );
             }
-            final data = userDocSnap.data?.data();
-            final themePref = data?['theme_preference'] as String?;
+
+            final data = userDocSnap.data?.data() ?? {};
+
+            // Sync theme preference
+            final themePref = data['theme_preference'] as String?;
             if (themePref != null) {
               final mode = themePref == 'dark'
                   ? ThemeMode.dark
                   : ThemeMode.light;
               if (themeNotifier.value != mode) {
-                // Update theme notifier from stored preference
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   themeNotifier.value = mode;
                 });
               }
             }
 
-            // Check for missing info (Google Sign-In usually)
-            final phone = data?['phone_number'] as String?;
-            final dobTimestamp = data?['date_of_birth'] as Timestamp?;
+            // Derive role and info status
+            final roleStr = data['role'] as String?;
+            final role = roleFromString(roleStr);
+
+            final phone = data['phone_number'] as String?;
+            final dobTimestamp = data['date_of_birth'] as Timestamp?;
             final hasMissingInfo =
                 (phone == null || phone.isEmpty) || (dobTimestamp == null);
 
-            return StreamBuilder<UserRole>(
-              stream: RoleService.instance.roleStream(user.uid),
-              builder: (context, roleSnap) {
-                if (!roleSnap.hasData) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final role = roleSnap.data!;
-                if (role == UserRole.admin || role == UserRole.educator) {
-                  return AdminDashboard(
-                    user: user,
-                    showProfileWarning: hasMissingInfo,
-                  );
-                }
+            final hasCompletedOnboarding =
+                data['has_completed_onboarding'] ?? true;
 
-                final hasCompletedOnboarding =
-                    data?['has_completed_onboarding'] ?? true;
-                if (!hasCompletedOnboarding && role == UserRole.learner) {
-                  return OnboardingPage(user: user);
-                }
+            if (role == UserRole.admin || role == UserRole.educator) {
+              return AdminDashboard(
+                user: user,
+                role: role,
+                userData: data,
+                showProfileWarning: hasMissingInfo,
+              );
+            }
 
-                return HomePage(user: user, showProfileWarning: hasMissingInfo);
-              },
+            if (!hasCompletedOnboarding && role == UserRole.learner) {
+              return OnboardingPage(user: user);
+            }
+
+            return HomePage(
+              user: user,
+              role: role,
+              userData: data,
+              showProfileWarning: hasMissingInfo,
             );
           },
         );

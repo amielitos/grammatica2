@@ -11,7 +11,7 @@ class AuthService {
 
     // Initialize early on web to ensure GIS is ready for buttons
     if (kIsWeb) {
-      _ensureGoogleSignInInitialized().catchError((e) {
+      ensureGoogleSignInInitialized().catchError((e) {
         debugPrint('Early web GoogleSignIn initialization failed: $e');
       });
     }
@@ -60,14 +60,15 @@ class AuthService {
     }
   }
 
-  Future<void> _ensureGoogleSignInInitialized() async {
+  Future<void> ensureGoogleSignInInitialized() async {
     if (_isGoogleSignInInitialized) return;
     if (_googleSignInInit != null) return _googleSignInInit;
 
+    const webClientId =
+        '458713583940-v6j8pjs8bj4ftmibm8ml78rl1qrm6ib5.apps.googleusercontent.com';
     _googleSignInInit = _googleSignIn.initialize(
-      clientId: kIsWeb
-          ? '458713583940-v6j8pjs8bj4ftmibm8ml78rl1qrm6ib5.apps.googleusercontent.com'
-          : null,
+      clientId: kIsWeb ? webClientId : null,
+      serverClientId: webClientId,
     );
 
     try {
@@ -98,21 +99,39 @@ class AuthService {
   }
 
   Future<UserCredential> googleSignIn() async {
-    await _ensureGoogleSignInInitialized();
+    await ensureGoogleSignInInitialized();
 
-    // On web, authenticate() is not supported and throws UnimplementedError in this plugin.
-    // The UI should show the official button instead.
+    // On Web, direct programmatic sign-in via authenticate() is not supported.
+    // The UI must use the official renderButton() widget.
     if (kIsWeb) {
       throw FirebaseAuthException(
         code: 'unsupported-platform',
         message:
-            'Direct Google Sign-In is not supported on Web. Please use the Google Sign-In button.',
+            'Google Sign-In on Web requires the official Google button. Please use the button provided in the UI.',
       );
     }
 
-    GoogleSignInAccount? googleUser;
     try {
-      googleUser = await _googleSignIn.authenticate();
+      final googleUser = await _googleSignIn.authenticate();
+      final googleAuth = googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw FirebaseAuthException(
+          code: 'ERROR_MISSING_ID_TOKEN',
+          message: 'Google Sign-In failed: Missing ID Token',
+        );
+      }
+
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        idToken: idToken,
+      );
+
+      final UserCredential userCredential = await _auth.signInWithCredential(
+        credential,
+      );
+      await _ensureUserDocumentExists(userCredential.user);
+      return userCredential;
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) {
         throw FirebaseAuthException(
@@ -124,29 +143,9 @@ class AuthService {
     } catch (e) {
       throw FirebaseAuthException(
         code: 'ERROR_SIGN_IN_FAILED',
-        message: 'Sign in failed: $e',
+        message: 'Google Sign-In failed: $e',
       );
     }
-
-    if (googleUser == null) {
-      throw FirebaseAuthException(
-        code: 'ERROR_ABORTED_BY_USER',
-        message: 'Sign in aborted by user',
-      );
-    }
-
-    final GoogleSignInAuthentication googleAuth =
-        await googleUser.authentication;
-
-    final AuthCredential credential = GoogleAuthProvider.credential(
-      idToken: googleAuth.idToken,
-    );
-
-    final UserCredential userCredential = await _auth.signInWithCredential(
-      credential,
-    );
-    await _ensureUserDocumentExists(userCredential.user);
-    return userCredential;
   }
 
   Future<UserCredential> registerWithEmailPassword({
@@ -155,29 +154,30 @@ class AuthService {
     required String fullName,
     required String phoneNumber,
     required DateTime dateOfBirth,
+    String role = 'learner',
   }) async {
     final cred = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
-    final user = cred.user;
-    if (user != null) {
-      // Create users/{uid} with defaults and new fields
-      await _firestore.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'email': user.email,
-        'createdAt': FieldValue.serverTimestamp(),
-        'role': 'LEARNER',
-        'status': 'ACTIVE',
-        'subscription_status': 'NONE',
-        'username': fullName,
-        'full_name': fullName,
-        'phone_number': phoneNumber,
-        'date_of_birth': Timestamp.fromDate(dateOfBirth),
-        'photoUrl': '', // Initialize with empty photo URL
-        'has_completed_onboarding': false,
-      });
-    }
+    final user = cred
+        .user!; // User is guaranteed to be non-null after successful creation
+    // Create users/{uid} with defaults and new fields
+    await _firestore.collection('users').doc(user.uid).set({
+      'uid': user.uid,
+      'email': user.email,
+      'createdAt': FieldValue.serverTimestamp(),
+      'role': role.toUpperCase(),
+      'status': 'ACTIVE',
+      'subscription_status': 'NONE',
+      'username': fullName,
+      'full_name': fullName,
+      'phone_number': phoneNumber,
+      'date_of_birth': Timestamp.fromDate(dateOfBirth),
+      'photoUrl': '', // Initialize with empty photo URL
+      'has_completed_onboarding': false,
+      'theme_preference': 'light',
+    });
     return cred;
   }
 
@@ -190,14 +190,14 @@ class AuthService {
           (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
         );
         if (isGoogleUser) {
-          await _ensureGoogleSignInInitialized();
+          await ensureGoogleSignInInitialized();
           await _googleSignIn.signOut();
         }
       }
     } catch (e) {
       debugPrint('Error during Google sign out: $e');
     }
-    await _auth.signOut();
+    _auth.signOut();
   }
 
   Future<void> deleteAccount() async {
@@ -218,5 +218,9 @@ class AuthService {
       debugPrint('Error deleting account: $e');
       rethrow;
     }
+  }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    await _auth.sendPasswordResetEmail(email: email);
   }
 }

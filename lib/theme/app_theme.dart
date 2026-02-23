@@ -13,10 +13,15 @@ class AppTheme {
 
   static ThemeData _buildTheme(Brightness brightness) {
     final bool isDark = brightness == Brightness.dark;
-    final Color textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final Color textColor = isDark
+        ? AppColors.textPrimaryDark
+        : AppColors.textPrimaryLight;
     final Color secondaryTextColor = isDark
-        ? Colors.grey[400]!
-        : AppColors.textSecondary;
+        ? AppColors.textSecondaryDark
+        : AppColors.textSecondaryLight;
+    final Color cardColor = isDark
+        ? AppColors.cardNearBlack
+        : AppColors.cardOffWhite;
     final Color surfaceColor = isDark
         ? AppColors.backgroundDark
         : AppColors.backgroundLight;
@@ -24,17 +29,19 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.salmonBackground,
+      colorScheme: ColorScheme(
         brightness: brightness,
-        primary: AppColors.salmonBackground,
+        primary: AppColors.primaryGreen,
+        onPrimary: Colors.white,
         secondary: AppColors.primaryGreen,
+        onSecondary: Colors.white,
+        error: Colors.red,
+        onError: Colors.white,
         surface: surfaceColor,
         onSurface: textColor,
       ),
-      scaffoldBackgroundColor: isDark
-          ? AppColors.backgroundDark
-          : AppColors.adminBackgroundLight,
+      iconTheme: IconThemeData(color: textColor),
+      scaffoldBackgroundColor: Colors.transparent,
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: isDark ? AppColors.glassBlack : AppColors.glassWhite,
@@ -76,24 +83,30 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-        contentPadding: const EdgeInsets.all(16),
+        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(
-            color: isDark
-                ? Colors.white.withOpacity(0.05)
-                : Colors.grey.withOpacity(0.1),
-          ),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: AppColors.salmonBackground, width: 2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: AppColors.registrationGreen,
+            width: 2,
+          ),
         ),
+        labelStyle: TextStyle(
+          color: isDark ? Colors.white70 : AppColors.authTextSecondary,
+        ),
+        prefixIconColor: AppColors.authTextSecondary,
       ),
       appBarTheme: const AppBarTheme(
         centerTitle: true,
@@ -107,25 +120,25 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryGreen,
+          backgroundColor: AppColors.registrationGreen,
           foregroundColor: Colors.white,
-          elevation: 0,
+          elevation: 2,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primaryGreen,
+          backgroundColor: AppColors.registrationGreen,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       ),
@@ -134,15 +147,10 @@ class AppTheme {
         primaryColor: isDark ? Colors.white : AppColors.textPrimary,
       ),
       cardTheme: CardThemeData(
-        color: isDark ? AppColors.cardNearBlack : AppColors.cardOffWhite,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(
-            color: isDark ? AppColors.darkBorder : AppColors.softBorder,
-            width: 1,
-          ),
-        ),
+        color: cardColor,
+        elevation: 4,
+        shadowColor: Colors.black.withValues(alpha: 0.1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
       ),
     );
   }

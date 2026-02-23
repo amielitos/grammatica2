@@ -22,8 +22,14 @@ class AppColors {
   static const rainbow = _RainbowColors();
 
   /// Solid colors for text and backgrounds
-  static const Color textPrimary = Colors.black; // Maximum contrast for 'Pop'
-  static const Color textSecondary = Color(0xFF86868B); // Apple-style gray
+  static const Color textPrimaryLight = Colors.black;
+  static const Color textPrimaryDark = Colors.white;
+  static const Color textSecondaryLight = Color(0xFF86868B);
+  static const Color textSecondaryDark = Color(0xFFAEB1B7);
+
+  static const Color textPrimary =
+      Colors.black; // Default, will be handled by theme
+  static const Color textSecondary = Color(0xFF86868B); // Default
   static const Color backgroundLight = Color(
     0xFFF5F5F7,
   ); // Light gray background
@@ -38,16 +44,32 @@ class AppColors {
   /// Superadmin colors
   static const Color superAdminBgDark = Color(0xFF0F1A20);
   static const Color superAdminBgLight = Color(0xFFE2856E);
-  static const Color primaryGreen = Color(0xFF4CAF50);
+  static const Color primaryGreen = Color(0xFFA5D6A7); // Pastel Green
   static const Color adminBackgroundLight = Color(0xFFF8F9FA);
-  static const Color salmonBackground = Color(0xFFE2856E);
+  static const Color salmonBackground = primaryGreen;
   static const Color cardOffWhite = Color(0xFFFDFDFD);
   static const Color cardNearBlack = Color(0xFF0F0F0F);
   static const Color softBorder = Color(0x1F000000);
   static const Color darkBorder = Color(0x1FFFFFFF);
 
+  /// Redesign colors
+  static const Color registrationGreen = Color(0xFF94C35F);
+  static const Color authCardBg = Color(0xFFF1F5E9);
+  static const Color authTextPrimary = Color(0xFF1D2125);
+  static const Color authTextSecondary = Color(0xFF626F86);
+
   /// Gradients
   /// Used for backgrounds and active elements.
+  static const LinearGradient authGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFFC8E6C9), // Green 100
+      Color(0xFFDCEDC8), // Lime 100
+      Color(0xFFC5E1A5), // Lime 200
+    ],
+  );
+
   static const LinearGradient mainGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -58,6 +80,38 @@ class AppColors {
       Color(0xFFFFB7B2), // Melon (darker pink/red)
     ],
   );
+
+  static const LinearGradient darkGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF1A1A1A), // Dark Grey
+      Color(0xFF2C2C2C), // Medium Dark Grey
+      Color(0xFF121212), // Near Black
+    ],
+  );
+
+  /// Returns the main background gradient based on the theme.
+  static LinearGradient getMainGradient(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? darkGradient : authGradient;
+  }
+
+  /// Returns the card background color based on the theme.
+  static Color getCardColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? cardNearBlack : cardOffWhite;
+  }
+
+  static Color getTextColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? textPrimaryDark : textPrimaryLight;
+  }
+
+  static Color getSecondaryTextColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? textSecondaryDark : textSecondaryLight;
+  }
 }
 
 /// Helper class to group rainbow colors (Pink-Focused).
@@ -67,11 +121,11 @@ class _RainbowColors {
   /// Pastel Red/Melon
   final Color red = const Color(0xFFFFB7B2);
 
-  /// Pastel Peach
-  final Color orange = const Color(0xFFFFDAC1);
+  /// Pale Yellow
+  final Color orange = const Color(0xFFF0F4C3);
 
-  /// Creamy Yellow
-  final Color yellow = const Color(0xFFFFF5BA);
+  /// Muted Pastel Yellow
+  final Color yellow = const Color(0xFFFFF9E0);
 
   /// Pale Green
   final Color green = const Color(0xFFE2F0CB);
@@ -86,7 +140,7 @@ class _RainbowColors {
   final Color violet = const Color(0xFFF8C8DC);
 
   /// Returns a list of all colors.
-  List<Color> get all => [violet, red, orange, yellow, green, mint, blue];
+  List<Color> get all => [violet, red, yellow, green, mint, blue, orange];
 
   /// Returns a color by index.
   Color elementAt(int index) => all[index % all.length];

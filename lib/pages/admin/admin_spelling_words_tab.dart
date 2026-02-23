@@ -12,6 +12,7 @@ import '../../models/spelling_word.dart';
 import '../../services/database_service.dart';
 import '../../widgets/audio_player_widget.dart';
 import '../../services/ai_service.dart';
+import '../../theme/app_colors.dart';
 
 class AdminSpellingWordsTab extends StatefulWidget {
   const AdminSpellingWordsTab({super.key});
@@ -28,62 +29,6 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
   void dispose() {
     _recorder.dispose();
     super.dispose();
-  }
-
-  Future<void> _seedInitialWords() async {
-    final words = {
-      SpellingDifficulty.novice: [
-        'Apple',
-        'Banana',
-        'Cat',
-        'Dog',
-        'Elephant',
-        'Fish',
-        'Giraffe',
-        'House',
-        'Ice',
-        'Jump',
-      ],
-      SpellingDifficulty.amateur: [
-        'Beautiful',
-        'Calendar',
-        'Definitely',
-        'Experience',
-        'Furniture',
-        'Government',
-        'History',
-        'Island',
-        'Journey',
-        'Knowledge',
-      ],
-      SpellingDifficulty.professional: [
-        'Accommodate',
-        'Conscientious',
-        'Entrepreneur',
-        'Fluorescence',
-        'Hierarchy',
-        'Indispensable',
-        'Liaison',
-        'Millennium',
-        'Questionnaire',
-        'Rhythm',
-      ],
-    };
-
-    for (var entry in words.entries) {
-      for (var word in entry.value) {
-        await DatabaseService.instance.createSpellingWord(
-          word: word,
-          difficulty: entry.key,
-        );
-      }
-    }
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Words seeded successfully!')),
-      );
-      setState(() {});
-    }
   }
 
   Future<void> _showDeleteAllConfirmation() async {
@@ -152,30 +97,118 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Word Bank Management'),
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        iconTheme: IconThemeData(color: AppColors.getTextColor(context)),
+        titleTextStyle: TextStyle(
+          color: AppColors.getTextColor(context),
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
         actions: [
-          TextButton.icon(
-            onPressed: _showGenerateAIDialog,
-            icon: const Icon(Icons.psychology, color: Colors.purple),
-            label: const Text(
-              'AI Generate',
-              style: TextStyle(color: Colors.purple),
-            ),
-          ),
-
-          TextButton.icon(
-            onPressed: _showDeleteAllConfirmation,
-            icon: const Icon(Icons.delete_forever, color: Colors.red),
-            label: const Text(
-              'Delete All',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-          TextButton.icon(
-            onPressed: _cleanupDuplicates,
-            icon: const Icon(Icons.cleaning_services, color: Colors.blue),
-            label: const Text('Cleanup', style: TextStyle(color: Colors.blue)),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = MediaQuery.of(context).size.width < 600;
+              if (isNarrow) {
+                return PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: AppColors.getTextColor(context),
+                  ),
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'ai':
+                        _showGenerateAIDialog();
+                        break;
+                      case 'delete':
+                        _showDeleteAllConfirmation();
+                        break;
+                      case 'cleanup':
+                        _cleanupDuplicates();
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'ai',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.psychology,
+                            color: Colors.purple,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text('AI Generate'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.delete_forever,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text('Delete All'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'cleanup',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.cleaning_services,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text('Cleanup'),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: _showGenerateAIDialog,
+                    icon: const Icon(Icons.psychology, color: Colors.purple),
+                    label: const Text(
+                      'AI Generate',
+                      style: TextStyle(color: Colors.purple),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _showDeleteAllConfirmation,
+                    icon: const Icon(Icons.delete_forever, color: Colors.red),
+                    label: const Text(
+                      'Delete All',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _cleanupDuplicates,
+                    icon: const Icon(
+                      Icons.cleaning_services,
+                      color: Colors.blue,
+                    ),
+                    label: const Text(
+                      'Cleanup',
+                      style: TextStyle(color: Colors.blue),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -184,8 +217,8 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
         child: const Icon(Icons.add),
       ),
       body: Center(
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.6,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 800),
           child: Column(
             children: [
               Padding(
@@ -209,7 +242,11 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
                   ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
+                      return Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primaryGreen,
+                        ),
+                      );
                     }
                     if (snapshot.hasError) {
                       return Center(
@@ -221,7 +258,16 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
                     }
                     final words = snapshot.data ?? [];
                     if (words.isEmpty) {
-                      return const Center(child: Text('No words added yet.'));
+                      return Center(
+                        child: Text(
+                          'No words added yet.',
+                          style: TextStyle(
+                            color: AppColors.getTextColor(
+                              context,
+                            ).withValues(alpha: 0.6),
+                          ),
+                        ),
+                      );
                     }
 
                     return ListView.builder(
@@ -231,12 +277,20 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
                         return ListTile(
                           title: Text(
                             sw.word,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 18,
+                              color: AppColors.getTextColor(context),
                             ),
                           ),
-                          subtitle: Text(sw.difficultyLabel),
+                          subtitle: Text(
+                            sw.difficultyLabel,
+                            style: TextStyle(
+                              color: AppColors.getTextColor(
+                                context,
+                              ).withValues(alpha: 0.7),
+                            ),
+                          ),
                           leading: sw.audioUrl != null
                               ? AudioPlayerWidget(
                                   url: sw.audioUrl!,
@@ -829,7 +883,7 @@ class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: AppColors.primaryGreen,
                     ),
                   )
                 : Text('Save Selected (${_selectedIndices.length})'),
@@ -859,7 +913,7 @@ class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             DropdownButtonFormField<SpellingDifficulty>(
-              value: _difficulty,
+              initialValue: _difficulty,
               items: SpellingDifficulty.values.map((d) {
                 return DropdownMenuItem(
                   value: d,
@@ -892,7 +946,7 @@ class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(8),
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 child: Text(_error!, style: const TextStyle(color: Colors.red)),
               ),
             ],
