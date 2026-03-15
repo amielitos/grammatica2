@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import '../widgets/glass_card.dart';
+import '../widgets/interactive_markdown.dart';
 import '../widgets/notification_widgets.dart';
-import '../services/notification_service.dart';
 import '../main.dart';
-import '../widgets/animations.dart';
+import 'quiz_detail_page.dart';
 
 class LessonPage extends StatefulWidget {
   final User user;
@@ -74,11 +72,7 @@ class _LessonPageState extends State<LessonPage> {
           .checkAndAwardAchievement(widget.user.uid, 'first_lesson')
           .then((awarded) {
             if (awarded) {
-              NotificationService.instance.sendAchievementNotification(
-                uid: widget.user.uid,
-                title: 'First Lesson Viewed!',
-                message: 'You started your learning journey! Keep it up.',
-              );
+              // Note: Achievement notification logic can be kept as functionality
             }
           });
     }
@@ -88,10 +82,7 @@ class _LessonPageState extends State<LessonPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Grammatica'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
+        title: const Text('Lesson'),
         actions: [
           NotificationIconButton(
             userId: widget.user.uid,
@@ -102,75 +93,237 @@ class _LessonPageState extends State<LessonPage> {
           ),
         ],
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: FadeInSlide(
-            child: GlassCard(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_previewMode)
+              Container(
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
                   children: [
-                    if (_previewMode)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.blue.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.visibility,
-                              color: Colors.blue[700],
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Preview Mode - You are viewing this lesson as an admin.',
-                                style: TextStyle(
-                                  color: Colors.blue[700],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
+                    Icon(
+                      Icons.visibility_outlined,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Preview Mode',
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    Row(
-                      children: [
-                        _authorName(
-                          uid: _lesson.createdByUid,
-                          fallbackEmail: _lesson.createdByEmail,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '• Created: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
                     ),
-                    const SizedBox(height: 16),
-                    MarkdownBody(
-                      data: _lesson.prompt.isEmpty
-                          ? '_No content_'
-                          : _lesson.prompt,
-                      selectable: true,
+                    Text(
+                      'Viewing as Admin',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
                     ),
                   ],
                 ),
               ),
+            Row(
+              children: [
+                _authorName(
+                  uid: _lesson.createdByUid,
+                  fallbackEmail: _lesson.createdByEmail,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '• Created: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
-          ),
+            const SizedBox(height: 24),
+            ...[_lesson.prompt].map((part) {
+              final trimmed = part.trim();
+              if (trimmed.isEmpty) return const SizedBox.shrink();
+              return InteractiveMarkdown(data: trimmed);
+            }),
+            if (!_previewMode && _lesson.quizId != null) ...[
+              const SizedBox(height: 32),
+              const Divider(),
+              const SizedBox(height: 16),
+              StreamBuilder<Map<String, Map<String, dynamic>>>(
+                stream: DatabaseService.instance.quizProgressStream(
+                  widget.user,
+                ),
+                builder: (context, snapshot) {
+                  final progressMap = snapshot.data ?? {};
+                  final myProgress = progressMap[_lesson.quizId];
+                  final attempts =
+                      (myProgress?['attemptsUsed'] as num?)?.toInt() ?? 0;
+
+                  if (attempts > 0) {
+                    return _buildQuizResults(myProgress!);
+                  }
+
+                  return Center(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 16,
+                        ),
+                      ),
+                      onPressed: () async {
+                        try {
+                          // Mark lesson completed
+                          await DatabaseService.instance.markLessonCompleted(
+                            user: widget.user,
+                            lessonId: _lesson.id,
+                          );
+
+                          // Fetch quiz and navigate
+                          final doc = await FirebaseFirestore.instance
+                              .collection('quizzes')
+                              .doc(_lesson.quizId)
+                              .get();
+
+                          if (doc.exists && context.mounted) {
+                            final quiz = Quiz.fromDoc(doc);
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => QuizDetailPage(
+                                  user: widget.user,
+                                  quiz: quiz,
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error loading quiz: $e')),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.quiz),
+                      label: const Text(
+                        'Take Required Quiz',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildQuizResults(Map<String, dynamic> progress) {
+    final score = progress['score'] ?? 0;
+    final total = progress['totalQuestions'] ?? 0;
+    final passed = progress['passed'] == true;
+    final lastAttemptAt = progress['lastAttemptAt'] as Timestamp?;
+    final timeTaken = progress['timeTaken'] as int? ?? 0;
+
+    final minutes = timeTaken ~/ 60;
+    final seconds = timeTaken % 60;
+    final timeStr = minutes > 0 ? '$minutes m $seconds s' : '$seconds seconds';
+
+    return Center(
+      child: Column(
+        children: [
+          Text(
+            'Quiz Results',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: passed
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : Theme.of(context).colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  passed ? Icons.check_circle : Icons.cancel,
+                  size: 48,
+                  color: passed
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  passed ? 'PASSED' : 'FAILED',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: passed
+                        ? Theme.of(context).colorScheme.onPrimaryContainer
+                        : Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _statColumn('Score', '$score / $total'),
+                    _statColumn('Time', timeStr),
+                  ],
+                ),
+                if (lastAttemptAt != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Taken on: ${_fmt(lastAttemptAt)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: passed
+                          ? Theme.of(context).colorScheme.onPrimaryContainer
+                          : Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statColumn(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Text(
+          value,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 }

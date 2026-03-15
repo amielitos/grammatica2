@@ -8,14 +8,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/role_service.dart';
 import '../services/auth_service.dart';
-import '../widgets/glass_card.dart';
-import '../theme/app_colors.dart';
 import '../main.dart';
 import '../services/database_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'manage_subscriptions_page.dart';
-import 'educator_application_page.dart';
+import 'role_application_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -32,7 +30,7 @@ class ProfilePageState extends State<ProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: error ? Colors.red : null,
+        backgroundColor: error ? Theme.of(context).colorScheme.error : null,
       ),
     );
   }
@@ -42,11 +40,13 @@ class ProfilePageState extends State<ProfilePage> {
   final _currentPasswordCtrl = TextEditingController();
   final _newPasswordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
-  // New controller for phone number
   final _phoneCtrl = TextEditingController();
   final _phoneFocus = FocusNode();
   String? _info;
   String? _error;
+  bool _obscureCurrentPassword = true;
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
 
   // Local state for profile data
   String _displayName = 'User';
@@ -268,9 +268,7 @@ class ProfilePageState extends State<ProfilePage> {
             !roleSnap.hasData) {
           return const Scaffold(
             backgroundColor: Colors.transparent,
-            body: Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGreen),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 
@@ -297,8 +295,11 @@ class ProfilePageState extends State<ProfilePage> {
                               style: Theme.of(context).textTheme.displayLarge,
                             ),
                           ),
-                          GlassCard(
-                            showHoverEffect: false,
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             child: Padding(
                               padding: const EdgeInsets.all(24),
                               child: Column(
@@ -309,8 +310,9 @@ class ProfilePageState extends State<ProfilePage> {
                                       children: [
                                         CircleAvatar(
                                           radius: 50,
-                                          backgroundColor: Colors.grey
-                                              .withValues(alpha: 0.2),
+                                          backgroundColor: Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerHighest,
                                           child:
                                               (_photoUrl != null &&
                                                   _photoUrl!.isNotEmpty)
@@ -327,15 +329,14 @@ class ProfilePageState extends State<ProfilePage> {
                                                           stackTrace,
                                                         ) {
                                                           return const Icon(
-                                                            CupertinoIcons
-                                                                .person_fill,
+                                                            Icons.person,
                                                             size: 50,
                                                           );
                                                         },
                                                   ),
                                                 )
                                               : const Icon(
-                                                  CupertinoIcons.person_fill,
+                                                  Icons.person,
                                                   size: 50,
                                                 ),
                                         ),
@@ -344,12 +345,14 @@ class ProfilePageState extends State<ProfilePage> {
                                           right: 0,
                                           child: Container(
                                             decoration: BoxDecoration(
-                                              color: AppColors.primaryGreen,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
                                               shape: BoxShape.circle,
                                             ),
                                             child: IconButton(
                                               icon: const Icon(
-                                                CupertinoIcons.camera_fill,
+                                                Icons.camera_alt,
                                                 size: 20,
                                                 color: Colors.white,
                                               ),
@@ -458,7 +461,11 @@ class ProfilePageState extends State<ProfilePage> {
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
-                                        ?.copyWith(color: Colors.grey[600]),
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
                                   ),
                                   const SizedBox(height: 24),
                                   // WARNING FOR MISSING INFO
@@ -466,78 +473,89 @@ class ProfilePageState extends State<ProfilePage> {
                                       _phoneNumber!.isEmpty ||
                                       _dob == null) ...[
                                     Container(
-                                      padding: const EdgeInsets.all(16),
                                       decoration: BoxDecoration(
-                                        color: Colors.amber.withValues(
-                                          alpha: 0.1,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.secondaryContainer,
+                                        border: Border.all(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.outlineVariant,
                                         ),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: Colors.amber),
+                                        borderRadius: BorderRadius.circular(16),
                                       ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.warning_amber_rounded,
-                                                color: Colors.amber,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                'Actions Required',
-                                                style: TextStyle(
-                                                  color: Colors.amber[800],
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(20.0),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.info_outline,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSecondaryContainer,
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Profile Incomplete',
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleMedium
+                                                        ?.copyWith(
+                                                          color: Theme.of(context)
+                                                              .colorScheme
+                                                              .onSecondaryContainer,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              'To unlock all features, please add the following information to your account:',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onSecondaryContainer,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 20),
+                                            if (_phoneNumber == null ||
+                                                _phoneNumber!.isEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: 8,
+                                                ),
+                                                child: FilledButton.tonalIcon(
+                                                  onPressed: () => _phoneFocus
+                                                      .requestFocus(),
+                                                  icon: const Icon(Icons.phone),
+                                                  label: const Text(
+                                                    'Add Phone Number',
+                                                  ),
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Please complete your profile to continue using all features features.',
-                                            style: TextStyle(
-                                              color: Colors.amber[900],
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          if (_phoneNumber == null ||
-                                              _phoneNumber!.isEmpty) ...[
-                                            ElevatedButton.icon(
-                                              onPressed: () =>
-                                                  _phoneFocus.requestFocus(),
-                                              icon: const Icon(
-                                                Icons.phone,
-                                                size: 16,
+                                            if (_dob == null)
+                                              FilledButton.tonalIcon(
+                                                onPressed: _updateDob,
+                                                icon: const Icon(
+                                                  Icons.calendar_today,
+                                                ),
+                                                label: const Text(
+                                                  'Add Date of Birth',
+                                                ),
                                               ),
-                                              label: const Text(
-                                                'Add Phone Number',
-                                              ),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.amber,
-                                                foregroundColor: Colors.white,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
                                           ],
-                                          if (_dob == null)
-                                            ElevatedButton.icon(
-                                              onPressed: _updateDob,
-                                              icon: const Icon(
-                                                Icons.calendar_today,
-                                                size: 16,
-                                              ),
-                                              label: const Text(
-                                                'Add Date of Birth',
-                                              ),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.amber,
-                                                foregroundColor: Colors.white,
-                                              ),
-                                            ),
-                                        ],
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(height: 32),
@@ -627,119 +645,83 @@ class ProfilePageState extends State<ProfilePage> {
                                       ),
                                     ),
                                   ),
-                                  if (roleSnap.data == UserRole.educator) ...[
-                                    const Divider(height: 48),
-                                    Text(
-                                      'Subscription Settings',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleLarge,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Set your monthly subscription fee for learners:',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(color: Colors.grey[600]),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    StreamBuilder<
-                                      DocumentSnapshot<Map<String, dynamic>>
-                                    >(
-                                      stream: FirebaseFirestore.instance
-                                          .collection('users')
-                                          .doc(widget.user.uid)
-                                          .snapshots(),
-                                      builder: (context, userSnap) {
-                                        final currentFee =
-                                            userSnap.data
-                                                ?.data()?['subscription_fee'] ??
-                                            3;
-                                        return CupertinoSlidingSegmentedControl<
-                                          int
-                                        >(
-                                          groupValue: currentFee,
-                                          children: const {
-                                            3: Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: 20,
-                                              ),
-                                              child: Text('\$3'),
-                                            ),
-                                            5: Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: 20,
-                                              ),
-                                              child: Text('\$5'),
-                                            ),
-                                            7: Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: 20,
-                                              ),
-                                              child: Text('\$7'),
-                                            ),
-                                          },
-                                          onValueChanged: (val) {
-                                            if (val != null) {
-                                              DatabaseService.instance
-                                                  .updateSubscriptionFee(
-                                                    widget.user.uid,
-                                                    val,
-                                                  );
-                                              _showSnack(
-                                                'Subscription fee updated to \$$val',
-                                              );
-                                            }
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ],
                                   const Divider(height: 48),
-                                  Text(
-                                    'Change Password',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleLarge,
-                                  ),
                                   const SizedBox(height: 16),
                                   TextField(
                                     controller: _currentPasswordCtrl,
-                                    obscureText: true,
-                                    decoration: const InputDecoration(
+                                    obscureText: _obscureCurrentPassword,
+                                    decoration: InputDecoration(
                                       labelText: 'Current Password',
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscureCurrentPassword
+                                              ? Icons.visibility_outlined
+                                              : Icons.visibility_off_outlined,
+                                        ),
+                                        onPressed: () => setState(
+                                          () => _obscureCurrentPassword =
+                                              !_obscureCurrentPassword,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 12),
                                   TextField(
                                     controller: _newPasswordCtrl,
-                                    obscureText: true,
-                                    decoration: const InputDecoration(
+                                    obscureText: _obscureNewPassword,
+                                    decoration: InputDecoration(
                                       labelText: 'New Password',
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscureNewPassword
+                                              ? Icons.visibility_outlined
+                                              : Icons.visibility_off_outlined,
+                                        ),
+                                        onPressed: () => setState(
+                                          () => _obscureNewPassword =
+                                              !_obscureNewPassword,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 12),
                                   TextField(
                                     controller: _confirmPasswordCtrl,
-                                    obscureText: true,
-                                    decoration: const InputDecoration(
+                                    obscureText: _obscureConfirmPassword,
+                                    decoration: InputDecoration(
                                       labelText: 'Confirm New Password',
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscureConfirmPassword
+                                              ? Icons.visibility_outlined
+                                              : Icons.visibility_off_outlined,
+                                        ),
+                                        onPressed: () => setState(
+                                          () => _obscureConfirmPassword =
+                                              !_obscureConfirmPassword,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                   if (_error != null) ...[
                                     const SizedBox(height: 8),
                                     Text(
                                       _error!,
-                                      style: const TextStyle(color: Colors.red),
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.error,
+                                      ),
                                     ),
                                   ],
                                   if (_info != null) ...[
                                     const SizedBox(height: 8),
                                     Text(
                                       _info!,
-                                      style: const TextStyle(
-                                        color: Colors.green,
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                       ),
                                     ),
                                   ],
@@ -842,13 +824,15 @@ class ProfilePageState extends State<ProfilePage> {
                                       const Divider(height: 48),
                                     ],
                                   ),
-                                  if (roleSnap.data == UserRole.learner) ...[
+                                  if (roleSnap.data == UserRole.learner ||
+                                      roleSnap.data == UserRole.educator ||
+                                      roleSnap.data == UserRole.validator) ...[
                                     Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.stretch,
                                       children: [
                                         Text(
-                                          'Educator Role',
+                                          'Want to join Grammatica?',
                                           style: Theme.of(
                                             context,
                                           ).textTheme.titleLarge,
@@ -866,19 +850,24 @@ class ProfilePageState extends State<ProfilePage> {
                                                   12,
                                                 ),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.red.withValues(
-                                                    alpha: 0.1,
-                                                  ),
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .error
+                                                      .withValues(alpha: 0.1),
                                                   borderRadius:
                                                       BorderRadius.circular(8),
                                                   border: Border.all(
-                                                    color: Colors.red,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.error,
                                                   ),
                                                 ),
                                                 child: Text(
                                                   'Error loading application: ${appSnap.error}',
-                                                  style: const TextStyle(
-                                                    color: Colors.red,
+                                                  style: TextStyle(
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.error,
                                                     fontSize: 12,
                                                   ),
                                                 ),
@@ -899,14 +888,18 @@ class ProfilePageState extends State<ProfilePage> {
                                                   CupertinoIcons.doc_text_fill,
                                                 ),
                                                 label: const Text(
-                                                  'View Application',
+                                                  'View Application Status',
                                                 ),
                                                 style: FilledButton.styleFrom(
                                                   backgroundColor:
                                                       application.status ==
                                                           'pending'
-                                                      ? Colors.teal
-                                                      : Colors.red,
+                                                      ? Theme.of(
+                                                          context,
+                                                        ).colorScheme.primary
+                                                      : Theme.of(
+                                                          context,
+                                                        ).colorScheme.error,
                                                   padding:
                                                       const EdgeInsets.symmetric(
                                                         vertical: 16,
@@ -923,15 +916,19 @@ class ProfilePageState extends State<ProfilePage> {
 
                                             return FilledButton.icon(
                                               onPressed: () =>
-                                                  _showBecomeEducatorDialog(),
+                                                  _showJoinGrammaticaDialog(
+                                                    roleSnap.data!,
+                                                  ),
                                               icon: const Icon(
-                                                CupertinoIcons.briefcase_fill,
+                                                CupertinoIcons.sparkles,
                                               ),
                                               label: const Text(
-                                                'Become an Educator',
+                                                'Join Grammatica',
                                               ),
                                               style: FilledButton.styleFrom(
-                                                backgroundColor: Colors.blue,
+                                                backgroundColor: Theme.of(
+                                                  context,
+                                                ).colorScheme.primary,
                                                 padding:
                                                     const EdgeInsets.symmetric(
                                                       vertical: 16,
@@ -961,42 +958,33 @@ class ProfilePageState extends State<ProfilePage> {
                                       ValueListenableBuilder<ThemeMode>(
                                         valueListenable: themeNotifier,
                                         builder: (context, mode, _) {
-                                          return CupertinoSlidingSegmentedControl<
-                                            ThemeMode
-                                          >(
-                                            groupValue: mode,
-                                            onValueChanged: (newMode) {
-                                              if (newMode != null) {
-                                                themeNotifier.value = newMode;
-                                                RoleService.instance
-                                                    .updateThemePreference(
-                                                      uid: widget.user.uid,
-                                                      theme:
-                                                          newMode ==
-                                                              ThemeMode.dark
-                                                          ? 'dark'
-                                                          : 'light',
-                                                    );
-                                              }
-                                            },
-                                            children: const {
-                                              ThemeMode.light: Padding(
-                                                padding: EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                ),
-                                                child: Icon(
-                                                  CupertinoIcons.sun_max_fill,
-                                                ),
+                                          return SegmentedButton<ThemeMode>(
+                                            segments: const [
+                                              ButtonSegment(
+                                                value: ThemeMode.light,
+                                                icon: Icon(Icons.light_mode),
                                               ),
-                                              ThemeMode.dark: Padding(
-                                                padding: EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                ),
-                                                child: Icon(
-                                                  CupertinoIcons.moon_fill,
-                                                ),
+                                              ButtonSegment(
+                                                value: ThemeMode.dark,
+                                                icon: Icon(Icons.dark_mode),
                                               ),
-                                            },
+                                            ],
+                                            selected: {mode},
+                                            onSelectionChanged:
+                                                (Set<ThemeMode> newSelection) {
+                                                  final newMode =
+                                                      newSelection.first;
+                                                  themeNotifier.value = newMode;
+                                                  RoleService.instance
+                                                      .updateThemePreference(
+                                                        uid: widget.user.uid,
+                                                        theme:
+                                                            newMode ==
+                                                                ThemeMode.dark
+                                                            ? 'dark'
+                                                            : 'light',
+                                                      );
+                                                },
                                           );
                                         },
                                       ),
@@ -1008,9 +996,13 @@ class ProfilePageState extends State<ProfilePage> {
                                       Expanded(
                                         child: OutlinedButton(
                                           style: OutlinedButton.styleFrom(
-                                            foregroundColor: Colors.red,
-                                            side: const BorderSide(
-                                              color: Colors.red,
+                                            foregroundColor: Theme.of(
+                                              context,
+                                            ).colorScheme.error,
+                                            side: BorderSide(
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.error,
                                             ),
                                             padding: const EdgeInsets.symmetric(
                                               vertical: 16,
@@ -1031,8 +1023,9 @@ class ProfilePageState extends State<ProfilePage> {
                                       Expanded(
                                         child: FilledButton(
                                           style: FilledButton.styleFrom(
-                                            backgroundColor:
-                                                Colors.red.shade400,
+                                            backgroundColor: Theme.of(
+                                              context,
+                                            ).colorScheme.error,
                                             foregroundColor: Colors.white,
                                           ),
                                           onPressed: () async {
@@ -1055,7 +1048,9 @@ class ProfilePageState extends State<ProfilePage> {
                                                     style:
                                                         FilledButton.styleFrom(
                                                           backgroundColor:
-                                                              Colors.red,
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .error,
                                                           foregroundColor:
                                                               Colors.white,
                                                         ),
@@ -1101,83 +1096,64 @@ class ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _showBecomeEducatorDialog() {
+  void _showJoinGrammaticaDialog(UserRole currentRole) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Become an Educator'),
+        title: const Text('Join Grammatica'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Unlock powerful features to teach and monetize your content:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            const Text('• Monetize your lessons and quizzes'),
-            const Text('• Create and manage learner groups'),
-            const Text('• Detailed student progress tracking'),
-            const Text('• Direct interaction with your students'),
-            const SizedBox(height: 16),
-            const Text(
-              'Cost: \$5.00 / month',
-              style: TextStyle(
-                color: Colors.green,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(CupertinoIcons.info_circle, color: Colors.amber),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Applications are subject to approval. Note that you may lose your educator role if you violate our teaching guidelines.',
-                      style: TextStyle(fontSize: 12),
+            if (currentRole != UserRole.educator)
+              ListTile(
+                leading: const Icon(Icons.school),
+                title: const Text('Apply as Educator'),
+                subtitle: const Text('Teach and monetize your content'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RoleApplicationPage(
+                        user: widget.user,
+                        applicationType: 'educator',
+                      ),
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
-            ),
+            if (currentRole != UserRole.validator)
+              ListTile(
+                leading: const Icon(Icons.verified_user),
+                title: const Text('Apply as Validator'),
+                subtitle: const Text('Verify expertise in the English field'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RoleApplicationPage(
+                        user: widget.user,
+                        applicationType: 'validator',
+                      ),
+                    ),
+                  );
+                },
+              ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Maybe Later'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => EducatorApplicationPage(user: widget.user),
-                ),
-              );
-            },
-            child: const Text('Apply Now'),
-          ),
-        ],
       ),
     );
   }
 
   void _showApplicationStatusDialog(EducatorApplication application) {
+    final isValidator = application.applicationType == 'validator';
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Application Status'),
+        title: Text(
+          isValidator ? 'Validator Application' : 'Educator Application',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1196,16 +1172,16 @@ class ProfilePageState extends State<ProfilePage> {
                   ),
                   decoration: BoxDecoration(
                     color: application.status == 'pending'
-                        ? Colors.teal.withValues(alpha: 0.2)
-                        : Colors.red.withValues(alpha: 0.2),
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Theme.of(context).colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     application.status.toUpperCase(),
                     style: TextStyle(
                       color: application.status == 'pending'
-                          ? Colors.teal
-                          : Colors.red,
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.error,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1215,7 +1191,7 @@ class ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 16),
             Text(
               application.status == 'pending'
-                  ? 'Your application for the Educator role is currently being reviewed by our super admins.'
+                  ? 'Your application for the ${isValidator ? 'Validator' : 'Educator'} role is currently being reviewed by our super admins.'
                   : 'Unfortunately, your application was not approved at this time. You can try applying again with updated credentials.',
               style: const TextStyle(fontSize: 14),
             ),
@@ -1227,12 +1203,14 @@ class ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 8),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(
-                CupertinoIcons.videocam_fill,
-                color: Colors.blue,
+              leading: Icon(
+                isValidator ? Icons.description : Icons.videocam,
+                color: Theme.of(context).colorScheme.primary,
               ),
-              title: const Text('Teaching Demo Video'),
-              trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
+              title: Text(
+                isValidator ? 'Credentials Document' : 'Teaching Demo Video',
+              ),
+              trailing: const Icon(Icons.chevron_right, size: 16),
               onTap: () async {
                 final uri = Uri.parse(application.videoUrl);
                 try {
@@ -1246,9 +1224,16 @@ class ProfilePageState extends State<ProfilePage> {
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(CupertinoIcons.doc_fill, color: Colors.red),
-              title: const Text('Teaching Syllabus PDF'),
-              trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
+              leading: Icon(
+                isValidator ? Icons.stars : Icons.insert_drive_file,
+                color: isValidator
+                    ? Colors.amber
+                    : Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                isValidator ? 'Introductory Demo' : 'Teaching Syllabus PDF',
+              ),
+              trailing: const Icon(Icons.chevron_right, size: 16),
               onTap: () async {
                 final uri = Uri.parse(application.syllabusUrl);
                 try {
@@ -1274,7 +1259,10 @@ class ProfilePageState extends State<ProfilePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => EducatorApplicationPage(user: widget.user),
+                    builder: (_) => RoleApplicationPage(
+                      user: widget.user,
+                      applicationType: application.applicationType,
+                    ),
                   ),
                 );
               },
@@ -1304,7 +1292,7 @@ class _ReauthDialog extends StatefulWidget {
 class _ReauthDialogState extends State<_ReauthDialog> {
   bool loading = false;
   String? errText;
-
+  bool _obscurePassword = true;
   Future<void> onConfirm() async {
     setState(() {
       loading = true;
@@ -1340,17 +1328,33 @@ class _ReauthDialogState extends State<_ReauthDialog> {
         children: [
           TextField(
             controller: widget.pwdCtrl,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
+            obscureText: _obscurePassword,
+            decoration: InputDecoration(
+              labelText: 'Password',
+              hintText: 'Enter your password',
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+              ),
+            ),
           ),
           if (errText != null) ...[
             const SizedBox(height: 8),
-            Text(errText!, style: const TextStyle(color: Colors.red)),
+            Text(
+              errText!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ],
           if (loading)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: CircularProgressIndicator(),
             ),
         ],
       ),
@@ -1360,10 +1364,7 @@ class _ReauthDialogState extends State<_ReauthDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.primaryGreen,
-            foregroundColor: Colors.white,
-          ),
+          style: FilledButton.styleFrom(foregroundColor: Colors.white),
           onPressed: loading ? null : onConfirm,
           child: const Text('Confirm'),
         ),
@@ -1371,4 +1372,3 @@ class _ReauthDialogState extends State<_ReauthDialog> {
     );
   }
 }
-

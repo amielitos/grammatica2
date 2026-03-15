@@ -92,44 +92,14 @@ class MarkdownGuideDialog extends StatelessWidget {
     required String syntax,
     required String description,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.05)
-                  : Colors.grey[200],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.1)
-                    : Colors.grey[300]!,
-              ),
-            ),
-            child: Text(
-              syntax,
-              style: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 14,
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.9)
-                    : Colors.black87,
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            description,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(syntax, style: const TextStyle(fontFamily: 'monospace')),
+          Text(description),
         ],
       ),
     );

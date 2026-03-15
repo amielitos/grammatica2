@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import '../theme/app_colors.dart';
 
 class AppSearchBar extends StatefulWidget {
   final String hintText;
@@ -33,50 +31,22 @@ class _AppSearchBarState extends State<AppSearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.grey.withValues(alpha: 0.2),
-        ),
-        boxShadow: [
-          if (!isDark)
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-        ],
-      ),
-      child: TextField(
-        controller: _controller,
-        onSubmitted: (_) => _handleSearch(),
-        decoration: InputDecoration(
-          hintText: widget.hintText,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 16,
+    return Row(
+      children: [
+        if (widget.onFilterPressed != null)
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: widget.onFilterPressed,
           ),
-          border: InputBorder.none,
-          prefixIcon: widget.onFilterPressed != null
-              ? IconButton(
-                  icon: const Icon(CupertinoIcons.slider_horizontal_3),
-                  color: Colors.grey,
-                  onPressed: widget.onFilterPressed,
-                )
-              : null,
-          suffixIcon: IconButton(
-            icon: const Icon(CupertinoIcons.search),
-            color: AppColors.primaryGreen,
-            onPressed: _handleSearch,
+        Expanded(
+          child: TextField(
+            controller: _controller,
+            onSubmitted: (_) => _handleSearch(),
+            decoration: InputDecoration(hintText: widget.hintText),
           ),
         ),
-      ),
+        IconButton(icon: const Icon(Icons.search), onPressed: _handleSearch),
+      ],
     );
   }
 }

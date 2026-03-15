@@ -3,12 +3,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/database_service.dart';
-import '../widgets/glass_card.dart';
-import '../theme/app_colors.dart';
 import 'lesson_page.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/author_name_widget.dart';
-import '../widgets/animations.dart';
 
 class LessonFolderPage extends StatefulWidget {
   final User user;
@@ -41,6 +38,13 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
   final List<String> _filterOptions = ['Name', 'Create Date'];
 
   final _searchController = TextEditingController();
+  late Stream<Map<String, Map<String, dynamic>>> _progressStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _progressStream = DatabaseService.instance.progressStream(widget.user);
+  }
 
   @override
   void dispose() {
@@ -54,25 +58,18 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       return _buildContent(context);
     }
 
-    return Container(
-      decoration: BoxDecoration(gradient: AppColors.getMainGradient(context)),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: Text(
-            widget.title,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
         ),
-        body: _buildContent(context),
+        title: Text(
+          widget.title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
+      body: _buildContent(context),
     );
   }
 
@@ -153,17 +150,24 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     spacing: 24,
                     runSpacing: 24,
                     alignment: WrapAlignment.center,
-                    children: filteredAuthors.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final authorUid = entry.value;
+                    children: filteredAuthors.map((authorUid) {
                       final lessons = authorLessons[authorUid]!;
                       final authorEmail = lessons.first.createdByEmail;
 
-                      return FadeInSlide(
-                        delay: Duration(milliseconds: index * 100),
-                        child: HoverScale(
-                          scale: 1.0, // Stable size on hover
-                          child: GestureDetector(
+                      return SizedBox(
+                        width: 240,
+                        height: 320,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
@@ -177,74 +181,64 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                 ),
                               );
                             },
-                            child: GlassCard(
-                              width: 240,
-                              height: 320,
-                              isSolid: true,
-                              backgroundColor: AppColors.getCardColor(context),
-                              hoverBorderColor: Colors.yellow,
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.folder,
-                                      size: 48,
-                                      color: Colors.blue,
-                                    ),
-                                    const Spacer(),
-                                    AuthorName(
-                                      uid: authorUid == 'Unknown'
-                                          ? null
-                                          : authorUid,
-                                      fallbackEmail: authorEmail,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Check out content!',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(fontSize: 14),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.blue.withValues(
-                                          alpha: 0.1,
-                                        ),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(
-                                          color: Colors.blue.withValues(
-                                            alpha: 0.5,
-                                          ),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Public',
-                                        style: TextStyle(
-                                          fontSize: 12,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.folder,
+                                    size: 48,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                  const Spacer(),
+                                  AuthorName(
+                                    uid: authorUid == 'Unknown'
+                                        ? null
+                                        : authorUid,
+                                    fallbackEmail: authorEmail,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
+                                          fontSize: 18,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.blue,
                                         ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Check out content!',
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(fontSize: 14),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.secondaryContainer,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Public',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondaryContainer,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -293,7 +287,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     });
 
     return StreamBuilder<Map<String, Map<String, dynamic>>>(
-      stream: DatabaseService.instance.progressStream(widget.user),
+      stream: _progressStream,
       builder: (context, progressSnap) {
         final progress = progressSnap.data ?? const {};
 
@@ -350,7 +344,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                 option,
                                 style: TextStyle(
                                   color: _selectedFilter == option
-                                      ? Colors.yellow
+                                      ? Theme.of(context).colorScheme.primary
                                       : null,
                                   fontWeight: _selectedFilter == option
                                       ? FontWeight.bold
@@ -387,30 +381,36 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                             final completed =
                                 progress[lesson.id]?['completed'] == true;
 
-                            return FadeInSlide(
-                              delay: Duration(milliseconds: index * 50),
-                              child: HoverScale(
-                                scale: 1.0, // Stable size on hover
-                                child: GlassCard(
-                                  isSolid: true,
-                                  backgroundColor: AppColors.getCardColor(
+                            return Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Theme.of(
                                     context,
-                                  ),
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => LessonPage(
-                                          user: widget.user,
-                                          lesson: lesson,
-                                        ),
+                                  ).colorScheme.outlineVariant,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => LessonPage(
+                                        user: widget.user,
+                                        lesson: lesson,
                                       ),
-                                    );
-                                  },
+                                    ),
+                                  );
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
                                   child: Row(
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.play_circle_fill,
-                                        color: Colors.yellow,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
                                         size: 32,
                                       ),
                                       const SizedBox(width: 16),
@@ -434,26 +434,24 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                               lesson.prompt,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium
-                                                  ?.copyWith(
-                                                    color: Colors.grey[600],
-                                                  ),
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodyMedium,
                                             ),
                                           ],
                                         ),
                                       ),
                                       if (completed)
-                                        const Icon(
+                                        Icon(
                                           Icons.check_circle,
-                                          color: Colors.green,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary, // Or leaving Colors.green as semantic semantic positive is fine, but standardizing.
                                           size: 28,
                                         )
                                       else
                                         const Icon(
                                           Icons.chevron_right,
-                                          color: Colors.yellow,
                                           size: 20,
                                         ),
                                     ],
@@ -542,9 +540,13 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        GlassCard(
-          isSolid: true,
-          backgroundColor: AppColors.getCardColor(context),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -557,31 +559,25 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                 const SizedBox(height: 16),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: percent,
-                    minHeight: 12,
-                    backgroundColor: Colors.grey[200],
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Colors.yellow,
-                    ),
-                  ),
+                  child: LinearProgressIndicator(value: percent, minHeight: 12),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   '$completedCount / ${lessons.length} Lessons Completed',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
           ),
         ),
         const SizedBox(height: 24),
-        GlassCard(
-          isSolid: true,
-          backgroundColor: AppColors.getCardColor(context),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -593,26 +589,22 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                 ),
                 const SizedBox(height: 16),
                 if (recentlyCompleted.isEmpty)
-                  const Text(
-                    'No activity yet.',
-                    style: TextStyle(color: Colors.grey),
-                  )
+                  const Text('No activity yet.')
                 else
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: recentlyCompleted.length,
-                    separatorBuilder: (c, i) =>
-                        Divider(color: Colors.grey[100]),
+                    separatorBuilder: (c, i) => const Divider(),
                     itemBuilder: (context, index) {
                       final item = recentlyCompleted[index];
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.check_circle,
-                              color: Colors.green,
+                              color: Theme.of(context).colorScheme.primary,
                               size: 16,
                             ),
                             const SizedBox(width: 8),

@@ -2,118 +2,218 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
-import '../widgets/glass_card.dart';
-import '../theme/app_colors.dart';
 
-class ManageSubscriptionsPage extends StatelessWidget {
+class ManageSubscriptionsPage extends StatefulWidget {
   final User user;
   const ManageSubscriptionsPage({super.key, required this.user});
 
   @override
+  State<ManageSubscriptionsPage> createState() =>
+      _ManageSubscriptionsPageState();
+}
+
+class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
+  final TextEditingController _standardController = TextEditingController();
+  final TextEditingController _premiumController = TextEditingController();
+  bool _isEducator = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRoleAndLoadPricing();
+  }
+
+  Future<void> _checkRoleAndLoadPricing() async {
+    final doc = await DatabaseService.instance.getUserData(widget.user.uid);
+    if (doc != null) {
+      if (mounted) {
+        setState(() {
+          _isEducator = doc['role'] == 'Educator';
+          final pricing = doc['subscription_pricing'] as Map<String, dynamic>?;
+          if (pricing != null) {
+            _standardController.text = (pricing['standard'] ?? 3).toString();
+            _premiumController.text = (pricing['premium'] ?? 7).toString();
+          } else {
+            _standardController.text = '3';
+            _premiumController.text = '7';
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _savePricing() async {
+    final standard = int.tryParse(_standardController.text) ?? 3;
+    final premium = int.tryParse(_premiumController.text) ?? 7;
+
+    if (standard > 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Standard pricing cannot exceed \$10')),
+      );
+      return;
+    }
+    if (premium > 30) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Premium pricing cannot exceed \$30')),
+      );
+      return;
+    }
+
+    await DatabaseService.instance.updateSubscriptionPricing(
+      widget.user.uid,
+      standard: standard,
+      premium: premium,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pricing updated successfully')),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
         title: const Text(
           'Manage Subscriptions',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(CupertinoIcons.back),
-          onPressed: () => Navigator.pop(context),
-        ),
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.primaryGreen.withValues(alpha: 0.05),
-              Colors.blue.withValues(alpha: 0.05),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_isEducator) ...[
+                _buildSectionTitle(
+                  context,
+                  'Subscription Pricing',
+                  Icons.edit,
+                  Theme.of(context).colorScheme.primary,
+                ),
+                Card(
+                  elevation: 0,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        _buildPricingField(
+                          label: 'Standard Tier (Max \$10)',
+                          controller: _standardController,
+                          icon: Icons.subscriptions,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildPricingField(
+                          label: 'Premium Tier (Max \$30)',
+                          controller: _premiumController,
+                          icon: Icons.workspace_premium,
+                        ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: _savePricing,
+                            child: const Text('Save Pricing'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
+              _buildLearnerSubscriptions(),
             ],
           ),
         ),
-        child: SafeArea(
-          child: StreamBuilder<List<Map<String, dynamic>>>(
-            stream: DatabaseService.instance.streamLearnerSubscriptions(
-              user.uid,
-            ),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primaryGreen,
-                  ),
-                );
-              }
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-
-              final subscriptions = snapshot.data ?? [];
-              final active = subscriptions
-                  .where((s) => s['status'] == 'active')
-                  .toList();
-              final cancelled = subscriptions
-                  .where((s) => s['status'] == 'cancelled')
-                  .toList();
-
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _buildSectionTitle(
-                    context,
-                    'Active Subscriptions',
-                    CupertinoIcons.checkmark_circle_fill,
-                    Colors.green,
-                  ),
-                  if (active.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(
-                        child: Text(
-                          'No active subscriptions.',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                    )
-                  else
-                    ...active.map(
-                      (s) => _buildSubscriptionCard(context, s, isActive: true),
-                    ),
-
-                  const SizedBox(height: 32),
-                  _buildSectionTitle(
-                    context,
-                    'Subscription History',
-                    CupertinoIcons.clock_fill,
-                    Colors.grey,
-                  ),
-                  if (cancelled.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(
-                        child: Text(
-                          'No cancelled subscriptions.',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                    )
-                  else
-                    ...cancelled.map(
-                      (s) =>
-                          _buildSubscriptionCard(context, s, isActive: false),
-                    ),
-                ],
-              );
-            },
-          ),
-        ),
       ),
+    );
+  }
+
+  Widget _buildPricingField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        suffixText: '\$',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  Widget _buildLearnerSubscriptions() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: DatabaseService.instance.streamLearnerSubscriptions(
+        widget.user.uid,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final subscriptions = snapshot.data ?? [];
+        final active = subscriptions
+            .where((s) => s['status'] == 'active')
+            .toList();
+        final cancelled = subscriptions
+            .where((s) => s['status'] == 'cancelled')
+            .toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle(
+              context,
+              'Active Subscriptions',
+              Icons.check_circle,
+              Theme.of(context).colorScheme.primary,
+            ),
+            if (active.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('No active subscriptions.'),
+                ),
+              )
+            else
+              ...active.map(
+                (s) => _buildSubscriptionCard(context, s, isActive: true),
+              ),
+            const SizedBox(height: 32),
+            _buildSectionTitle(
+              context,
+              'Subscription History',
+              Icons.history,
+              Theme.of(context).colorScheme.outlineVariant,
+            ),
+            if (cancelled.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('No cancelled subscriptions.'),
+                ),
+              )
+            else
+              ...cancelled.map(
+                (s) => _buildSubscriptionCard(context, s, isActive: false),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -147,99 +247,40 @@ class ManageSubscriptionsPage extends StatelessWidget {
   }) {
     final eduData = sub['educatorData'] as Map<String, dynamic>? ?? {};
     final username = eduData['username'] as String? ?? 'Educator';
-    final fee = eduData['subscription_fee'] ?? 3;
-    final billingCycle = sub['billingCycle'] as String? ?? 'monthly';
+    final tier = sub['tier'] ?? 'Standard';
     final eduUid = sub['educatorUid'] as String;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: GlassCard(
-        child: Column(
-          children: [
-            ListTile(
-              contentPadding: const EdgeInsets.all(16),
-              leading: CircleAvatar(
-                backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-                backgroundImage:
-                    (eduData['photoUrl'] as String?)?.isNotEmpty == true
-                    ? NetworkImage(eduData['photoUrl'])
-                    : null,
-                child: (eduData['photoUrl'] as String?)?.isEmpty ?? true
-                    ? const Icon(
-                        CupertinoIcons.person_fill,
-                        color: AppColors.primaryGreen,
-                      )
-                    : null,
-              ),
-              title: Text(
-                username,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  isActive
-                      ? 'Billed ${billingCycle == 'monthly' ? '\$$fee/mo' : '\$${fee * 10}/yr'}'
-                      : 'Cancelled',
-                  style: TextStyle(
-                    color: isActive ? Colors.grey[700] : Colors.red,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              trailing: isActive
-                  ? IconButton(
-                      icon: const Icon(
-                        CupertinoIcons.xmark_circle,
-                        color: Colors.red,
-                      ),
-                      onPressed: () =>
-                          _confirmCancel(context, eduUid, username),
-                    )
-                  : const Icon(CupertinoIcons.clear, color: Colors.grey),
-            ),
-            if (isActive) ...[
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Billing Cycle',
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    CupertinoSlidingSegmentedControl<String>(
-                      groupValue: billingCycle,
-                      children: const {
-                        'monthly': Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('Monthly'),
-                        ),
-                        'annual': Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('Annual'),
-                        ),
-                      },
-                      onValueChanged: (val) {
-                        if (val != null) {
-                          DatabaseService.instance
-                              .updateSubscriptionBillingCycle(eduUid, val);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: CircleAvatar(
+          backgroundImage: (eduData['photoUrl'] as String?)?.isNotEmpty == true
+              ? NetworkImage(eduData['photoUrl'])
+              : null,
+          child: (eduData['photoUrl'] as String?)?.isEmpty ?? true
+              ? const Icon(Icons.person)
+              : null,
         ),
+        title: Text(
+          username,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        subtitle: Text('Tier: $tier • ${isActive ? 'Active' : 'Cancelled'}'),
+        trailing: isActive
+            ? IconButton(
+                icon: Icon(
+                  Icons.cancel,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                onPressed: () => _confirmCancel(context, eduUid, username),
+              )
+            : null,
       ),
     );
   }
@@ -257,15 +298,16 @@ class ManageSubscriptionsPage extends StatelessWidget {
             onPressed: () => Navigator.pop(c, false),
             child: const Text('Keep it'),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          TextButton(
             onPressed: () => Navigator.pop(c, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: const Text('Cancel Subscription'),
           ),
         ],
       ),
     );
-
     if (confirm == true) {
       await DatabaseService.instance.unsubscribeFromEducator(eduUid);
     }

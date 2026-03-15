@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/database_service.dart';
-import '../../widgets/glass_card.dart';
-import '../../theme/app_colors.dart';
 
 class EducatorGroupsTab extends StatelessWidget {
   final User user;
@@ -19,19 +16,11 @@ class EducatorGroupsTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Educator Groups',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  fontSize: 24,
-                  color: AppColors.getTextColor(context),
-                ),
+                'Premium Group',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 8),
-              Text(
-                'View and manage your subscribers.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.getTextColor(context).withValues(alpha: 0.7),
-                ),
-              ),
+              const Text('View and manage your premium subscribers.'),
             ],
           ),
         ),
@@ -42,40 +31,33 @@ class EducatorGroupsTab extends StatelessWidget {
             ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primaryGreen,
-                  ),
-                );
+                return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
               }
 
-              final subscribers = snapshot.data ?? [];
-
+              final subscribers = (snapshot.data ?? [])
+                  .where((s) => s['tier'] == 'Premium')
+                  .toList();
+                  
               if (subscribers.isEmpty) {
                 return const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        CupertinoIcons.person_3,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
+                      Icon(Icons.group_add, size: 64, color: Colors.grey),
                       SizedBox(height: 16),
                       Text(
-                        'No subscribers yet.',
+                        'No premium members yet',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey,
                         ),
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Set your subscription fee in profile to start growing your group!',
+                        'Premium members subscribed to you will appear here.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey),
                       ),
@@ -100,43 +82,24 @@ class EducatorGroupsTab extends StatelessWidget {
                       'Learner';
                   final email = sub['email'] as String? ?? 'No email';
 
-                  return GlassCard(
-                    backgroundColor: AppColors.getCardColor(context),
+                  return Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: AppColors.primaryGreen.withValues(
-                          alpha: 0.1,
-                        ),
                         backgroundImage:
                             (photoUrl != null && photoUrl.isNotEmpty)
                             ? NetworkImage(photoUrl)
                             : null,
                         child: (photoUrl == null || photoUrl.isEmpty)
-                            ? const Icon(
-                                CupertinoIcons.person_fill,
-                                color: AppColors.primaryGreen,
-                              )
+                            ? const Icon(Icons.person)
                             : null,
                       ),
-                      title: Text(
-                        username,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.getTextColor(context),
-                        ),
-                      ),
-                      subtitle: Text(
-                        email,
-                        style: TextStyle(
-                          color: AppColors.getTextColor(
-                            context,
-                          ).withValues(alpha: 0.7),
-                        ),
-                      ),
-                      trailing: const Icon(
-                        CupertinoIcons.checkmark_seal_fill,
-                        color: Colors.green,
-                      ),
+                      title: Text(username),
+                      subtitle: Text(email),
+                      trailing: const Icon(Icons.verified, color: Colors.green),
                     ),
                   );
                 },

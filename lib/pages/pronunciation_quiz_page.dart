@@ -10,7 +10,6 @@ import '../models/spelling_word.dart'; // Reusing SpellingWord model
 import '../services/database_service.dart';
 import '../services/notification_service.dart';
 import '../services/role_service.dart';
-import '../widgets/glass_card.dart';
 import 'admin/admin_spelling_words_tab.dart';
 
 class PronunciationQuizPage extends StatefulWidget {
@@ -284,9 +283,6 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
           onPressed: widget.onBack,
         ),
         title: const Text('Pronunciation Quiz'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
         actions: [
           StreamBuilder<UserRole>(
             stream: RoleService.instance.roleStream(widget.user.uid),
@@ -330,7 +326,11 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            const Icon(Icons.record_voice_over, size: 80, color: Colors.blue),
+            Icon(
+              Icons.record_voice_over,
+              size: 80,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(height: 24),
             Text(
               'Select Difficulty',
@@ -342,19 +342,19 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
             const SizedBox(height: 40),
             _DifficultyCard(
               title: 'Novice',
-              color: Colors.green,
+              color: Theme.of(context).colorScheme.primary,
               onTap: () => _startSession(SpellingDifficulty.novice),
             ),
             const SizedBox(height: 16),
             _DifficultyCard(
               title: 'Amateur',
-              color: Colors.teal,
+              color: Theme.of(context).colorScheme.secondary,
               onTap: () => _startSession(SpellingDifficulty.amateur),
             ),
             const SizedBox(height: 16),
             _DifficultyCard(
               title: 'Professional',
-              color: Colors.red,
+              color: Theme.of(context).colorScheme.error,
               onTap: () => _startSession(SpellingDifficulty.professional),
             ),
           ],
@@ -380,7 +380,10 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
             children: [
               Text(
                 'Word ${_currentIndex + 1} / ${_sessionWords.length}',
-                style: const TextStyle(fontSize: 18, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -389,11 +392,13 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                 ),
                 decoration: BoxDecoration(
                   color: _timeLeft < 10
-                      ? Colors.red.withValues(alpha: 0.1)
-                      : Colors.blue.withValues(alpha: 0.1),
+                      ? Theme.of(context).colorScheme.errorContainer
+                      : Theme.of(context).colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: _timeLeft < 10 ? Colors.red : Colors.blue,
+                    color: _timeLeft < 10
+                        ? Theme.of(context).colorScheme.error
+                        : Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 child: Row(
@@ -402,7 +407,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                     Icon(
                       Icons.timer,
                       size: 18,
-                      color: _timeLeft < 10 ? Colors.red : Colors.blue,
+                      color: _timeLeft < 10
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -410,7 +417,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: _timeLeft < 10 ? Colors.red : Colors.blue,
+                        color: _timeLeft < 10
+                            ? Theme.of(context).colorScheme.error
+                            : Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],
@@ -419,29 +428,23 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
             ],
           ),
           const SizedBox(height: 40),
-          GlassCard(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.blueAccent.withValues(alpha: 0.3),
-                ),
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.blue.withValues(alpha: 0.1),
-                    Colors.purple.withValues(alpha: 0.1),
-                  ],
-                ),
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
               ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
                   _sessionWords[_currentIndex].word,
-                  style: const TextStyle(
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
                     fontSize: 56,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blueAccent,
+                    color: Theme.of(context).colorScheme.primary,
                     letterSpacing: 1.2,
                   ),
                 ),
@@ -452,9 +455,8 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey.withValues(alpha: 0.1),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
             ),
             child: Text(
               _recognizedText.isEmpty
@@ -463,7 +465,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: _isRecording ? Colors.red : Colors.black87,
+                color: _isRecording
+                    ? Theme.of(context).colorScheme.error
+                    : null,
               ),
               textAlign: TextAlign.center,
             ),
@@ -481,13 +485,16 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                   IconButton(
                     onPressed: _resetRecording,
                     icon: const Icon(Icons.refresh),
-                    color: Colors.grey,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     iconSize: 32,
                     tooltip: "Reset Text",
                   ),
-                  const Text(
+                  Text(
                     "Reset",
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -496,7 +503,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                 children: [
                   CircleAvatar(
                     radius: 40,
-                    backgroundColor: _isRecording ? Colors.red : Colors.blue,
+                    backgroundColor: _isRecording
+                        ? Theme.of(context).colorScheme.error
+                        : Theme.of(context).colorScheme.primary,
                     child: IconButton(
                       onPressed: _toggleRecording,
                       icon: Icon(
@@ -510,7 +519,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                   Text(
                     _isRecording ? "Listening..." : "Tap to Speak",
                     style: TextStyle(
-                      color: _isRecording ? Colors.red : Colors.grey,
+                      color: _isRecording
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -524,14 +535,17 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                         : null,
                     icon: const Icon(Icons.check_circle),
                     color: _recognizedText.isNotEmpty
-                        ? Colors.green
-                        : Colors.grey,
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outline,
                     iconSize: 40,
                     tooltip: "Submit Answer",
                   ),
-                  const Text(
+                  Text(
                     "Submit",
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -540,9 +554,11 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
           const SizedBox(height: 24),
           TextButton(
             onPressed: _skipWord,
-            child: const Text(
+            child: Text(
               'Skip this word',
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -551,9 +567,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
               _timer?.cancel();
               setState(() => _selectedDifficulty = null);
             },
-            child: const Text(
+            child: Text(
               'Cancel Quiz',
-              style: TextStyle(color: Colors.redAccent),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
         ],
@@ -568,7 +584,11 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.check_circle, size: 80, color: Colors.green),
+            Icon(
+              Icons.check_circle,
+              size: 80,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(height: 24),
             const Text(
               'Session Complete!',
@@ -604,13 +624,17 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: isCorrect
-                        ? Colors.green.withValues(alpha: 0.1)
-                        : Colors.red.withValues(alpha: 0.1),
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Theme.of(context).colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isCorrect
-                          ? Colors.green.withValues(alpha: 0.3)
-                          : Colors.red.withValues(alpha: 0.3),
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.3)
+                          : Theme.of(
+                              context,
+                            ).colorScheme.error.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
@@ -628,7 +652,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                             Text(
                               'Your Pronunciation: ${userAnswer ?? "(No audio)"}',
                               style: TextStyle(
-                                color: isCorrect ? Colors.green : Colors.red,
+                                color: isCorrect
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.error,
                               ),
                             ),
                           ],
@@ -636,7 +662,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                       ),
                       Icon(
                         isCorrect ? Icons.check : Icons.close,
-                        color: isCorrect ? Colors.green : Colors.red,
+                        color: isCorrect
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.error,
                       ),
                     ],
                   ),
@@ -668,23 +696,24 @@ class _DifficultyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          border: Border.all(color: color.withValues(alpha: 0.5)),
-          borderRadius: BorderRadius.circular(15),
-          color: color.withValues(alpha: 0.1),
-        ),
-        child: Center(
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
           ),
         ),
@@ -692,4 +721,3 @@ class _DifficultyCard extends StatelessWidget {
     );
   }
 }
-

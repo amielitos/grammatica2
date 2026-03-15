@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../models/notification.dart';
 import '../services/notification_service.dart';
-import 'glass_card.dart';
 import 'package:intl/intl.dart';
-import '../theme/app_colors.dart';
 
 class NotificationIconButton extends StatelessWidget {
   final String userId;
@@ -33,15 +31,12 @@ class NotificationIconButton extends StatelessWidget {
                 right: 8,
                 top: 8,
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(2),
                   decoration: const BoxDecoration(
-                    color: Colors.yellow,
+                    color: Colors.red,
                     shape: BoxShape.circle,
                   ),
-                  constraints: const BoxConstraints(
-                    minWidth: 12,
-                    minHeight: 12,
-                  ),
+                  constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
                 ),
               ),
           ],
@@ -72,7 +67,14 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      child: GlassCard(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Column(
           children: [
             Padding(
@@ -120,11 +122,7 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
                 ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primaryGreen,
-                      ),
-                    );
+                    return const Center(child: CircularProgressIndicator());
                   }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Center(
@@ -194,7 +192,14 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
-        child: GlassCard(
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Column(
             children: [
               Padding(
@@ -244,11 +249,7 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                   ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primaryGreen,
-                        ),
-                      );
+                      return const Center(child: CircularProgressIndicator());
                     }
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return Center(
@@ -308,10 +309,7 @@ class NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      leading: CircleAvatar(
-        backgroundColor: _getBgColor(notification.type),
-        child: Icon(_getIcon(notification.type), color: Colors.white, size: 20),
-      ),
+      leading: CircleAvatar(child: Icon(_getIcon(notification.type), size: 20)),
       title: Text(
         notification.title,
         style: TextStyle(
@@ -328,23 +326,6 @@ class NotificationTile extends StatelessWidget {
         style: const TextStyle(fontSize: 12, color: Colors.grey),
       ),
     );
-  }
-
-  Color _getBgColor(NotificationType type) {
-    switch (type) {
-      case NotificationType.welcome:
-        return Colors.green;
-      case NotificationType.appRejected:
-        return Colors.red;
-      case NotificationType.appApproved:
-        return Colors.green;
-      case NotificationType.achievement:
-        return Colors.teal;
-      case NotificationType.profileReminder:
-        return Colors.blue;
-      default:
-        return Colors.grey;
-    }
   }
 
   IconData _getIcon(NotificationType type) {
@@ -420,7 +401,7 @@ class NotificationDetailDialog extends StatelessWidget {
             NotificationService.instance.deleteNotification(notification.id);
             Navigator.pop(context);
           },
-          child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          child: const Text('Delete'),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -430,4 +411,3 @@ class NotificationDetailDialog extends StatelessWidget {
     );
   }
 }
-

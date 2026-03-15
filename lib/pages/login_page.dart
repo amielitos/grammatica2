@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
-import '../theme/app_colors.dart';
 import '../widgets/google_sign_in_button.dart';
 
 class LoginPage extends StatefulWidget {
@@ -90,7 +89,7 @@ class _LoginPageState extends State<LoginPage> {
                             await AuthService.instance.sendPasswordResetEmail(
                               email,
                             );
-                            if (mounted) {
+                            if (context.mounted) {
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -99,7 +98,7 @@ class _LoginPageState extends State<LoginPage> {
                               );
                             }
                           } catch (e) {
-                            if (mounted) {
+                            if (context.mounted) {
                               setDialogState(() => loading = false);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -153,223 +152,160 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final isShortScreen = screenHeight < 700;
-    final isCompact = screenHeight < 800;
-
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(gradient: AppColors.getMainGradient(context)),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              vertical: isShortScreen ? 12 : 24,
-              horizontal: 24,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 320,
-              ), // Reduced from 450
-              child: Card(
-                child: Padding(
-                  padding: EdgeInsets.all(
-                    isShortScreen ? 14 : 18,
-                  ), // Reduced from 20/32
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                          child: Column(
-                            children: [
-                              Text(
-                                'Grammatica',
-                                style: TextStyle(
-                                  fontSize: isShortScreen
-                                      ? 22
-                                      : 30, // Reduced from 36/48
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.registrationGreen,
-                                  letterSpacing: -1.5,
-                                  fontFamily: 'Serif',
-                                ),
-                              ),
-                              SizedBox(
-                                height: isShortScreen ? 2 : 6,
-                              ), // Reduced from 4/12
-                              Text(
-                                "Welcome Back",
-                                style: TextStyle(
-                                  fontSize: isShortScreen ? 14 : 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(
-                                    context,
-                                  ).textTheme.titleLarge?.color,
-                                ),
-                              ),
-                              if (!isShortScreen) const SizedBox(height: 2),
-                              if (!isShortScreen)
-                                Text(
-                                  "Sign in to continue learning",
-                                  style: TextStyle(
-                                    color: AppColors.getSecondaryTextColor(
-                                      context,
-                                    ),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                            ],
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outlineVariant,
                           ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        SizedBox(
-                          height: isShortScreen ? 12 : 20,
-                        ), // Reduced from 20/32
-                        _buildLabel("Email", isCompact),
-                        TextFormField(
-                          controller: _emailController,
-                          style: const TextStyle(fontSize: 13),
-                          decoration: const InputDecoration(
-                            hintText: 'your@email.com',
-                            prefixIcon: Icon(Icons.email_outlined, size: 20),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your email';
-                            }
-                            if (!RegExp(
-                              r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                            ).hasMatch(value)) {
-                              return 'Please enter a valid email';
-                            }
-                            return null;
-                          },
+                        child: Icon(
+                          Icons.menu_book_rounded,
+                          size: 48,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
-                        SizedBox(
-                          height: isCompact ? 8 : 10,
-                        ), // Reduced from 12/16
-                        _buildLabel("Password", isCompact),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          style: const TextStyle(fontSize: 13),
-                          decoration: InputDecoration(
-                            hintText: 'Enter your password',
-                            prefixIcon: const Icon(
-                              Icons.lock_outline,
-                              size: 20,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            suffixIcon: IconButton(
-                              iconSize: 20,
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                              ),
-                              onPressed: () => setState(
-                                () => _obscurePassword = !_obscurePassword,
-                              ),
-                            ),
-                          ),
-                          validator: (value) => (value == null || value.isEmpty)
-                              ? 'Please enter your password'
-                              : null,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        "Welcome Back",
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Sign in to continue learning",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          hintText: 'your@email.com',
+                          prefixIcon: Icon(Icons.email_outlined),
                         ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _showForgotPasswordDialog,
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: const Size(0, 30),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your email';
+                          }
+                          if (!RegExp(
+                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                          ).hasMatch(value)) {
+                            return 'Please enter a valid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          hintText: 'Enter your password',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
                             ),
-                            child: const Text(
-                              'Forgot Password?',
-                              style: TextStyle(
-                                color: AppColors.registrationGreen,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                              ),
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
                             ),
                           ),
                         ),
-                        SizedBox(height: isShortScreen ? 12 : 16),
-                        SizedBox(
-                          width: double.infinity,
-                          height: isShortScreen ? 34 : 38, // Reduced from 48/54
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _login,
-                            style: ElevatedButton.styleFrom(
-                              textStyle: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppColors.primaryGreen,
-                                    ),
-                                  )
-                                : const Text('Sign In'),
-                          ),
-                        ),
-                        SizedBox(height: isShortScreen ? 12 : 16),
-                        _buildDivider(isCompact),
-                        SizedBox(height: isShortScreen ? 12 : 16),
-                        GoogleSignInButton(
-                          onPressed: _isLoading ? () {} : _loginWithGoogle,
-                          enabled: !_isLoading,
-                        ),
-                        SizedBox(
-                          height: isShortScreen ? 10 : 14,
-                        ), // Reduced from 16/24
-                        Center(
-                          child: GestureDetector(
-                            onTap: () =>
-                                Navigator.pushNamed(context, '/register'),
-                            child: RichText(
-                              text: TextSpan(
-                                text: "Don't have an account? ",
-                                style: TextStyle(
-                                  color: AppColors.getSecondaryTextColor(
-                                    context,
-                                  ),
-                                  fontSize: 12, // Reduced from 14
-                                ),
-                                children: [
-                                  TextSpan(
-                                    text: "Sign Up",
-                                    style: TextStyle(
-                                      color: AppColors.registrationGreen,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                        validator: (value) => (value == null || value.isEmpty)
+                            ? 'Please enter your password'
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _showForgotPasswordDialog,
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 30),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _isLoading ? null : _login,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Sign In'),
+                ),
+                const SizedBox(height: 24),
+                _buildDivider(),
+                const SizedBox(height: 24),
+                GoogleSignInButton(
+                  onPressed: _isLoading ? () {} : _loginWithGoogle,
+                  enabled: !_isLoading,
+                ),
+                const SizedBox(height: 24),
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.pushNamed(context, '/register'),
+                    child: RichText(
+                      text: TextSpan(
+                        text: "Don't have an account? ",
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
+                        children: [
+                          TextSpan(
+                            text: "Sign Up",
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -377,36 +313,18 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildLabel(String label, bool isCompact) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: isCompact ? 2 : 4, left: 2), // Reduced
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Theme.of(context).textTheme.bodyLarge?.color,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDivider(bool isCompact) {
-    return Row(
+  Widget _buildDivider() {
+    return const Row(
       children: [
-        const Expanded(child: Divider(thickness: 1, color: Color(0xFFE0E0E0))),
+        Expanded(child: Divider()),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding: EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             "OR",
-            style: TextStyle(
-              color: AppColors.getSecondaryTextColor(context),
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
           ),
         ),
-        const Expanded(child: Divider(thickness: 1, color: Color(0xFFE0E0E0))),
+        Expanded(child: Divider()),
       ],
     );
   }

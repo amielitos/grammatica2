@@ -57,6 +57,8 @@ dependencies:
   web: any
   google_sign_in_platform_interface: any
   google_sign_in_web: any
+  syncfusion_flutter_pdf: ^32.2.8
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

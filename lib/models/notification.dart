@@ -6,6 +6,7 @@ enum NotificationType {
   appApproved,
   achievement,
   profileReminder,
+  subscription,
   general,
 }
 
@@ -78,6 +79,8 @@ class NotificationModel {
         return NotificationType.achievement;
       case 'profileReminder':
         return NotificationType.profileReminder;
+      case 'subscription':
+        return NotificationType.subscription;
       default:
         return NotificationType.general;
     }

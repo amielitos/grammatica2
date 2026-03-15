@@ -53,41 +53,26 @@ class GrammaticaApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
-          themeMode: currentMode,
+          themeMode: ThemeMode.light, // Forced light mode as temporary fix
           builder: (context, child) {
             final mediaQueryData = MediaQuery.of(context);
-            // Calculate a scale factor based on screen width.
-            // On very small screens (< 360), we scale down slightly.
-            // On large screens, we might scale up or keep 1.0.
             final screenWidth = mediaQueryData.size.width;
             double scale = 1.0;
             if (screenWidth < 360) {
               scale = (screenWidth / 360).clamp(0.85, 1.0);
             } else if (screenWidth > 1200) {
-              scale = 1.05; // Less aggressive scaling for large screens
+              scale = 1.05;
             }
 
-            return Overlay(
-              initialEntries: [
-                OverlayEntry(
-                  builder: (context) => MediaQuery(
-                    data: mediaQueryData.copyWith(
-                      textScaler: TextScaler.linear(scale),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: AppColors.getMainGradient(context),
-                      ),
-                      child: child!,
-                    ),
-                  ),
-                ),
-              ],
+            return MediaQuery(
+              data: mediaQueryData.copyWith(
+                textScaler: TextScaler.linear(scale),
+              ),
+              child: child!,
             );
           },
-          initialRoute: '/',
+          home: _AuthWrapper(),
           routes: {
-            '/': (context) => _AuthWrapper(),
             '/login': (context) => const LoginPage(),
             '/register': (context) => const SignupPage(),
           },
@@ -106,7 +91,7 @@ class _AuthWrapper extends StatelessWidget {
         if (authSnap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGreen),
+              child: CircularProgressIndicator(color: AppColors.primary),
             ),
           );
         }
@@ -120,14 +105,21 @@ class _AuthWrapper extends StatelessWidget {
           stream: FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
-              .snapshots(),
+              .snapshots()
+              .distinct((prev, curr) {
+                final p = prev.data();
+                final c = curr.data();
+                return p?['role'] == c?['role'] &&
+                    p?['has_completed_onboarding'] ==
+                        c?['has_completed_onboarding'] &&
+                    p?['phone_number'] == c?['phone_number'] &&
+                    p?['date_of_birth'] == c?['date_of_birth'];
+              }),
           builder: (context, userDocSnap) {
             if (userDocSnap.connectionState == ConnectionState.waiting) {
               return const Scaffold(
                 body: Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primaryGreen,
-                  ),
+                  child: CircularProgressIndicator(color: AppColors.primary),
                 ),
               );
             }
@@ -137,7 +129,7 @@ class _AuthWrapper extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(color: AppColors.primaryGreen),
+                      CircularProgressIndicator(color: AppColors.primary),
                       SizedBox(height: 16),
                       Text("Setting up your account..."),
                     ],

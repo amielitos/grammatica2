@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../theme/app_colors.dart';
 import '../services/database_service.dart';
-
 import 'quiz_folder_page.dart';
-import '../widgets/glass_card.dart';
 import '../services/role_service.dart';
-import '../widgets/animations.dart';
 
 class QuizzesPage extends StatefulWidget {
   final User user;
@@ -18,6 +14,13 @@ class QuizzesPage extends StatefulWidget {
 
 class _QuizzesPageState extends State<QuizzesPage> {
   Map<String, dynamic>? _activeFolder;
+  late Stream<Map<String, Map<String, dynamic>>> _progressStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _progressStream = DatabaseService.instance.quizProgressStream(widget.user);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +36,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
           ),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(
-                child: CircularProgressIndicator(color: AppColors.primaryGreen),
-              );
+              return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
               return Center(child: Text('Error: ${snapshot.error}'));
@@ -50,14 +51,12 @@ class _QuizzesPageState extends State<QuizzesPage> {
             }).toList();
 
             return StreamBuilder<Map<String, Map<String, dynamic>>>(
-              stream: DatabaseService.instance.quizProgressStream(widget.user),
+              stream: _progressStream,
               builder: (context, progressSnap) {
-                // 1. Grammatica Quizzes
                 final grammaticaQuizzes = quizzes
                     .where((q) => q.isGrammaticaQuiz == true)
                     .toList();
 
-                // 2. Public Quizzes
                 final publicQuizzes = quizzes.where((q) {
                   if (q.isGrammaticaQuiz) return false;
                   if (!q.isVisible) return false;
@@ -77,29 +76,19 @@ class _QuizzesPageState extends State<QuizzesPage> {
                 }
 
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 16, // Reduced from 32
-                  ),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
-                    // Changed from Wrap/Center/LayoutBuilder combo
                     children: [
-                      const SizedBox(height: 8), // Minimal gap
-                      Center(
-                        child: Text(
-                          'Quizzes',
-                          style: Theme.of(context).textTheme.displayLarge
-                              ?.copyWith(
-                                fontSize: 48,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: -1,
-                              ),
-                        ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Quizzes',
+                        style: Theme.of(context).textTheme.headlineLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 32),
                       Wrap(
-                        spacing: 32,
-                        runSpacing: 32,
+                        spacing: 24,
+                        runSpacing: 24,
                         alignment: WrapAlignment.center,
                         children: [
                           _buildFolderCard(
@@ -107,7 +96,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
                             title: 'Grammatica',
                             description: 'Official quizzes',
                             pillLabel: 'Grammatica',
-                            pillColor: Colors.purple,
+                            iconColor: Theme.of(context).colorScheme.primary,
                             onTap: () => setState(() {
                               _activeFolder = {
                                 'title': 'Grammatica Quizzes',
@@ -121,7 +110,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
                             title: 'Public',
                             description: 'Community & Educators',
                             pillLabel: 'Public',
-                            pillColor: Colors.blue,
+                            iconColor: Theme.of(context).colorScheme.secondary,
                             onTap: () => setState(() {
                               _activeFolder = {
                                 'title': 'Public Content',
@@ -149,70 +138,66 @@ class _QuizzesPageState extends State<QuizzesPage> {
     required String title,
     required String description,
     required String pillLabel,
-    required Color pillColor,
+    required Color iconColor,
     required VoidCallback onTap,
   }) {
-    return HoverScale(
-      scale: 1.0, // Stable size on hover
-      child: GestureDetector(
-        onTap: onTap,
-        child: GlassCard(
-          width: 240,
-          height: 280, // Reduced from 320 to match HomePage
-          isSolid: true,
-          backgroundColor: AppColors.getCardColor(context),
-          hoverBorderColor: Colors.yellow,
+    return SizedBox(
+      width: 240,
+      height: 240,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.folder,
-                  size: 48,
-                  color: title == 'Grammatica' ? Colors.purple : Colors.blue,
-                ),
+                Icon(Icons.folder, size: 56, color: iconColor),
+                const SizedBox(height: 12),
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontSize: 14),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const Spacer(),
-                const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
+                    horizontal: 10,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: pillColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: pillColor.withValues(alpha: 0.5)),
+                    color: Theme.of(context).colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     pillLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: pillColor.withValues(alpha: 1.0),
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
               ],
             ),
           ),

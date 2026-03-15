@@ -4,12 +4,9 @@ import '../services/database_service.dart';
 import '../services/role_service.dart';
 
 import 'dart:async';
-import '../widgets/glass_card.dart';
-import '../theme/app_colors.dart';
 import '../widgets/notification_widgets.dart';
 import '../services/notification_service.dart';
 import '../main.dart';
-import '../widgets/animations.dart';
 
 class QuizDetailPage extends StatefulWidget {
   final User user;
@@ -46,6 +43,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   bool _isAdminOrSuperAdmin = false;
   bool _checkingSubscription = true;
 
+  late Stream<Map<String, Map<String, dynamic>>> _quizProgressStream;
+
   bool _isReviewing = false;
   bool get _previewMode =>
       widget.previewMode || widget.quiz.validationStatus == 'awaiting_approval';
@@ -59,6 +58,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       (_) => TextEditingController(),
     );
     _secondsRemaining = widget.quiz.duration * 60;
+    _quizProgressStream = DatabaseService.instance.quizProgressStream(
+      widget.user,
+    );
     _checkSubscription();
   }
 
@@ -170,14 +172,24 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     }
 
     try {
-      await DatabaseService.instance.markQuizCompleted(
+      final double percentage = (score / _shuffledQuestions.length) * 100;
+      final bool isPassed = percentage >= 90;
+
+      // Find and update associated lesson progress
+      final lesson = await DatabaseService.instance.getLessonByQuizId(
+        widget.quiz.id,
+      );
+
+      await DatabaseService.instance.completeQuizAndLesson(
         user: widget.user,
         quizId: widget.quiz.id,
+        passed: isPassed,
         isCorrect: isCorrect,
         score: score,
         totalQuestions: _shuffledQuestions.length,
         answers: userAnswers,
         timeTaken: _timeTaken,
+        lessonId: lesson?.id,
       );
 
       if (mounted) {
@@ -205,11 +217,13 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              isCorrect
-                  ? 'Quiz Submitted! All correct!'
-                  : 'Quiz Submitted! Score: $score/${_shuffledQuestions.length}.',
+              isPassed
+                  ? 'Quiz Passed! Lesson marked as complete.'
+                  : 'Quiz submitted. Score: $score/${_shuffledQuestions.length} (${percentage.toStringAsFixed(1)}%). Needs 90% to pass.',
             ),
-            backgroundColor: isCorrect ? Colors.green : Colors.teal,
+            backgroundColor: isPassed
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.secondary,
           ),
         );
       }
@@ -227,10 +241,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Grammatica'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
+        title: const Text('Quiz'),
         actions: [
           NotificationIconButton(
             userId: widget.user.uid,
@@ -257,12 +268,19 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 700),
-                        child: GlassCard(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.all(24),
                             child: StreamBuilder<Map<String, Map<String, dynamic>>>(
-                              stream: DatabaseService.instance
-                                  .quizProgressStream(widget.user),
+                              stream: _quizProgressStream,
                               builder: (context, snapshot) {
                                 final progressMap = snapshot.data ?? {};
                                 final myProgress = progressMap[widget.quiz.id];
@@ -297,10 +315,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                                 }
 
                                 if (_checkingSubscription) {
-                                  return Center(
-                                    child: CircularProgressIndicator(
-                                      color: AppColors.primaryGreen,
-                                    ),
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
                                   );
                                 }
 
@@ -334,99 +350,108 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   }
 
   Widget _buildStartArea(int maxAttempts) {
-    return FadeInSlide(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_previewMode)
-            Container(
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_previewMode)
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.visibility, color: Colors.blue[700], size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Preview Mode - You are viewing this quiz contents. Submission is disabled.',
-                      style: TextStyle(
-                        color: Colors.blue[700],
-                        fontWeight: FontWeight.w500,
-                      ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.visibility,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Preview Mode - You are viewing this quiz contents. Submission is disabled.',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          Text(
-            widget.quiz.title,
-            style: Theme.of(context).textTheme.headlineSmall,
           ),
-          const SizedBox(height: 16),
-          Text(widget.quiz.description),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              const Icon(Icons.timer_outlined, size: 20),
-              const SizedBox(width: 8),
-              Text('${widget.quiz.duration} minutes'),
-              const Spacer(),
-              Text('Attempts Used: $_attemptsUsed / $maxAttempts'),
-            ],
-          ),
-          const SizedBox(height: 32),
-          if (!_previewMode && maxAttempts - _attemptsUsed > 0)
-            SizedBox(
-              width: double.infinity,
-              child:
-                  _isSubscribed ||
-                      _isAdminOrSuperAdmin ||
-                      !widget.quiz.isMembersOnly ||
-                      widget.quiz.createdByUid == widget.user.uid
-                  ? FilledButton(
-                      onPressed: _startQuiz,
-                      child: const Text('Start Quiz'),
-                    )
-                  : Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.teal.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.teal),
-                      ),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.lock, color: Colors.teal),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Members Only Content',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'You must be subscribed to this educator to take this quiz.',
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
+        Text(
+          widget.quiz.title,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 16),
+        Text(widget.quiz.description),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            const Icon(Icons.timer_outlined, size: 20),
+            const SizedBox(width: 8),
+            Text('${widget.quiz.duration} minutes'),
+            const Spacer(),
+            Text('Attempts Used: $_attemptsUsed / $maxAttempts'),
+          ],
+        ),
+        const SizedBox(height: 32),
+        if (!_previewMode)
+          SizedBox(
+            width: double.infinity,
+            child: (maxAttempts - _attemptsUsed > 0)
+                ? (_isSubscribed ||
+                          _isAdminOrSuperAdmin ||
+                          !widget.quiz.isMembersOnly ||
+                          widget.quiz.createdByUid == widget.user.uid
+                      ? FilledButton(
+                          onPressed: _startQuiz,
+                          child: const Text('Start Quiz'),
+                        )
+                      : _buildLockMessage())
+                : Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.block,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'No Attempts Remaining',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'You have reached the maximum number of attempts for this quiz.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        if (_previewMode)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _startReview,
+              icon: const Icon(Icons.rate_review),
+              label: const Text('Review Questions'),
             ),
-          if (_previewMode)
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _startReview,
-                icon: const Icon(Icons.rate_review),
-                label: const Text('Review Questions'),
-              ),
-            ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -434,179 +459,148 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     final question = _shuffledQuestions[_currentQuestionIndex];
     final isMultipleChoice = question.type == 'multiple_choice';
 
-    return FadeInSlide(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Question ${_currentQuestionIndex + 1}/${_shuffledQuestions.length}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              if (widget.quiz.duration > 0 && !_isReviewing) _buildTimerBadge(),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Text(question.question, style: const TextStyle(fontSize: 18)),
-          const SizedBox(height: 16),
-          if (isMultipleChoice)
-            ...(question.options ?? []).map((opt) {
-              final isSelected =
-                  _answerCtrls[_currentQuestionIndex].text.trim() == opt.trim();
-              final isCorrectAnswer = opt.trim() == question.answer.trim();
-
-              // In review mode, highlight correct answer green
-              Color? cardColor;
-              if (_isReviewing) {
-                if (isCorrectAnswer) {
-                  cardColor = Colors.green.withValues(alpha: 0.2);
-                }
-              } else if (isSelected) {
-                cardColor = AppColors.primaryGreen.withValues(alpha: 0.2);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Question ${_currentQuestionIndex + 1}/${_shuffledQuestions.length}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            if (widget.quiz.duration > 0 && !_isReviewing) _buildTimerBadge(),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Text(question.question, style: const TextStyle(fontSize: 18)),
+        const SizedBox(height: 16),
+        if (isMultipleChoice)
+          RadioGroup<String>(
+            groupValue: _answerCtrls[_currentQuestionIndex].text.trim(),
+            onChanged: (val) {
+              if (_isReviewing) return;
+              if (val != null) {
+                setState(() {
+                  _answerCtrls[_currentQuestionIndex].text = val;
+                });
               }
+            },
+            child: Column(
+              children: (question.options ?? []).map((opt) {
+                final isSelected =
+                    _answerCtrls[_currentQuestionIndex].text.trim() ==
+                    opt.trim();
+                final isCorrectAnswer = opt.trim() == question.answer.trim();
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: HoverScale(
-                  child: GlassCard(
-                    onTap: _isReviewing
-                        ? null
-                        : () {
-                            setState(() {
-                              _answerCtrls[_currentQuestionIndex].text = opt;
-                            });
-                          },
-                    backgroundColor: cardColor,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      child: Row(
-                        children: [
-                          Radio<String>(
-                            value: opt.trim(),
-                            groupValue: _answerCtrls[_currentQuestionIndex].text
-                                .trim(),
-                            onChanged: _isReviewing
-                                ? null
-                                : (val) {
-                                    if (val != null) {
-                                      setState(() {
-                                        _answerCtrls[_currentQuestionIndex]
-                                                .text =
-                                            val;
-                                      });
-                                    }
-                                  },
-                            activeColor: AppColors.primaryGreen,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              opt,
-                              style: TextStyle(
-                                fontWeight:
-                                    (isSelected ||
-                                        (_isReviewing && isCorrectAnswer))
-                                    ? FontWeight.bold
-                                    : null,
-                                color: (_isReviewing && isCorrectAnswer)
-                                    ? Colors.green[800]
-                                    : null,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.outlineVariant,
                     ),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-              );
-            })
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: _answerCtrls[_currentQuestionIndex],
-                  decoration: const InputDecoration(
-                    hintText: 'Type your answer here...',
-                    border: OutlineInputBorder(),
+                  child: RadioListTile<String>(
+                    title: Text(opt.trim()),
+                    value: opt.trim(),
+                    selected: isSelected,
+                    tileColor: _isReviewing
+                        ? (isCorrectAnswer
+                              ? Theme.of(context).colorScheme.primaryContainer
+                              : (isSelected
+                                    ? Theme.of(
+                                        context,
+                                      ).colorScheme.errorContainer
+                                    : null))
+                        : null,
                   ),
-                  enabled: !_isReviewing, // Disable input in review mode
-                  autofocus: !_isReviewing,
-                  onChanged: (v) => setState(() {}),
-                ),
-                if (_isReviewing)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      'Correct Answer: ${question.answer}',
-                      style: const TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
+                );
+              }).toList(),
             ),
-
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          )
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (_currentQuestionIndex > 0)
-                TextButton(
-                  onPressed: () {
-                    setState(() => _currentQuestionIndex--);
-                  },
-                  child: const Text('Previous'),
-                )
-              else
-                const SizedBox(),
-              if (_currentQuestionIndex < _shuffledQuestions.length - 1)
-                FilledButton(
-                  onPressed: () {
-                    setState(() => _currentQuestionIndex++);
-                  },
-                  child: const Text('Next'),
-                )
-              else if (!_isReviewing)
-                SizedBox(
-                  width: 120,
-                  child: FilledButton(
-                    onPressed: (_submitting || !_allAnswered)
-                        ? null
-                        : () => _confirmSubmission(maxAttempts),
-                    child: _submitting
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.primaryGreen,
-                            ),
-                          )
-                        : const Text('Submit'),
+              TextField(
+                controller: _answerCtrls[_currentQuestionIndex],
+                decoration: const InputDecoration(
+                  hintText: 'Type your answer here...',
+                  border: OutlineInputBorder(),
+                ),
+                enabled: !_isReviewing, // Disable input in review mode
+                autofocus: !_isReviewing,
+                onChanged: (v) => setState(() {}),
+              ),
+              if (_isReviewing)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'Correct Answer: ${question.answer}',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
             ],
           ),
-          if (!_isReviewing &&
-              !_allAnswered &&
-              _currentQuestionIndex == _shuffledQuestions.length - 1)
-            const Padding(
-              padding: EdgeInsets.only(top: 8.0),
-              child: Text(
-                'Please answer all questions before submitting.',
-                style: TextStyle(color: Colors.teal, fontSize: 12),
+
+        const SizedBox(height: 32),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            if (_currentQuestionIndex > 0)
+              TextButton(
+                onPressed: () {
+                  setState(() => _currentQuestionIndex--);
+                },
+                child: const Text('Previous'),
+              )
+            else
+              const SizedBox(),
+            if (_currentQuestionIndex < _shuffledQuestions.length - 1)
+              FilledButton(
+                onPressed: () {
+                  setState(() => _currentQuestionIndex++);
+                },
+                child: const Text('Next'),
+              )
+            else if (!_isReviewing)
+              SizedBox(
+                width: 120,
+                child: FilledButton(
+                  onPressed: (_submitting || !_allAnswered)
+                      ? null
+                      : () => _confirmSubmission(maxAttempts),
+                  child: _submitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Submit'),
+                ),
+              ),
+          ],
+        ),
+        if (!_isReviewing &&
+            !_allAnswered &&
+            _currentQuestionIndex == _shuffledQuestions.length - 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              'Please answer all questions before submitting.',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 12,
               ),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -615,8 +609,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: _secondsRemaining < 60
-            ? Colors.red.withValues(alpha: 0.1)
-            : Colors.blue.withValues(alpha: 0.1),
+            ? Theme.of(context).colorScheme.errorContainer
+            : Theme.of(context).colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -624,14 +618,18 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           Icon(
             Icons.timer,
             size: 16,
-            color: _secondsRemaining < 60 ? Colors.red : Colors.blue,
+            color: _secondsRemaining < 60
+                ? Theme.of(context).colorScheme.error
+                : Theme.of(context).colorScheme.onPrimaryContainer,
           ),
           const SizedBox(width: 4),
           Text(
             '${(_secondsRemaining ~/ 60).toString().padLeft(2, '0')}:${(_secondsRemaining % 60).toString().padLeft(2, '0')}',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: _secondsRemaining < 60 ? Colors.red : Colors.blue,
+              color: _secondsRemaining < 60
+                  ? Theme.of(context).colorScheme.error
+                  : Theme.of(context).colorScheme.onPrimaryContainer,
             ),
           ),
         ],
@@ -640,7 +638,11 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   }
 
   Widget _buildQuestionSidePanel() {
-    return GlassCard(
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -667,18 +669,20 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     tileColor: isCurrent
-                        ? Colors.blue.withValues(alpha: 0.1)
+                        ? Theme.of(context).colorScheme.primaryContainer
                         : null,
                     leading: CircleAvatar(
                       radius: 12,
                       backgroundColor: isAnswered
-                          ? Colors.green
-                          : Colors.grey[300],
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                       child: Text(
                         '${index + 1}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       ),
                     ),
@@ -737,84 +741,90 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       maxAttempts,
     );
 
-    return FadeInSlide(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: _isCorrect
-                  ? Colors.green.withValues(alpha: 0.1)
-                  : Colors.teal.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _isCorrect
+                ? Theme.of(context).colorScheme.primaryContainer
+                : Theme.of(context).colorScheme.secondaryContainer,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            _isCorrect ? Icons.check_circle : Icons.info_outline,
+            size: 64,
+            color: _isCorrect
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.secondary,
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          _isCorrect ? 'Congratulations!' : 'Quiz Finished',
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildStatItem(
+              'Score',
+              '${_lastScore ?? 0} / ${_shuffledQuestions.length}',
             ),
-            child: Icon(
-              _isCorrect ? Icons.check_circle : Icons.info_outline,
-              size: 64,
-              color: _isCorrect ? Colors.green : Colors.teal,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            _isCorrect ? 'Congratulations!' : 'Quiz Finished',
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildStatItem(
-                'Score',
-                '${_lastScore ?? 0} / ${_shuffledQuestions.length}',
-              ),
-              _buildStatItem('Time', timeStr),
-            ],
-          ),
-          const SizedBox(height: 32),
-          Text(
-            _isCorrect
-                ? 'You have successfully completed this quiz.'
-                : 'Keep practicing! You have $remainingAttempts attempts remaining.',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-          if (!_isCorrect && remainingAttempts > 0)
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () {
-                  setState(() {
-                    _quizStarted = true; // Directly start a new attempt
-                    _completedLocal = false;
-                    _currentQuestionIndex = 0;
-                    for (var ctrl in _answerCtrls) {
-                      ctrl.clear();
-                    }
-                    _secondsRemaining = widget.quiz.duration * 60;
-                    _startTime = DateTime.now();
-                  });
-                  if (widget.quiz.duration > 0) {
-                    _startTimer();
+            _buildStatItem('Time', timeStr),
+          ],
+        ),
+        const SizedBox(height: 32),
+        Text(
+          _isCorrect
+              ? 'You have successfully completed this quiz.'
+              : 'Keep practicing! You have $remainingAttempts attempts remaining.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 32),
+        if (!_isCorrect && remainingAttempts > 0)
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () {
+                setState(() {
+                  _quizStarted = true; // Directly start a new attempt
+                  _completedLocal = false;
+                  _currentQuestionIndex = 0;
+                  for (var ctrl in _answerCtrls) {
+                    ctrl.clear();
                   }
-                },
-                child: const Text('Try Again'),
-              ),
+                  _secondsRemaining = widget.quiz.duration * 60;
+                  _startTime = DateTime.now();
+                });
+                if (widget.quiz.duration > 0) {
+                  _startTimer();
+                }
+              },
+              child: const Text('Try Again'),
             ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Back to Quizzes'),
           ),
-        ],
-      ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Back to Quizzes'),
+        ),
+      ],
     );
   }
 
   Widget _buildStatItem(String label, String value) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           value,
@@ -823,5 +833,33 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       ],
     );
   }
-}
 
+  Widget _buildLockMessage() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.lock,
+            color: Theme.of(context).colorScheme.onSecondaryContainer,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Members Only Content',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'You must be subscribed to this educator to take this quiz.',
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}

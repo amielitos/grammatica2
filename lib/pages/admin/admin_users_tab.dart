@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/role_service.dart';
-import '../../theme/app_colors.dart';
-import '../../widgets/glass_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
 import '../../widgets/app_search_bar.dart';
 import '../../services/database_service.dart';
 
@@ -102,35 +99,38 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       });
                     },
                     onFilterPressed: () {
-                      showCupertinoModalPopup(
+                      showModalBottomSheet(
                         context: context,
-                        builder: (context) => CupertinoActionSheet(
-                          title: const Text('Filter Users By'),
-                          actions: _filterOptions.map((option) {
-                            return CupertinoActionSheetAction(
-                              onPressed: () {
-                                setState(() {
-                                  _selectedFilter = option;
-                                });
-                                Navigator.pop(context);
-                              },
-                              child: Text(
-                                option,
-                                style: TextStyle(
-                                  color: _selectedFilter == option
-                                      ? AppColors.primaryGreen
-                                      : null,
-                                  fontWeight: _selectedFilter == option
-                                      ? FontWeight.bold
-                                      : null,
+                        builder: (context) => SafeArea(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Text(
+                                  'Filter Users By',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
                               ),
-                            );
-                          }).toList(),
-                          cancelButton: CupertinoActionSheetAction(
-                            onPressed: () => Navigator.pop(context),
-                            isDestructiveAction: true,
-                            child: const Text('Cancel'),
+                              ..._filterOptions.map((option) {
+                                return ListTile(
+                                  leading: Icon(
+                                    _selectedFilter == option
+                                        ? Icons.radio_button_checked
+                                        : Icons.radio_button_off,
+                                  ),
+                                  title: Text(option),
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedFilter = option;
+                                    });
+                                    Navigator.pop(context);
+                                  },
+                                );
+                              }),
+                            ],
                           ),
                         ),
                       );
@@ -148,7 +148,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           return ListView.separated(
                             padding: const EdgeInsets.only(bottom: 16),
                             itemCount: users.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, _) =>
                                 const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final u = users[index];
@@ -162,38 +162,36 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                   (u['subscription_status'] ?? 'N/A') as String;
                               final ts = u['createdAt'];
 
-                              return GlassCard(
+                              return Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.outlineVariant,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: const EdgeInsets.all(16),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
                                       children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color:
-                                                (role == 'ADMIN'
-                                                        ? AppColors.primaryGreen
-                                                        : (role == 'EDUCATOR'
-                                                              ? Colors.blue
-                                                              : Colors.grey))
-                                                    .withOpacity(0.1),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            role == 'ADMIN'
-                                                ? CupertinoIcons
-                                                      .checkmark_shield_fill
-                                                : (role == 'EDUCATOR'
-                                                      ? CupertinoIcons.book_fill
-                                                      : CupertinoIcons
-                                                            .person_fill),
-                                            color: role == 'ADMIN'
-                                                ? AppColors.primaryGreen
-                                                : (role == 'EDUCATOR'
-                                                      ? Colors.blue
-                                                      : AppColors.textPrimary),
-                                          ),
+                                        CircleAvatar(
+                                          radius: 20,
+                                          backgroundImage: u['photoUrl'] != null
+                                              ? NetworkImage(u['photoUrl'])
+                                              : null,
+                                          child: u['photoUrl'] == null
+                                              ? Icon(
+                                                  role == 'ADMIN'
+                                                      ? Icons
+                                                            .admin_panel_settings
+                                                      : (role == 'EDUCATOR'
+                                                            ? Icons.school
+                                                            : Icons.person),
+                                                )
+                                              : null,
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
@@ -211,40 +209,16 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                             vertical: 4,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: role == 'ADMIN'
-                                                ? AppColors.primaryGreen
-                                                      .withOpacity(0.2)
-                                                : Colors.grey.withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(
                                               12,
                                             ),
-                                            border: Border.all(
-                                              color: role == 'ADMIN'
-                                                  ? AppColors.primaryGreen
-                                                        .withOpacity(0.5)
-                                                  : Colors.grey.withOpacity(
-                                                      0.3,
-                                                    ),
-                                            ),
+                                            border: Border.all(),
                                           ),
                                           child: Text(
                                             role,
-                                            style: TextStyle(
+                                            style: const TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.bold,
-                                              color: role == 'ADMIN'
-                                                  ? (Theme.of(
-                                                              context,
-                                                            ).brightness ==
-                                                            Brightness.dark
-                                                        ? Colors.green[200]
-                                                        : Colors.green[800])
-                                                  : (Theme.of(
-                                                              context,
-                                                            ).brightness ==
-                                                            Brightness.dark
-                                                        ? Colors.white70
-                                                        : Colors.black54),
                                             ),
                                           ),
                                         ),
@@ -287,49 +261,50 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                             child: DropdownButton<UserRole>(
                                               value: roleFromString(role),
                                               isExpanded: true,
-                                              items: UserRole.values.where((r) => r != UserRole.superadmin).map((
-                                                r,
-                                              ) {
-                                                final rStr = roleToString(r);
-                                                return DropdownMenuItem<
-                                                  UserRole
-                                                >(
-                                                  value: r,
-                                                  child: Row(
-                                                    children: [
-                                                      Icon(
-                                                        r == UserRole.admin
-                                                            ? CupertinoIcons
-                                                                  .checkmark_shield_fill
-                                                            : (r ==
-                                                                      UserRole
-                                                                          .educator
-                                                                  ? CupertinoIcons
-                                                                        .book_fill
-                                                                  : CupertinoIcons
-                                                                        .person_fill),
-                                                        size: 16,
-                                                        color:
+                                              items: UserRole.values
+                                                  .where(
+                                                    (r) =>
+                                                        r !=
+                                                        UserRole.superadmin,
+                                                  )
+                                                  .map((r) {
+                                                    final rStr = roleToString(
+                                                      r,
+                                                    );
+                                                    return DropdownMenuItem<
+                                                      UserRole
+                                                    >(
+                                                      value: r,
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(
                                                             r == UserRole.admin
-                                                            ? Colors.green
-                                                            : (r ==
-                                                                      UserRole
-                                                                          .educator
-                                                                  ? Colors.blue
-                                                                  : Colors
-                                                                        .grey),
+                                                                ? Icons
+                                                                      .admin_panel_settings
+                                                                : (r ==
+                                                                          UserRole
+                                                                              .educator
+                                                                      ? Icons
+                                                                            .school
+                                                                      : Icons
+                                                                            .person),
+                                                            size: 16,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                          Text(
+                                                            rStr,
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 14,
+                                                                ),
+                                                          ),
+                                                        ],
                                                       ),
-                                                      const SizedBox(width: 8),
-                                                      Text(
-                                                        rStr,
-                                                        style: const TextStyle(
-                                                          fontSize: 14,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                );
-                                              }).toList(),
+                                                    );
+                                                  })
+                                                  .toList(),
                                               onChanged: (newRole) async {
                                                 if (newRole != null &&
                                                     roleToString(newRole) !=
@@ -357,11 +332,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                         ),
                                         const SizedBox(width: 8),
                                         IconButton(
-                                          icon: const Icon(
-                                            CupertinoIcons.trash,
-                                            color: Colors.red,
-                                            size: 20,
-                                          ),
+                                          icon: const Icon(Icons.delete),
                                           onPressed: () =>
                                               _showDeleteConfirmation(
                                                 uid,
@@ -396,25 +367,24 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   }
 
   void _showDeleteConfirmation(String uid, String username) {
-    showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Delete Account'),
         content: Text(
           'Are you sure you want to delete $username\'s account? This will also delete all their lessons, quizzes, and files. This action cannot be undone.',
         ),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             child: const Text('Cancel'),
             onPressed: () => Navigator.pop(context),
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
+          TextButton(
             onPressed: () async {
               Navigator.pop(context);
               try {
                 await DatabaseService.instance.deleteUserAccount(uid);
-                if (mounted) {
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Account deleted successfully'),
@@ -422,14 +392,14 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   );
                 }
               } catch (e) {
-                if (mounted) {
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error deleting account: $e')),
                   );
                 }
               }
             },
-            child: const Text('Delete'),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -446,17 +416,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     }
 
     return Container(
-      width: targetWidth,
       decoration: BoxDecoration(
-        color: AppColors.getCardColor(context),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -465,9 +427,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: AppColors.getTextColor(context).withValues(alpha: 0.1),
-                ),
+                bottom: BorderSide(color: Theme.of(context).dividerColor),
               ),
             ),
             child: Row(
@@ -502,10 +462,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           Expanded(
             child: ListView.separated(
               itemCount: users.length,
-              separatorBuilder: (context, index) => Divider(
-                height: 1,
-                color: AppColors.getTextColor(context).withValues(alpha: 0.05),
-              ),
+              separatorBuilder: (context, index) =>
+                  Divider(height: 1, color: Theme.of(context).dividerColor),
               itemBuilder: (context, index) {
                 final u = users[index];
                 final email = (u['email'] ?? 'N/A') as String;
@@ -517,85 +475,93 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     (u['subscription_status'] ?? 'N/A') as String;
                 final createdAt = _formatTs(u['createdAt']);
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+                return Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.grey,
-                                shape: BoxShape.circle,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircleAvatar(
+                                radius: 14,
+                                backgroundImage: u['photoUrl'] != null
+                                    ? NetworkImage(u['photoUrl'])
+                                    : null,
+                                child: u['photoUrl'] == null
+                                    ? const Icon(Icons.person, size: 16)
+                                    : null,
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                username,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  username,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        flex: 4,
-                        child: Text(email, overflow: TextOverflow.ellipsis),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: _buildRoleChip(role, context),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: _buildStatusBubble(status),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          subscription,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(createdAt, overflow: TextOverflow.ellipsis),
-                      ),
-                      Expanded(
-                        flex: 3,
-                        child: _buildRoleDropdown(uid, email, role, context),
-                      ),
-                      SizedBox(
-                        width: 80,
-                        child: IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.trash,
-                            color: Colors.redAccent,
-                            size: 20,
+                            ],
                           ),
-                          onPressed: () =>
-                              _showDeleteConfirmation(uid, username),
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          flex: 4,
+                          child: Text(email, overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: _buildRoleChip(role, context),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: _buildStatusBubble(status),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            subscription,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            createdAt,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: _buildRoleDropdown(uid, email, role, context),
+                        ),
+                        SizedBox(
+                          width: 80,
+                          child: IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () =>
+                                _showDeleteConfirmation(uid, username),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -615,77 +581,23 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       alignment: alignment,
       child: Text(
         title,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: AppColors.getTextColor(context).withValues(alpha: 0.6),
-          fontSize: 13,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
         overflow: TextOverflow.ellipsis,
       ),
     );
   }
 
   Widget _buildRoleChip(String role, BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: role == 'ADMIN'
-            ? AppColors.primaryGreen.withValues(alpha: 0.2)
-            : (role == 'EDUCATOR'
-                  ? Colors.blue.withValues(alpha: 0.2)
-                  : (Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white.withValues(alpha: 0.1)
-                        : Colors.grey.shade100)),
-        borderRadius: BorderRadius.circular(8),
-        border: role == 'ADMIN'
-            ? Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.5))
-            : (role == 'EDUCATOR'
-                  ? Border.all(color: Colors.blue.withValues(alpha: 0.5))
-                  : null),
-      ),
-      child: Text(
-        role.toUpperCase(),
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
-          color: role == 'ADMIN'
-              ? (Theme.of(context).brightness == Brightness.dark
-                    ? Colors.green[200]
-                    : Colors.green[800])
-              : (role == 'EDUCATOR'
-                    ? (Theme.of(context).brightness == Brightness.dark
-                          ? Colors.blue[200]
-                          : Colors.blue[800])
-                    : AppColors.getTextColor(context)),
-        ),
-      ),
+    return Text(
+      role.toUpperCase(),
+      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
     );
   }
 
   Widget _buildStatusBubble(String status) {
-    final isActive =
-        status.toUpperCase() == 'ACTIVE' || status.toUpperCase() == 'COMPLETED';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isActive
-            ? Colors.green.withValues(alpha: 0.2)
-            : Colors.red.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isActive
-              ? Colors.green.withValues(alpha: 0.5)
-              : Colors.red.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Text(
-        status.toUpperCase(),
-        style: TextStyle(
-          color: isActive ? Colors.green[700] : Colors.red[700],
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+    return Text(
+      status.toUpperCase(),
+      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
     );
   }
 
@@ -695,50 +607,35 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     String currentRole,
     BuildContext context,
   ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      height: 36,
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<UserRole>(
-          isExpanded: true,
-          value: roleFromString(currentRole),
-          dropdownColor: AppColors.getCardColor(context),
-          icon: const Icon(CupertinoIcons.chevron_down, size: 16),
-          items: UserRole.values.where((r) => r != UserRole.superadmin).map((
-            r,
-          ) {
-            return DropdownMenuItem(
-              value: r,
-              child: Text(
-                roleToString(r).toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.getTextColor(context),
-                  fontWeight: FontWeight.w500,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            );
-          }).toList(),
-          onChanged: (newRole) async {
-            if (newRole != null && roleToString(newRole) != currentRole) {
-              await RoleService.instance.setUserRole(uid: uid, role: newRole);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Role updated to ${roleToString(newRole)} for $email',
-                    ),
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<UserRole>(
+        isExpanded: true,
+        value: roleFromString(currentRole),
+        icon: const Icon(Icons.expand_more, size: 16),
+        items: UserRole.values.where((r) => r != UserRole.superadmin).map((r) {
+          return DropdownMenuItem(
+            value: r,
+            child: Text(
+              roleToString(r).toUpperCase(),
+              style: const TextStyle(fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+        }).toList(),
+        onChanged: (newRole) async {
+          if (newRole != null && roleToString(newRole) != currentRole) {
+            await RoleService.instance.setUserRole(uid: uid, role: newRole);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Role updated to ${roleToString(newRole)} for $email',
                   ),
-                );
-              }
+                ),
+              );
             }
-          },
-        ),
+          }
+        },
       ),
     );
   }

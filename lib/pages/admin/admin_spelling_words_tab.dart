@@ -12,7 +12,6 @@ import '../../models/spelling_word.dart';
 import '../../services/database_service.dart';
 import '../../widgets/audio_player_widget.dart';
 import '../../services/ai_service.dart';
-import '../../theme/app_colors.dart';
 
 class AdminSpellingWordsTab extends StatefulWidget {
   const AdminSpellingWordsTab({super.key});
@@ -97,27 +96,15 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Word Bank Management'),
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: AppColors.getTextColor(context)),
-        titleTextStyle: TextStyle(
-          color: AppColors.getTextColor(context),
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
         actions: [
           LayoutBuilder(
             builder: (context, constraints) {
               final isNarrow = MediaQuery.of(context).size.width < 600;
               if (isNarrow) {
                 return PopupMenuButton<String>(
-                  icon: Icon(
-                    Icons.more_vert,
-                    color: AppColors.getTextColor(context),
-                  ),
+                  icon: const Icon(Icons.more_vert),
                   onSelected: (value) {
                     switch (value) {
                       case 'ai':
@@ -242,11 +229,7 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
                   ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primaryGreen,
-                        ),
-                      );
+                      return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.hasError) {
                       return Center(
@@ -258,14 +241,10 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
                     }
                     final words = snapshot.data ?? [];
                     if (words.isEmpty) {
-                      return Center(
+                      return const Center(
                         child: Text(
                           'No words added yet.',
-                          style: TextStyle(
-                            color: AppColors.getTextColor(
-                              context,
-                            ).withValues(alpha: 0.6),
-                          ),
+                          style: TextStyle(color: Colors.grey),
                         ),
                       );
                     }
@@ -277,18 +256,19 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
                         return ListTile(
                           title: Text(
                             sw.word,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 18,
-                              color: AppColors.getTextColor(context),
                             ),
                           ),
                           subtitle: Text(
                             sw.difficultyLabel,
                             style: TextStyle(
-                              color: AppColors.getTextColor(
-                                context,
-                              ).withValues(alpha: 0.7),
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.color
+                                  ?.withValues(alpha: 0.7),
                             ),
                           ),
                           leading: sw.audioUrl != null
@@ -878,12 +858,12 @@ class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
                 ? null
                 : _saveSelected,
             child: _isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: AppColors.primaryGreen,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   )
                 : Text('Save Selected (${_selectedIndices.length})'),

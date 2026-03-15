@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
 import '../../services/database_service.dart';
-import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/author_name_widget.dart';
 import '../quiz_detail_page.dart';
@@ -10,10 +8,10 @@ import '../lesson_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/role_service.dart';
 import '../../services/notification_service.dart';
-import '../../theme/app_colors.dart';
 
 class AdminValidationTab extends StatefulWidget {
-  const AdminValidationTab({super.key});
+  final UserRole role;
+  const AdminValidationTab({super.key, required this.role});
 
   @override
   State<AdminValidationTab> createState() => _AdminValidationTabState();
@@ -35,16 +33,25 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isSuperAdmin = widget.role == UserRole.superadmin;
+
+    if (isSuperAdmin) {
+      return _EducatorApplicationsList(
+        formatDate: _formatTs,
+        type: 'validator',
+      );
+    }
+
     return DefaultTabController(
       length: 3,
       child: Column(
         children: [
           TabBar(
-            labelColor: AppColors.primaryGreen,
-            unselectedLabelColor: AppColors.getTextColor(
+            labelColor: Theme.of(context).colorScheme.primary,
+            unselectedLabelColor: Theme.of(
               context,
-            ).withValues(alpha: 0.6),
-            indicatorColor: AppColors.primaryGreen,
+            ).textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
+            indicatorColor: Theme.of(context).colorScheme.primary,
             tabs: const [
               Tab(text: 'Lessons'),
               Tab(text: 'Quizzes'),
@@ -66,7 +73,10 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
                   collection: 'quizzes',
                   formatDate: _formatTs,
                 ),
-                _EducatorApplicationsList(formatDate: _formatTs),
+                _EducatorApplicationsList(
+                  formatDate: _formatTs,
+                  type: 'educator',
+                ),
               ],
             ),
           ),
@@ -78,13 +88,14 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
 
 class _EducatorApplicationsList extends StatelessWidget {
   final String Function(dynamic) formatDate;
+  final String? type;
 
-  const _EducatorApplicationsList({required this.formatDate});
+  const _EducatorApplicationsList({required this.formatDate, this.type});
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<EducatorApplication>>(
-      stream: DatabaseService.instance.streamEducatorApplications(),
+      stream: DatabaseService.instance.streamEducatorApplications(type: type),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -107,12 +118,15 @@ class _EducatorApplicationsList extends StatelessWidget {
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
-            child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
           );
         }
         final items = snapshot.data ?? [];
         if (items.isEmpty) {
-          return const Center(child: Text('No educator applications pending.'));
+          final typeStr = type == 'validator' ? 'validator' : 'educator';
+          return Center(child: Text('No $typeStr applications pending.'));
         }
 
         return ListView.separated(
@@ -126,8 +140,11 @@ class _EducatorApplicationsList extends StatelessWidget {
                 ? formatDate(app.appliedAt!)
                 : 'N/A';
 
-            return GlassCard(
-              backgroundColor: AppColors.getCardColor(context),
+            return Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
@@ -142,10 +159,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              CupertinoIcons.person_crop_circle_fill,
-                              size: 40,
-                            ),
+                            const Icon(Icons.account_circle, size: 40),
                             const SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,7 +184,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                           children: [
                             IconButton(
                               icon: const Icon(
-                                CupertinoIcons.checkmark_circle,
+                                Icons.check_circle_outline,
                                 color: Colors.green,
                               ),
                               onPressed: () =>
@@ -178,7 +192,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                             ),
                             IconButton(
                               icon: const Icon(
-                                CupertinoIcons.xmark_circle,
+                                Icons.highlight_off,
                                 color: Colors.red,
                               ),
                               onPressed: () => _rejectApplication(context, app),
@@ -199,7 +213,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                       children: [
                         FilledButton.icon(
                           onPressed: () => _launchURL(app.videoUrl),
-                          icon: const Icon(CupertinoIcons.play_circle),
+                          icon: const Icon(Icons.play_circle_outline),
                           label: const Text('View Video Demo'),
                           style: FilledButton.styleFrom(
                             backgroundColor: Colors.blue.withValues(alpha: 0.1),
@@ -208,12 +222,10 @@ class _EducatorApplicationsList extends StatelessWidget {
                         ),
                         FilledButton.icon(
                           onPressed: () => _launchURL(app.syllabusUrl),
-                          icon: const Icon(CupertinoIcons.doc_text),
+                          icon: const Icon(Icons.description),
                           label: const Text('View Syllabus'),
                           style: FilledButton.styleFrom(
-                            backgroundColor: Colors.teal.withValues(
-                              alpha: 0.1,
-                            ),
+                            backgroundColor: Colors.teal.withValues(alpha: 0.1),
                             foregroundColor: Colors.teal,
                           ),
                         ),
@@ -249,9 +261,13 @@ class _EducatorApplicationsList extends StatelessWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Approve Educator'),
+        title: Text(
+          app.applicationType == 'validator'
+              ? 'Approve Validator'
+              : 'Approve Educator',
+        ),
         content: Text(
-          'Are you sure you want to approve ${app.applicantEmail} as an educator?',
+          'Are you sure you want to approve ${app.applicantEmail} as a ${app.applicationType}?',
         ),
         actions: [
           TextButton(
@@ -271,7 +287,9 @@ class _EducatorApplicationsList extends StatelessWidget {
         // Update user role
         await RoleService.instance.setUserRole(
           uid: app.applicantUid,
-          role: UserRole.educator,
+          role: app.applicationType == 'validator'
+              ? UserRole.validator
+              : UserRole.educator,
         );
         // Update application status
         await DatabaseService.instance.updateApplicationStatus(
@@ -286,13 +304,17 @@ class _EducatorApplicationsList extends StatelessWidget {
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Educator approved successfully')),
+            SnackBar(
+              content: Text('${app.applicationType} approved successfully'),
+            ),
           );
         }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error approving educator: $e')),
+            SnackBar(
+              content: Text('Error approving ${app.applicationType}: $e'),
+            ),
           );
         }
       }
@@ -317,7 +339,7 @@ class _EducatorApplicationsList extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Please provide a reason for rejecting this educator application.',
+                'Please provide a reason for rejecting this application.',
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -430,7 +452,9 @@ class _ValidationList extends StatelessWidget {
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
-            child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
           );
         }
         final items = snapshot.data ?? [];
@@ -449,161 +473,142 @@ class _ValidationList extends StatelessWidget {
                 ? formatDate(item.createdAt!)
                 : 'N/A';
 
-            return GlassCard(
-              backgroundColor: AppColors.getCardColor(context),
-              onTap: () {
-                final user = AuthService.instance.currentUser;
-                if (user == null) return;
+            return Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: InkWell(
+                onTap: () {
+                  final user = AuthService.instance.currentUser;
+                  if (user == null) return;
 
-                if (collection == 'lessons') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => LessonPage(
-                        user: user,
-                        lesson: item as Lesson,
-                        previewMode: true,
+                  if (collection == 'lessons') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => LessonPage(
+                          user: user,
+                          lesson: item as Lesson,
+                          previewMode: true,
+                        ),
                       ),
-                    ),
-                  );
-                } else {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => QuizDetailPage(
-                        user: user,
-                        quiz: item as Quiz,
-                        previewMode: true,
+                    );
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => QuizDetailPage(
+                          user: user,
+                          quiz: item as Quiz,
+                          previewMode: true,
+                        ),
                       ),
-                    ),
-                  );
-                }
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width - 200,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                    );
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width - 200,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          AuthorName(
-                            uid: item.createdByUid,
-                            fallbackEmail: item.createdByEmail,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color:
-                                      (item.isMembersOnly
-                                              ? Colors.amber
-                                              : Colors.blue)
-                                          .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color:
-                                        (item.isMembersOnly
-                                                ? Colors.amber
-                                                : Colors.blue)
-                                            .withValues(alpha: 0.5),
-                                  ),
-                                ),
-                                child: Text(
+                            const SizedBox(height: 4),
+                            AuthorName(
+                              uid: item.createdByUid,
+                              fallbackEmail: item.createdByEmail,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(
                                   item.isMembersOnly
                                       ? 'Members Only'
                                       : 'Public',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: item.isMembersOnly
-                                        ? Colors.amber
-                                        : Colors.blue,
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Submitted: $createdAtStr',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.visibility,
+                              color: Colors.blue,
+                            ),
+                            tooltip: 'Preview',
+                            onPressed: () {
+                              final user = AuthService.instance.currentUser;
+                              if (user == null) return;
+
+                              if (collection == 'lessons') {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => LessonPage(
+                                      user: user,
+                                      lesson: item as Lesson,
+                                      previewMode: true,
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => QuizDetailPage(
+                                      user: user,
+                                      quiz: item as Quiz,
+                                      previewMode: true,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Submitted: $createdAtStr',
-                            style: Theme.of(context).textTheme.bodySmall,
+                          IconButton(
+                            icon: const Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.green,
+                            ),
+                            onPressed: () => _approve(context, item.id),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.highlight_off,
+                              color: Colors.red,
+                            ),
+                            onPressed: () => _reject(context, item.id),
                           ),
                         ],
                       ),
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.eye,
-                            color: Colors.blue,
-                          ),
-                          tooltip: 'Preview',
-                          onPressed: () {
-                            final user = AuthService.instance.currentUser;
-                            if (user == null) return;
-
-                            if (collection == 'lessons') {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => LessonPage(
-                                    user: user,
-                                    lesson: item as Lesson,
-                                    previewMode: true,
-                                  ),
-                                ),
-                              );
-                            } else {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => QuizDetailPage(
-                                    user: user,
-                                    quiz: item as Quiz,
-                                    previewMode: true,
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.checkmark_circle,
-                            color: Colors.green,
-                          ),
-                          onPressed: () => _approve(context, item.id),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.xmark_circle,
-                            color: Colors.red,
-                          ),
-                          onPressed: () => _reject(context, item.id),
-                        ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -677,4 +682,3 @@ class _ValidationList extends StatelessWidget {
     }
   }
 }
-
