@@ -3,9 +3,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/database_service.dart';
-import 'quiz_detail_page.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/author_name_widget.dart';
+import '../pages/quiz_detail_page.dart';
+import '../theme/app_colors.dart';
+import '../main.dart';
 
 class QuizFolderPage extends StatefulWidget {
   final User user;
@@ -59,14 +61,20 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
         ),
       ),
       body: _buildContent(context),
@@ -105,20 +113,20 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
       children: [
         if (widget.onBack != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back),
+                  icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
                   onPressed: widget.onBack,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   widget.title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
                 ),
               ],
             ),
@@ -129,8 +137,8 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
             alignment: Alignment.centerLeft,
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width > 600
-                    ? MediaQuery.of(context).size.width * 0.6
+                maxWidth: MediaQuery.of(context).size.width > 800
+                    ? 500
                     : double.infinity,
               ),
               child: AppSearchBar(
@@ -141,114 +149,105 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
           ),
         ),
         Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Center(
-                  child: Wrap(
-                    spacing: 24,
-                    runSpacing: 24,
-                    alignment: WrapAlignment.center,
-                    children: filteredAuthors.map((authorUid) {
-                      final quizzes = authorQuizzes[authorUid]!;
-                      final authorEmail = quizzes.first.createdByEmail;
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Wrap(
+                spacing: 24,
+                runSpacing: 24,
+                alignment: WrapAlignment.center,
+                children: filteredAuthors.map((authorUid) {
+                  final quizzes = authorQuizzes[authorUid]!;
+                  final authorEmail = quizzes.first.createdByEmail;
 
-                      return SizedBox(
-                        width: 240,
-                        height: 320,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.outlineVariant,
+                  return Card(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => QuizFolderPage(
+                              user: widget.user,
+                              title: 'Public Quizzes',
+                              pillLabel: 'Public',
+                              quizzes: quizzes,
+                              isPublicContentFolder: false,
                             ),
-                            borderRadius: BorderRadius.circular(12),
                           ),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => QuizFolderPage(
-                                    user: widget.user,
-                                    title: 'Public Quizzes',
-                                    pillLabel: 'Public',
-                                    quizzes: quizzes,
-                                    isPublicContentFolder: false,
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(24),
+                      child: SizedBox(
+                        width: 260,
+                        height: 300,
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Icon(
+                                  Icons.folder_rounded,
+                                  size: 32,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const Spacer(),
+                              AuthorName(
+                                uid: authorUid == 'Unknown'
+                                    ? null
+                                    : authorUid,
+                                fallbackEmail: authorEmail,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.textPrimary,
+                                    ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Check out content!',
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 20),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Text(
+                                  'Public',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.secondary,
                                   ),
                                 ),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.folder,
-                                    size: 48,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                  ),
-                                  const Spacer(),
-                                  AuthorName(
-                                    uid: authorUid == 'Unknown'
-                                        ? null
-                                        : authorUid,
-                                    fallbackEmail: authorEmail,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall
-                                        ?.copyWith(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Check out content!',
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(fontSize: 14),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primaryContainer,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      'Public',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onPrimaryContainer,
-                                      ),
-                                    ),
-                                  ),
-                                ],
                               ),
-                            ),
+                            ],
                           ),
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              );
-            },
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
           ),
         ),
       ],
@@ -295,20 +294,20 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
           children: [
             if (widget.onBack != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
                       onPressed: widget.onBack,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       widget.title,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
                     ),
                   ],
                 ),
@@ -319,11 +318,8 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                 alignment: Alignment.centerLeft,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width > 600
-                        ? MediaQuery.of(context).size.width * 0.6
-                        : double.infinity,
-                    minWidth: MediaQuery.of(context).size.width > 600
-                        ? 0
+                    maxWidth: MediaQuery.of(context).size.width > 800
+                        ? 500
                         : double.infinity,
                   ),
                   child: AppSearchBar(
@@ -344,8 +340,8 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                 option,
                                 style: TextStyle(
                                   color: _selectedFilter == option
-                                      ? Theme.of(context).colorScheme.primary
-                                      : null,
+                                      ? AppColors.primary
+                                      : AppColors.textPrimary,
                                   fontWeight: _selectedFilter == option
                                       ? FontWeight.bold
                                       : null,
@@ -370,7 +366,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth >= 900;
                   final listBlock = filteredQuizzes.isEmpty
-                      ? const Center(child: Text('No quizzes found.'))
+                      ? const Center(child: Text('No quizzes found.', style: TextStyle(color: AppColors.textSecondary)))
                       : ListView.separated(
                           padding: const EdgeInsets.all(24),
                           itemCount: filteredQuizzes.length,
@@ -386,16 +382,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                             final max = quiz.maxAttempts;
                             bool failed = !isCorrect && attempts >= max;
 
-                            return Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.outlineVariant,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              clipBehavior: Clip.antiAlias,
+                            return Card(
                               child: InkWell(
                                 onTap: () {
                                   Navigator.of(context).push(
@@ -407,18 +394,24 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                     ),
                                   );
                                 },
+                                borderRadius: BorderRadius.circular(24),
                                 child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
+                                  padding: const EdgeInsets.all(20.0),
                                   child: Row(
                                     children: [
-                                      Icon(
-                                        Icons.quiz,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
-                                        size: 32,
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        child: const Icon(
+                                          Icons.quiz_rounded,
+                                          color: AppColors.primary,
+                                          size: 28,
+                                        ),
                                       ),
-                                      const SizedBox(width: 16),
+                                      const SizedBox(width: 20),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -426,43 +419,39 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                           children: [
                                             Text(
                                               quiz.title,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleLarge
-                                                  ?.copyWith(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.textPrimary,
+                                              ),
                                             ),
-                                            const SizedBox(height: 4),
+                                            const SizedBox(height: 6),
                                             Text(
                                               '${quiz.questions.length} Questions • Max Attempts: $max',
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.bodyMedium,
+                                              style: const TextStyle(
+                                                color: AppColors.textSecondary,
+                                                fontSize: 13,
+                                              ),
                                             ),
                                           ],
                                         ),
                                       ),
                                       if (completed)
                                         const Icon(
-                                          Icons.check_circle,
-                                          color: Colors
-                                              .green, // Left hardcoded for semantic status if wanted, or change to Theme.of(context).colorScheme.primary
+                                          Icons.check_circle_rounded,
+                                          color: Colors.green,
                                           size: 28,
                                         )
                                       else if (failed)
-                                        Icon(
-                                          Icons.error,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.error,
+                                        const Icon(
+                                          Icons.error_rounded,
+                                          color: Colors.redAccent,
                                           size: 28,
                                         )
                                       else
-                                        const Icon(
-                                          Icons.chevron_right,
-                                          size: 20,
+                                        Icon(
+                                          Icons.chevron_right_rounded,
+                                          color: AppColors.textSecondary.withOpacity(0.3),
                                         ),
                                     ],
                                   ),
@@ -557,13 +546,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
+        Card(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -571,26 +554,24 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
               children: [
                 const Text(
                   'Folder Progress',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
                     value: percent,
                     minHeight: 12,
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.primaryContainer,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).colorScheme.primary,
+                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.primary,
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   '$completedCount / ${quizzes.length} Quizzes Completed',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -598,12 +579,12 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                   children: [
                     const Text(
                       'Success Rate',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                     ),
                     Text(
                       '${(passRate * 100).toInt()}%',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
+                      style: const TextStyle(
+                        color: AppColors.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
                       ),
@@ -615,13 +596,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
           ),
         ),
         const SizedBox(height: 24),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
+        Card(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -629,36 +604,36 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
               children: [
                 const Text(
                   'Recent Activity',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 if (recentlyCompleted.isEmpty)
-                  const Text('No activity yet.')
+                  const Text('No activity yet.', style: TextStyle(color: AppColors.textSecondary))
                 else
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: recentlyCompleted.length,
-                    separatorBuilder: (c, i) => const Divider(),
+                    separatorBuilder: (c, i) => Divider(color: AppColors.divider),
                     itemBuilder: (context, index) {
                       final item = recentlyCompleted[index];
                       final success = item['success'] as bool;
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
                         child: Row(
                           children: [
                             Icon(
-                              success ? Icons.check_circle : Icons.error,
+                              success ? Icons.check_circle_rounded : Icons.error_rounded,
                               color: success
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Theme.of(context).colorScheme.error,
-                              size: 16,
+                                  ? Colors.green
+                                  : Colors.redAccent,
+                              size: 18,
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 item['title'],
-                                style: const TextStyle(fontSize: 14),
+                                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),

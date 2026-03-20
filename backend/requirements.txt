@@ -6,3 +6,5 @@ transformers
 peft
 accelerate
 bitsandbytes
+markitdown
+pymupdf

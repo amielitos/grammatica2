@@ -4,8 +4,11 @@ import 'spelling_bee_page.dart';
 import 'pronunciation_quiz_page.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
+import '../theme/app_colors.dart';
 import 'quiz_folder_page.dart';
 import 'admin/admin_quizzes_tab.dart';
+
+import '../theme/app_colors.dart';
 
 class PracticeTab extends StatefulWidget {
   const PracticeTab({super.key});
@@ -90,7 +93,7 @@ class _PracticeTabState extends State<PracticeTab> {
                               ),
                               title: const Text('Assessment Editor'),
                             ),
-                            body: SingleChildScrollView(
+                            body: const SingleChildScrollView(
                               child: AdminQuizzesTab(isEmbedded: true),
                             ),
                           )
@@ -130,51 +133,54 @@ class _PracticeTabState extends State<PracticeTab> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 16),
-          Text(
-            'Practice Tools',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Practice Tools',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Master your grammar and pronunciation',
+                style: TextStyle(color: AppColors.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 48),
+              _PracticeCard(
+                title: 'Spelling Bee',
+                subtitle: 'Master spelling through fun challenges',
+                icon: Icons.spellcheck_rounded,
+                iconColor: AppColors.primary,
+                onTap: () => setState(() => _selectedSubTab = 0),
+              ),
+              const SizedBox(height: 24),
+              _PracticeCard(
+                title: 'Pronunciation',
+                subtitle: 'Practice speaking with voice feedback',
+                icon: Icons.mic_rounded,
+                iconColor: AppColors.accent,
+                onTap: () => setState(() => _selectedSubTab = 1),
+              ),
+              const SizedBox(height: 24),
+              _PracticeCard(
+                title: 'English Assessment',
+                subtitle: 'Take your formal English evaluation',
+                icon: Icons.assignment_turned_in_rounded,
+                iconColor: AppColors.secondary,
+                onTap: () => setState(() => _selectedSubTab = 2),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Master your grammar and pronunciation',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-          _PracticeCard(
-            title: 'Spelling Bee',
-            subtitle: 'Master spelling through fun challenges',
-            icon: Icons.spellcheck,
-            iconColor: Theme.of(context).colorScheme.primary,
-            onTap: () => setState(() => _selectedSubTab = 0),
-          ),
-          const SizedBox(height: 16),
-          _PracticeCard(
-            title: 'Pronunciation',
-            subtitle: 'Practice speaking with voice feedback',
-            icon: Icons.mic,
-            iconColor: Theme.of(context).colorScheme.tertiary,
-            onTap: () => setState(() => _selectedSubTab = 1),
-          ),
-          const SizedBox(height: 16),
-          _PracticeCard(
-            title: 'English Assessment',
-            subtitle: 'Take your formal English evaluation',
-            icon: Icons.assignment_turned_in,
-            iconColor: Theme.of(context).colorScheme.secondary,
-            onTap: () => setState(() => _selectedSubTab = 2),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -197,27 +203,23 @@ class _PracticeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      clipBehavior: Clip.antiAlias,
+    return Card(
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(24.0),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(icon, color: iconColor, size: 32),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 24),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,23 +227,25 @@ class _PracticeCard extends StatelessWidget {
                     Text(
                       title,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        height: 1.3,
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 16),
               Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Theme.of(context).colorScheme.outline,
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary.withOpacity(0.5),
               ),
             ],
           ),

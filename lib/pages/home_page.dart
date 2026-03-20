@@ -8,13 +8,16 @@ import 'profile_page.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/sidebar.dart';
+import '../main.dart';
 import '../services/role_service.dart';
 import 'browse_educators_tab.dart';
 import 'practice_tab.dart';
 import '../widgets/notification_widgets.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../main.dart'; // To access notificationVisibleNotifier
+import '../theme/app_colors.dart';
+import '../widgets/design_ornaments.dart';
+import '../widgets/custom_app_bar.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -36,6 +39,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   static int _persistedTabIndex = 0;
   late int _tabIndex;
+  String? _activeFolderName;
 
   final _profileKey = GlobalKey<ProfilePageState>();
   final _firestore = FirebaseFirestore.instance;
@@ -117,7 +121,15 @@ class _HomePageState extends State<HomePage> {
       child: IndexedStack(
         index: _tabIndex,
         children: [
-          _LessonsList(user: user, role: widget.role),
+          _LessonsList(
+            user: user,
+            role: widget.role,
+            onFolderChanged: (folderName) {
+              if (mounted) {
+                setState(() => _activeFolderName = folderName);
+              }
+            },
+          ),
           const PracticeTab(),
           if (widget.role != UserRole.learner) QuizzesPage(user: user),
           BrowseEducatorsTab(user: user),
@@ -125,20 +137,40 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+    final String currentTabLabel = navItems[_tabIndex].label;
+    String bgPath = 'assets/dashboardbg.png';
+    if (_activeFolderName == 'Grammatica Lessons') {
+      bgPath = 'assets/grammaticafolderbg.png';
+    } else if (_activeFolderName == 'Public') {
+      bgPath = 'assets/publicfolderbg.png';
+    } else if (currentTabLabel == 'Practice') {
+      bgPath = 'assets/practicebg.png';
+    } else if (currentTabLabel == 'Profile' || currentTabLabel == (widget.userData['username']?.split(' ').first ?? 'Profile')) {
+      bgPath = 'assets/profilebg.png';
+    }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(navItems[_tabIndex].label),
-        actions: [
-          NotificationIconButton(
-            userId: user.uid,
-            onTap: () {
-              notificationVisibleNotifier.value =
-                  !notificationVisibleNotifier.value;
-            },
-          ),
-        ],
+      appBar: CustomAppBar(
+        user: user,
+        userData: widget.userData,
+        onNotificationTap: () {
+          notificationVisibleNotifier.value =
+              !notificationVisibleNotifier.value;
+        },
+        onLogoTap: () {
+          setState(() {
+            _tabIndex = 0;
+          });
+        },
+        onProfileTap: () {
+          final profileIndex = navItems.indexWhere((item) => item.icon == Icons.person);
+          if (profileIndex != -1) {
+            setState(() {
+              _tabIndex = profileIndex;
+            });
+          }
+        },
       ),
       drawer: Drawer(
         child: Sidebar(
@@ -157,15 +189,19 @@ class _HomePageState extends State<HomePage> {
           isDrawer: true,
         ),
       ),
-      body: mainContent,
+      body: BackgroundWrapper(
+        imageAssetPath: bgPath,
+        child: mainContent,
+      ),
     );
   }
 }
 
 class _LessonsList extends StatefulWidget {
-  const _LessonsList({required this.user, required this.role});
+  const _LessonsList({required this.user, required this.role, this.onFolderChanged});
   final User user;
   final UserRole role;
+  final ValueChanged<String?>? onFolderChanged;
 
   @override
   State<_LessonsList> createState() => _LessonsListState();
@@ -223,7 +259,10 @@ class _LessonsListState extends State<_LessonsList> {
                 lessons: _activeFolder!['lessons'],
                 isPublicContentFolder:
                     _activeFolder!['isPublicFolder'] ?? false,
-                onBack: () => setState(() => _activeFolder = null),
+                onBack: () {
+                  setState(() => _activeFolder = null);
+                  widget.onFolderChanged?.call(null);
+                },
               );
             }
 
@@ -250,13 +289,16 @@ class _LessonsListState extends State<_LessonsList> {
                         description: 'Official lessons',
                         pillLabel: 'Grammatica',
                         iconColor: Theme.of(context).colorScheme.primary,
-                        onTap: () => setState(() {
-                          _activeFolder = {
-                            'title': 'Grammatica Lessons',
-                            'pillLabel': 'From Grammatica',
-                            'lessons': grammaticaLessons,
-                          };
-                        }),
+                        onTap: () {
+                          setState(() {
+                            _activeFolder = {
+                              'title': 'Grammatica Lessons',
+                              'pillLabel': 'From Grammatica',
+                              'lessons': grammaticaLessons,
+                            };
+                          });
+                          widget.onFolderChanged?.call('Grammatica Lessons');
+                        },
                       ),
                       _buildFolderCard(
                         context,
@@ -264,14 +306,17 @@ class _LessonsListState extends State<_LessonsList> {
                         description: 'Community & Educators',
                         pillLabel: 'Public',
                         iconColor: Theme.of(context).colorScheme.secondary,
-                        onTap: () => setState(() {
-                          _activeFolder = {
-                            'title': 'Public Content',
-                            'pillLabel': 'Public',
-                            'lessons': publicLessons,
-                            'isPublicFolder': true,
-                          };
-                        }),
+                        onTap: () {
+                          setState(() {
+                            _activeFolder = {
+                              'title': 'Public Content',
+                              'pillLabel': 'Public',
+                              'lessons': publicLessons,
+                              'isPublicFolder': true,
+                            };
+                          });
+                          widget.onFolderChanged?.call('Public');
+                        },
                       ),
                     ],
                   ),
@@ -292,37 +337,44 @@ class _LessonsListState extends State<_LessonsList> {
     required Color iconColor,
     required VoidCallback onTap,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
-          width: 240,
-          height: 280,
+          width: 280,
+          height: 320,
           child: Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.folder, size: 48, color: iconColor),
-                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(Icons.folder_rounded, size: 40, color: iconColor),
+                ),
+                const SizedBox(height: 24),
                 Text(
                   title,
                   style: Theme.of(
                     context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
                   description,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
                   ),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
@@ -330,21 +382,19 @@ class _LessonsListState extends State<_LessonsList> {
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                    horizontal: 16,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(16),
+                    color: iconColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     pillLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                      color: iconColor,
                     ),
                   ),
                 ),

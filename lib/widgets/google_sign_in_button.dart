@@ -31,15 +31,15 @@ class GoogleSignInButton extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 38,
+      height: 56,
       child: OutlinedButton(
         onPressed: enabled ? onPressed : onDisabledPress,
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
           side: const BorderSide(color: Color(0xFFE0E0E0)),
           foregroundColor: const Color(0xFF1F1F1F),
-          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

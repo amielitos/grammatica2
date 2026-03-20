@@ -1,16 +1,19 @@
-import 'dart:math';
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import '../services/web_service.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
-import '../models/spelling_word.dart';
 import '../services/database_service.dart';
-import '../services/notification_service.dart';
 import '../services/role_service.dart';
-import 'admin/admin_spelling_words_tab.dart';
+import '../services/notification_service.dart';
+import '../services/web_service.dart';
+import '../models/spelling_word.dart';
+import '../pages/admin/admin_spelling_words_tab.dart';
+import '../theme/app_colors.dart';
+import '../widgets/design_ornaments.dart';
+import '../main.dart';
 
 class SpellingBeePage extends StatefulWidget {
   final User user;
@@ -39,6 +42,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
 
   Timer? _timer;
   int _timeLeft = 0;
+  int _totalTime = 0;
 
   @override
   void initState() {
@@ -49,9 +53,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   Future<void> _initTts() async {
     try {
       _flutterTts.setStartHandler(() => setState(() => _isPlaying = true));
-      _flutterTts.setCompletionHandler(
-        () => setState(() => _isPlaying = false),
-      );
+      _flutterTts.setCompletionHandler(() => setState(() => _isPlaying = false));
       _flutterTts.setErrorHandler((msg) {
         debugPrint("TTS Error: $msg");
         setState(() => _isPlaying = false);
@@ -100,6 +102,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         _timeLeft = 30;
         break;
     }
+    _totalTime = _timeLeft;
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_timeLeft > 0) {
@@ -157,8 +160,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     await _audioPlayer.stop();
     await _flutterTts.stop();
 
-    if (currentWordObj.audioUrl != null &&
-        currentWordObj.audioUrl!.isNotEmpty) {
+    if (currentWordObj.audioUrl != null && currentWordObj.audioUrl!.isNotEmpty) {
       try {
         setState(() => _isPlaying = true);
         await _audioPlayer.play(UrlSource(currentWordObj.audioUrl!));
@@ -220,15 +222,14 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       DatabaseService.instance
           .checkAndAwardAchievement(widget.user.uid, 'first_spelling_bee')
           .then((awarded) {
-            if (awarded) {
-              NotificationService.instance.sendAchievementNotification(
-                uid: widget.user.uid,
-                title: 'Spelling Bee Master!',
-                message:
-                    'Congratulations on completing your first Spelling Bee session!',
-              );
-            }
-          });
+        if (awarded) {
+          NotificationService.instance.sendAchievementNotification(
+            uid: widget.user.uid,
+            title: 'Spelling Bee Master!',
+            message: 'Congratulations on completing your first Spelling Bee session!',
+          );
+        }
+      });
     }
   }
 
@@ -240,20 +241,25 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: widget.onBack,
         ),
-        title: const Text('Spelling Bee'),
+        title: const Text(
+          'Spelling Bee',
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+        ),
         actions: [
           StreamBuilder<UserRole>(
             stream: RoleService.instance.roleStream(widget.user.uid),
             builder: (context, snapshot) {
-              if (snapshot.data == UserRole.admin ||
-                  snapshot.data == UserRole.superadmin) {
+              if (snapshot.data == UserRole.admin || snapshot.data == UserRole.superadmin) {
                 return IconButton(
-                  icon: const Icon(Icons.settings),
+                  icon: const Icon(Icons.settings_rounded, color: AppColors.textPrimary),
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const AdminSpellingWordsTab(),
@@ -266,61 +272,82 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
           ),
         ],
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: _buildBody(),
+      body: BackgroundWrapper(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: _buildBody(),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildBody() {
-    if (_selectedDifficulty == null) {
-      return _buildDifficultySelection();
-    }
-    if (_isGameOver) {
-      return _buildGameOver();
-    }
+    if (_selectedDifficulty == null) return _buildDifficultySelection();
+    if (_isGameOver) return _buildGameOver();
     return _buildGameSession();
   }
 
   Widget _buildDifficultySelection() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
       child: Column(
         children: [
-          Icon(
-            Icons.spellcheck,
-            size: 80,
-            color: Theme.of(context).colorScheme.primary,
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.spellcheck_rounded,
+              size: 64,
+              color: AppColors.primary,
+            ),
           ),
-          const SizedBox(height: 24),
-          Text(
-            'Select Difficulty',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+          const SizedBox(height: 32),
+          const Text(
+            "The Great Spelling Bee",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 12),
+          const Text(
+            "Test your spelling skills and vocabulary\nwith our word-to-audio challenge.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 48),
           _DifficultyCard(
             title: 'Novice',
-            description: 'Simple words for beginners.',
-            color: Theme.of(context).colorScheme.primary,
+            subtitle: '120 seconds • Simple words',
+            color: AppColors.primary,
+            icon: Icons.school_rounded,
             onTap: () => _startSession(SpellingDifficulty.novice),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _DifficultyCard(
             title: 'Amateur',
-            description: 'Common words with intermediate spelling.',
-            color: Theme.of(context).colorScheme.secondary,
+            subtitle: '60 seconds • Intermediate vocabulary',
+            color: AppColors.secondary,
+            icon: Icons.auto_graph_rounded,
             onTap: () => _startSession(SpellingDifficulty.amateur),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _DifficultyCard(
             title: 'Professional',
-            description: 'Challenging words for experts.',
-            color: Theme.of(context).colorScheme.error,
+            subtitle: '30 seconds • Challenging words',
+            color: AppColors.premium,
+            icon: Icons.workspace_premium_rounded,
             onTap: () => _startSession(SpellingDifficulty.professional),
           ),
         ],
@@ -331,192 +358,285 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   Widget _buildGameSession() {
     final minutes = (_timeLeft / 60).floor();
     final seconds = (_timeLeft % 60).toString().padLeft(2, '0');
+    final progress = _timeLeft / _totalTime;
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 100, 24, 40),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Word ${_currentIndex + 1} / ${_sessionWords.length}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Chip(
-                avatar: Icon(
-                  Icons.timer,
-                  size: 18,
-                  color: _timeLeft < 10
-                      ? Theme.of(context).colorScheme.error
-                      : Theme.of(context).colorScheme.primary,
-                ),
-                label: Text(
-                  '$minutes:$seconds',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: _timeLeft < 10
-                        ? Theme.of(context).colorScheme.error
-                        : Theme.of(context).colorScheme.primary,
+          // Info & Timer Card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Word ${_currentIndex + 1} of ${_sessionWords.length}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _timeLeft < 10 ? AppColors.error.withOpacity(0.1) : AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.timer_rounded,
+                              size: 16,
+                              color: _timeLeft < 10 ? AppColors.error : AppColors.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '$minutes:$seconds',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _timeLeft < 10 ? AppColors.error : AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                backgroundColor:
-                    (_timeLeft < 10
-                            ? Theme.of(context).colorScheme.error
-                            : Theme.of(context).colorScheme.primary)
-                        .withValues(alpha: 0.1),
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                  const SizedBox(height: 16),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 8,
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        _timeLeft < 10 ? AppColors.error : AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 40),
-          IconButton(
-            iconSize: 100,
-            icon: Icon(
-              _isPlaying ? Icons.pause_circle : Icons.play_circle,
-              color: Theme.of(context).colorScheme.primary,
             ),
-            onPressed: _speakWord,
           ),
-          const SizedBox(height: 48),
+          const SizedBox(height: 32),
+          // Audio Hub
+          Card(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
+              child: Column(
+                children: [
+                  GestureDetector(
+                    onTap: _speakWord,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: _isPlaying ? AppColors.primary : AppColors.surface,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.primary, width: 4),
+                        boxShadow: [
+                          if (_isPlaying)
+                            BoxShadow(
+                              color: AppColors.primary.withOpacity(0.4),
+                              blurRadius: 30,
+                              spreadRadius: 8,
+                            ),
+                        ],
+                      ),
+                      child: Icon(
+                        _isPlaying ? Icons.volume_up_rounded : Icons.play_arrow_rounded,
+                        size: 64,
+                        color: _isPlaying ? Colors.white : AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    "Listen Carefully",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          // Input
           TextField(
             controller: _answerController,
             focusNode: _focusNode,
             autofocus: true,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            decoration: const InputDecoration(
-              hintText: 'Type what you hear',
-              border: OutlineInputBorder(),
+            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 1),
+            decoration: InputDecoration(
+              hintText: 'Spell the word',
+              hintStyle: TextStyle(fontSize: 24, color: AppColors.textSecondary.withOpacity(0.5)),
             ),
             onSubmitted: (_) => _submitAnswer(),
           ),
-          const SizedBox(height: 32),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-            ),
+          const SizedBox(height: 40),
+          ElevatedButton(
             onPressed: _submitAnswer,
-            icon: const Icon(Icons.check),
-            label: const Text(
-              'SUBMIT',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 64),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle_rounded),
+                const SizedBox(width: 12),
+                Text('SUBMIT ANSWER', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              TextButton(onPressed: _skipWord, child: const Text('Skip Word')),
+              TextButton.icon(
+                onPressed: _skipWord,
+                icon: const Icon(Icons.skip_next_rounded),
+                label: const Text('Skip Word'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+              ),
               const SizedBox(width: 24),
-              TextButton(
+              TextButton.icon(
                 onPressed: () {
                   _timer?.cancel();
                   setState(() => _selectedDifficulty = null);
                 },
-                style: TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error,
-                ),
-                child: const Text('Cancel Session'),
+                icon: const Icon(Icons.close_rounded),
+                label: const Text('End Session'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.error),
               ),
             ],
           ),
+          const SizedBox(height: 40),
         ],
       ),
     );
   }
 
   Widget _buildGameOver() {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.stars,
-              size: 80,
-              color: Theme.of(context).colorScheme.primary,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 100),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Session Complete!',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'You scored $_score out of ${_sessionWords.length}',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 32),
-            OutlinedButton.icon(
-              onPressed: () => setState(() => _showPreview = !_showPreview),
-              icon: Icon(_showPreview ? Icons.expand_less : Icons.expand_more),
-              label: Text(_showPreview ? 'Hide Details' : 'Show Details'),
-            ),
-            if (_showPreview) ...[
-              const SizedBox(height: 24),
-              ...List.generate(_sessionWords.length, (index) {
-                final wordObj = _sessionWords[index];
-                final userAnswer = _userAnswers[index];
-                final isCorrect =
-                    userAnswer != null &&
-                    userAnswer.trim().toLowerCase() ==
-                        wordObj.word.toLowerCase();
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
+            child: const Icon(Icons.stars_rounded, size: 64, color: AppColors.primary),
+          ),
+          const SizedBox(height: 32),
+          const Text(
+            'Amazing Achievement!',
+            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'You completed the Spelling Bee!',
+            style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 40),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                children: [
+                  const Text(
+                    'Precision Score',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1),
                   ),
-                  child: ListTile(
-                    leading: Icon(
-                      isCorrect ? Icons.check_circle : Icons.cancel,
-                      color: isCorrect
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.error,
-                    ),
-                    title: Text(
-                      wordObj.word,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      'Your answer: ${userAnswer == null
-                          ? "(Timeout)"
-                          : userAnswer.isEmpty
-                          ? "(Skipped)"
-                          : userAnswer}',
-                      style: TextStyle(
-                        color: isCorrect
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.error,
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '$_score',
+                        style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold, color: AppColors.primary),
                       ),
-                    ),
+                      Text(
+                        '/${_sessionWords.length}',
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                      ),
+                    ],
                   ),
-                );
-              }),
-            ],
-            const SizedBox(height: 40),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(double.infinity, 56),
-              ),
-              onPressed: () => setState(() => _selectedDifficulty = null),
-              child: const Text(
-                'BACK TO MENU',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ],
               ),
             ),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: () => setState(() => _selectedDifficulty = null),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(200, 56),
+            ),
+            child: const Text('Back to Menu'),
+          ),
+          const SizedBox(height: 24),
+          TextButton(
+            onPressed: () => setState(() => _showPreview = !_showPreview),
+            child: Text(_showPreview ? 'Hide Details' : 'Review Your Answers'),
+          ),
+          if (_showPreview) ...[
+            const SizedBox(height: 32),
+            ...List.generate(_sessionWords.length, (index) {
+              final wordObj = _sessionWords[index];
+              final userAnswer = _userAnswers[index];
+              final isCorrect = userAnswer?.trim().toLowerCase() == wordObj.word.toLowerCase();
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: (isCorrect ? AppColors.primary : AppColors.error).withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isCorrect ? Icons.check_rounded : Icons.close_rounded,
+                          color: isCorrect ? AppColors.primary : AppColors.error,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              wordObj.word,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              userAnswer?.isEmpty ?? true ? "(No input)" : '"${userAnswer}"',
+                              style: TextStyle(color: isCorrect ? AppColors.primary : AppColors.error, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -524,45 +644,36 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
 
 class _DifficultyCard extends StatelessWidget {
   final String title;
-  final String description;
+  final String subtitle;
   final Color color;
+  final IconData icon;
   final VoidCallback onTap;
 
   const _DifficultyCard({
     required this.title,
-    required this.description,
+    required this.subtitle,
     required this.color,
+    required this.icon,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      clipBehavior: Clip.antiAlias,
+    return Card(
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(24),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Text(
-                  title[0],
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
+                child: Icon(icon, color: color, size: 28),
               ),
               const SizedBox(width: 20),
               Expanded(
@@ -571,21 +682,17 @@ class _DifficultyCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      description,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                      subtitle,
+                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: color),
+              Icon(Icons.chevron_right_rounded, color: AppColors.divider, size: 28),
             ],
           ),
         ),
