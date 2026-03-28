@@ -4,8 +4,12 @@ import 'spelling_bee_page.dart';
 import 'pronunciation_quiz_page.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
+import '../theme/app_colors.dart';
 import 'quiz_folder_page.dart';
 import 'admin/admin_quizzes_tab.dart';
+
+import '../theme/app_colors.dart';
+import '../widgets/design_ornaments.dart';
 
 class PracticeTab extends StatefulWidget {
   const PracticeTab({super.key});
@@ -90,7 +94,7 @@ class _PracticeTabState extends State<PracticeTab> {
                               ),
                               title: const Text('Assessment Editor'),
                             ),
-                            body: SingleChildScrollView(
+                            body: const SingleChildScrollView(
                               child: AdminQuizzesTab(isEmbedded: true),
                             ),
                           )
@@ -129,52 +133,57 @@ class _PracticeTabState extends State<PracticeTab> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 16),
-          Text(
-            'Practice Tools',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Master your grammar and pronunciation',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+    return BackgroundWrapper(
+      imageAssetPath: 'assets/practicebg.png',
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+        child: Column(
+          children: [
+            const Text(
+              'Practice Tools',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-          _PracticeCard(
-            title: 'Spelling Bee',
-            subtitle: 'Master spelling through fun challenges',
-            icon: Icons.spellcheck,
-            iconColor: Theme.of(context).colorScheme.primary,
-            onTap: () => setState(() => _selectedSubTab = 0),
-          ),
-          const SizedBox(height: 16),
-          _PracticeCard(
-            title: 'Pronunciation',
-            subtitle: 'Practice speaking with voice feedback',
-            icon: Icons.mic,
-            iconColor: Theme.of(context).colorScheme.tertiary,
-            onTap: () => setState(() => _selectedSubTab = 1),
-          ),
-          const SizedBox(height: 16),
-          _PracticeCard(
-            title: 'English Assessment',
-            subtitle: 'Take your formal English evaluation',
-            icon: Icons.assignment_turned_in,
-            iconColor: Theme.of(context).colorScheme.secondary,
-            onTap: () => setState(() => _selectedSubTab = 2),
-          ),
-        ],
+            const SizedBox(height: 64),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1000),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _PracticeCard(
+                      title: 'Spelling Bee',
+                      icon: Icons.emoji_nature_outlined, // Closer to bee
+                      themeColor: const Color(0xFFF6BC00), // Yellow orange
+                      onTap: () => setState(() => _selectedSubTab = 0),
+                    ),
+                  ),
+                  SizedBox(width: 32),
+                  Expanded(
+                    child: _PracticeCard(
+                      title: 'Pronunciation',
+                      icon: Icons.mic_rounded,
+                      themeColor: const Color(0xFF75A94B), // Green
+                      onTap: () => setState(() => _selectedSubTab = 1),
+                    ),
+                  ),
+                  SizedBox(width: 32),
+                  Expanded(
+                    child: _PracticeCard(
+                      title: 'English Assessment',
+                      icon: Icons.fact_check_outlined,
+                      themeColor: const Color(0xFFDF3F32), // Red
+                      onTap: () => setState(() => _selectedSubTab = 2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -182,68 +191,95 @@ class _PracticeTabState extends State<PracticeTab> {
 
 class _PracticeCard extends StatelessWidget {
   final String title;
-  final String subtitle;
   final IconData icon;
-  final Color iconColor;
+  final Color themeColor;
   final VoidCallback onTap;
 
   const _PracticeCard({
     required this.title,
-    required this.subtitle,
     required this.icon,
-    required this.iconColor,
+    required this.themeColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
+      height: 480, // Taller card to match vertical orientation
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        color: isDark ? const Color(0xFF333333) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: iconColor, size: 32),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
                   children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                    const SizedBox(height: 24),
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: themeColor,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: Colors.white,
+                        size: 40,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 32),
                     Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
                   ],
                 ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Theme.of(context).colorScheme.outline,
-              ),
-            ],
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: onTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Browse',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

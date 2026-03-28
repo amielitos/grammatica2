@@ -53,7 +53,7 @@ class GrammaticaApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
-          themeMode: ThemeMode.light, // Forced light mode as temporary fix
+          themeMode: currentMode,
           builder: (context, child) {
             final mediaQueryData = MediaQuery.of(context);
             final screenWidth = mediaQueryData.size.width;
@@ -113,7 +113,9 @@ class _AuthWrapper extends StatelessWidget {
                     p?['has_completed_onboarding'] ==
                         c?['has_completed_onboarding'] &&
                     p?['phone_number'] == c?['phone_number'] &&
-                    p?['date_of_birth'] == c?['date_of_birth'];
+                    p?['date_of_birth'] == c?['date_of_birth'] &&
+                    p?['photoUrl'] == c?['photoUrl'] &&
+                    p?['username'] == c?['username'];
               }),
           builder: (context, userDocSnap) {
             if (userDocSnap.connectionState == ConnectionState.waiting) {

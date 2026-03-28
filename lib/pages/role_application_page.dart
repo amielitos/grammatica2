@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/database_service.dart';
+import '../theme/app_colors.dart';
+import '../widgets/design_ornaments.dart';
+import '../main.dart';
 
 class RoleApplicationPage extends StatefulWidget {
   final User user;
@@ -24,25 +27,19 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
   double _uploadProgress = 0;
   String? _error;
 
-  String get _title => widget.applicationType == 'validator'
-      ? 'Become a Verified Validator'
-      : 'Become a Verified Educator';
+  String get _title => widget.applicationType == 'validator' ? 'Become a Validator' : 'Become an Educator';
 
-  String get _demoLabel => widget.applicationType == 'validator'
-      ? 'Introductory Demo'
-      : 'Teaching Demo Video';
+  String get _demoLabel => widget.applicationType == 'validator' ? 'Expertise Demo' : 'Teaching Demo';
 
   String get _demoDescription => widget.applicationType == 'validator'
-      ? 'Upload a demo that showcases your expertise in the English field.'
-      : 'Upload a 3-minute video of you doing a teaching demo.';
+      ? 'Showcase your English expertise in a short introductory video.'
+      : 'Upload a 3-minute video demonstrating your teaching style.';
 
-  String get _docLabel => widget.applicationType == 'validator'
-      ? 'Credentials'
-      : 'Teaching Syllabus';
+  String get _docLabel => widget.applicationType == 'validator' ? 'Professional Credentials' : 'Teaching Syllabus';
 
   String get _docDescription => widget.applicationType == 'validator'
-      ? 'Upload a PDF of your credentials (certificates, degrees, etc.).'
-      : 'Upload a PDF sample of a teaching syllabus you have done.';
+      ? 'Upload your certifications, degrees, or relevant professional documents.'
+      : 'Upload a sample syllabus or lesson plan you have created.';
 
   Future<void> _pickVideo() async {
     final result = await FilePicker.platform.pickFiles(
@@ -73,10 +70,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
 
   Future<void> _submit() async {
     if (_videoFile == null || _docFile == null) {
-      setState(
-        () => _error =
-            'Please upload both the demo video and the required document.',
-      );
+      setState(() => _error = 'Please upload both required modules to proceed.');
       return;
     }
 
@@ -87,7 +81,6 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
     });
 
     try {
-      // Upload Video
       setState(() => _uploadProgress = 0.2);
       final videoUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
@@ -96,7 +89,6 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         contentType: 'video/mp4',
       );
 
-      // Upload Document
       setState(() => _uploadProgress = 0.6);
       final docUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
@@ -105,7 +97,6 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         contentType: 'application/pdf',
       );
 
-      // Submit Application
       setState(() => _uploadProgress = 0.9);
       await DatabaseService.instance.submitEducatorApplication(
         uid: widget.user.uid,
@@ -124,18 +115,18 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Application Submitted'),
+            title: const Text('Application Sent'),
             content: Text(
-              'Your application as a ${widget.applicationType} has been submitted successfully and is now subject to approval.',
+              'Your application has been received! Our team will review your credentials within 2-3 business days.',
             ),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pop(context); // Go back to Role Selection Popup
-                  Navigator.pop(context); // Go back to Profile
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                  Navigator.pop(context);
                 },
-                child: const Text('OK'),
+                child: const Text('Great!'),
               ),
             ],
           ),
@@ -144,7 +135,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
     } catch (e) {
       setState(() {
         _isUploading = false;
-        _error = 'Failed to submit application: $e';
+        _error = 'Hmm, something went wrong. Please try again.';
       });
     }
   }
@@ -152,120 +143,207 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_title)),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isLargeScreen = constraints.maxWidth > 800;
-            final contentWidth = isLargeScreen
-                ? constraints.maxWidth * 0.7
-                : constraints.maxWidth;
-
-            return Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: contentWidth),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.outlineVariant,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.all(isLargeScreen ? 40.0 : 20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            _title,
-                            style: Theme.of(context).textTheme.headlineMedium,
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Please provide the following credentials for verification.',
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 32),
-                          Text(
-                            _demoLabel,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(_demoDescription),
-                          const SizedBox(height: 16),
-                          _FilePickerButton(
-                            label: _videoFile?.name ?? 'Select Video',
-                            icon: Icons.videocam,
-                            onPressed: _isUploading ? null : _pickVideo,
-                            isUploaded: _videoFile != null,
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            _docLabel,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(_docDescription),
-                          const SizedBox(height: 16),
-                          _FilePickerButton(
-                            label: _docFile?.name ?? 'Select PDF',
-                            icon: Icons.description,
-                            onPressed: _isUploading ? null : _pickDoc,
-                            isUploaded: _docFile != null,
-                          ),
-                          const SizedBox(height: 32),
-                          if (_error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: Text(
-                                _error!,
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          if (_isUploading)
-                            Column(
-                              children: [
-                                LinearProgressIndicator(value: _uploadProgress),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Uploading... ${(_uploadProgress * 100).toInt()}%',
-                                ),
-                                const SizedBox(height: 24),
-                              ],
-                            ),
-                          FilledButton(
-                            onPressed: _isUploading ? null : _submit,
-                            child: const Text('Submit Application'),
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'Note: Your application will be reviewed by our super admins. This process usually takes 2-3 business days.',
-                            style: TextStyle(fontSize: 13),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          _title,
+          style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
         ),
       ),
+      body: BackgroundWrapper(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: Column(
+                  children: [
+                    // Header Section
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.verified_user_rounded, size: 48, color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      _title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Join our elite community of language enthusiasts and experts.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: AppColors.textSecondary, height: 1.5),
+                    ),
+                    const SizedBox(height: 40),
+
+                    // Form Card
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildUploadSection(
+                              title: _demoLabel,
+                              description: _demoDescription,
+                              fileName: _videoFile?.name,
+                              icon: Icons.videocam_rounded,
+                              onPick: _pickVideo,
+                            ),
+                            const SizedBox(height: 40),
+                            _buildUploadSection(
+                              title: _docLabel,
+                              description: _docDescription,
+                              fileName: _docFile?.name,
+                              icon: Icons.description_rounded,
+                              onPick: _pickDoc,
+                            ),
+                            const SizedBox(height: 48),
+
+                            if (_error != null)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(bottom: 24),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  _error!,
+                                  style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.bold),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+
+                            if (_isUploading)
+                              Column(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: LinearProgressIndicator(
+                                      value: _uploadProgress,
+                                      minHeight: 8,
+                                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Uploading Progress: ${(_uploadProgress * 100).toInt()}%',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                  ),
+                                  const SizedBox(height: 32),
+                                ],
+                              ),
+
+                            ElevatedButton(
+                              onPressed: _isUploading ? null : _submit,
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size(double.infinity, 64),
+                              ),
+                              child: const Text('SUBMIT APPLICATION', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    const Text(
+                      'Applications are typically processed within 2-3 business days. You will receive a notification once yours is approved.',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.5),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUploadSection({
+    required String title,
+    required String description,
+    required String? fileName,
+    required IconData icon,
+    required VoidCallback onPick,
+  }) {
+    final bool isUploaded = fileName != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          description,
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
+        ),
+        const SizedBox(height: 16),
+        InkWell(
+          onTap: _isUploading ? null : onPick,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            decoration: BoxDecoration(
+              color: isUploaded ? AppColors.primary.withOpacity(0.05) : AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isUploaded ? AppColors.primary : AppColors.divider,
+                width: isUploaded ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: (isUploaded ? AppColors.primary : AppColors.divider).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isUploaded ? Icons.check_circle_rounded : icon,
+                    color: isUploaded ? AppColors.primary : AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    fileName ?? 'Select File',
+                    style: TextStyle(
+                      fontWeight: isUploaded ? FontWeight.bold : FontWeight.normal,
+                      color: isUploaded ? AppColors.textPrimary : AppColors.textSecondary,
+                      fontSize: 15,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  Icons.upload_file_rounded,
+                  color: isUploaded ? AppColors.primary : AppColors.textSecondary.withOpacity(0.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -290,12 +368,8 @@ class _FilePickerButton extends StatelessWidget {
       icon: Icon(icon),
       label: Text(label, overflow: TextOverflow.ellipsis),
       style: OutlinedButton.styleFrom(
-        foregroundColor: isUploaded
-            ? Theme.of(context).colorScheme.primary
-            : null,
-        side: isUploaded
-            ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)
-            : null,
+        foregroundColor: isUploaded ? Theme.of(context).colorScheme.primary : null,
+        side: isUploaded ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2) : null,
       ),
     );
   }

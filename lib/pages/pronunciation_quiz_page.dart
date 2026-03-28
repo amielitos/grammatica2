@@ -1,16 +1,19 @@
-import 'dart:math';
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
-import '../services/web_service.dart';
 import 'package:string_similarity/string_similarity.dart';
-import '../services/vosk_service.dart';
-import '../models/spelling_word.dart'; // Reusing SpellingWord model
 import '../services/database_service.dart';
-import '../services/notification_service.dart';
 import '../services/role_service.dart';
-import 'admin/admin_spelling_words_tab.dart';
+import '../services/notification_service.dart';
+import '../services/vosk_service.dart';
+import '../services/web_service.dart';
+import '../models/spelling_word.dart';
+import '../widgets/design_ornaments.dart';
+import '../pages/admin/admin_spelling_words_tab.dart';
+import '../theme/app_colors.dart';
+import '../main.dart';
 
 class PronunciationQuizPage extends StatefulWidget {
   final User user;
@@ -34,10 +37,12 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   bool _isRecording = false;
   String _recognizedText = "";
 
-  // Audio removed for Pronunciation Quiz
-
   // Web Speech Specifics
   dynamic _webSpeech;
+
+  // Mic volume metering
+  double _micVolume = 0.0;
+  Timer? _volumeTimer;
 
   // List to track user answers for the preview pane
   List<String?> _userAnswers = [];
@@ -46,6 +51,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   // Timer fields
   Timer? _timer;
   int _timeLeft = 0;
+  int _totalTime = 0;
 
   @override
   void initState() {
@@ -101,6 +107,8 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _volumeTimer?.cancel();
+    WebService.instance.stopMicMonitor();
     VoskService.stop();
     super.dispose();
   }
@@ -120,6 +128,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         _timeLeft = 30;
         break;
     }
+    _totalTime = _timeLeft;
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_timeLeft > 0) {
@@ -166,7 +175,6 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       _showPreview = false;
     });
 
-    // await _speakWord(); // Removed
     _startTimer();
   }
 
@@ -175,10 +183,19 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       setState(() {
         _isRecording = true;
         _recognizedText = "Listening...";
+        _micVolume = 0.0;
       });
     }
 
     if (kIsWeb) {
+      // Start mic monitor (enables both volume meter AND ear-monitoring)
+      await WebService.instance.startMicMonitor(enableMonitoring: true);
+      // Poll volume 20Ã—/second
+      _volumeTimer?.cancel();
+      _volumeTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+        final vol = WebService.instance.getMicVolume();
+        if (mounted) setState(() => _micVolume = vol);
+      });
       WebService.instance.startSpeechRecognition(_webSpeech);
     } else {
       // Native Vosk Logic placeholder
@@ -196,15 +213,19 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   }
 
   void _stopRecording() {
-    if (mounted) {
-      setState(() {
-        _isRecording = false;
-      });
-    }
+    _volumeTimer?.cancel();
+    _volumeTimer = null;
     if (kIsWeb) {
+      WebService.instance.stopMicMonitor();
       WebService.instance.stopSpeechRecognition(_webSpeech);
     } else {
       // Native Vosk Stop logic
+    }
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _micVolume = 0.0;
+      });
     }
   }
 
@@ -253,19 +274,17 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         _isGameOver = true;
       });
 
-      // Trigger Achievement Notification for first pronunciation
       DatabaseService.instance
           .checkAndAwardAchievement(widget.user.uid, 'first_pronunciation')
           .then((awarded) {
-            if (awarded) {
-              NotificationService.instance.sendAchievementNotification(
-                uid: widget.user.uid,
-                title: 'Pronunciation Pro!',
-                message:
-                    'Congratulations on completing your first Pronunciation Quiz session!',
-              );
-            }
-          });
+        if (awarded) {
+          NotificationService.instance.sendAchievementNotification(
+            uid: widget.user.uid,
+            title: 'Pronunciation Pro!',
+            message: 'Congratulations on completing your first Pronunciation Quiz session!',
+          );
+        }
+      });
     }
   }
 
@@ -277,20 +296,41 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: widget.onBack,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leadingWidth: 240,
+        leading: Padding(
+          padding: EdgeInsets.only(left: 16.0),
+          child: TextButton.icon(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+            label: Text(
+              _selectedDifficulty == null ? 'Back to Practice Tools' : 'Back to Pronunciation',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              alignment: Alignment.centerLeft,
+            ),
+            onPressed: () {
+              if (_selectedDifficulty == null) {
+                widget.onBack();
+              } else {
+                _timer?.cancel();
+                setState(() => _selectedDifficulty = null);
+              }
+            },
+          ),
         ),
-        title: const Text('Pronunciation Quiz'),
+        // Removed title to match reference image which is clean in the middle
         actions: [
           StreamBuilder<UserRole>(
             stream: RoleService.instance.roleStream(widget.user.uid),
             builder: (context, snapshot) {
-              if (snapshot.data == UserRole.admin ||
-                  snapshot.data == UserRole.superadmin) {
+              if (snapshot.data == UserRole.admin || snapshot.data == UserRole.superadmin) {
                 return IconButton(
-                  icon: const Icon(Icons.settings, size: 32),
+                  icon: Icon(Icons.settings_rounded, color: AppColors.textPrimary),
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const AdminSpellingWordsTab(),
@@ -298,17 +338,20 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                   ),
                 );
               }
-              return const SizedBox.shrink();
+              return SizedBox.shrink();
             },
           ),
         ],
       ),
-      body: Center(
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width > 600
-              ? MediaQuery.of(context).size.width * 0.6
-              : MediaQuery.of(context).size.width * 0.9,
-          child: _buildBody(),
+      body: BackgroundWrapper(
+        imageAssetPath: _selectedDifficulty == null 
+            ? 'assets/practicebg.png' 
+            : 'assets/pronunciationbg.png',
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: _buildBody(),
+          ),
         ),
       ),
     );
@@ -321,255 +364,307 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   }
 
   Widget _buildDifficultySelection() {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Icon(
-              Icons.record_voice_over,
-              size: 80,
-              color: Theme.of(context).colorScheme.primary,
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 80),
+      child: Column(
+        children: [
+          Text(
+            'Choose your Difficulty',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Select Difficulty',
-              style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Select a level for Pronunciation',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondary,
             ),
-            const SizedBox(height: 40),
-            _DifficultyCard(
-              title: 'Novice',
-              color: Theme.of(context).colorScheme.primary,
-              onTap: () => _startSession(SpellingDifficulty.novice),
+          ),
+          SizedBox(height: 48),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _DifficultyCard(
+                    title: 'Novice',
+                    color: const Color(0xFFFCE267),
+                    icon: Icons.star_rounded,
+                    rating: 2,
+                    onTap: () => _startSession(SpellingDifficulty.novice),
+                  ),
+                ),
+                SizedBox(width: 32),
+                Expanded(
+                  child: _DifficultyCard(
+                    title: 'Amateur',
+                    color: const Color(0xFFA1CC73),
+                    icon: Icons.show_chart_rounded,
+                    rating: 3,
+                    onTap: () => _startSession(SpellingDifficulty.amateur),
+                  ),
+                ),
+                SizedBox(width: 32),
+                Expanded(
+                  child: _DifficultyCard(
+                    title: 'Professional',
+                    color: const Color(0xFFE6625B),
+                    icon: Icons.local_fire_department_rounded,
+                    rating: 4,
+                    onTap: () => _startSession(SpellingDifficulty.professional),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            _DifficultyCard(
-              title: 'Amateur',
-              color: Theme.of(context).colorScheme.secondary,
-              onTap: () => _startSession(SpellingDifficulty.amateur),
-            ),
-            const SizedBox(height: 16),
-            _DifficultyCard(
-              title: 'Professional',
-              color: Theme.of(context).colorScheme.error,
-              onTap: () => _startSession(SpellingDifficulty.professional),
-            ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatBox(String title, String value) {
+    return Container(
+      width: 220,
+      padding: EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
+          SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
+        ],
       ),
     );
   }
 
   Widget _buildGameSession() {
-    final minutes = (_timeLeft / 60).floor();
+    final minutes = (_timeLeft / 60).floor().toString().padLeft(2, '0');
     final seconds = (_timeLeft % 60).toString().padLeft(2, '0');
+    
+    String difficultyText = "";
+    Color difficultyColor = Colors.black;
+    switch (_selectedDifficulty) {
+      case SpellingDifficulty.novice:
+        difficultyText = "Novice";
+        difficultyColor = const Color(0xFF8BC34A); // Match mockup color
+        break;
+      case SpellingDifficulty.amateur:
+        difficultyText = "Amateur";
+        difficultyColor = const Color(0xFFA1CC73);
+        break;
+      case SpellingDifficulty.professional:
+        difficultyText = "Professional";
+        difficultyColor = const Color(0xFFE6625B);
+        break;
+      default:
+        break;
+    }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      padding: EdgeInsets.fromLTRB(24, 60, 24, 40),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          RichText(
+            textAlign: TextAlign.center,
+            text: TextSpan(
+              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.black),
+              children: [
+                TextSpan(text: 'Pronunciation - '),
+                TextSpan(text: difficultyText, style: TextStyle(color: difficultyColor)),
+              ],
+            ),
+          ),
+          SizedBox(height: 32),
           Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              Text(
-                'Word ${_currentIndex + 1} / ${_sessionWords.length}',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _timeLeft < 10
-                      ? Theme.of(context).colorScheme.errorContainer
-                      : Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: _timeLeft < 10
-                        ? Theme.of(context).colorScheme.error
-                        : Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.timer,
-                      size: 18,
-                      color: _timeLeft < 10
-                          ? Theme.of(context).colorScheme.error
-                          : Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '$minutes:$seconds',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: _timeLeft < 10
-                            ? Theme.of(context).colorScheme.error
-                            : Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 40),
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant,
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  _sessionWords[_currentIndex].word,
-                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    fontSize: 56,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 40),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Text(
-              _recognizedText.isEmpty
-                  ? "Press the mic and say the word"
-                  : _recognizedText,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: _isRecording
-                    ? Theme.of(context).colorScheme.error
-                    : null,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 40),
-          const SizedBox(height: 16),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 24,
+            spacing: 16,
             runSpacing: 16,
+            alignment: WrapAlignment.center,
             children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: _resetRecording,
-                    icon: const Icon(Icons.refresh),
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    iconSize: 32,
-                    tooltip: "Reset Text",
-                  ),
-                  Text(
-                    "Reset",
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
+              _buildStatBox('Progress:', 'Word ${_currentIndex + 1} of 10'),
+              _buildStatBox('Current Score:', '$_score/10'),
+              _buildStatBox('Time:', '$minutes:$seconds'),
+            ],
+          ),
+          SizedBox(height: 48),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: _isRecording
-                        ? Theme.of(context).colorScheme.error
-                        : Theme.of(context).colorScheme.primary,
-                    child: IconButton(
-                      onPressed: _toggleRecording,
-                      icon: Icon(
-                        _isRecording ? Icons.stop : Icons.mic,
-                        size: 40,
+                  if (_currentIndex < _sessionWords.length)
+                    Container(
+                      width: 300,
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      decoration: BoxDecoration(
                         color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFF8BC34A), width: 2), // The mockup shows a green border
+                      ),
+                      child: Center(
+                        child: Text(
+                          _sessionWords[_currentIndex].word,
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.normal,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  SizedBox(height: 24),
+                  Text(
+                    "Press the mic and say the word",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  
+                  // Waveform Mockup based on volume
+                  SizedBox(
+                    height: 50,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(31, (index) {
+                        double baseHeight = 10.0 + (index % 5) * 5.0; // static base height pattern
+                        double dynamicHeight = _isRecording ? baseHeight + (_micVolume * 40 * (index % 3 + 1)) : baseHeight;
+                        if (index == 15) dynamicHeight = _isRecording ? 50.0 + _micVolume * 30 : 25.0; // center is highest
+                        
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 100),
+                          margin: EdgeInsets.symmetric(horizontal: 2),
+                          width: 4,
+                          height: dynamicHeight.clamp(4.0, 50.0),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.8), // Dark color from the screenshot
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                  SizedBox(height: 32),
+
+                  // Mic Controls
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Reset Button
+                      InkWell(
+                        onTap: _resetRecording,
+                        borderRadius: BorderRadius.circular(32),
+                        child: Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: Column(
+                            children: const [
+                              Icon(Icons.refresh_rounded, size: 28, color: Colors.black54),
+                              SizedBox(height: 4),
+                              Text("Reset", style: TextStyle(fontSize: 12, color: Colors.black54)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 40),
+                      // Mic Button
+                      GestureDetector(
+                        onTap: _isRecording ? _stopRecording : _startRecording,
+                        child: Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8BC34A), // Green
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              if (_isRecording)
+                                BoxShadow(
+                                  color: const Color(0xFF8BC34A).withOpacity(0.4),
+                                  blurRadius: 20,
+                                  spreadRadius: 8,
+                                ),
+                            ],
+                          ),
+                          child: Icon(
+                            _isRecording ? Icons.mic_off_rounded : Icons.mic_rounded,
+                            size: 40,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 40),
+                      // Submit Button
+                      InkWell(
+                        onTap: _recognizedText.isNotEmpty ? _submitAnswer : null,
+                        borderRadius: BorderRadius.circular(32),
+                        child: Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: Column(
+                            children: [
+                              Icon(Icons.check_rounded, size: 28, color: _recognizedText.isNotEmpty ? Colors.black54 : Colors.black26),
+                              SizedBox(height: 4),
+                              Text("Submit", style: TextStyle(fontSize: 12, color: _recognizedText.isNotEmpty ? Colors.black54 : Colors.black26)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 40),
+                  TextButton(
+                    onPressed: _skipWord,
+                    child: Text('Skip this word', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                  ),
+                  SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () {
+                      _timer?.cancel();
+                      setState(() => _selectedDifficulty = null);
+                    },
+                    child: Text(
+                      'Cancel Pronunciation',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFFE56B6B),
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Color(0xFFE56B6B),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _isRecording ? "Listening..." : "Tap to Speak",
-                    style: TextStyle(
-                      color: _isRecording
-                          ? Theme.of(context).colorScheme.error
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
                 ],
               ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: _recognizedText.isNotEmpty
-                        ? _submitAnswer
-                        : null,
-                    icon: const Icon(Icons.check_circle),
-                    color: _recognizedText.isNotEmpty
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.outline,
-                    iconSize: 40,
-                    tooltip: "Submit Answer",
-                  ),
-                  Text(
-                    "Submit",
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          TextButton(
-            onPressed: _skipWord,
-            child: Text(
-              'Skip this word',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () {
-              _timer?.cancel();
-              setState(() => _selectedDifficulty = null);
-            },
-            child: Text(
-              'Cancel Quiz',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
         ],
@@ -578,106 +673,127 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   }
 
   Widget _buildGameOver() {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle,
-              size: 80,
-              color: Theme.of(context).colorScheme.primary,
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 100),
+      child: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'Session Complete!',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Your Score: $_score / ${_sessionWords.length}',
-              style: const TextStyle(fontSize: 24),
-            ),
-            const SizedBox(height: 32),
-            OutlinedButton.icon(
-              onPressed: () => setState(() => _showPreview = !_showPreview),
-              icon: Icon(_showPreview ? Icons.expand_less : Icons.expand_more),
-              label: Text(_showPreview ? 'Hide Preview' : 'Show Preview'),
-            ),
-            if (_showPreview) ...[
-              const SizedBox(height: 24),
-              ...List.generate(_sessionWords.length, (index) {
-                final wordObj = _sessionWords[index];
-                final userAnswer = _userAnswers[index];
-                double? similarity;
-                if (userAnswer != null) {
-                  similarity = StringSimilarity.compareTwoStrings(
-                    userAnswer.trim().toLowerCase(),
-                    wordObj.word.toLowerCase(),
-                  );
-                }
-                final isCorrect = similarity != null && similarity >= 0.8;
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isCorrect
-                        ? Theme.of(context).colorScheme.primaryContainer
-                        : Theme.of(context).colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isCorrect
-                          ? Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.3)
-                          : Theme.of(
-                              context,
-                            ).colorScheme.error.withValues(alpha: 0.3),
-                    ),
+            child: Icon(Icons.celebration_rounded, size: 64, color: AppColors.primary),
+          ),
+          SizedBox(height: 32),
+          Text(
+            'Brilliant Work!',
+            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Session completed with excellence.',
+            style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
+          ),
+          SizedBox(height: 40),
+          Card(
+            child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Column(
+                children: [
+                  Text(
+                    'Final Score',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1),
                   ),
+                  SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '$_score',
+                        style: TextStyle(fontSize: 64, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      ),
+                      Text(
+                        '/${_sessionWords.length}',
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: () => setState(() => _selectedDifficulty = null),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(200, 56),
+            ),
+            child: Text('Back to Menu'),
+          ),
+          SizedBox(height: 24),
+          TextButton(
+            onPressed: () => setState(() => _showPreview = !_showPreview),
+            child: Text(_showPreview ? 'Hide Details' : 'Review Progress'),
+          ),
+          if (_showPreview) ...[
+            SizedBox(height: 32),
+            ...List.generate(_sessionWords.length, (index) {
+              final wordObj = _sessionWords[index];
+              final userAnswer = _userAnswers[index];
+              double similarity = 0;
+              if (userAnswer != null) {
+                similarity = StringSimilarity.compareTwoStrings(
+                  userAnswer.trim().toLowerCase(),
+                  wordObj.word.toLowerCase(),
+                );
+              }
+              final isCorrect = similarity >= 0.8;
+
+              return Card(
+                margin: EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: EdgeInsets.all(20),
                   child: Row(
                     children: [
+                      Container(
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: (isCorrect ? AppColors.primary : AppColors.error).withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isCorrect ? Icons.check_rounded : Icons.close_rounded,
+                          color: isCorrect ? AppColors.primary : AppColors.error,
+                          size: 20,
+                        ),
+                      ),
+                      SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Correct: ${wordObj.word}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              wordObj.word,
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
+                            SizedBox(height: 4),
                             Text(
-                              'Your Pronunciation: ${userAnswer ?? "(No audio)"}',
-                              style: TextStyle(
-                                color: isCorrect
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).colorScheme.error,
-                              ),
+                              userAnswer?.isEmpty ?? true ? "(No input)" : '"${userAnswer}"',
+                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                             ),
                           ],
                         ),
                       ),
-                      Icon(
-                        isCorrect ? Icons.check : Icons.close,
-                        color: isCorrect
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.error,
-                      ),
                     ],
                   ),
-                );
-              }),
-            ],
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () => setState(() => _selectedDifficulty = null),
-              child: const Text('Back to Menu'),
-            ),
+                ),
+              );
+            }),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -686,34 +802,116 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 class _DifficultyCard extends StatelessWidget {
   final String title;
   final Color color;
+  final IconData icon;
+  final int rating;
   final VoidCallback onTap;
 
   const _DifficultyCard({
     required this.title,
     required this.color,
+    required this.icon,
+    required this.rating,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
+      height: 480, // Taller card to match vertical orientation
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        color: isDark ? const Color(0xFF333333) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                SizedBox(height: 12),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 40),
+                ),
+                SizedBox(height: 32),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Difficulty:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4.0),
+                      child: Container(
+                        padding: EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: index < rating ? const Color(0xFFF6A119) : (isDark ? Colors.grey[600] : Colors.grey[400]),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.star_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: onTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      'Start',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -721,3 +919,37 @@ class _DifficultyCard extends StatelessWidget {
     );
   }
 }
+
+class _ControlButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final Color color;
+
+  const _ControlButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        IconButton(
+          onPressed: onTap,
+          icon: Icon(icon),
+          color: color,
+          iconSize: 32,
+        ),
+        Text(
+          label,
+          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+}
+
+

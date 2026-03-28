@@ -68,7 +68,7 @@ class AuthService {
         '458713583940-v6j8pjs8bj4ftmibm8ml78rl1qrm6ib5.apps.googleusercontent.com';
     _googleSignInInit = _googleSignIn.initialize(
       clientId: kIsWeb ? webClientId : null,
-      serverClientId: webClientId,
+      serverClientId: kIsWeb ? null : webClientId,
     );
 
     try {

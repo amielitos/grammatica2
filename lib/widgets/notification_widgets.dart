@@ -23,10 +23,11 @@ class NotificationIconButton extends StatelessWidget {
             ? snapshot.data!.where((n) => !n.isRead).length
             : 0;
 
-        return Stack(
-          children: [
-            IconButton(icon: const Icon(CupertinoIcons.bell), onPressed: onTap),
-            if (unreadCount > 0)
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return Stack(
+              children: [
+                IconButton(icon: Icon(CupertinoIcons.bell, color: isDark ? Colors.white : Colors.black87), onPressed: onTap),
+                if (unreadCount > 0)
               Positioned(
                 right: 8,
                 top: 8,

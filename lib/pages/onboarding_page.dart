@@ -1,8 +1,10 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../theme/app_colors.dart';
+import '../widgets/design_ornaments.dart';
 import '../widgets/terms_and_conditions_dialog.dart';
+import '../main.dart';
 
 class OnboardingPage extends StatefulWidget {
   final User user;
@@ -19,207 +21,230 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   final List<OnboardingStep> _steps = [
     OnboardingStep(
-      title: 'Welcome to Grammatica!',
-      description:
-          'Your journey to mastering grammar starts here. Let\'s get you settled in.',
-      icon: CupertinoIcons.sparkles,
+      title: 'Welcome to Grammatica',
+      description: 'Your journey to mastering the English language starts here. Let\'s get you settled into your new learning sanctuary.',
+      icon: Icons.auto_awesome_rounded,
     ),
     OnboardingStep(
-      title: 'Learn with Lessons',
-      description:
-          'Explore interactive lessons designed to make grammar easy and fun.',
-      icon: CupertinoIcons.book,
+      title: 'Interactive Lessons',
+      description: 'Explore bite-sized, engaging lessons designed by experts to make grammar intuitive and fun.',
+      icon: Icons.import_contacts_rounded,
     ),
     OnboardingStep(
-      title: 'Test Your Skills',
-      description:
-          'Take quizzes to track your progress and reinforce what you\'ve learned.',
-      icon: CupertinoIcons.question_circle,
+      title: 'Real-time Challenges',
+      description: 'Test your skills with interactive quizzes and track your progress as you climb the ranks.',
+      icon: Icons.psychology_rounded,
     ),
     OnboardingStep(
-      title: 'Personalize Your Profile',
-      description:
-          'Keep track of your achievements and customize your learning experience.',
-      icon: CupertinoIcons.person,
+      title: 'Expert Community',
+      description: 'Connect with verified educators and fellow learners in a supportive, growth-oriented environment.',
+      icon: Icons.groups_rounded,
     ),
     OnboardingStep(
-      title: 'You\'re all set!',
-      description: 'Ready to dive in? Click finish to start your first lesson.',
-      icon: CupertinoIcons.check_mark_circled,
+      title: 'Ready to Begin?',
+      description: 'Dive into your first lesson and unlock your full linguistic potential today.',
+      icon: Icons.rocket_launch_rounded,
       isLast: true,
     ),
   ];
 
   Future<void> _completeOnboarding() async {
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.user.uid)
-        .update({'has_completed_onboarding': true});
+    await FirebaseFirestore.instance.collection('users').doc(widget.user.uid).update({'has_completed_onboarding': true});
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: (index) {
-                  setState(() => _currentPage = index);
-                },
-                itemCount: _steps.length,
-                itemBuilder: (context, index) {
-                  final step = _steps[index];
-                  return Padding(
-                    padding: const EdgeInsets.all(40.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(30),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primaryContainer,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            step.icon,
-                            size: 100,
-                            color: colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                        const SizedBox(height: 48),
-                        Text(
-                          step.title,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.displaySmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          step.description,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.bodyMedium?.color,
-                              ),
-                        ),
-
-                        if (step.isLast) ...[
-                          const SizedBox(height: 24),
-                          // Terms and Conditions Logic
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Checkbox(
-                                value: _agreedToTerms,
-                                activeColor: colorScheme.primary,
-                                onChanged: (val) async {
-                                  if (val == true) {
-                                    // User trying to check - show dialog
-                                    final accepted = await showDialog<bool>(
-                                      context: context,
-                                      builder: (context) =>
-                                          const TermsAndConditionsDialog(),
-                                    );
-                                    if (accepted == true) {
-                                      setState(() => _agreedToTerms = true);
-                                    }
-                                  } else {
-                                    // User unchecking - allow immediately
-                                    setState(() => _agreedToTerms = false);
-                                  }
-                                },
-                              ),
-                              Flexible(
-                                child: GestureDetector(
-                                  onTap: () async {
-                                    if (!_agreedToTerms) {
-                                      final accepted = await showDialog<bool>(
-                                        context: context,
-                                        builder: (context) =>
-                                            const TermsAndConditionsDialog(),
-                                      );
-                                      if (accepted == true) {
-                                        setState(() => _agreedToTerms = true);
-                                      }
-                                    } else {
-                                      setState(() => _agreedToTerms = false);
-                                    }
-                                  },
-                                  child: Text(
-                                    'I agree to the Terms and Conditions',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          decoration: TextDecoration.underline,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.primary,
-                                        ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                },
+      body: BackgroundWrapper(
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Skip Button
+              Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextButton(
+                    onPressed: _completeOnboarding,
+                    child: const Text('Skip', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+                  ),
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Indicator
-                  Row(
-                    children: List.generate(
-                      _steps.length,
-                      (index) => Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        height: 8,
-                        width: _currentPage == index ? 24 : 8,
-                        decoration: BoxDecoration(
-                          color: _currentPage == index
-                              ? colorScheme.primary
-                              : colorScheme.outlineVariant,
-                          borderRadius: BorderRadius.circular(4),
+
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: (index) {
+                    setState(() => _currentPage = index);
+                  },
+                  itemCount: _steps.length,
+                  itemBuilder: (context, index) {
+                    final step = _steps[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Icon Container
+                          Container(
+                            padding: const EdgeInsets.all(32),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              step.icon,
+                              size: 80,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 48),
+                          Text(
+                            step.title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            step.description,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: AppColors.textSecondary,
+                              height: 1.6,
+                            ),
+                          ),
+
+                          if (step.isLast) ...[
+                            const SizedBox(height: 40),
+                            // Terms and Conditions
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Checkbox(
+                                    value: _agreedToTerms,
+                                    activeColor: AppColors.primary,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                    onChanged: (val) async {
+                                      if (val == true) {
+                                        final accepted = await showDialog<bool>(
+                                          context: context,
+                                          builder: (context) => TermsAndConditionsDialog(),
+                                        );
+                                        if (accepted == true) {
+                                          setState(() => _agreedToTerms = true);
+                                        }
+                                      } else {
+                                        setState(() => _agreedToTerms = false);
+                                      }
+                                    },
+                                  ),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () async {
+                                        if (!_agreedToTerms) {
+                                          final accepted = await showDialog<bool>(
+                                            context: context,
+                                            builder: (context) => TermsAndConditionsDialog(),
+                                          );
+                                          if (accepted == true) {
+                                            setState(() => _agreedToTerms = true);
+                                          }
+                                        } else {
+                                          setState(() => _agreedToTerms = false);
+                                        }
+                                      },
+                                      child: const Text.rich(
+                                        TextSpan(
+                                          text: 'I agree to the ',
+                                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                          children: [
+                                            TextSpan(
+                                              text: 'Terms and Conditions',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.primary,
+                                                decoration: TextDecoration.underline,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              // Bottom Navigation Area
+              Padding(
+                padding: const EdgeInsets.fromLTRB(40, 0, 40, 40),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Modern Indicators
+                    Row(
+                      children: List.generate(
+                        _steps.length,
+                        (index) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: const EdgeInsets.only(right: 8),
+                          height: 8,
+                          width: _currentPage == index ? 32 : 8,
+                          decoration: BoxDecoration(
+                            color: _currentPage == index ? AppColors.primary : AppColors.divider,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // Button
-                  if (_steps[_currentPage].isLast)
-                    FilledButton(
-                      onPressed: _agreedToTerms ? _completeOnboarding : null,
-                      child: const Text('Finish'),
-                    )
-                  else
-                    IconButton.filled(
-                      onPressed: () {
-                        _pageController.nextPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      },
-                      iconSize: 24,
-                      icon: const Icon(Icons.arrow_forward_rounded),
-                    ),
-                ],
+
+                    // Next / Finish Button
+                    if (_steps[_currentPage].isLast)
+                      ElevatedButton(
+                        onPressed: _agreedToTerms ? _completeOnboarding : null,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        ),
+                        child: const Text('GET STARTED', style: TextStyle(fontWeight: FontWeight.bold)),
+                      )
+                    else
+                      ElevatedButton(
+                        onPressed: () {
+                          _pageController.nextPage(
+                            duration: const Duration(milliseconds: 400),
+                            curve: Curves.fastOutSlowIn,
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          shape: const CircleBorder(),
+                          padding: const EdgeInsets.all(20),
+                        ),
+                        child: const Icon(Icons.arrow_forward_rounded, size: 28),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
