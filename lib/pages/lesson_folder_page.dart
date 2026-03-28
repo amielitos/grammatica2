@@ -348,11 +348,13 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                   child: TextField(
                     controller: _searchController,
                     onChanged: (val) => setState(() => _searchQuery = val),
+                    style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       hintText: 'Search lesson..',
-                      suffixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
+                      hintStyle: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : AppColors.textSecondary),
+                      suffixIcon: Icon(Icons.search_rounded, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : AppColors.textSecondary),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF333333) : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
                         borderSide: BorderSide.none,
@@ -475,8 +477,17 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     required bool completed,
     String? authorLabel,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Determine icon color based on folder type
+    Color iconColor = const Color(0xFFE8B84B); // Default Gold for Grammatica
+    if (widget.pillLabel == 'Public' || widget.pillLabel == 'Public Lessons') {
+      iconColor = const Color(0xFFE6625B); // Salmon Red for Public
+    }
+
     return SizedBox(
-      width: 140,
+      width: 200,
+      height: 280, // Even taller, giving a more pronounced portrait format that feels larger overall
       child: GestureDetector(
         onTap: () {
           Navigator.of(context).push(
@@ -487,35 +498,35 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
         },
         child: Card(
           elevation: 0,
-          color: Colors.white,
+          color: isDark ? const Color(0xFF333333) : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(24), // Increased padding
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Stack(
                   children: [
-                    const Icon(Icons.menu_book_rounded, color: Color(0xFFE8B84B), size: 26),
+                    Icon(Icons.menu_book_rounded, color: iconColor, size: 28),
                     if (completed)
                       Positioned(
                         right: 0,
                         top: 0,
-                        child: Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 12),
+                        child: Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 14),
                       ),
                   ],
                 ),
-                const SizedBox(height: 28),
+                const Spacer(), // Use Spacer to push text to the bottom
                 Text(
                   lesson.title,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   'by: ${authorLabel ?? lesson.createdByEmail ?? 'Unknown'}',
-                  style: const TextStyle(fontSize: 9, color: AppColors.textSecondary),
+                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : AppColors.textSecondary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -534,6 +545,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     List<Lesson> lessons,
     Map<String, dynamic> progress,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     int completedCount = 0;
     List<Map<String, dynamic>> recentlyCompleted = [];
 
@@ -569,9 +581,9 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Folder Progress',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
                 ),
                 const SizedBox(height: 20),
                 ClipRRect(
@@ -588,7 +600,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                 const SizedBox(height: 12),
                 Text(
                   '$completedCount / ${lessons.length} Lessons Completed',
-                  style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? Colors.white : AppColors.textSecondary),
                 ),
               ],
             ),
@@ -601,19 +613,19 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Recent Activity',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
                 ),
                 const SizedBox(height: 20),
                 if (recentlyCompleted.isEmpty)
-                  const Text('No activity yet.', style: TextStyle(color: AppColors.textSecondary))
+                  Text('No recent activities...', style: TextStyle(color: isDark ? Colors.white54 : AppColors.textSecondary))
                 else
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: recentlyCompleted.length,
-                    separatorBuilder: (c, i) => Divider(color: AppColors.divider),
+                    separatorBuilder: (c, i) => Divider(color: isDark ? Colors.grey[800] : AppColors.divider),
                     itemBuilder: (context, index) {
                       final item = recentlyCompleted[index];
                       return Padding(
@@ -629,7 +641,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                             Expanded(
                               child: Text(
                                 item['title'],
-                                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                                style: TextStyle(fontSize: 14, color: isDark ? Colors.white : AppColors.textPrimary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),

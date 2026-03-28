@@ -266,61 +266,88 @@ class _LessonsListState extends State<_LessonsList> {
               );
             }
 
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              child: Column(
-                children: [
-                  Center(
-                    child: Text(
-                      'Lessons',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Wrap(
-                    spacing: 32,
-                    runSpacing: 32,
-                    alignment: WrapAlignment.center,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: Column(
                     children: [
-                      _buildFolderCard(
-                        context,
-                        title: 'Grammatica',
-                        description: 'Official lessons',
-                        pillLabel: 'Grammatica',
-                        iconColor: Theme.of(context).colorScheme.primary,
-                        onTap: () {
-                          setState(() {
-                            _activeFolder = {
-                              'title': 'Grammatica Lessons',
-                              'pillLabel': 'From Grammatica',
-                              'lessons': grammaticaLessons,
-                            };
-                          });
-                          widget.onFolderChanged?.call('Grammatica Lessons');
-                        },
+                      // Search Bar
+                      Container(
+                        height: 56,
+                        margin: const EdgeInsets.only(bottom: 64, top: 24),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF333333) : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            )
+                          ],
+                        ),
+                        child: TextField(
+                          style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Search lesson..',
+                            hintStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 16),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            suffixIcon: Padding(
+                              padding: const EdgeInsets.only(right: 16.0),
+                              child: Icon(Icons.search, color: isDark ? Colors.white : Colors.black, size: 24),
+                            ),
+                          ),
+                        ),
                       ),
-                      _buildFolderCard(
-                        context,
-                        title: 'Public',
-                        description: 'Community & Educators',
-                        pillLabel: 'Public',
-                        iconColor: Theme.of(context).colorScheme.secondary,
-                        onTap: () {
-                          setState(() {
-                            _activeFolder = {
-                              'title': 'Public Content',
-                              'pillLabel': 'Public',
-                              'lessons': publicLessons,
-                              'isPublicFolder': true,
-                            };
-                          });
-                          widget.onFolderChanged?.call('Public');
-                        },
+                      
+                      Wrap(
+                        spacing: 48,
+                        runSpacing: 48,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          _buildFolderCard(
+                            context,
+                            title: 'Grammatica',
+                            description: 'Official Lessons',
+                            iconColor: const Color(0xFFF3AF0D), // Exact Yellow mock
+                            onTap: () {
+                              setState(() {
+                                _activeFolder = {
+                                  'title': 'Grammatica Lessons',
+                                  'pillLabel': 'From Grammatica',
+                                  'lessons': grammaticaLessons,
+                                };
+                              });
+                              widget.onFolderChanged?.call('Grammatica Lessons');
+                            },
+                          ),
+                          _buildFolderCard(
+                            context,
+                            title: 'Public',
+                            description: 'Community and Educators',
+                            iconColor: const Color(0xFFDE372A), // Exact Red mock
+                            onTap: () {
+                              setState(() {
+                                _activeFolder = {
+                                  'title': 'Public Content',
+                                  'pillLabel': 'Public',
+                                  'lessons': publicLessons,
+                                  'isPublicFolder': true,
+                                };
+                              });
+                              widget.onFolderChanged?.call('Public');
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             );
           },
@@ -333,69 +360,70 @@ class _LessonsListState extends State<_LessonsList> {
     BuildContext context, {
     required String title,
     required String description,
-    required String pillLabel,
     required Color iconColor,
     required VoidCallback onTap,
   }) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          width: 280,
-          height: 320,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: 320,
+      height: 400,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF333333) : Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          )
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(32),
+          onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(Icons.folder_rounded, size: 40, color: iconColor),
-                ),
-                const SizedBox(height: 24),
+                const Spacer(),
+                Icon(Icons.folder_rounded, size: 100, color: iconColor),
+                const SizedBox(height: 16),
                 Text(
                   title,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: isDark ? Colors.white : Colors.black,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Text(
                   description,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.4,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.grey.shade400 : Colors.black87,
                   ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
                 const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    pillLabel,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: iconColor,
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: onTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: iconColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
+                    child: const Text('Browse', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],

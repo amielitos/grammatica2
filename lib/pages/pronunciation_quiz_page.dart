@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -387,33 +387,41 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
             ),
           ),
           SizedBox(height: 48),
-          Wrap(
-            spacing: 32,
-            runSpacing: 32,
-            alignment: WrapAlignment.center,
-            children: [
-              _DifficultyCard(
-                title: 'Novice',
-                color: const Color(0xFFFDE061),
-                icon: Icons.star_rounded,
-                rating: 2,
-                onTap: () => _startSession(SpellingDifficulty.novice),
-              ),
-              _DifficultyCard(
-                title: 'Amateur',
-                color: const Color(0xFFA1CC73),
-                icon: Icons.insights_rounded,
-                rating: 3,
-                onTap: () => _startSession(SpellingDifficulty.amateur),
-              ),
-              _DifficultyCard(
-                title: 'Professional',
-                color: const Color(0xFFE6625B),
-                icon: Icons.local_fire_department_rounded,
-                rating: 4,
-                onTap: () => _startSession(SpellingDifficulty.professional),
-              ),
-            ],
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _DifficultyCard(
+                    title: 'Novice',
+                    color: const Color(0xFFFCE267),
+                    icon: Icons.star_rounded,
+                    rating: 2,
+                    onTap: () => _startSession(SpellingDifficulty.novice),
+                  ),
+                ),
+                SizedBox(width: 32),
+                Expanded(
+                  child: _DifficultyCard(
+                    title: 'Amateur',
+                    color: const Color(0xFFA1CC73),
+                    icon: Icons.show_chart_rounded,
+                    rating: 3,
+                    onTap: () => _startSession(SpellingDifficulty.amateur),
+                  ),
+                ),
+                SizedBox(width: 32),
+                Expanded(
+                  child: _DifficultyCard(
+                    title: 'Professional',
+                    color: const Color(0xFFE6625B),
+                    icon: Icons.local_fire_department_rounded,
+                    rating: 4,
+                    onTap: () => _startSession(SpellingDifficulty.professional),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -808,86 +816,105 @@ class _DifficultyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      width: 340,
+      height: 480, // Taller card to match vertical orientation
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF333333) : Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: Colors.white, size: 48),
-          ),
-          SizedBox(height: 32),
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-              color: Colors.black,
-            ),
-          ),
-          SizedBox(height: 16),
-          Text(
-            'Difficulty:',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.black87,
-            ),
-          ),
-          SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (index) {
-              return Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4.0),
-                child: Icon(
-                  Icons.star_rounded,
-                  color: index < rating ? const Color(0xFFFABF00) : Colors.grey[400],
-                  size: 24,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                SizedBox(height: 12),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 40),
                 ),
-              );
-            }),
-          ),
-          SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: onTap,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                SizedBox(height: 32),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
                 ),
-              ),
-              child: Text(
-                'Start',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                SizedBox(height: 16),
+                Text(
+                  'Difficulty:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
                 ),
-              ),
+                SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4.0),
+                      child: Container(
+                        padding: EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: index < rating ? const Color(0xFFF6A119) : (isDark ? Colors.grey[600] : Colors.grey[400]),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.star_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: onTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      'Start',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

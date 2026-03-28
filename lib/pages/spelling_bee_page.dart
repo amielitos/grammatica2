@@ -245,13 +245,28 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: widget.onBack,
-        ),
-        title: const Text(
-          'Spelling Bee',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+        leadingWidth: 240,
+        leading: Padding(
+          padding: EdgeInsets.only(left: 16.0),
+          child: TextButton.icon(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+            label: Text(
+              _selectedDifficulty == null ? 'Back to Practice Tools' : 'Back to Spelling Bee',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              alignment: Alignment.centerLeft,
+            ),
+            onPressed: () {
+              if (_selectedDifficulty == null) {
+                widget.onBack();
+              } else {
+                _timer?.cancel();
+                setState(() => _selectedDifficulty = null);
+              }
+            },
+          ),
         ),
         actions: [
           StreamBuilder<UserRole>(
@@ -273,9 +288,12 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         ],
       ),
       body: BackgroundWrapper(
+        imageAssetPath: _selectedDifficulty == null 
+            ? 'assets/practicebg.png' 
+            : 'assets/spellingbeebg.png',
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
+            constraints: const BoxConstraints(maxWidth: 1200),
             child: _buildBody(),
           ),
         ),
@@ -291,144 +309,161 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
 
   Widget _buildDifficultySelection() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
+      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 80),
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.spellcheck_rounded,
-              size: 64,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: 32),
-          const Text(
-            "The Great Spelling Bee",
+          Text(
+            'Choose your Difficulty',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 32,
+              fontSize: 36,
               fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 12),
-          const Text(
-            "Test your spelling skills and vocabulary\nwith our word-to-audio challenge.",
+          SizedBox(height: 12),
+          Text(
+            'Select a level for Spelling Bee',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
               color: AppColors.textSecondary,
-              height: 1.5,
             ),
           ),
-          const SizedBox(height: 48),
-          _DifficultyCard(
-            title: 'Novice',
-            subtitle: '120 seconds • Simple words',
-            color: AppColors.primary,
-            icon: Icons.school_rounded,
-            onTap: () => _startSession(SpellingDifficulty.novice),
-          ),
-          const SizedBox(height: 20),
-          _DifficultyCard(
-            title: 'Amateur',
-            subtitle: '60 seconds • Intermediate vocabulary',
-            color: AppColors.secondary,
-            icon: Icons.auto_graph_rounded,
-            onTap: () => _startSession(SpellingDifficulty.amateur),
-          ),
-          const SizedBox(height: 20),
-          _DifficultyCard(
-            title: 'Professional',
-            subtitle: '30 seconds • Challenging words',
-            color: AppColors.premium,
-            icon: Icons.workspace_premium_rounded,
-            onTap: () => _startSession(SpellingDifficulty.professional),
+          SizedBox(height: 48),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _DifficultyCard(
+                    title: 'Novice',
+                    color: const Color(0xFFFCE267),
+                    icon: Icons.star_rounded,
+                    rating: 2,
+                    onTap: () => _startSession(SpellingDifficulty.novice),
+                  ),
+                ),
+                SizedBox(width: 32),
+                Expanded(
+                  child: _DifficultyCard(
+                    title: 'Amateur',
+                    color: const Color(0xFFA1CC73),
+                    icon: Icons.show_chart_rounded,
+                    rating: 3,
+                    onTap: () => _startSession(SpellingDifficulty.amateur),
+                  ),
+                ),
+                SizedBox(width: 32),
+                Expanded(
+                  child: _DifficultyCard(
+                    title: 'Professional',
+                    color: const Color(0xFFE6625B),
+                    icon: Icons.local_fire_department_rounded,
+                    rating: 4,
+                    onTap: () => _startSession(SpellingDifficulty.professional),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
+  Widget _buildStatBox(String title, String value) {
+    return Container(
+      width: 220,
+      padding: EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
+          SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildGameSession() {
-    final minutes = (_timeLeft / 60).floor();
+    final minutes = (_timeLeft / 60).floor().toString().padLeft(2, '0');
     final seconds = (_timeLeft % 60).toString().padLeft(2, '0');
-    final progress = _timeLeft / _totalTime;
+    
+    String difficultyText = "";
+    Color difficultyColor = Colors.black;
+    switch (_selectedDifficulty) {
+      case SpellingDifficulty.novice:
+        difficultyText = "Novice";
+        difficultyColor = const Color(0xFFFCE267);
+        break;
+      case SpellingDifficulty.amateur:
+        difficultyText = "Amateur";
+        difficultyColor = const Color(0xFFA1CC73);
+        break;
+      case SpellingDifficulty.professional:
+        difficultyText = "Professional";
+        difficultyColor = const Color(0xFFE6625B);
+        break;
+      default:
+        break;
+    }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 100, 24, 40),
+      padding: EdgeInsets.fromLTRB(24, 60, 24, 40),
       child: Column(
         children: [
-          // Info & Timer Card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Word ${_currentIndex + 1} of ${_sessionWords.length}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textSecondary,
-                          fontSize: 14,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _timeLeft < 10 ? AppColors.error.withOpacity(0.1) : AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.timer_rounded,
-                              size: 16,
-                              color: _timeLeft < 10 ? AppColors.error : AppColors.primary,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '$minutes:$seconds',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: _timeLeft < 10 ? AppColors.error : AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: AppColors.primary.withOpacity(0.1),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        _timeLeft < 10 ? AppColors.error : AppColors.primary,
-                      ),
-                    ),
+          RichText(
+            textAlign: TextAlign.center,
+            text: TextSpan(
+              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.black),
+              children: [
+                TextSpan(text: 'Spelling Bee - '),
+                TextSpan(text: difficultyText, style: TextStyle(color: difficultyColor)),
+              ],
+            ),
+          ),
+          SizedBox(height: 32),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            alignment: WrapAlignment.center,
+            children: [
+              _buildStatBox('Progress:', 'Word ${_currentIndex + 1} of 10'),
+              _buildStatBox('Current Score:', '$_score/10'),
+              _buildStatBox('Time:', '$minutes:$seconds'),
+            ],
+          ),
+          SizedBox(height: 48),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          // Audio Hub
-          Card(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
               child: Column(
                 children: [
                   GestureDetector(
@@ -437,86 +472,104 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                       width: 120,
                       height: 120,
                       decoration: BoxDecoration(
-                        color: _isPlaying ? AppColors.primary : AppColors.surface,
+                        color: difficultyColor,
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.primary, width: 4),
                         boxShadow: [
                           if (_isPlaying)
                             BoxShadow(
-                              color: AppColors.primary.withOpacity(0.4),
+                              color: difficultyColor.withOpacity(0.4),
                               blurRadius: 30,
                               spreadRadius: 8,
                             ),
                         ],
                       ),
                       child: Icon(
-                        _isPlaying ? Icons.volume_up_rounded : Icons.play_arrow_rounded,
+                        Icons.volume_up_rounded,
                         size: 64,
-                        color: _isPlaying ? Colors.white : AppColors.primary,
+                        color: Colors.white,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    "Listen Carefully",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  SizedBox(height: 48),
+                  Text(
+                    "Listen carefully and spell the word",
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  TextField(
+                    controller: _answerController,
+                    focusNode: _focusNode,
+                    autofocus: true,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 20, color: Colors.black),
+                    decoration: InputDecoration(
+                      hintText: 'Type your answer here...',
+                      hintStyle: TextStyle(fontSize: 16, color: Colors.grey, fontStyle: FontStyle.italic),
+                      contentPadding: EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.4)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.4)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.8)),
+                      ),
+                    ),
+                    onSubmitted: (_) => _submitAnswer(),
+                  ),
+                  SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _submitAnswer,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF81B655), // Match the solid green mockup button
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        'Submit Answer',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  TextButton(
+                    onPressed: _skipWord,
+                    child: Text('Skip this word', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                  ),
+                  SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () {
+                      _timer?.cancel();
+                      setState(() => _selectedDifficulty = null);
+                    },
+                    child: Text(
+                      'Cancel Spelling Bee',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFFE56B6B),
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Color(0xFFE56B6B),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 32),
-          // Input
-          TextField(
-            controller: _answerController,
-            focusNode: _focusNode,
-            autofocus: true,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 1),
-            decoration: InputDecoration(
-              hintText: 'Spell the word',
-              hintStyle: TextStyle(fontSize: 24, color: AppColors.textSecondary.withOpacity(0.5)),
-            ),
-            onSubmitted: (_) => _submitAnswer(),
-          ),
-          const SizedBox(height: 40),
-          ElevatedButton(
-            onPressed: _submitAnswer,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 64),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.check_circle_rounded),
-                const SizedBox(width: 12),
-                Text('SUBMIT ANSWER', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextButton.icon(
-                onPressed: _skipWord,
-                icon: const Icon(Icons.skip_next_rounded),
-                label: const Text('Skip Word'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
-              ),
-              const SizedBox(width: 24),
-              TextButton.icon(
-                onPressed: () {
-                  _timer?.cancel();
-                  setState(() => _selectedDifficulty = null);
-                },
-                icon: const Icon(Icons.close_rounded),
-                label: const Text('End Session'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.error),
-              ),
-            ],
-          ),
-          const SizedBox(height: 40),
         ],
       ),
     );
@@ -644,56 +697,118 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
 
 class _DifficultyCard extends StatelessWidget {
   final String title;
-  final String subtitle;
   final Color color;
   final IconData icon;
+  final int rating;
   final VoidCallback onTap;
 
   const _DifficultyCard({
     required this.title,
-    required this.subtitle,
     required this.color,
     required this.icon,
+    required this.rating,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      height: 480, // Taller card to match vertical orientation
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF333333) : Colors.white,
         borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                SizedBox(height: 12),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 40),
                 ),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                    ),
-                  ],
+                SizedBox(height: 32),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
                 ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: AppColors.divider, size: 28),
-            ],
+                SizedBox(height: 16),
+                Text(
+                  'Difficulty:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4.0),
+                      child: Container(
+                        padding: EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: index < rating ? const Color(0xFFF6A119) : (isDark ? Colors.grey[600] : Colors.grey[400]),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.star_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: onTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      'Start',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

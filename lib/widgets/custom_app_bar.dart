@@ -21,15 +21,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String fullName = userData['full_name'] ?? userData['username'] ?? 'User';
-    final String profileImageUrl = userData['profile_image_url'] ?? '';
+    final String fullName = userData['username'] ?? userData['full_name'] ?? user.displayName ?? 'User';
+    final String profileImageUrl = userData['photoUrl'] ?? userData['profile_image_url'] ?? user.photoURL ?? '';
     final screenWidth = MediaQuery.of(context).size.width;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return AppBar(
-      backgroundColor: Colors.transparent,
+      backgroundColor: isDark ? const Color(0xFF333333) : Colors.transparent,
       elevation: 0,
       leading: IconButton(
-        icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary, size: 28),
+        icon: Icon(Icons.menu_rounded, color: isDark ? Colors.white : AppColors.textPrimary, size: 28),
         onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
       ),
       title: Row(
@@ -48,9 +50,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   const SnackBar(content: Text('All About Grammatica is coming soon!')),
                 );
               },
-              child: const Text(
+              child: Text(
                 'All About Grammatica',
-                style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                style: TextStyle(color: isDark ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(width: 24),
@@ -60,9 +62,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   const SnackBar(content: Text("FAQ's is coming soon!")),
                 );
               },
-              child: const Text(
+              child: Text(
                 "FAQ's",
-                style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                style: TextStyle(color: isDark ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600),
               ),
             ),
             const Spacer(),
@@ -77,8 +79,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               padding: const EdgeInsets.only(right: 12.0),
               child: Text(
                 fullName,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: isDark ? Colors.white : AppColors.textPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
