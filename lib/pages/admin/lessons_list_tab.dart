@@ -44,12 +44,6 @@ class _LessonsListTabState extends State<LessonsListTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'All Lessons',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 24),
-
               // List of Lessons
               StreamBuilder<List<Lesson>>(
                 stream: DatabaseService.instance.streamLessons(
@@ -113,274 +107,215 @@ class _LessonsListTabState extends State<LessonsListTab> {
 
                   return Column(
                     children: [
-                      AppSearchBar(
-                        hintText: 'Search lessons by title or author...',
-                        onSearch: (value) {
-                          setState(() {
-                            _searchQuery = value;
-                          });
-                        },
-                        onFilterPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            builder: (context) => SafeArea(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Text(
-                                      'Filter Lessons By',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleMedium,
-                                    ),
-                                  ),
-                                  ..._filterOptions.map((option) {
-                                    return ListTile(
-                                      title: Text(
-                                        option,
-                                        style: TextStyle(
-                                          color: _selectedFilter == option
-                                              ? Theme.of(
-                                                  context,
-                                                ).colorScheme.primary
-                                              : null,
-                                          fontWeight: _selectedFilter == option
-                                              ? FontWeight.bold
-                                              : null,
+                      // Search Bar styled to match mock up
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.tune, color: Colors.grey),
+                              onPressed: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  builder: (context) => SafeArea(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.all(16.0),
+                                          child: Text(
+                                            'Filter Lessons By',
+                                            style: Theme.of(context).textTheme.titleMedium,
+                                          ),
                                         ),
-                                      ),
-                                      onTap: () {
-                                        setState(() {
-                                          _selectedFilter = option;
-                                        });
-                                        Navigator.pop(context);
-                                      },
-                                    );
-                                  }),
-                                  const Divider(),
-                                  ListTile(
-                                    title: const Text(
-                                      'Cancel',
-                                      style: TextStyle(color: Colors.red),
+                                        ..._filterOptions.map((option) {
+                                          return ListTile(
+                                            title: Text(
+                                              option,
+                                              style: TextStyle(
+                                                color: _selectedFilter == option
+                                                    ? Theme.of(context).colorScheme.primary
+                                                    : null,
+                                                fontWeight: _selectedFilter == option
+                                                    ? FontWeight.bold
+                                                    : null,
+                                              ),
+                                            ),
+                                            onTap: () {
+                                              setState(() {
+                                                _selectedFilter = option;
+                                              });
+                                              Navigator.pop(context);
+                                            },
+                                          );
+                                        }),
+                                        const Divider(),
+                                        ListTile(
+                                          title: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                                          onTap: () => Navigator.pop(context),
+                                        ),
+                                      ],
                                     ),
-                                    onTap: () => Navigator.pop(context),
                                   ),
-                                ],
+                                );
+                              },
+                            ),
+                            Expanded(
+                              child: TextField(
+                                onChanged: (value) {
+                                  setState(() {
+                                    _searchQuery = value;
+                                  });
+                                },
+                                decoration: const InputDecoration(
+                                  hintText: 'Search lesson by title or author..',
+                                  hintStyle: TextStyle(color: Colors.grey),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
                               ),
                             ),
-                          );
-                        },
+                            const Icon(Icons.search, color: Colors.grey),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
                       if (lessons.isEmpty)
                         const Center(child: Text('No lessons found'))
                       else
-                        ListView.separated(
-                          physics: const NeverScrollableScrollPhysics(),
-                          shrinkWrap: true,
-                          itemCount: lessons.length,
-                          separatorBuilder: (c, i) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final l = lessons[index];
-                            final currentUser =
-                                AuthService.instance.currentUser;
-                            final color = Theme.of(context).colorScheme.primary;
-                            final isPending =
-                                l.validationStatus == 'awaiting_approval';
-
-                            return Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey.shade300),
-                                borderRadius: BorderRadius.circular(8),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isWide = constraints.maxWidth > 700;
+                            return GridView.builder(
+                              physics: const NeverScrollableScrollPhysics(),
+                              shrinkWrap: true,
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: isWide ? 2 : 1,
+                                childAspectRatio: isWide ? 2.3 : 1.8,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
                               ),
-                              clipBehavior: Clip.antiAlias,
-                              child: InkWell(
-                                onTap: () {
-                                  if (currentUser != null) {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => LessonPage(
-                                          user: currentUser,
-                                          lesson: l,
+                              itemCount: lessons.length,
+                              itemBuilder: (context, index) {
+                                final l = lessons[index];
+                                final currentUser = AuthService.instance.currentUser;
+                                final isPending = l.validationStatus == 'awaiting_approval';
+                                final isDark = Theme.of(context).brightness == Brightness.dark;
+
+                                return InkWell(
+                                  onTap: () {
+                                    if (currentUser != null) {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => LessonPage(user: currentUser, lesson: l),
                                         ),
-                                      ),
-                                    );
-                                  }
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 4,
-                                        height: 60,
-                                        color: isPending ? Colors.teal : color,
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                      );
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF333333) : Colors.white,
+                                      border: Border.all(color: Colors.grey.shade400),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Top Row: Title + Status + Action Buttons
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              l.title,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
+                                            Expanded(
+                                              child: Text(
+                                                l.title,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 20,
+                                                  color: Colors.black87,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              l.prompt,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .textTheme
-                                                    .bodyMedium
-                                                    ?.color
-                                                    ?.withValues(alpha: 0.5),
+                                            const SizedBox(width: 8),
+                                            // Pill
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: (isPending ? Colors.orange : (l.isMembersOnly ? Colors.amber : Colors.blue)).withValues(alpha: 0.3),
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(
+                                                  color: (isPending ? Colors.orange : (l.isMembersOnly ? Colors.amber : Colors.blue)).withValues(alpha: 0.6),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                isPending ? 'Pending' : (l.isMembersOnly ? 'Members Only' : 'Public'),
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.black87,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
-                                            const SizedBox(height: 8),
-                                            Wrap(
-                                              spacing: 12,
-                                              children: [
-                                                if (l.attachmentName != null &&
-                                                    l
-                                                        .attachmentName!
-                                                        .isNotEmpty)
-                                                  Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      const Icon(
-                                                        Icons.attach_file,
-                                                        size: 14,
-                                                      ),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        l.attachmentName!,
-                                                        style: Theme.of(
-                                                          context,
-                                                        ).textTheme.bodySmall,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                Text(
-                                                  'Created: ${_formatTs(l.createdAt ?? Timestamp.now())} • ',
-                                                  style: Theme.of(
-                                                    context,
-                                                  ).textTheme.bodySmall,
-                                                ),
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 2,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color:
-                                                        (l.isMembersOnly
-                                                                ? Colors.amber
-                                                                : Colors.blue)
-                                                            .withValues(
-                                                              alpha: 0.1,
-                                                            ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                    border: Border.all(
-                                                      color:
-                                                          (l.isMembersOnly
-                                                                  ? Colors.amber
-                                                                  : Colors.blue)
-                                                              .withValues(
-                                                                alpha: 0.5,
-                                                              ),
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    l.isMembersOnly
-                                                        ? 'Members Only'
-                                                        : 'Public',
-                                                    style: const TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                AuthorName(
-                                                  uid: l.createdByUid,
-                                                  fallbackEmail:
-                                                      l.createdByEmail,
-                                                  style: Theme.of(
-                                                    context,
-                                                  ).textTheme.bodySmall,
-                                                ),
-                                              ],
-                                            ),
+                                            const SizedBox(width: 16),
+                                            if (role == UserRole.admin || role == UserRole.superadmin || role == UserRole.educator) ...[
+                                              GestureDetector(
+                                                onTap: () => widget.onEdit?.call(l),
+                                                child: const Icon(Icons.edit, size: 20, color: Colors.grey),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              GestureDetector(
+                                                onTap: () => _confirmDelete(context, l),
+                                                child: const Icon(Icons.delete, size: 20, color: Colors.red),
+                                              ),
+                                            ],
                                           ],
                                         ),
-                                      ),
-                                      if (isPending) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 6,
+                                        const SizedBox(height: 8),
+                                        // Header 2 & 3 (Subtitles/Prompt preview)
+                                        Text(
+                                          l.prompt,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey,
                                           ),
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(
-                                              20,
+                                        ),
+                                        const Spacer(),
+                                        // Bottom Row
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              'By: ${l.createdByEmail ?? 'Unknown'}',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.black87,
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                             ),
-                                            border: Border.all(),
-                                          ),
-                                          child: const Text(
-                                            'Waiting for approval',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
+                                            Text(
+                                              'Date Created: ${_formatTs(l.createdAt ?? Timestamp.now())}',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.black87,
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                             ),
-                                          ),
+                                          ],
                                         ),
                                       ],
-                                      // Actions for Admins/Educators
-                                      if (role == UserRole.admin ||
-                                          role == UserRole.superadmin ||
-                                          role == UserRole.educator)
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.edit),
-                                              tooltip: 'Edit Lesson',
-                                              onPressed: () =>
-                                                  widget.onEdit?.call(l),
-                                            ),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.delete,
-                                                color: Colors.red,
-                                              ),
-                                              tooltip: 'Delete Lesson',
-                                              onPressed: () =>
-                                                  _confirmDelete(context, l),
-                                            ),
-                                          ],
-                                        ),
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ),
+                                );
+                              },
                             );
                           },
                         ),

@@ -16,7 +16,9 @@ import '../widgets/responsive_wrapper.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
-
+import '../widgets/design_ornaments.dart';
+import '../widgets/custom_app_bar.dart';
+import '../main.dart';
 class AdminDashboard extends StatefulWidget {
   final User user;
   final UserRole role;
@@ -107,7 +109,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         navItems.add(
           const ModernNavItem(
             icon: Icons.edit_document,
-            label: 'Manage Lessons',
+            label: 'Contents',
           ),
         );
       }
@@ -170,26 +172,46 @@ class _AdminDashboardState extends State<AdminDashboard> {
       onSignOut: () => AuthService.instance.signOut(),
     );
 
+    final String currentTabLabel = navItems[_index].label;
+    String bgPath = 'assets/dashboardbg.png';
+    if (currentTabLabel == 'Practice') {
+      bgPath = 'assets/practicebg.png';
+    } else if (currentTabLabel == 'Profile' || currentTabLabel == username) {
+      bgPath = 'assets/profilebg.png';
+    } else if (currentTabLabel == 'Lessons') {
+      bgPath = 'assets/subscriptionbg.png';
+    } else if (currentTabLabel == 'Contents') {
+      bgPath = 'assets/dashboardbg.png';
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(navItems[_index].label),
-        actions: [
-          NotificationIconButton(
-            userId: widget.user.uid,
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (context) =>
-                    NotificationsDialog(userId: widget.user.uid),
-              );
-            },
-          ),
-        ],
+      appBar: CustomAppBar(
+        user: widget.user,
+        userData: widget.userData,
+        onNotificationTap: () {
+          notificationVisibleNotifier.value = !notificationVisibleNotifier.value;
+        },
+        onLogoTap: () {
+          setState(() {
+            _index = 0;
+          });
+        },
+        onProfileTap: () {
+          final profileTabIndex = navItems.indexWhere((item) => item.icon == Icons.person);
+          if (profileTabIndex != -1) {
+            setState(() {
+              _index = profileTabIndex;
+            });
+          }
+        },
       ),
       drawer: Drawer(child: sidebar),
-      body: ResponsiveWrapper(
-        child: IndexedStack(index: _index, children: tabs),
+      body: BackgroundWrapper(
+        imageAssetPath: bgPath,
+        child: ResponsiveWrapper(
+          child: IndexedStack(index: _index, children: tabs),
+        ),
       ),
     );
   }

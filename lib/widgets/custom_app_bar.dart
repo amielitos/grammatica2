@@ -31,45 +31,59 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: isDark ? const Color(0xFF333333) : Colors.transparent,
       elevation: 0,
       leading: IconButton(
-        icon: Icon(Icons.menu_rounded, color: isDark ? Colors.white : AppColors.textPrimary, size: 28),
+        icon: Icon(Icons.menu, color: isDark ? Colors.white : AppColors.textPrimary, size: 32),
         onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
       ),
-      title: Row(
-        children: [
-          // Logo Image
-          GestureDetector(
-            onTap: onLogoTap,
-            child: Image.asset('assets/logotext.png', height: 28),
-          ),
-          const Spacer(),
-          // Middle Links (Hide on mobile phones to prevent overflow)
-          if (screenWidth > 800) ...[
-            TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('All About Grammatica is coming soon!')),
-                );
-              },
-              child: Text(
-                'All About Grammatica',
-                style: TextStyle(color: isDark ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(width: 24),
-            TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("FAQ's is coming soon!")),
-                );
-              },
-              child: Text(
-                "FAQ's",
-                style: TextStyle(color: isDark ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600),
-              ),
+      toolbarHeight: 80,
+      title: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Row(
+          children: [
+            // Logo Image
+            GestureDetector(
+              onTap: onLogoTap,
+              child: Image.asset('assets/logotext.png', height: 28),
             ),
             const Spacer(),
+            // Middle Links (Hide on mobile phones to prevent overflow)
+            if (screenWidth > 800) ...[
+              TextButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('All About Grammatica is coming soon!')),
+                  );
+                },
+                child: Text(
+                  'All About Grammatica',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF1D1B20),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 28),
+              TextButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("FAQ's is coming soon!")),
+                  );
+                },
+                child: Text(
+                  "FAQ's",
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF1D1B20),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 15,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              ),
+              const Spacer(),
+            ],
           ],
-        ],
+        ),
       ),
       actions: [
         // User Name (Hide on very small screens)
@@ -101,18 +115,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
         
-        const SizedBox(width: 8),
+        const SizedBox(width: 16),
         
         // Notification Bell
         NotificationIconButton(
           userId: user.uid,
           onTap: onNotificationTap,
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 24),
       ],
     );
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(80.0);
 }

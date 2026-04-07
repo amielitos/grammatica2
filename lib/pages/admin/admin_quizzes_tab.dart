@@ -65,101 +65,75 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Note: Replaced SingleChildScrollView with a Column to avoid nested scrolling issues
-    // when this tab is used within another scrollable view.
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  LayoutBuilder(
-                    builder: (context, c) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (!widget.isEmbedded)
-                            Wrap(
-                              spacing: 16,
-                              runSpacing: 12,
-                              alignment: WrapAlignment.spaceBetween,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                Text(
-                                  'Manage Quizzes',
-                                  style: Theme.of(context).textTheme.titleLarge,
-                                ),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    FilledButton.icon(
-                                      onPressed:
-                                          (_creatingOrUpdating ||
-                                              _title.text.trim().isEmpty)
-                                          ? null
-                                          : _saveQuiz,
-                                      icon: _creatingOrUpdating
-                                          ? SizedBox(
-                                              width: 16,
-                                              height: 16,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.primary,
-                                              ),
-                                            )
-                                          : const Icon(Icons.save),
-                                      label: Text(
-                                        _selectedQuizId == null
-                                            ? 'Create'
-                                            : 'Update',
-                                      ),
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
-                                        foregroundColor: Theme.of(
-                                          context,
-                                        ).colorScheme.onPrimary,
-                                      ),
-                                    ),
-                                    if (_selectedQuizId != null) ...[
-                                      const SizedBox(width: 8),
-                                      OutlinedButton(
-                                        onPressed: resetForm,
-                                        child: const Text('Cancel'),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ],
-                            ),
-                          const SizedBox(height: 16),
-                          _buildInputFields(),
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 700;
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 2, child: _buildInputFields()),
+                    const SizedBox(width: 32),
+                    Expanded(flex: 1, child: _buildUploadUI()),
+                  ],
+                );
+              } else {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildInputFields(),
+                    const SizedBox(height: 24),
+                    _buildUploadUI(),
+                  ],
+                );
+              }
+            },
           ),
-          const SizedBox(height: 24),
-          // Quiz list removed as per user request to streamline lesson-quiz management
-        ],
-      ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24.0),
+          child: Divider(),
+        ),
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: _buildQuestionsSection(),
+        ),
+        const SizedBox(height: 24),
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton(
+                onPressed: resetForm,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.black87,
+                  side: BorderSide(color: Colors.grey.shade400),
+                ),
+                child: const Text('Cancel'),
+              ),
+              const SizedBox(width: 16),
+              FilledButton.icon(
+                onPressed: (_creatingOrUpdating || _title.text.trim().isEmpty) ? null : _saveQuiz,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF88B342),
+                ),
+                icon: _creatingOrUpdating
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.save),
+                label: Text(_selectedQuizId == null ? 'Save Quiz' : 'Update Quiz'),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -304,11 +278,15 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               return const SizedBox.shrink();
             },
           ),
-        const SizedBox(height: 16),
-        _buildUploadUI(),
         const SizedBox(height: 24),
-        const Divider(),
-        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildQuestionsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -603,8 +581,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        OutlinedButton.icon(
-          onPressed: () async {
+        const Text('Attach PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () async {
             final result = await FilePicker.platform.pickFiles(
               type: FileType.custom,
               allowMultiple: false,
@@ -616,25 +596,33 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               setState(() => _selectedFiles = result.files);
             }
           },
-          icon: const Icon(Icons.upload_file),
-          label: const Text('Upload PDF'),
-        ),
-        if (_selectedFiles.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Chip(
-              label: Text(_selectedFiles.first.name),
-              onDeleted: () => setState(() => _selectedFiles = []),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 200,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(8),
             ),
-          )
-        else if (_currentAttachmentName != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Chip(
-              avatar: const Icon(Icons.attach_file, size: 16),
-              label: Text('Current: $_currentAttachmentName'),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.upload_file, size: 48, color: Colors.grey.shade500),
+                const SizedBox(height: 16),
+                Text(
+                  _selectedFiles.isNotEmpty ? _selectedFiles.first.name : (_currentAttachmentName ?? 'No PDF uploaded yet'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  (_selectedFiles.isNotEmpty || _currentAttachmentName != null) ? 'Click to change file' : 'Upload PDF to attach to this quiz.',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ],
             ),
           ),
+        ),
       ],
     );
   }

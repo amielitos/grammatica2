@@ -19,43 +19,81 @@ class AdminSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       width: 250,
       color: Theme.of(context).scaffoldBackgroundColor,
       child: Column(
         children: [
-          UserAccountsDrawerHeader(
-            decoration: const BoxDecoration(color: Colors.transparent),
-            accountName: Text(
-              userName,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-            ),
-            accountEmail: null,
-            currentAccountPicture: const CircleAvatar(
-              child: Icon(Icons.person),
+          // Modern Header with Logos
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset('assets/logo.png', height: 36),
+                  const SizedBox(width: 8),
+                  Image.asset('assets/logotext.png', height: 26),
+                ],
+              ),
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, thickness: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+          const SizedBox(height: 8),
           Expanded(
             child: ListView.builder(
+              padding: EdgeInsets.zero,
               itemCount: items.length,
               itemBuilder: (context, index) {
                 final item = items[index];
-                return ListTile(
-                  leading: Icon(item.icon),
-                  title: Text(item.label),
-                  selected: selectedIndex == index,
-                  onTap: () => onItemSelected(index),
+                final isSelected = selectedIndex == index;
+
+                return Container(
+                  color: isSelected ? primaryColor : Colors.transparent,
+                  child: ListTile(
+                    leading: Icon(
+                      item.icon,
+                      color: isSelected ? Colors.white : primaryColor,
+                    ),
+                    title: Text(
+                      item.label,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    selected: isSelected,
+                    onTap: () {
+                      // Close drawer if it's open (mobile)
+                      if (Scaffold.maybeOf(context)?.isDrawerOpen ?? false) {
+                        Navigator.pop(context);
+                      }
+                      onItemSelected(index);
+                    },
+                  ),
                 );
               },
             ),
           ),
-          const Divider(),
+          Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
           ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Sign Out'),
+            leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+            title: Text(
+              'Sign Out',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             onTap: onSignOut,
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );
