@@ -269,11 +269,11 @@ class ProfilePageState extends State<ProfilePage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.transparent),
+        borderSide: const BorderSide(color: Colors.grey),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.transparent),
+        borderSide: const BorderSide(color: Colors.grey),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -612,7 +612,7 @@ class ProfilePageState extends State<ProfilePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Educator Role', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
+                Text('Role Application', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
                 const SizedBox(height: 24),
                 StreamBuilder<EducatorApplication?>(
                   stream: DatabaseService.instance.streamUserApplication(widget.user.uid),
@@ -626,7 +626,7 @@ class ProfilePageState extends State<ProfilePage> {
                       );
                     }
                     return _buildGreenButton(
-                      'Apply as an Educator',
+                      role == UserRole.educator ? 'Apply as Validator' : 'Apply as an Educator',
                       () => _showJoinGrammaticaDialog(role),
                     );
                   },

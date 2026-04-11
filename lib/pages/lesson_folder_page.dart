@@ -8,6 +8,8 @@ import '../widgets/app_search_bar.dart';
 import '../widgets/author_name_widget.dart';
 import '../pages/lesson_page.dart';
 import '../services/database_service.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/notification_widgets.dart';
 import '../main.dart';
 
 class LessonFolderPage extends StatefulWidget {
@@ -62,21 +64,17 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     }
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          widget.title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-        ),
+      appBar: CustomAppBar(
+        user: widget.user,
+        onNotificationTap: () {
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: widget.user.uid),
+          );
+        },
       ),
       body: _buildContent(context),
     );
@@ -114,7 +112,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       children: [
         if (widget.onBack != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+            padding: EdgeInsets.fromLTRB(24, widget.onBack != null ? 24 : 100, 24, 0),
             child: Row(
               children: [
                 IconButton(
@@ -133,7 +131,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             ),
           ),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+          padding: EdgeInsets.symmetric(vertical: widget.onBack != null ? 24 : 100, horizontal: 24),
           child: Align(
             alignment: Alignment.centerLeft,
             child: ConstrainedBox(
@@ -331,7 +329,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     ),
                   ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 16, 28, 0),
+                  padding: EdgeInsets.fromLTRB(28, widget.onBack != null ? 16 : 100, 28, 0),
                   child: Center(
                     child: Text(
                       widget.title,

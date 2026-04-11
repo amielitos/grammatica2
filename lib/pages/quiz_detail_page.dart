@@ -8,6 +8,7 @@ import '../services/notification_service.dart';
 import '../widgets/notification_widgets.dart';
 import '../widgets/design_ornaments.dart';
 import '../theme/app_colors.dart';
+import '../widgets/custom_app_bar.dart';
 import '../main.dart';
 
 class QuizDetailPage extends StatefulWidget {
@@ -223,22 +224,15 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text('Knowledge Quiz', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-        actions: [
-          NotificationIconButton(
-            userId: widget.user.uid,
-            onTap: () {
-              notificationVisibleNotifier.value = !notificationVisibleNotifier.value;
-            },
-          ),
-        ],
+      appBar: CustomAppBar(
+        user: widget.user,
+        onNotificationTap: () {
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: widget.user.uid),
+          );
+        },
       ),
       body: BackgroundWrapper(
         child: LayoutBuilder(

@@ -4,6 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import '../services/database_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/design_ornaments.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/notification_widgets.dart';
 import '../main.dart';
 
 class RoleApplicationPage extends StatefulWidget {
@@ -144,23 +146,21 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          _title,
-          style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-        ),
+      appBar: CustomAppBar(
+        user: widget.user,
+        onNotificationTap: () {
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: widget.user.uid),
+          );
+        },
       ),
       body: BackgroundWrapper(
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              padding: const EdgeInsets.fromLTRB(24, 100, 24, 32),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 600),
                 child: Column(

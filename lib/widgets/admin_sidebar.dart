@@ -20,81 +20,93 @@ class AdminSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
+    
     return Container(
       width: 250,
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: Column(
-        children: [
-          // Modern Header with Logos
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset('assets/logo.png', height: 36),
-                  const SizedBox(width: 8),
-                  Image.asset('assets/logotext.png', height: 26),
-                ],
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF222222) : Colors.white,
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32.0),
+              child: Image.asset(
+                'assets/logotext.png',
+                height: 48,
+                fit: BoxFit.contain,
               ),
             ),
-          ),
-          Divider(height: 1, thickness: 1, color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-          const SizedBox(height: 8),
-          Expanded(
-            child: ListView.builder(
-              padding: EdgeInsets.zero,
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                final isSelected = selectedIndex == index;
+            Divider(
+              color: isDark ? Colors.white24 : Colors.grey.shade400,
+              indent: 16,
+              endIndent: 16,
+              height: 1,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final isSelected = selectedIndex == index;
 
-                return Container(
-                  color: isSelected ? primaryColor : Colors.transparent,
-                  child: ListTile(
-                    leading: Icon(
-                      item.icon,
-                      color: isSelected ? Colors.white : primaryColor,
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF7CB342) : Colors.transparent,
                     ),
-                    title: Text(
-                      item.label,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
+                      leading: Icon(
+                        item.icon,
+                        color: isSelected ? Colors.white : const Color(0xFF7CB342),
+                        size: 28,
                       ),
+                      title: Text(
+                        item.label,
+                        style: TextStyle(
+                          color: isSelected 
+                              ? Colors.white 
+                              : (isDark ? Colors.white70 : Colors.grey.shade600),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      selected: isSelected,
+                      onTap: () {
+                        if (Scaffold.maybeOf(context)?.isDrawerOpen ?? false) {
+                          Navigator.pop(context);
+                        }
+                        onItemSelected(index);
+                      },
                     ),
-                    selected: isSelected,
-                    onTap: () {
-                      // Close drawer if it's open (mobile)
-                      if (Scaffold.maybeOf(context)?.isDrawerOpen ?? false) {
-                        Navigator.pop(context);
-                      }
-                      onItemSelected(index);
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-          Divider(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-          ListTile(
-            leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
-            title: Text(
-              'Sign Out',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.error,
-                fontWeight: FontWeight.bold,
+                  );
+                },
               ),
             ),
-            onTap: onSignOut,
-          ),
-          const SizedBox(height: 16),
-        ],
+            Divider(
+              color: isDark ? Colors.white24 : Colors.grey.shade400,
+              indent: 16,
+              endIndent: 16,
+              height: 1,
+            ),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+              leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error, size: 28),
+              title: Text(
+                'Sign Out',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              onTap: onSignOut,
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }

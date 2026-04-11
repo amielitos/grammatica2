@@ -7,6 +7,7 @@ import '../widgets/design_ornaments.dart';
 import '../widgets/interactive_markdown.dart';
 import '../widgets/notification_widgets.dart';
 import '../pages/quiz_detail_page.dart';
+import '../widgets/custom_app_bar.dart';
 import '../main.dart';
 import '../services/database_service.dart';
 
@@ -77,22 +78,15 @@ class _LessonPageState extends State<LessonPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text('Lesson Material', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-        actions: [
-          NotificationIconButton(
-            userId: widget.user.uid,
-            onTap: () {
-              notificationVisibleNotifier.value = !notificationVisibleNotifier.value;
-            },
-          ),
-        ],
+      appBar: CustomAppBar(
+        user: widget.user,
+        onNotificationTap: () {
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: widget.user.uid),
+          );
+        },
       ),
       body: BackgroundWrapper(
         child: SingleChildScrollView(

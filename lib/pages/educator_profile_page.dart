@@ -6,6 +6,8 @@ import '../pages/lesson_page.dart';
 import '../widgets/subscription_tier_dialog.dart';
 import '../theme/app_colors.dart';
 import '../widgets/design_ornaments.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/notification_widgets.dart';
 import '../main.dart';
 
 class EducatorProfilePage extends StatelessWidget {
@@ -22,524 +24,466 @@ class EducatorProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final photoUrl = educator['photoUrl'] as String?;
     final username = educator['username'] as String? ?? 'Educator';
-    final bio = educator['bio'] as String? ?? 'No bio description provided.';
+    final bio = educator['bio'] as String? ?? 'Bio Description';
     final uid = educator['uid'] as String;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          username,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+      backgroundColor: Colors.transparent,
+      appBar: CustomAppBar(
+        user: currentUser,
+        onNotificationTap: () {
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: currentUser.uid),
+          );
+        },
       ),
       body: BackgroundWrapper(
+        imageAssetPath: 'assets/subscriptionbg.png',
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Profile Header Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 800; // Determine if it's wide screen layout
+
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 100, 24, 24),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1000),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: AppColors.primary.withOpacity(0.1),
-                          backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-                              ? NetworkImage(photoUrl)
-                              : null,
-                          child: (photoUrl == null || photoUrl.isEmpty)
-                              ? const Icon(Icons.person_rounded, size: 50, color: AppColors.primary)
-                              : null,
+                        // Back to Subscription Button
+                        TextButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.arrow_back_ios, size: 16, color: Colors.black54),
+                          label: const Text('Back to Subscription', style: TextStyle(color: Colors.black54)),
                         ),
                         const SizedBox(height: 16),
-                        Text(
-                          username,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+
+                        // Profile Header Card
+                        Container(
+                          padding: const EdgeInsets.all(32.0),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 5))
+                            ],
+                            border: Border.all(color: Colors.black87, width: 1.0),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 40,
+                                    backgroundColor: Colors.grey.shade300,
+                                    backgroundImage: (photoUrl != null && photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
+                                    child: (photoUrl == null || photoUrl.isEmpty) ? const Icon(Icons.person, size: 40, color: Colors.grey) : null,
+                                  ),
+                                  const SizedBox(width: 24),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          username,
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.black87),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          bio,
+                                          style: const TextStyle(color: Colors.black54, fontSize: 16),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          bio,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            height: 1.5,
-                            color: AppColors.textSecondary,
-                            fontSize: 14,
+                              const SizedBox(height: 32),
+                              
+                              StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                                stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+                                builder: (context, snapshot) {
+                                  final data = snapshot.data?.data() ?? educator;
+                                  final avgRating = (data['averageRating'] ?? 0.0).toDouble();
+
+                                  return StreamBuilder<Map<String, int>>(
+                                    stream: DatabaseService.instance.getTieredSubscriberCounts(uid),
+                                    builder: (context, subSnapshot) {
+                                      final counts = subSnapshot.data ?? {'Basic': 0, 'Standard': 0, 'Premium': 0};
+                                      List<Widget> stats = [
+                                        _buildStatColumn('Viewers', '${counts['Basic']}', Icons.remove_red_eye_outlined, const Color(0xFF81B655)),
+                                        _buildStatColumn('Subscribers', '${counts['Standard']}', Icons.people, const Color(0xFF81B655)),
+                                        _buildStatColumn('Mentors', '${counts['Premium']}', Icons.school, const Color(0xFF81B655)),
+                                        _buildStatColumn('Rating', avgRating.toStringAsFixed(1), Icons.star, Colors.amber, suffix: ' out of 5'),
+                                      ];
+
+                                      return isWide ? Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: stats.map((w) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 16.0), child: w))).toList(),
+                                      ) : Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: stats.map((w) => Padding(padding: const EdgeInsets.only(bottom: 16.0), child: w)).toList(),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 32),
+                              
+                              // Actions Row
+                              StreamBuilder<bool>(
+                                stream: DatabaseService.instance.isSubscribedStream(uid),
+                                builder: (context, subSnap) {
+                                  final isSubscribed = subSnap.data ?? false;
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        child: SizedBox(
+                                          height: 50,
+                                          child: ElevatedButton.icon(
+                                            onPressed: isSubscribed ? () => DatabaseService.instance.unsubscribeFromEducator(uid) : () async {
+                                              final tier = await showDialog<String>(
+                                                context: context,
+                                                builder: (context) => SubscriptionTierDialog(pricing: educator['subscription_pricing'], educatorName: username),
+                                              );
+                                              if (tier != null) {
+                                                await DatabaseService.instance.subscribeToEducator(uid, tier);
+                                              }
+                                            },
+                                            icon: Icon(isSubscribed ? Icons.check : Icons.add),
+                                            label: Text(isSubscribed ? 'Subscribed' : 'Subscribe'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: isSubscribed ? Colors.grey : const Color(0xFF81B655),
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              elevation: 0,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: SizedBox(
+                                          height: 50,
+                                          child: OutlinedButton.icon(
+                                            onPressed: isSubscribed ? () => _showReviewDialog(context, uid) : () {
+                                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subscribe to leave a review')));
+                                            },
+                                            icon: const Icon(Icons.edit_outlined),
+                                            label: const Text('Write a Review'),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: Colors.black87,
+                                              side: const BorderSide(color: Colors.black87),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 24),
-                        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                          stream: FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(uid)
-                              .snapshots(),
-                          builder: (context, snapshot) {
-                            final data = snapshot.data?.data() ?? educator;
-                            final avgRating = (data['averageRating'] ?? 0.0).toDouble();
-                            final reviewCount = data['reviewCount'] ?? 0;
 
-                            return StreamBuilder<Map<String, int>>(
-                              stream: DatabaseService.instance.getTieredSubscriberCounts(uid),
-                              builder: (context, subSnapshot) {
-                                final counts = subSnapshot.data ??
-                                    {'Basic': 0, 'Standard': 0, 'Premium': 0};
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.backgroundBase.withOpacity(0.5),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      _buildStatColumn('Viewers', '${counts['Basic']}'),
-                                      _buildStatColumn('Subs', '${counts['Standard']}'),
-                                      _buildStatColumn('Mentors', '${counts['Premium']}'),
-                                      _buildStatColumn(
-                                        'Rating',
-                                        avgRating.toStringAsFixed(1),
-                                        icon: Icons.star_rounded,
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 24),
-                        // Actions Row
-                        StreamBuilder<bool>(
-                          stream: DatabaseService.instance.isSubscribedStream(uid),
-                          builder: (context, subSnap) {
-                            final isSubscribed = subSnap.data ?? false;
-                            return Row(
-                              children: [
-                                Expanded(
-                                  child: isSubscribed
-                                      ? ElevatedButton.icon(
-                                          onPressed: () =>
-                                              DatabaseService.instance.unsubscribeFromEducator(uid),
-                                          icon: const Icon(Icons.check_circle_rounded),
-                                          label: const Text('Subscribed'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.primary.withOpacity(0.1),
-                                            foregroundColor: AppColors.primary,
-                                            elevation: 0,
-                                          ),
-                                        )
-                                      : ElevatedButton(
-                                          onPressed: () async {
-                                            final tier = await showDialog<String>(
-                                              context: context,
-                                              builder: (context) => SubscriptionTierDialog(
-                                                pricing: educator['subscription_pricing'],
-                                                educatorName: educator['username'] ?? 'Educator',
-                                              ),
-                                            );
-
-                                            if (tier != null) {
-                                              await DatabaseService.instance
-                                                  .subscribeToEducator(uid, tier);
-                                            }
-                                          },
-                                          child: const Text('Subscribe'),
-                                        ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: isSubscribed
-                                        ? () => _showReviewDialog(context, uid)
-                                        : () {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Subscribe to leave a review'),
-                                              ),
-                                            );
-                                          },
-                                    icon: Icon(
-                                      Icons.rate_review_rounded,
-                                      size: 20,
-                                      color: isSubscribed
-                                          ? AppColors.primary
-                                          : AppColors.textSecondary.withOpacity(0.5),
-                                    ),
-                                    label: Text(
-                                      'Review',
-                                      style: TextStyle(
-                                        color: isSubscribed
-                                            ? AppColors.textPrimary
-                                            : AppColors.textSecondary.withOpacity(0.5),
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      side: BorderSide(
-                                        color: isSubscribed
-                                            ? AppColors.primary.withOpacity(0.5)
-                                            : AppColors.divider,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
+                        // Bottom Section
+                        if (isWide)
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: _buildPublicContentCard(uid, currentUser)),
+                              const SizedBox(width: 24),
+                              Expanded(child: _buildReviewsCard(uid)),
+                            ],
+                          )
+                        else
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildPublicContentCard(uid, currentUser),
+                              const SizedBox(height: 24),
+                              _buildReviewsCard(uid),
+                            ],
+                          ),
+                          const SizedBox(height: 40),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
-                Text(
-                  'Public Content',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                ),
-                const SizedBox(height: 16),
-                // Lessons Section
-                _ContentSection(
-                  title: 'Lessons',
-                  stream: DatabaseService.instance.streamEducatorLessons(
-                    uid,
-                    publicOnly: true,
-                  ),
-                  itemBuilder: (context, lesson) {
-                    return Card(
-                      child: InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => LessonPage(user: currentUser, lesson: lesson),
-                            ),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(24),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(Icons.book_rounded, color: AppColors.primary, size: 24),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      lesson.title,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      lesson.prompt,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 40),
-                Text(
-                  'Reviews',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                ),
-                const SizedBox(height: 16),
-                StreamBuilder<List<Review>>(
-                  stream: DatabaseService.instance.streamReviews(uid),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final reviews = snapshot.data ?? [];
-                    if (reviews.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Center(
-                          child: Text(
-                            'No reviews yet.',
-                            style: TextStyle(
-                              fontStyle: FontStyle.italic,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    return ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: reviews.length,
-                      separatorBuilder: (c, i) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final review = reviews[index];
-                        return Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.secondary.withOpacity(0.1),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(Icons.person_rounded, size: 20, color: AppColors.secondary),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        review.reviewerName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                    Row(
-                                      children: List.generate(5, (i) {
-                                        return Icon(
-                                          i < review.rating
-                                              ? Icons.star_rounded
-                                              : Icons.star_outline_rounded,
-                                          size: 16,
-                                          color: AppColors.accent,
-                                        );
-                                      }),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  review.comment,
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
-                                    height: 1.4,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-                const SizedBox(height: 60),
-              ],
-            ),
+              );
+            }
           ),
         ),
       ),
     );
   }
 
-  Widget _buildStatColumn(String label, String value, {IconData? icon}) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 20, color: AppColors.accent),
-              const SizedBox(width: 4),
+  Widget _buildStatColumn(String label, String value, IconData icon, Color iconColor, {String? suffix}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEEEEE),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 24, color: iconColor),
+              const SizedBox(width: 8),
+              Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87))),
             ],
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: value, style: const TextStyle(fontSize: 24, color: Colors.black87)),
+                if (suffix != null)
+                  TextSpan(text: suffix, style: const TextStyle(fontSize: 16, color: Colors.black54)),
+              ]
+            )
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPublicContentCard(String uid, User currentUser) {
+    return _buildBottomCard(
+      title: 'Public Content',
+      child: StreamBuilder<List<Lesson>>(
+        stream: DatabaseService.instance.streamEducatorLessons(uid, publicOnly: true),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          final lessons = snapshot.data ?? [];
+          if (lessons.isEmpty) {
+            return Row(
+              children: [
+                const Icon(Icons.menu_book_outlined, color: Color(0xFF81B655), size: 32),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('No lessons yet. Check back soon.', style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.bold))),
+              ],
+            );
+          }
+          return ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: lessons.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final lesson = lessons[index];
+              return ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.grey.shade300)),
+                leading: const Icon(Icons.book_rounded, color: Color(0xFF81B655)),
+                title: Text(lesson.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(lesson.prompt, maxLines: 1, overflow: TextOverflow.ellipsis),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LessonPage(user: currentUser, lesson: lesson))),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildReviewsCard(String uid) {
+    return _buildBottomCard(
+      title: 'Reviews',
+      child: StreamBuilder<List<Review>>(
+        stream: DatabaseService.instance.streamReviews(uid),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          final reviews = snapshot.data ?? [];
+          if (reviews.isEmpty) {
+            return Row(
+              children: [
+                const Icon(Icons.star, color: Colors.amber, size: 32),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('No reviews yet.', style: TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.bold))),
+              ],
+            );
+          }
+          return ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: reviews.length,
+            separatorBuilder: (c, i) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final review = reviews[index];
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(radius: 12, backgroundColor: Colors.grey.shade200, child: const Icon(Icons.person, size: 16)),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(review.reviewerName, style: const TextStyle(fontWeight: FontWeight.bold))),
+                        Row(children: List.generate(5, (i) => Icon(i < review.rating ? Icons.star : Icons.star_outline, size: 16, color: Colors.amber))),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(review.comment),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBottomCard({required String title, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.black87, width: 1.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
+          const SizedBox(height: 24),
+          child,
+        ],
+      ),
     );
   }
 
   void _showReviewDialog(BuildContext context, String educatorUid) {
-    double selectedRating = 5.0;
+    double selectedRating = 0.0;
     final commentController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: const Text(
-            'Leave a Review',
-            style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: const Color(0xFFF6F3EC),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
+            side: const BorderSide(color: Colors.black, width: 1.0),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return IconButton(
-                    onPressed: () => setDialogState(() => selectedRating = index + 1.0),
-                    icon: Icon(
-                      index < selectedRating ? Icons.star_rounded : Icons.star_outline_rounded,
-                      color: AppColors.accent,
-                      size: 36,
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: commentController,
-                decoration: InputDecoration(
-                  hintText: 'Share your thoughts...',
-                  filled: true,
-                  fillColor: AppColors.backgroundBase,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+          child: Container(
+            width: 440, // Limits the dialog so it doesn't take up the whole screen
+            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                const Text(
+                  'Leave a Review',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.black87,
                   ),
                 ),
-                maxLines: 3,
-              ),
-            ],
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Rating:',
+                      style: TextStyle(fontSize: 18, color: Colors.black87),
+                    ),
+                    const SizedBox(width: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(5, (index) {
+                        return GestureDetector(
+                          onTap: () => setDialogState(() => selectedRating = index + 1.0),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                            child: Icon(
+                              index < selectedRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                              color: index < selectedRating ? Colors.amber : Colors.black87,
+                              size: 40,
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: commentController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: 'Share your thoughts...',
+                    hintStyle: const TextStyle(color: Colors.black38),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.all(16),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: Colors.black54, width: 1.0),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: Colors.black87, width: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    SizedBox(
+                      width: 120, // Equal width for Cancel button
+                      height: 48,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF7CB342), width: 1.0),
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                          foregroundColor: const Color(0xFF7CB342),
+                        ),
+                        child: const Text('Cancel', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 120, // Equal width for Submit button
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final review = Review(id: '', reviewerUid: currentUser.uid, reviewerName: currentUser.displayName ?? 'Learner', rating: selectedRating, comment: commentController.text);
+                          await DatabaseService.instance.addReview(educatorUid, review);
+                          if (context.mounted) Navigator.pop(context);
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Review submitted!')));
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7CB342),
+                          foregroundColor: Colors.white,
+                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                          elevation: 0,
+                        ),
+                        child: const Text('Submit', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          actionsPadding: const EdgeInsets.all(16),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final review = Review(
-                  id: '',
-                  reviewerUid: currentUser.uid,
-                  reviewerName: currentUser.displayName ?? 'Learner',
-                  rating: selectedRating,
-                  comment: commentController.text,
-                );
-                await DatabaseService.instance.addReview(educatorUid, review);
-                if (context.mounted) Navigator.pop(context);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Review submitted!')),
-                  );
-                }
-              },
-              child: const Text('Submit'),
-            ),
-          ],
         ),
       ),
-    );
-  }
-}
-
-class _ContentSection<T> extends StatelessWidget {
-  final String title;
-  final Stream<List<T>> stream;
-  final Widget Function(BuildContext, T) itemBuilder;
-
-  const _ContentSection({
-    required this.title,
-    required this.stream,
-    required this.itemBuilder,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<T>>(
-      stream: stream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(8.0),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'No public ${title.toLowerCase()} available.',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          );
-        }
-        final items = snapshot.data!;
-        return ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: items.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, index) => itemBuilder(context, items[index]),
-        );
-      },
     );
   }
 }

@@ -5,7 +5,7 @@ import 'notification_widgets.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final User user;
-  final Map<String, dynamic> userData;
+  final Map<String, dynamic>? userData;
   final VoidCallback onNotificationTap;
   final VoidCallback? onLogoTap;
   final VoidCallback? onProfileTap;
@@ -13,7 +13,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CustomAppBar({
     super.key,
     required this.user,
-    required this.userData,
+    this.userData,
     required this.onNotificationTap,
     this.onLogoTap,
     this.onProfileTap,
@@ -21,19 +21,24 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String fullName = userData['username'] ?? userData['full_name'] ?? user.displayName ?? 'User';
-    final String profileImageUrl = userData['photoUrl'] ?? userData['profile_image_url'] ?? user.photoURL ?? '';
+    final String fullName = userData?['username'] ?? userData?['full_name'] ?? user.displayName ?? 'User';
+    final String profileImageUrl = userData?['photoUrl'] ?? userData?['profile_image_url'] ?? user.photoURL ?? '';
     final screenWidth = MediaQuery.of(context).size.width;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return AppBar(
-      backgroundColor: isDark ? const Color(0xFF333333) : Colors.transparent,
+      backgroundColor: isDark ? const Color(0xFF333333) : Colors.white,
       elevation: 0,
-      leading: IconButton(
-        icon: Icon(Icons.menu, color: isDark ? Colors.white : AppColors.textPrimary, size: 32),
-        onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
-      ),
+      leading: Navigator.canPop(context)
+          ? IconButton(
+              icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : AppColors.textPrimary, size: 28),
+              onPressed: () => Navigator.pop(context),
+            )
+          : IconButton(
+              icon: Icon(Icons.menu, color: isDark ? Colors.white : AppColors.textPrimary, size: 32),
+              onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
+            ),
       toolbarHeight: 80,
       title: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -86,21 +91,23 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: [
-        // User Name (Hide on very small screens)
-        if (screenWidth > 600)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 12.0),
-              child: Text(
-                fullName,
-                style: TextStyle(
-                  color: isDark ? Colors.white : AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
+        // User Name
+        // User Name
+        Container(
+          constraints: BoxConstraints(maxWidth: screenWidth < 400 ? 80 : 150),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 12.0),
+          child: Text(
+            fullName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: isDark ? Colors.white : AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
             ),
           ),
+        ),
         
         // Profile Icon
         GestureDetector(

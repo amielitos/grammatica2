@@ -19,59 +19,57 @@ class Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 250,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary,
-        borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(32),
-          bottomRight: Radius.circular(32),
-        ),
+        color: isDark ? const Color(0xFF222222) : Colors.white,
       ),
       child: SafeArea(
         child: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.all(24.0),
-              child: Text(
-                'Grammatica',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24,
-                  color: Colors.white,
-                  letterSpacing: -0.5,
-                ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32.0),
+              child: Image.asset(
+                'assets/logotext.png',
+                height: 48,
+                fit: BoxFit.contain,
               ),
             ),
-            const Divider(color: Colors.white24, height: 1),
+            Divider(
+              color: isDark ? Colors.white24 : Colors.grey.shade400,
+              indent: 16,
+              endIndent: 16,
+              height: 1,
+            ),
             const SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   final item = items[index];
                   final isSelected = currentIndex == index;
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
-                      color: isSelected ? Colors.white.withOpacity(0.15) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(16),
+                      color: isSelected ? const Color(0xFF7CB342) : Colors.transparent,
                     ),
                     child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
                       leading: Icon(
                         item.icon,
-                        color: isSelected ? Colors.white : Colors.white70,
+                        color: isSelected ? Colors.white : const Color(0xFF7CB342),
+                        size: 28,
                       ),
                       title: Text(
                         item.label,
                         style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.white70,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected 
+                              ? Colors.white 
+                              : (isDark ? Colors.white70 : Colors.grey.shade600),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
                       ),
                       onTap: () {
                         onTap(index);

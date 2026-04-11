@@ -81,6 +81,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
       navItems.add(
         const ModernNavItem(icon: Icons.verified_user, label: 'Validation'),
       );
+
+      // Practice & Subscription
+      tabs.add(const PracticeTab());
+      navItems.add(
+        const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
+      );
+
+      tabs.add(BrowseEducatorsTab(user: widget.user));
+      navItems.add(
+        const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
+      );
     } else {
       // 0: Users (Admin only)
       if (isAdmin) {
@@ -172,15 +183,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
       onSignOut: () => AuthService.instance.signOut(),
     );
 
-    final String currentTabLabel = navItems[_index].label;
+    final currentIcon = navItems[_index].icon;
     String bgPath = 'assets/dashboardbg.png';
-    if (currentTabLabel == 'Practice') {
+    if (currentIcon == Icons.auto_awesome) {
       bgPath = 'assets/practicebg.png';
-    } else if (currentTabLabel == 'Profile' || currentTabLabel == username) {
+    } else if (currentIcon == Icons.person) {
       bgPath = 'assets/profilebg.png';
-    } else if (currentTabLabel == 'Lessons') {
+    } else if (currentIcon == Icons.credit_card) {
       bgPath = 'assets/subscriptionbg.png';
-    } else if (currentTabLabel == 'Contents') {
+    } else if (currentIcon == Icons.book || currentIcon == Icons.edit_document) {
       bgPath = 'assets/dashboardbg.png';
     }
 
@@ -190,7 +201,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
         user: widget.user,
         userData: widget.userData,
         onNotificationTap: () {
-          notificationVisibleNotifier.value = !notificationVisibleNotifier.value;
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: widget.user.uid),
+          );
         },
         onLogoTap: () {
           setState(() {
@@ -206,7 +221,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
           }
         },
       ),
-      drawer: Drawer(child: sidebar),
+      drawer: Drawer(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF222222) : Colors.white,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        width: 250,
+        child: sidebar,
+      ),
       body: BackgroundWrapper(
         imageAssetPath: bgPath,
         child: ResponsiveWrapper(

@@ -137,16 +137,20 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
-    final String currentTabLabel = navItems[_tabIndex].label;
+    final currentIcon = navItems[_tabIndex].icon;
     String bgPath = 'assets/dashboardbg.png';
     if (_activeFolderName == 'Grammatica Lessons') {
       bgPath = 'assets/grammaticafolderbg.png';
     } else if (_activeFolderName == 'Public') {
       bgPath = 'assets/publicfolderbg.png';
-    } else if (currentTabLabel == 'Practice') {
+    } else if (currentIcon == Icons.auto_awesome) {
       bgPath = 'assets/practicebg.png';
-    } else if (currentTabLabel == 'Profile' || currentTabLabel == (widget.userData['username']?.split(' ').first ?? 'Profile')) {
+    } else if (currentIcon == Icons.person) {
       bgPath = 'assets/profilebg.png';
+    } else if (currentIcon == Icons.book) {
+      bgPath = 'assets/dashboardbg.png';
+    } else if (currentIcon == Icons.credit_card) {
+      bgPath = 'assets/subscriptionbg.png';
     }
 
     return Scaffold(
@@ -155,8 +159,11 @@ class _HomePageState extends State<HomePage> {
         user: user,
         userData: widget.userData,
         onNotificationTap: () {
-          notificationVisibleNotifier.value =
-              !notificationVisibleNotifier.value;
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: user.uid),
+          );
         },
         onLogoTap: () {
           setState(() {
@@ -173,6 +180,9 @@ class _HomePageState extends State<HomePage> {
         },
       ),
       drawer: Drawer(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF222222) : Colors.white,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        width: 250,
         child: Sidebar(
           currentIndex: _tabIndex,
           onTap: (index) {

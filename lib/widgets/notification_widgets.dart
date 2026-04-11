@@ -4,7 +4,7 @@ import '../models/notification.dart';
 import '../services/notification_service.dart';
 import 'package:intl/intl.dart';
 
-class NotificationIconButton extends StatelessWidget {
+class NotificationIconButton extends StatefulWidget {
   final String userId;
   final VoidCallback onTap;
 
@@ -15,19 +15,35 @@ class NotificationIconButton extends StatelessWidget {
   });
 
   @override
+  State<NotificationIconButton> createState() => _NotificationIconButtonState();
+}
+
+class _NotificationIconButtonState extends State<NotificationIconButton> {
+  late Stream<List<NotificationModel>> _notificationStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationStream = NotificationService.instance.streamNotifications(widget.userId);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<NotificationModel>>(
-      stream: NotificationService.instance.streamNotifications(userId),
+      stream: _notificationStream,
       builder: (context, snapshot) {
         final unreadCount = snapshot.hasData
             ? snapshot.data!.where((n) => !n.isRead).length
             : 0;
 
-            final isDark = Theme.of(context).brightness == Brightness.dark;
-            return Stack(
-              children: [
-                IconButton(icon: Icon(CupertinoIcons.bell, color: isDark ? Colors.white : Colors.black87), onPressed: onTap),
-                if (unreadCount > 0)
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Stack(
+          children: [
+            IconButton(
+              icon: Icon(CupertinoIcons.bell, color: isDark ? Colors.white : Colors.black87),
+              onPressed: widget.onTap,
+            ),
+            if (unreadCount > 0)
               Positioned(
                 right: 8,
                 top: 8,
@@ -63,6 +79,20 @@ class NotificationOverlay extends StatefulWidget {
 
 class _NotificationOverlayState extends State<NotificationOverlay> {
   bool _showArchived = false;
+  late Stream<List<NotificationModel>> _notificationStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateStream();
+  }
+
+  void _updateStream() {
+    _notificationStream = NotificationService.instance.streamNotifications(
+      widget.userId,
+      archived: _showArchived,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +131,7 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
                         onPressed: () {
                           setState(() {
                             _showArchived = !_showArchived;
+                            _updateStream();
                           });
                         },
                         tooltip: _showArchived ? 'Show Active' : 'Show Archive',
@@ -117,10 +148,7 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
             const Divider(height: 1),
             Expanded(
               child: StreamBuilder<List<NotificationModel>>(
-                stream: NotificationService.instance.streamNotifications(
-                  widget.userId,
-                  archived: _showArchived,
-                ),
+                stream: _notificationStream,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -179,6 +207,20 @@ class NotificationsDialog extends StatefulWidget {
 
 class _NotificationsDialogState extends State<NotificationsDialog> {
   bool _showArchived = false;
+  late Stream<List<NotificationModel>> _notificationStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateStream();
+  }
+
+  void _updateStream() {
+    _notificationStream = NotificationService.instance.streamNotifications(
+      widget.userId,
+      archived: _showArchived,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -226,6 +268,7 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                           onPressed: () {
                             setState(() {
                               _showArchived = !_showArchived;
+                              _updateStream();
                             });
                           },
                           tooltip: _showArchived
@@ -244,10 +287,7 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
               const Divider(height: 1),
               Expanded(
                 child: StreamBuilder<List<NotificationModel>>(
-                  stream: NotificationService.instance.streamNotifications(
-                    widget.userId,
-                    archived: _showArchived,
-                  ),
+                  stream: _notificationStream,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());

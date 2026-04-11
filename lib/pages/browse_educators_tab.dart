@@ -25,45 +25,53 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       children: [
         // Search Bar Part
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Text(
-                  'Browse Educators',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
+          padding: const EdgeInsets.fromLTRB(48, 64, 48, 32),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF333333) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                )
+              ],
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              decoration: InputDecoration(
+                hintText: 'Search educator by name..',
+                hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade500),
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.only(left: 16.0, right: 8.0),
+                  child: Icon(Icons.tune_rounded, color: isDark ? Colors.white54 : Colors.grey.shade600),
                 ),
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _searchCtrl,
-                onChanged: (val) =>
-                    setState(() => _searchQuery = val.toLowerCase()),
-                decoration: InputDecoration(
-                  hintText: 'Search educators by name...',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(0.5),
-                  suffixIcon: _searchQuery.isNotEmpty
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: _searchQuery.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.cancel_rounded),
+                          icon: Icon(Icons.cancel_rounded, color: isDark ? Colors.white54 : Colors.grey.shade600),
                           onPressed: () {
                             _searchCtrl.clear();
                             setState(() => _searchQuery = '');
                           },
                         )
-                      : null,
+                      : Icon(Icons.search_rounded, color: isDark ? Colors.white54 : Colors.grey.shade600),
                 ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 20),
               ),
-            ],
+            ),
           ),
         ),
 
@@ -93,129 +101,148 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.search_off_rounded,
-                          size: 64, color: AppColors.textSecondary.withOpacity(0.3)),
+                          size: 64, color: isDark ? Colors.white24 : Colors.grey.shade300),
                       const SizedBox(height: 16),
-                      const Text(
+                      Text(
                         'No educators found matching your search.',
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade600),
                       ),
                     ],
                   ),
                 );
               }
 
-              return ListView.separated(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
-                itemCount: filtered.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final educator = filtered[index];
-                  final photoUrl = educator['photoUrl'] as String?;
-                  final name = educator['username'] as String? ?? 'Educator';
-                  final bio =
-                      educator['bio'] as String? ?? 'No bio description';
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(48, 0, 48, 64),
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 280,
+                      childAspectRatio: 0.72,
+                      crossAxisSpacing: 24,
+                      mainAxisSpacing: 24,
+                    ),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final educator = filtered[index];
+                      final photoUrl = educator['photoUrl'] as String?;
+                      final name = educator['username'] as String? ?? 'John Doe';
+                      String bio = educator['bio'] as String? ?? '';
+                      if (bio.trim().isEmpty) {
+                        bio = 'Bio Description';
+                      }
+                      
+                      // Using average rating or defaulting to 5.0 to match visual mock if zero
+                      double rating = (educator['averageRating'] as num?)?.toDouble() ?? 0.0;
+                      if (rating == 0.0) rating = 5.0; 
 
-                  return Card(
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => EducatorProfilePage(
-                              educator: educator,
-                              currentUser: widget.user,
-                            ),
-                          ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(24),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: isDark ? Border.all(color: Colors.white12) : null,
+                          boxShadow: isDark ? [] : [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            )
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
                           children: [
+                            const SizedBox(height: 8),
                             Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.primary.withOpacity(0.2),
-                                  width: 2,
-                                ),
+                                border: Border.all(color: Colors.black12, width: 1),
                               ),
                               child: CircleAvatar(
-                                radius: 32,
-                                backgroundColor: AppColors.primary.withOpacity(0.1),
-                                backgroundImage:
-                                    (photoUrl != null && photoUrl.isNotEmpty)
-                                    ? NetworkImage(photoUrl)
-                                    : null,
+                                radius: 48,
+                                backgroundColor: const Color(0xFFD9D9D9),
+                                backgroundImage: (photoUrl != null && photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
                                 child: (photoUrl == null || photoUrl.isEmpty)
-                                    ? const Icon(Icons.person_rounded,
-                                        color: AppColors.primary)
+                                    ? const SizedBox() // Empty like the mock if no real photo
                                     : null,
                               ),
                             ),
-                            const SizedBox(width: 20),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        name,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.textPrimary,
-                                            ),
-                                      ),
-                                      if ((educator['averageRating'] ?? 0) >
-                                          0) ...[
-                                        const SizedBox(width: 8),
-                                        const Icon(
-                                          Icons.star_rounded,
-                                          size: 18,
-                                          color: Colors.amber,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          (educator['averageRating'] ?? 0.0)
-                                              .toStringAsFixed(1),
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: AppColors.textPrimary,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    bio,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: AppColors.textSecondary,
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(height: 20),
+                            Text(
+                              name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              color: AppColors.textSecondary.withOpacity(0.3),
+                            const SizedBox(height: 8),
+                            Text(
+                              bio,
+                              style: TextStyle(
+                                color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                fontSize: 13,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 16),
+                            Divider(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Rating', style: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade600, fontSize: 13)),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.star, color: Colors.amber, size: 16),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      rating.toStringAsFixed(1),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white : Colors.black87,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const Spacer(),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 40,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF7CB342),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => EducatorProfilePage(
+                                        educator: educator,
+                                        currentUser: widget.user,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: const Text('Browse Educator', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  );
-                },
+                      );
+                    },
+                  ),
+                ),
               );
             },
           ),
