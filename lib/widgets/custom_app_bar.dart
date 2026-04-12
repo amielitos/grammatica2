@@ -24,113 +24,117 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final String fullName = userData?['username'] ?? userData?['full_name'] ?? user.displayName ?? 'User';
     final String profileImageUrl = userData?['photoUrl'] ?? userData?['profile_image_url'] ?? user.photoURL ?? '';
     final screenWidth = MediaQuery.of(context).size.width;
-
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return AppBar(
       backgroundColor: isDark ? const Color(0xFF333333) : Colors.white,
       elevation: 0,
-      leading: Navigator.canPop(context)
-          ? IconButton(
-              icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : AppColors.textPrimary, size: 28),
-              onPressed: () => Navigator.pop(context),
-            )
-          : IconButton(
-              icon: Icon(Icons.menu, color: isDark ? Colors.white : AppColors.textPrimary, size: 32),
-              onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
-            ),
-      toolbarHeight: 80,
-      title: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Row(
+      centerTitle: true,
+      automaticallyImplyLeading: false,
+      shape: Border(
+        bottom: BorderSide(
+          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+          width: 1,
+        ),
+      ),
+      toolbarHeight: 70,
+      title: SizedBox(
+        width: double.infinity,
+        height: 70,
+        child: Stack(
           children: [
-            // Logo Image
-            GestureDetector(
-              onTap: onLogoTap,
-              child: Image.asset('assets/logotext.png', height: 28),
+            // Middle Group: Links (Dead Center)
+            if (screenWidth > 1100)
+              Align(
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildNavLink('All About Grammatica', isDark),
+                    const SizedBox(width: 40),
+                    _buildNavLink("FAQ's", isDark),
+                  ],
+                ),
+              ),
+            
+            // Left Group: Burger + Logo
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.menu, color: isDark ? Colors.white : Colors.black87, size: 28),
+                    onPressed: () {
+                      final scaffold = Scaffold.maybeOf(context);
+                      if (scaffold?.hasDrawer ?? false) {
+                        scaffold?.openDrawer();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Menu is available on the main dashboard.')),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: onLogoTap,
+                    child: Image.asset('assets/logotext.png', height: 24),
+                  ),
+                ],
+              ),
             ),
-            const Spacer(),
-            // Middle Links (Hide on mobile phones to prevent overflow)
-            if (screenWidth > 800) ...[
-              TextButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('All About Grammatica is coming soon!')),
-                  );
-                },
-                child: Text(
-                  'All About Grammatica',
-                  style: TextStyle(
-                    color: isDark ? Colors.white : const Color(0xFF1D1B20),
-                    fontWeight: FontWeight.w500,
-                    fontSize: 15,
-                    letterSpacing: 0.1,
-                  ),
+            
+            // Right Group: Profile Info
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (screenWidth > 800)
+                      Text(
+                        fullName,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: onProfileTap,
+                      child: CircleAvatar(
+                        radius: 14,
+                        backgroundColor: AppColors.primary,
+                        backgroundImage: profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null,
+                        child: profileImageUrl.isEmpty ? const Icon(Icons.person, color: Colors.white, size: 16) : null,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    NotificationIconButton(
+                      userId: user.uid,
+                      onTap: onNotificationTap,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 28),
-              TextButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("FAQ's is coming soon!")),
-                  );
-                },
-                child: Text(
-                  "FAQ's",
-                  style: TextStyle(
-                    color: isDark ? Colors.white : const Color(0xFF1D1B20),
-                    fontWeight: FontWeight.w500,
-                    fontSize: 15,
-                    letterSpacing: 0.1,
-                  ),
-                ),
-              ),
-              const Spacer(),
-            ],
+            ),
           ],
         ),
       ),
-      actions: [
-        // User Name
-        // User Name
-        Container(
-          constraints: BoxConstraints(maxWidth: screenWidth < 400 ? 80 : 150),
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 12.0),
-          child: Text(
-            fullName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: isDark ? Colors.white : AppColors.textPrimary,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        
-        // Profile Icon
-        GestureDetector(
-          onTap: onProfileTap,
-          child: Center(
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.primary,
-              backgroundImage: profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null,
-              child: profileImageUrl.isEmpty ? const Icon(Icons.person, color: Colors.white, size: 20) : null,
-            ),
-          ),
-        ),
-        
-        const SizedBox(width: 16),
-        
-        // Notification Bell
-        NotificationIconButton(
-          userId: user.uid,
-          onTap: onNotificationTap,
-        ),
-        const SizedBox(width: 24),
-      ],
+    );
+  }
+
+  Widget _buildNavLink(String text, bool isDark) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: isDark ? Colors.white70 : Colors.black87,
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+      ),
     );
   }
 

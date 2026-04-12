@@ -8,6 +8,7 @@ import '../widgets/interactive_markdown.dart';
 import '../widgets/notification_widgets.dart';
 import '../pages/quiz_detail_page.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/universal_drawer.dart';
 import '../main.dart';
 import '../services/database_service.dart';
 
@@ -59,11 +60,13 @@ class _LessonPageState extends State<LessonPage> {
 
   late Lesson _lesson;
   bool get _previewMode => widget.previewMode;
+  Map<String, dynamic>? _userData;
 
   @override
   void initState() {
     super.initState();
     _lesson = widget.lesson;
+    _fetchUserData();
 
     if (!widget.previewMode) {
       DatabaseService.instance.checkAndAwardAchievement(widget.user.uid, 'first_lesson').then((awarded) {
@@ -74,12 +77,22 @@ class _LessonPageState extends State<LessonPage> {
     }
   }
 
+  Future<void> _fetchUserData() async {
+    final data = await DatabaseService.instance.getUserData(widget.user.uid);
+    if (mounted) {
+      setState(() {
+        _userData = data;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: const Color(0xFFCEDA72), // Lime green background from image
       appBar: CustomAppBar(
         user: widget.user,
+        userData: _userData,
         onNotificationTap: () {
           showDialog(
             context: context,
@@ -88,222 +101,294 @@ class _LessonPageState extends State<LessonPage> {
           );
         },
       ),
-      body: BackgroundWrapper(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 100, 24, 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (_previewMode)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.only(bottom: 24),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primary.withOpacity(0.2)),
-                  ),
-                  child: Row(
+      drawer: UniversalDrawer(
+        user: widget.user,
+        userData: _userData ?? {},
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 900;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 40, 24, 40),
+            child: isWide
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.visibility_rounded, color: AppColors.primary),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          'PREVIEW MODE',
-                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, letterSpacing: 1),
-                        ),
-                      ),
-                      Text(
-                        'Admin View',
-                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
-                      ),
+                      Expanded(flex: 3, child: _buildMainCard()),
+                      const SizedBox(width: 24),
+                      SizedBox(width: 320, child: _buildQuizSidebar()),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildMainCard(),
+                      const SizedBox(height: 24),
+                      _buildQuizSidebar(),
                     ],
                   ),
-                ),
+          );
+        },
+      ),
+    );
+  }
 
-              // Metadata
-              Row(
+  Widget _buildMainCard() {
+    return Container(
+      padding: const EdgeInsets.all(48),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      constraints: const BoxConstraints(minHeight: 600),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  _lesson.title,
+                  style: const TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 24),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   _authorName(
                     uid: _lesson.createdByUid,
                     fallbackEmail: _lesson.createdByEmail,
-                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 14, color: Colors.black87),
                   ),
-                  const SizedBox(width: 12),
-                  const Text('•', style: TextStyle(color: AppColors.divider)),
-                  const SizedBox(width: 12),
+                  const SizedBox(height: 4),
                   Text(
-                    _lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A',
-                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    _lesson.createdAt != null
+                        ? _fmt(_lesson.createdAt!)
+                        : 'N/A',
+                    style: const TextStyle(fontSize: 14, color: Colors.black87),
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-
-              // Content
-              ...[_lesson.prompt].map((part) {
-                final trimmed = part.trim();
-                if (trimmed.isEmpty) return const SizedBox.shrink();
-                return InteractiveMarkdown(data: trimmed);
-              }),
-
-              if (!_previewMode && _lesson.quizId != null) ...[
-                const SizedBox(height: 48),
-                const Divider(color: AppColors.divider),
-                const SizedBox(height: 32),
-                StreamBuilder<Map<String, Map<String, dynamic>>>(
-                  stream: DatabaseService.instance.quizProgressStream(widget.user),
-                  builder: (context, snapshot) {
-                    final progressMap = snapshot.data ?? {};
-                    final myProgress = progressMap[_lesson.quizId];
-                    final attempts = (myProgress?['attemptsUsed'] as num?)?.toInt() ?? 0;
-
-                    if (attempts > 0) {
-                      return _buildQuizResults(myProgress!);
-                    }
-
-                    return Center(
-                      child: Column(
-                        children: [
-                          const Icon(Icons.assignment_turned_in_rounded, size: 64, color: AppColors.primary),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'Knowledge Check',
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Complete the quiz to finalize this lesson.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: AppColors.textSecondary),
-                          ),
-                          const SizedBox(height: 32),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: const Size(double.infinity, 64),
-                            ),
-                            onPressed: () async {
-                              try {
-                                await DatabaseService.instance.markLessonCompleted(
-                                  user: widget.user,
-                                  lessonId: _lesson.id,
-                                );
-
-                                final doc = await FirebaseFirestore.instance.collection('quizzes').doc(_lesson.quizId).get();
-
-                                if (doc.exists && context.mounted) {
-                                  final quiz = Quiz.fromDoc(doc);
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => QuizDetailPage(
-                                        user: widget.user,
-                                        quiz: quiz,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Error loading quiz: $e')),
-                                  );
-                                }
-                              }
-                            },
-                            icon: const Icon(Icons.play_lesson_rounded),
-                            label: const Text('TAKE LESSON QUIZ', style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ],
             ],
           ),
-        ),
+          const SizedBox(height: 48),
+          InteractiveMarkdown(data: _lesson.prompt.trim()),
+        ],
       ),
     );
   }
 
-  Widget _buildQuizResults(Map<String, dynamic> progress) {
+  Widget _buildQuizSidebar() {
+    if (_previewMode || _lesson.quizId == null) {
+      return const SizedBox.shrink();
+    }
+
+    return StreamBuilder<Map<String, Map<String, dynamic>>>(
+      stream: DatabaseService.instance.quizProgressStream(widget.user),
+      builder: (context, snapshot) {
+        final progressMap = snapshot.data ?? {};
+        final myProgress = progressMap[_lesson.quizId];
+        final attempts = (myProgress?['attemptsUsed'] as num?)?.toInt() ?? 0;
+
+        if (attempts > 0) {
+          return _buildQuizResultsCard(myProgress!);
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFCEDA72), width: 1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.assignment_turned_in_outlined,
+                  size: 48,
+                  color: Color(0xFF88B342),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Knowledge Check',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Complete the quiz and finalize this lesson.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.black54, fontSize: 13),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF88B342),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: _takeQuizAction,
+                  child: const Text(
+                    'Take Quiz',
+                    style: TextStyle(fontWeight: FontWeight.normal),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _takeQuizAction() async {
+    try {
+      await DatabaseService.instance.markLessonCompleted(
+        user: widget.user,
+        lessonId: _lesson.id,
+      );
+
+      final doc = await FirebaseFirestore.instance
+          .collection('quizzes')
+          .doc(_lesson.quizId)
+          .get();
+
+      if (doc.exists && context.mounted) {
+        final quiz = Quiz.fromDoc(doc);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => QuizDetailPage(
+              user: widget.user,
+              quiz: quiz,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading quiz: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildQuizResultsCard(Map<String, dynamic> progress) {
     final score = progress['score'] ?? 0;
     final total = progress['totalQuestions'] ?? 0;
     final passed = progress['passed'] == true;
-    final lastAttemptAt = progress['lastAttemptAt'] as Timestamp?;
     final timeTaken = progress['timeTaken'] as int? ?? 0;
 
     final minutes = timeTaken ~/ 60;
     final seconds = timeTaken % 60;
-    final timeStr = minutes > 0 ? '$minutes m $seconds s' : '$seconds seconds';
+    final timeStr = minutes > 0 ? '$minutes m $seconds s' : '$seconds s';
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          children: [
-            const Text(
-              'Lesson Quiz Results',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: (passed ? const Color(0xFF88B342) : Colors.red).withOpacity(0.1),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(height: 32),
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: (passed ? AppColors.primary : AppColors.error).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                passed ? Icons.verified_rounded : Icons.cancel_rounded,
-                size: 64,
-                color: passed ? AppColors.primary : AppColors.error,
-              ),
+            child: Icon(
+              passed ? Icons.verified_rounded : Icons.cancel_rounded,
+              size: 48,
+              color: passed ? const Color(0xFF88B342) : Colors.red,
             ),
-            const SizedBox(height: 24),
-            Text(
-              passed ? 'LESSON COMPLETED' : 'QUIZ FAILED',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: passed ? AppColors.primary : AppColors.error,
-                letterSpacing: 1,
-              ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            passed ? 'Knowledge Check Passed' : 'Knowledge Check Failed',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: passed ? const Color(0xFF88B342) : Colors.red,
             ),
-            const SizedBox(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _statColumn('Score', '$score / $total'),
-                _statColumn('Time Taken', timeStr),
-              ],
-            ),
-            if (lastAttemptAt != null) ...[
-              const SizedBox(height: 24),
-              const Divider(color: AppColors.divider),
-              const SizedBox(height: 16),
-              Text(
-                'Completed on: ${_fmt(lastAttemptAt)}',
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-              ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _statItem('Score', '$score/$total'),
+              _statItem('Time', timeStr),
             ],
-          ],
-        ),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: passed ? const Color(0xFF88B342) : Colors.red),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed: _takeQuizAction,
+              child: Text(
+                passed ? 'Retake Quiz' : 'Try Again',
+                style: TextStyle(color: passed ? const Color(0xFF88B342) : Colors.red),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _statColumn(String label, String value) {
+  Widget _statItem(String label, String value) {
     return Column(
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1),
+          style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 0.5),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
         ),
       ],
     );

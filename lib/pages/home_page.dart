@@ -18,6 +18,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_colors.dart';
 import '../widgets/design_ornaments.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/universal_drawer.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -179,25 +180,19 @@ class _HomePageState extends State<HomePage> {
           }
         },
       ),
-      drawer: Drawer(
-        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF222222) : Colors.white,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        width: 250,
-        child: Sidebar(
-          currentIndex: _tabIndex,
-          onTap: (index) {
-            setState(() {
-              _tabIndex = index;
-              _persistedTabIndex = index;
-            });
-            if (index == 4) {
-              _profileKey.currentState?.fetchProfile();
-            }
-          },
-          items: navItems,
-          showProfileWarning: widget.showProfileWarning,
-          isDrawer: true,
-        ),
+      drawer: UniversalDrawer(
+        user: user,
+        userData: widget.userData,
+        currentIndex: _tabIndex,
+        onTap: (index) {
+          setState(() {
+            _tabIndex = index;
+            _persistedTabIndex = index;
+          });
+          if (index == 4) {
+            _profileKey.currentState?.fetchProfile();
+          }
+        },
       ),
       body: BackgroundWrapper(
         imageAssetPath: bgPath,

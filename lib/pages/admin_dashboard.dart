@@ -18,6 +18,7 @@ import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/design_ornaments.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/universal_drawer.dart';
 import '../main.dart';
 class AdminDashboard extends StatefulWidget {
   final User user;
@@ -52,6 +53,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Lesson? _editingLesson;
+  int _editingLessonTabIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +116,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
         tabs.add(
           AdminLessonsTab(
             initialLesson: _editingLesson,
-            onReset: () => setState(() => _editingLesson = null),
+            initialTabIndex: _editingLessonTabIndex,
+            onReset: () => setState(() {
+              _editingLesson = null;
+              _editingLessonTabIndex = 0;
+            }),
           ),
         );
         navItems.add(
@@ -132,6 +138,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
             if (manageLessonsIndex != null) {
               setState(() {
                 _editingLesson = l;
+                _editingLessonTabIndex = 0;
+                _index = manageLessonsIndex!;
+              });
+            }
+          },
+          onEditQuiz: (l) {
+            if (manageLessonsIndex != null) {
+              setState(() {
+                _editingLesson = l;
+                _editingLessonTabIndex = 1; // Show Quizzes tab
                 _index = manageLessonsIndex!;
               });
             }
@@ -221,11 +237,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
           }
         },
       ),
-      drawer: Drawer(
-        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF222222) : Colors.white,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        width: 250,
-        child: sidebar,
+      drawer: UniversalDrawer(
+        user: widget.user,
+        userData: widget.userData,
+        currentIndex: _index,
+        onTap: (i) {
+          setState(() {
+            _index = i;
+            _persistedIndex = i;
+          });
+        },
       ),
       body: BackgroundWrapper(
         imageAssetPath: bgPath,

@@ -9,7 +9,8 @@ import '../../widgets/author_name_widget.dart';
 
 class LessonsListTab extends StatefulWidget {
   final Function(Lesson)? onEdit;
-  const LessonsListTab({super.key, this.onEdit});
+  final Function(Lesson)? onEditQuiz;
+  const LessonsListTab({super.key, this.onEdit, this.onEditQuiz});
   @override
   State<LessonsListTab> createState() => _LessonsListTabState();
 }
@@ -265,6 +266,13 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                             ),
                                             const SizedBox(width: 16),
                                             if (role == UserRole.admin || role == UserRole.superadmin || role == UserRole.educator) ...[
+                                              if (l.quizId != null) ...[
+                                                GestureDetector(
+                                                  onTap: () => widget.onEditQuiz?.call(l),
+                                                  child: const Icon(Icons.quiz, size: 20, color: Colors.blueGrey),
+                                                ),
+                                                const SizedBox(width: 12),
+                                              ],
                                               GestureDetector(
                                                 onTap: () => widget.onEdit?.call(l),
                                                 child: const Icon(Icons.edit, size: 20, color: Colors.grey),

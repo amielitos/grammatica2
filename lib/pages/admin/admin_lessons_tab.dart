@@ -16,20 +16,35 @@ import 'admin_quizzes_tab.dart'; // Import to use as a sub-tab
 class AdminLessonsTab extends StatelessWidget {
   final Lesson? initialLesson;
   final VoidCallback? onReset;
+  final int initialTabIndex;
 
-  const AdminLessonsTab({super.key, this.initialLesson, this.onReset});
+  const AdminLessonsTab({
+    super.key,
+    this.initialLesson,
+    this.onReset,
+    this.initialTabIndex = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return _ManageLessonsView(initialLesson: initialLesson, onReset: onReset);
+    return _ManageLessonsView(
+      initialLesson: initialLesson,
+      onReset: onReset,
+      initialTabIndex: initialTabIndex,
+    );
   }
 }
 
 class _ManageLessonsView extends StatefulWidget {
   final Lesson? initialLesson;
   final VoidCallback? onReset;
+  final int initialTabIndex;
 
-  const _ManageLessonsView({this.initialLesson, this.onReset});
+  const _ManageLessonsView({
+    this.initialLesson,
+    this.onReset,
+    this.initialTabIndex = 0,
+  });
 
   @override
   State<_ManageLessonsView> createState() => _ManageLessonsViewState();
@@ -57,6 +72,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   @override
   void initState() {
     super.initState();
+    _tabIndex = widget.initialTabIndex;
     if (widget.initialLesson != null) {
       _loadInitialLesson();
     }
@@ -65,6 +81,9 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   @override
   void didUpdateWidget(_ManageLessonsView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.initialTabIndex != oldWidget.initialTabIndex) {
+      setState(() => _tabIndex = widget.initialTabIndex);
+    }
     if (widget.initialLesson != oldWidget.initialLesson) {
       if (widget.initialLesson != null) {
         _loadInitialLesson();
@@ -181,7 +200,16 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                     bottomRight: Radius.circular(12),
                   ),
                 ),
-                child: _tabIndex == 0 ? _buildLessonForm(roleSnap.data) : AdminQuizzesTab(),
+                child: IndexedStack(
+                  index: _tabIndex,
+                  children: [
+                    _buildLessonForm(roleSnap.data),
+                    AdminQuizzesTab(
+                      key: _quizKey,
+                      initialQuizId: _selectedQuizId,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -634,6 +662,16 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   Future<void> _saveIntegratedLesson() async {
     setState(() => _creatingLesson = true);
     try {
+      String? finalQuizId = _selectedQuizId;
+
+      // If we are on the Quizzes tab OR there's a quiz being edited, save it first
+      if (_quizKey.currentState != null) {
+        final savedQuizId = await _quizKey.currentState!.saveForLesson();
+        if (savedQuizId != null) {
+          finalQuizId = savedQuizId;
+        }
+      }
+
       // Create/Update the standalone lesson
       final lessonData = Lesson(
         id: _selectedLessonId ?? '',
@@ -645,7 +683,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         visibleTo: _visibleTo,
         isMembersOnly: _isMembersOnly,
         isGrammaticaLesson: _isGrammaticaLesson,
-        quizId: null, // No longer strictly tying a quiz on lesson creation this way
+        quizId: finalQuizId, 
         createdAt: _selectedLesson?.createdAt ?? Timestamp.now(),
       );
 

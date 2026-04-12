@@ -411,28 +411,13 @@ class ProfilePageState extends State<ProfilePage> {
                         icon: const Icon(Icons.camera_alt, size: 20, color: Colors.white),
                         onPressed: () async {
                           try {
-                            final pick = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['jpg', 'jpeg', 'png'], withData: true);
-                            if (pick == null || pick.files.isEmpty) return;
-                            final file = pick.files.first;
-                            final bytes = file.bytes;
-                            if (bytes == null) return;
-                            if (bytes.lengthInBytes > 2097152) {
-                              _showSnack('Image exceeds 2MB limit', error: true);
-                              return;
-                            }
-                            final ext = file.name.toLowerCase().split('.').last;
-                            final path = 'users/${widget.user.uid}/profile_pic.$ext';
-                            final ref = FirebaseStorage.instance.ref().child(path);
-                            await ref.putData(bytes, SettableMetadata(contentType: ext == 'png' ? 'image/png' : 'image/jpeg'));
-                            final url = await ref.getDownloadURL();
-                            await widget.user.updatePhotoURL(url);
-                            await FirebaseFirestore.instance.collection('users').doc(widget.user.uid).set({'photoUrl': url}, SetOptions(merge: true));
-                            if (mounted) {
+                            final url = await DatabaseService.instance.uploadProfilePhoto(widget.user);
+                            if (url != null && mounted) {
                               setState(() => _photoUrl = url);
                               _showSnack('Profile photo updated');
                             }
                           } catch (e) {
-                            _showSnack('Photo update failed: $e', error: true);
+                            _showSnack('Photo update failed: ${e.toString().replaceAll('Exception:', '')}', error: true);
                           }
                         },
                       ),

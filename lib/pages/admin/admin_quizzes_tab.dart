@@ -11,8 +11,14 @@ import 'dart:io';
 class AdminQuizzesTab extends StatefulWidget {
   final bool isEmbedded;
   final Function(String?)? onQuizSaved;
+  final String? initialQuizId;
 
-  const AdminQuizzesTab({super.key, this.isEmbedded = false, this.onQuizSaved});
+  const AdminQuizzesTab({
+    super.key,
+    this.isEmbedded = false,
+    this.onQuizSaved,
+    this.initialQuizId,
+  });
 
   @override
   State<AdminQuizzesTab> createState() => AdminQuizzesTabState();
@@ -27,6 +33,16 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   final _description = TextEditingController();
   final _durationCtrl = TextEditingController(text: '00:00:00');
   final _maxAttemptsCtrl = TextEditingController(text: '1');
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialQuizId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        loadQuiz(widget.initialQuizId!);
+      });
+    }
+  }
 
   List<TextEditingController> _questionCtrls = [TextEditingController()];
   List<TextEditingController> _answerCtrls = [TextEditingController()];
@@ -68,6 +84,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (!widget.isEmbedded) _buildQuizzesList(),
         Padding(
           padding: const EdgeInsets.all(24.0),
           child: LayoutBuilder(
@@ -135,6 +152,157 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
         ),
       ],
     );
+  }
+
+  Widget _buildQuizzesList() {
+    final user = AuthService.instance.currentUser;
+    return StreamBuilder<UserRole>(
+      stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
+      builder: (context, roleSnap) {
+        final role = roleSnap.data ?? UserRole.learner;
+        return StreamBuilder<List<Quiz>>(
+          stream: DatabaseService.instance.streamQuizzes(
+            approvedOnly: false,
+            userRole: role,
+            userId: user?.uid,
+          ),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const SizedBox.shrink();
+            final quizzes = snapshot.data!;
+            if (quizzes.isEmpty) return const SizedBox.shrink();
+
+            return Container(
+              height: 180,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Existing Quizzes',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      if (_selectedQuizId != null)
+                        TextButton.icon(
+                          onPressed: resetForm,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Create New'),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: quizzes.length,
+                      itemBuilder: (context, index) {
+                        final q = quizzes[index];
+                        final isSelected = q.id == _selectedQuizId;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 12.0),
+                          child: InkWell(
+                            onTap: () => loadQuiz(q.id),
+                            child: Container(
+                              width: 200,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isSelected ? const Color(0xFF88B342).withOpacity(0.1) : Colors.white,
+                                border: Border.all(
+                                  color: isSelected ? const Color(0xFF88B342) : Colors.grey.shade300,
+                                  width: isSelected ? 2 : 1,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          q.title,
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () => _confirmDeleteQuiz(context, q),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    q.description,
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${q.questions.length} Questions',
+                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmDeleteQuiz(BuildContext context, Quiz quiz) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Quiz?'),
+        content: Text('Are you sure you want to delete "${quiz.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true) {
+      try {
+        await DatabaseService.instance.deleteQuiz(quiz.id);
+        if (_selectedQuizId == quiz.id) resetForm();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Quiz deleted')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+    }
   }
 
   Widget _buildInputFields() {

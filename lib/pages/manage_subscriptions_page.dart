@@ -3,6 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/design_ornaments.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/notification_widgets.dart';
+import '../widgets/universal_drawer.dart';
 import '../main.dart';
 
 class ManageSubscriptionsPage extends StatefulWidget {
@@ -18,6 +21,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
   final TextEditingController _standardController = TextEditingController();
   final TextEditingController _premiumController = TextEditingController();
   bool _isEducator = false;
+  Map<String, dynamic>? _userData;
 
   @override
   void initState() {
@@ -30,6 +34,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     if (doc != null) {
       if (mounted) {
         setState(() {
+          _userData = doc;
           _isEducator = doc['role'] == 'Educator';
           final pricing = doc['subscription_pricing'] as Map<String, dynamic>?;
           if (pricing != null) {
@@ -76,79 +81,96 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BackgroundWrapper(
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFCEDA72),
+            Color(0xFFE4EB6F),
+          ],
+        ),
+      ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: Text(
-            'Manage Subscriptions',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-            onPressed: () => Navigator.pop(context),
-          ),
+        appBar: CustomAppBar(
+          user: widget.user,
+          userData: _userData,
+          onNotificationTap: () {
+            showDialog(
+              context: context,
+              barrierColor: Colors.transparent,
+              builder: (context) => NotificationsDialog(userId: widget.user.uid),
+            );
+          },
+          onLogoTap: () => Navigator.pop(context),
+          onProfileTap: () => Navigator.pop(context),
+        ),
+        drawer: UniversalDrawer(
+          user: widget.user,
+          userData: _userData ?? {},
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 800),
+                constraints: const BoxConstraints(maxWidth: 900),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (_isEducator) ...[
-                      _buildSectionTitle(
-                        context,
-                        'Subscription Pricing',
-                        Icons.payments_rounded,
-                        AppColors.primary,
-                      ),
-                      const SizedBox(height: 16),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'Set your monthly rates for learners who subscribe to your content.',
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 32),
-                              _buildPricingField(
-                                label: 'Standard Tier (Max \$10)',
-                                controller: _standardController,
-                                icon: Icons.star_outline_rounded,
-                              ),
-                              const SizedBox(height: 20),
-                              _buildPricingField(
-                                label: 'Premium Tier (Max \$30)',
-                                controller: _premiumController,
-                                icon: Icons.auto_awesome_rounded,
-                              ),
-                              const SizedBox(height: 32),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                ),
-                                onPressed: _savePricing,
-                                child: const Text('Save Pricing Settings'),
-                              ),
-                            ],
-                          ),
+                    const Center(
+                      child: Text(
+                        'Manage Subscription',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 48),
+                    ),
+                    const SizedBox(height: 32),
+                    if (_isEducator) ...[
+                      _buildHeaderBox(Icons.payments_rounded, 'Subscription Pricing', Colors.orange),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.black12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildPricingField(
+                              label: 'Standard Tier (Max \$10)',
+                              controller: _standardController,
+                              icon: Icons.star_outline_rounded,
+                            ),
+                            const SizedBox(height: 20),
+                            _buildPricingField(
+                              label: 'Premium Tier (Max \$30)',
+                              controller: _premiumController,
+                              icon: Icons.auto_awesome_rounded,
+                            ),
+                            const SizedBox(height: 32),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF81B655),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: _savePricing,
+                              child: const Text('Save Pricing Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 40),
                     ],
                     _buildLearnerSubscriptions(),
                   ],
@@ -158,6 +180,38 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeaderBox(IconData icon, String title, Color iconColor) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Icon(icon, color: iconColor, size: 24),
+        ),
+        const SizedBox(width: 16),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+      ],
     );
   }
 
@@ -171,191 +225,144 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
       keyboardType: TextInputType.number,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: AppColors.primary),
+        prefixIcon: Icon(icon, color: const Color(0xFF81B655)),
         suffixText: '\$',
-        suffixStyle: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
     );
   }
 
   Widget _buildLearnerSubscriptions() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: DatabaseService.instance.streamLearnerSubscriptions(
-        widget.user.uid,
-      ),
+      stream: DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         final subscriptions = snapshot.data ?? [];
-        final active = subscriptions
-            .where((s) => s['status'] == 'active')
-            .toList();
-        final cancelled = subscriptions
-            .where((s) => s['status'] == 'cancelled')
-            .toList();
+        final active = subscriptions.where((s) => s['status'] == 'active').toList();
+        final history = subscriptions.where((s) => s['status'] != 'active').toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle(
-              context,
-              'Active Subscriptions',
-              Icons.stars_rounded,
-              AppColors.primary,
-            ),
+            _buildHeaderBox(Icons.stars_rounded, 'Active Subscriptions', const Color(0xFFF9A825)),
+            const SizedBox(height: 16),
             if (active.isEmpty)
-              Card(
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(32),
-                  child: const Center(
-                    child: Text(
-                      'No active subscriptions.',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                  ),
-                ),
-              )
+              _buildEmptyCard('No active subscriptions.')
             else
-              ...active.map(
-                (s) => _buildSubscriptionCard(context, s, isActive: true),
-              ),
-            const SizedBox(height: 48),
-            _buildSectionTitle(
-              context,
-              'Subscription History',
-              Icons.history_rounded,
-              AppColors.textSecondary,
-            ),
-            if (cancelled.isEmpty)
-              Card(
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(32),
-                  child: const Center(
-                    child: Text(
-                      'No subscription history.',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                  ),
-                ),
-              )
+              ...active.map((s) => _buildSubscriptionCard(s, true)),
+            
+            const SizedBox(height: 40),
+            _buildHeaderBox(Icons.history_rounded, 'History', Colors.black54),
+            const SizedBox(height: 16),
+            if (history.isEmpty)
+              _buildEmptyCard('No subscription history.')
             else
-              ...cancelled.map(
-                (s) => _buildSubscriptionCard(context, s, isActive: false),
-              ),
+              ...history.map((s) => _buildSubscriptionCard(s, false)),
           ],
         );
       },
     );
   }
 
-  Widget _buildSectionTitle(
-    BuildContext context,
-    String title,
-    IconData icon,
-    Color color,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20, left: 4),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-          ),
-        ],
+  Widget _buildEmptyCard(String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Center(
+        child: Text(text, style: const TextStyle(color: Colors.black38, fontSize: 16)),
       ),
     );
   }
 
-  Widget _buildSubscriptionCard(
-    BuildContext context,
-    Map<String, dynamic> sub, {
-    required bool isActive,
-  }) {
+  Widget _buildSubscriptionCard(Map<String, dynamic> sub, bool isActive) {
     final eduData = sub['educatorData'] as Map<String, dynamic>? ?? {};
     final username = eduData['username'] as String? ?? 'Educator';
-    final tier = sub['tier'] ?? 'Standard';
+    final tier = sub['tier'] ?? 'Basic';
     final eduUid = sub['educatorUid'] as String;
 
-    return Card(
+    final isBasic = tier.toLowerCase() == 'basic';
+    final pillBg = isBasic ? const Color(0xFFFEE69F) : const Color(0xFFCEDA72).withOpacity(0.5);
+    final pillText = isBasic ? const Color(0xFFF9A825) : const Color(0xFF88B342);
+
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.primary.withOpacity(0.1), width: 2),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          child: CircleAvatar(
-            backgroundColor: AppColors.primary.withOpacity(0.05),
-            backgroundImage: (eduData['photoUrl'] as String?)?.isNotEmpty == true
-                ? NetworkImage(eduData['photoUrl'])
-                : null,
-            child: (eduData['photoUrl'] as String?)?.isEmpty ?? true
-                ? const Icon(Icons.person_rounded, color: AppColors.primary)
-                : null,
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              shape: BoxShape.circle,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(40),
+              child: (eduData['photoUrl'] as String?)?.isNotEmpty == true
+                  ? Image.network(eduData['photoUrl']!, fit: BoxFit.cover)
+                  : const Icon(Icons.person_rounded, color: Colors.white, size: 50),
+            ),
           ),
-        ),
-        title: Text(
-          username,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: (tier == 'Premium' ? AppColors.accent : AppColors.secondary)
-                      .withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
+          const SizedBox(width: 24),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  username,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
                 ),
-                child: Text(
-                  tier,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: tier == 'Premium' ? AppColors.accent : AppColors.secondary,
-                  ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: pillBg,
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: Text(
+                        tier,
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: pillText),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '• ${isActive ? 'Active' : 'Cancelled'}',
+                      style: const TextStyle(color: Colors.black38, fontSize: 14),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '• ${isActive ? 'Active' : 'Cancelled'}',
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        trailing: isActive
-            ? IconButton(
-                icon: const Icon(
-                  Icons.cancel_outlined,
-                  color: Colors.redAccent,
-                ),
-                onPressed: () => _confirmCancel(context, eduUid, username),
-              )
-            : null,
+          if (isActive)
+            IconButton(
+              icon: const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 40),
+              onPressed: () => _confirmCancel(context, eduUid, username),
+            ),
+        ],
       ),
     );
   }
@@ -365,19 +372,12 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Cancel Subscription?'),
-        content: Text(
-          'Are you sure you want to cancel your subscription to $name?',
-        ),
+        content: Text('Are you sure you want to cancel your subscription to $name?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('Keep it'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Keep it')),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.redAccent,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
             child: const Text('Cancel Subscription'),
           ),
         ],
@@ -385,6 +385,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     );
     if (confirm == true) {
       await DatabaseService.instance.unsubscribeFromEducator(eduUid);
+      if (mounted) setState(() {});
     }
   }
 }

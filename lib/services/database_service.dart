@@ -3,6 +3,7 @@ import 'package:grammatica/services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'role_service.dart';
 import '../models/spelling_word.dart';
 
@@ -349,6 +350,61 @@ class DatabaseService {
     await _firestore.collection('users').doc(uid).update({field: value});
   }
 
+  Future<String?> uploadProfilePhoto(User user) async {
+    try {
+      final pick = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+      if (pick == null || pick.files.isEmpty) return null;
+
+      final file = pick.files.first;
+      final bytes = file.bytes;
+      if (bytes == null) return null;
+
+      // 5MB limit
+      if (bytes.lengthInBytes > 5 * 1024 * 1024) {
+        throw Exception('Image exceeds 5MB limit');
+      }
+
+      final ext = file.name.toLowerCase().split('.').last;
+      final path = 'users/${user.uid}/profile_pic.$ext';
+      final ref = _storage.ref().child(path);
+
+      // Map content type more broadly
+      String contentType = 'image/jpeg';
+      if (ext == 'png') contentType = 'image/png';
+      else if (ext == 'webp') contentType = 'image/webp';
+      else if (ext == 'gif') contentType = 'image/gif';
+
+      final metadata = SettableMetadata(contentType: contentType);
+
+      // On Web, ref.putData returns a TaskSnapshot on completion when awaited directly.
+      // Awaiting the task directly is more reliable than whenComplete for error catching.
+      final snapshot = await ref.putData(bytes, metadata);
+      final url = await snapshot.ref.getDownloadURL();
+
+      // Update Auth (Centralized update)
+      await user.updatePhotoURL(url);
+
+      // Update Firestore
+      await _firestore.collection('users').doc(user.uid).set(
+        {'photoUrl': url},
+        SetOptions(merge: true),
+      );
+
+      return url;
+    } on FirebaseException catch (e) {
+      if (e.code == 'unknown') {
+        throw Exception('Storage upload failed (CORS error). Please ensure CORS is configured for your Firebase Storage bucket.');
+      }
+      rethrow;
+    } catch (e) {
+      debugPrint('Error uploading profile photo: $e');
+      rethrow;
+    }
+  }
+
   Future<void> submitEducatorApplication({
     required String uid,
     required String email,
@@ -491,7 +547,7 @@ class DatabaseService {
       'visibleTo': visibleTo,
       'isMembersOnly': isMembersOnly,
       'isGrammaticaLesson': isGrammaticaLesson,
-      'quizId': ?quizId,
+      'quizId': quizId,
     });
     return doc.id;
   }
@@ -521,7 +577,7 @@ class DatabaseService {
     if (isGrammaticaLesson != null) {
       data['isGrammaticaLesson'] = isGrammaticaLesson;
     }
-    if (quizId != null) data['quizId'] = quizId;
+    data['quizId'] = quizId;
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
     }
