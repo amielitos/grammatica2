@@ -22,35 +22,35 @@ class AILogicService {
     }
   }
 
-  /// Calls the Python API to convert PDF bytes to Markdown using MarkItDown
-  Future<String> convertToMarkdown(List<int> bytes) async {
+  /// Calls the Python API to convert raw text to Markdown using the Hugging Face Space
+  Future<String> convertTextToMarkdown(String rawText) async {
+    final String spaceUrl = "https://amielitos-text-to-markdown-api.hf.space/gradio_api/call/predict";
     try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$_baseUrl/convert/markdown'),
+      // 1. Send Request
+      final response = await http.post(
+        Uri.parse(spaceUrl),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"data": [rawText]}),
       );
-      
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          bytes,
-          filename: 'lesson.pdf',
-        ),
-      );
-
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['markdown'] as String;
-      } else {
-        debugPrint('API Error: ${response.statusCode} - ${response.body}');
-        throw Exception('Failed to convert PDF to Markdown.');
+        final eventId = jsonDecode(response.body)['event_id'];
+
+        // 2. Poll for the stream result
+        final streamResponse = await http.get(Uri.parse("$spaceUrl/$eventId"));
+        
+        // Gradio returns: data: ["The # result"]
+        String body = streamResponse.body;
+        if (body.contains('data: ["')) {
+          String rawMd = body.split('data: ["')[1].split('"]').first;
+          // Unescape the string
+          return rawMd.replaceAll(r'\n', '\n').replaceAll(r'\"', '"');
+        }
       }
+      return "Check if Space is awake...";
     } catch (e) {
       debugPrint('HTTP Error: $e');
-      rethrow;
+      return "Connection Error";
     }
   }
 

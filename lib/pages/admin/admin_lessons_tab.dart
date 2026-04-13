@@ -329,7 +329,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               icon: _isGeneratingFromPdf
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.auto_awesome),
-              label: const Text('Generate from PDF'),
+              label: const Text('Convert Text to Markdown'),
             ),
           ],
         ),
@@ -409,7 +409,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.auto_awesome),
-              label: const Text('Generate from PDF'),
+              label: const Text('Convert Text to Markdown'),
             ),
           ],
         ),
@@ -418,55 +418,40 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Future<void> _generateFromPdf() async {
+    final textToConvert = _prompt.text.trim();
+    if (textToConvert.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please attach a PDF or enter text first.')),
+        );
+      }
+      return;
+    }
+
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-        withData: true, // Required for Web
+      setState(() => _isGeneratingFromPdf = true);
+
+      final generatedMarkdown = await _aiLogicService.convertTextToMarkdown(
+        textToConvert,
       );
 
-      if (result != null && result.files.isNotEmpty) {
-        setState(() => _isGeneratingFromPdf = true);
+      setState(() {
+        _prompt.text = generatedMarkdown;
+        _isGeneratingFromPdf = false;
+      });
 
-        final platformFile = result.files.single;
-        List<int> bytes;
-        if (platformFile.bytes != null) {
-          bytes = platformFile.bytes!;
-        } else if (platformFile.path != null) {
-          bytes = await File(platformFile.path!).readAsBytes();
-        } else {
-          throw Exception('Could not read file data');
-        }
-
-        final extractedText = await _aiLogicService.extractTextFromPdf(bytes);
-
-        setState(() {
-          _tempPdfText = extractedText;
-        });
-
-        // Use MarkItDown (via backend) to convert original PDF bytes to markdown
-        final generatedMarkdown = await _aiLogicService.convertToMarkdown(
-          bytes,
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Successfully converted text to markdown!'),
+          ),
         );
-
-        setState(() {
-          _prompt.text = generatedMarkdown;
-          _isGeneratingFromPdf = false;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Successfully generated lesson from PDF!'),
-            ),
-          );
-        }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isGeneratingFromPdf = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating from PDF: $e')),
+          SnackBar(content: Text('Error converting text: $e')),
         );
       }
     }
@@ -632,12 +617,40 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Future<void> _pickFiles() async {
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if (result != null) {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      withData: true,
+      allowMultiple: true, 
+    );
+    if (result != null && result.files.isNotEmpty) {
       if (mounted) {
         setState(() {
           _selectedFiles = result.files;
         });
+      }
+      
+      try {
+        final platformFile = result.files.first;
+        List<int> bytes;
+        if (platformFile.bytes != null) {
+          bytes = platformFile.bytes!;
+        } else if (platformFile.path != null) {
+          bytes = await File(platformFile.path!).readAsBytes();
+        } else {
+          throw Exception('Could not read file data');
+        }
+
+        final extractedText = await _aiLogicService.extractTextFromPdf(bytes);
+
+        if (mounted) {
+          setState(() {
+            _prompt.text = extractedText;
+            _tempPdfText = extractedText;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error extracting text from PDF on pickup: $e');
       }
     }
   }
