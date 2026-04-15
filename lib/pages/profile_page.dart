@@ -8,14 +8,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/role_service.dart';
 import '../services/auth_service.dart';
-import '../widgets/glass_card.dart';
-import '../theme/app_colors.dart';
 import '../main.dart';
 import '../services/database_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'manage_subscriptions_page.dart';
-import 'educator_application_page.dart';
+import 'role_application_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -32,7 +30,7 @@ class ProfilePageState extends State<ProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: error ? Colors.red : null,
+        backgroundColor: error ? Theme.of(context).colorScheme.error : null,
       ),
     );
   }
@@ -42,13 +40,16 @@ class ProfilePageState extends State<ProfilePage> {
   final _currentPasswordCtrl = TextEditingController();
   final _newPasswordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
-  // New controller for phone number
   final _phoneCtrl = TextEditingController();
   final _phoneFocus = FocusNode();
   String? _info;
   String? _error;
+  bool _obscureCurrentPassword = true;
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
 
   // Local state for profile data
+  bool _isEditing = false;
   String _displayName = 'User';
   String _displayEmail = '';
   String? _photoUrl;
@@ -113,13 +114,10 @@ class ProfilePageState extends State<ProfilePage> {
               : (widget.user.displayName ?? 'User');
           _photoUrl = fetchedPhoto ?? widget.user.photoURL;
           _bioCtrl.text = fetchedBio;
+          _usernameCtrl.text = _displayName; // Set username field to current name
           _phoneNumber = fetchedPhone;
           _dob = fetchedDob;
           if (_phoneNumber != null) {
-            // NOTE: IntlPhoneField might struggle to parse this back into CC + Number key without parsing logic.
-            // For now we just set the text, but the country code might default to PH if not parsed.
-            // A robust solution parses the number. passing it to initialValue of IntlPhoneField is better if supported.
-            // Fix: Strip +63 if present to avoid duplication in the text field
             String phoneText = _phoneNumber!;
             if (phoneText.startsWith('+63')) {
               phoneText = phoneText.substring(3);
@@ -259,925 +257,660 @@ class ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<UserRole>(
-      stream: RoleService.instance.roleStream(widget.user.uid),
-      builder: (context, roleSnap) {
-        if (roleSnap.connectionState == ConnectionState.waiting ||
-            !roleSnap.hasData) {
-          return const Scaffold(
-            backgroundColor: Colors.transparent,
-            body: Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGreen),
-            ),
-          );
-        }
+    InputDecoration _customInputDecoration({required String hint}) {
+    // Inputs remain white even in dark mode based on the mock-up
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(fontSize: 14, color: Colors.black54),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.grey),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.grey),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF81B655), width: 2),
+      ),
+    );
+  }
 
-        return Scaffold(
-          backgroundColor: Colors.transparent,
-          body: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth > 800;
-                  return Center(
-                    child: Container(
-                      width: isWide
-                          ? constraints.maxWidth * 0.5
-                          : double.infinity,
-                      constraints: const BoxConstraints(maxWidth: 600),
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 24),
-                            child: Text(
-                              'Profile',
-                              style: Theme.of(context).textTheme.displayLarge,
-                            ),
-                          ),
-                          GlassCard(
-                            showHoverEffect: false,
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Center(
-                                    child: Stack(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 50,
-                                          backgroundColor: Colors.grey
-                                              .withValues(alpha: 0.2),
-                                          child:
-                                              (_photoUrl != null &&
-                                                  _photoUrl!.isNotEmpty)
-                                              ? ClipOval(
-                                                  child: Image.network(
-                                                    _photoUrl!,
-                                                    width: 100,
-                                                    height: 100,
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder:
-                                                        (
-                                                          context,
-                                                          error,
-                                                          stackTrace,
-                                                        ) {
-                                                          return const Icon(
-                                                            CupertinoIcons
-                                                                .person_fill,
-                                                            size: 50,
-                                                          );
-                                                        },
-                                                  ),
-                                                )
-                                              : const Icon(
-                                                  CupertinoIcons.person_fill,
-                                                  size: 50,
-                                                ),
-                                        ),
-                                        Positioned(
-                                          bottom: 0,
-                                          right: 0,
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              color: AppColors.primaryGreen,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: IconButton(
-                                              icon: const Icon(
-                                                CupertinoIcons.camera_fill,
-                                                size: 20,
-                                                color: Colors.white,
-                                              ),
-                                              onPressed: () async {
-                                                try {
-                                                  final pick = await FilePicker
-                                                      .platform
-                                                      .pickFiles(
-                                                        type: FileType.custom,
-                                                        allowedExtensions: [
-                                                          'jpg',
-                                                          'jpeg',
-                                                          'png',
-                                                        ],
-                                                        withData: true,
-                                                      );
-                                                  if (pick == null ||
-                                                      pick.files.isEmpty) {
-                                                    return;
-                                                  }
+  Widget _buildGreenButton(String text, VoidCallback onPressed) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF81B655), // Exact Green Color
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      ),
+    );
+  }
 
-                                                  final file = pick.files.first;
-                                                  final bytes = file.bytes;
-                                                  if (bytes == null) return;
+  Widget _buildCard({required Widget child}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF333333) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 5))],
+      ),
+      child: child,
+    );
+  }
 
-                                                  if (bytes.lengthInBytes >
-                                                      2097152) {
-                                                    _showSnack(
-                                                      'Image exceeds 2MB limit',
-                                                      error: true,
-                                                    );
-                                                    return;
-                                                  }
-
-                                                  final fileExtension = file
-                                                      .name
-                                                      .toLowerCase()
-                                                      .split('.')
-                                                      .last;
-                                                  final contentType =
-                                                      fileExtension == 'png'
-                                                      ? 'image/png'
-                                                      : 'image/jpeg';
-
-                                                  final ref = FirebaseStorage
-                                                      .instance
-                                                      .ref()
-                                                      .child('users')
-                                                      .child(widget.user.uid)
-                                                      .child(
-                                                        'profile_pic.$fileExtension',
-                                                      );
-
-                                                  await ref.putData(
-                                                    bytes,
-                                                    SettableMetadata(
-                                                      contentType: contentType,
-                                                    ),
-                                                  );
-                                                  final url = await ref
-                                                      .getDownloadURL();
-                                                  await widget.user
-                                                      .updatePhotoURL(url);
-                                                  await FirebaseFirestore
-                                                      .instance
-                                                      .collection('users')
-                                                      .doc(widget.user.uid)
-                                                      .set(
-                                                        {'photoUrl': url},
-                                                        SetOptions(merge: true),
-                                                      );
-
-                                                  if (mounted) {
-                                                    setState(
-                                                      () => _photoUrl = url,
-                                                    );
-                                                    _showSnack(
-                                                      'Profile photo updated',
-                                                    );
-                                                  }
-                                                } catch (e) {
-                                                  _showSnack(
-                                                    'Photo update failed: $e',
-                                                    error: true,
-                                                  );
-                                                }
-                                              },
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    _displayName,
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineMedium
-                                        ?.copyWith(fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    _displayEmail,
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(color: Colors.grey[600]),
-                                  ),
-                                  const SizedBox(height: 24),
-                                  // WARNING FOR MISSING INFO
-                                  if (_phoneNumber == null ||
-                                      _phoneNumber!.isEmpty ||
-                                      _dob == null) ...[
-                                    Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber.withValues(
-                                          alpha: 0.1,
-                                        ),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: Colors.amber),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.warning_amber_rounded,
-                                                color: Colors.amber,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                'Actions Required',
-                                                style: TextStyle(
-                                                  color: Colors.amber[800],
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Please complete your profile to continue using all features features.',
-                                            style: TextStyle(
-                                              color: Colors.amber[900],
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          if (_phoneNumber == null ||
-                                              _phoneNumber!.isEmpty) ...[
-                                            ElevatedButton.icon(
-                                              onPressed: () =>
-                                                  _phoneFocus.requestFocus(),
-                                              icon: const Icon(
-                                                Icons.phone,
-                                                size: 16,
-                                              ),
-                                              label: const Text(
-                                                'Add Phone Number',
-                                              ),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.amber,
-                                                foregroundColor: Colors.white,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                          ],
-                                          if (_dob == null)
-                                            ElevatedButton.icon(
-                                              onPressed: _updateDob,
-                                              icon: const Icon(
-                                                Icons.calendar_today,
-                                                size: 16,
-                                              ),
-                                              label: const Text(
-                                                'Add Date of Birth',
-                                              ),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.amber,
-                                                foregroundColor: Colors.white,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 32),
-                                  ],
-
-                                  Text(
-                                    'Update Details',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleLarge,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  TextField(
-                                    controller: _usernameCtrl,
-                                    decoration: const InputDecoration(
-                                      labelText: 'New Username',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  FilledButton(
-                                    onPressed: _updateUsername,
-                                    child: const Text('Update Username'),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  TextField(
-                                    controller: _bioCtrl,
-                                    maxLength: 300,
-                                    maxLines: 3,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Bio',
-                                      hintText: 'Tell us about yourself...',
-                                      alignLabelWithHint: true,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  FilledButton(
-                                    onPressed: _updateBio,
-                                    child: const Text('Update Bio'),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  IntlPhoneField(
-                                    controller: _phoneCtrl,
-                                    focusNode: _phoneFocus,
-                                    initialCountryCode:
-                                        'PH', // Default to Philippines
-                                    decoration: const InputDecoration(
-                                      labelText: 'Phone Number',
-                                      border: OutlineInputBorder(
-                                        borderSide: BorderSide(),
-                                      ),
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      LengthLimitingTextInputFormatter(10),
-                                    ],
-                                    onChanged: (phone) {
-                                      _completePhoneNumber =
-                                          phone.completeNumber;
-                                    },
-                                    onCountryChanged: (country) {
-                                      // print('Country changed to: ' + country.name);
-                                    },
-                                  ),
-                                  const SizedBox(height: 8),
-                                  FilledButton(
-                                    onPressed: _updatePhone,
-                                    child: const Text('Update Phone Number'),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  InkWell(
-                                    onTap: _updateDob,
-                                    borderRadius: BorderRadius.circular(4),
-                                    child: InputDecorator(
-                                      decoration: const InputDecoration(
-                                        labelText: 'Date of Birth',
-                                        prefixIcon: Icon(Icons.calendar_today),
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      child: Text(
-                                        _dob != null
-                                            ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}'
-                                            : 'Select Date of Birth',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodyLarge,
-                                      ),
-                                    ),
-                                  ),
-                                  if (roleSnap.data == UserRole.educator) ...[
-                                    const Divider(height: 48),
-                                    Text(
-                                      'Subscription Settings',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleLarge,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Set your monthly subscription fee for learners:',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(color: Colors.grey[600]),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    StreamBuilder<
-                                      DocumentSnapshot<Map<String, dynamic>>
-                                    >(
-                                      stream: FirebaseFirestore.instance
-                                          .collection('users')
-                                          .doc(widget.user.uid)
-                                          .snapshots(),
-                                      builder: (context, userSnap) {
-                                        final currentFee =
-                                            userSnap.data
-                                                ?.data()?['subscription_fee'] ??
-                                            3;
-                                        return CupertinoSlidingSegmentedControl<
-                                          int
-                                        >(
-                                          groupValue: currentFee,
-                                          children: const {
-                                            3: Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: 20,
-                                              ),
-                                              child: Text('\$3'),
-                                            ),
-                                            5: Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: 20,
-                                              ),
-                                              child: Text('\$5'),
-                                            ),
-                                            7: Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: 20,
-                                              ),
-                                              child: Text('\$7'),
-                                            ),
-                                          },
-                                          onValueChanged: (val) {
-                                            if (val != null) {
-                                              DatabaseService.instance
-                                                  .updateSubscriptionFee(
-                                                    widget.user.uid,
-                                                    val,
-                                                  );
-                                              _showSnack(
-                                                'Subscription fee updated to \$$val',
-                                              );
-                                            }
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                  const Divider(height: 48),
-                                  Text(
-                                    'Change Password',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleLarge,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  TextField(
-                                    controller: _currentPasswordCtrl,
-                                    obscureText: true,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Current Password',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  TextField(
-                                    controller: _newPasswordCtrl,
-                                    obscureText: true,
-                                    decoration: const InputDecoration(
-                                      labelText: 'New Password',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  TextField(
-                                    controller: _confirmPasswordCtrl,
-                                    obscureText: true,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Confirm New Password',
-                                    ),
-                                  ),
-                                  if (_error != null) ...[
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      _error!,
-                                      style: const TextStyle(color: Colors.red),
-                                    ),
-                                  ],
-                                  if (_info != null) ...[
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      _info!,
-                                      style: const TextStyle(
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 24),
-                                  FilledButton(
-                                    style: FilledButton.styleFrom(
-                                      // No explicit color set to follow theme
-                                    ),
-                                    onPressed: () async {
-                                      setState(() {
-                                        _info = null;
-                                        _error = null;
-                                      });
-                                      final email = widget.user.email;
-                                      final current = _currentPasswordCtrl.text;
-                                      final newPass = _newPasswordCtrl.text;
-                                      final confirm = _confirmPasswordCtrl.text;
-
-                                      if (email == null) {
-                                        setState(
-                                          () => _error = 'No email on account.',
-                                        );
-                                        return;
-                                      }
-                                      if (newPass != confirm) {
-                                        setState(
-                                          () => _error =
-                                              'New passwords do not match.',
-                                        );
-                                        return;
-                                      }
-
-                                      try {
-                                        final cred =
-                                            EmailAuthProvider.credential(
-                                              email: email,
-                                              password: current,
-                                            );
-                                        await widget.user
-                                            .reauthenticateWithCredential(cred);
-                                        await widget.user.updatePassword(
-                                          newPass,
-                                        );
-                                        setState(
-                                          () => _info = 'Password updated',
-                                        );
-                                        _currentPasswordCtrl.clear();
-                                        _newPasswordCtrl.clear();
-                                        _confirmPasswordCtrl.clear();
-                                      } catch (e) {
-                                        setState(
-                                          () => _error =
-                                              'Failed to update password. Check current password.',
-                                        );
-                                      }
-                                    },
-                                    child: const Text('Update Password'),
-                                  ),
-                                  const Divider(height: 48),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Text(
-                                        'Subscriptions',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.titleLarge,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      FilledButton.icon(
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  ManageSubscriptionsPage(
-                                                    user: widget.user,
-                                                  ),
-                                            ),
-                                          );
-                                        },
-                                        icon: const Icon(
-                                          CupertinoIcons.creditcard_fill,
-                                        ),
-                                        label: const Text(
-                                          'Manage Subscriptions',
-                                        ),
-                                        style: FilledButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 16,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              16,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const Divider(height: 48),
-                                    ],
-                                  ),
-                                  if (roleSnap.data == UserRole.learner) ...[
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        Text(
-                                          'Educator Role',
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.titleLarge,
-                                        ),
-                                        const SizedBox(height: 16),
-                                        StreamBuilder<EducatorApplication?>(
-                                          stream: DatabaseService.instance
-                                              .streamUserApplication(
-                                                widget.user.uid,
-                                              ),
-                                          builder: (context, appSnap) {
-                                            if (appSnap.hasError) {
-                                              return Container(
-                                                padding: const EdgeInsets.all(
-                                                  12,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red.withValues(
-                                                    alpha: 0.1,
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  border: Border.all(
-                                                    color: Colors.red,
-                                                  ),
-                                                ),
-                                                child: Text(
-                                                  'Error loading application: ${appSnap.error}',
-                                                  style: const TextStyle(
-                                                    color: Colors.red,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                            final application = appSnap.data;
-                                            if (application != null &&
-                                                (application.status ==
-                                                        'pending' ||
-                                                    application.status ==
-                                                        'rejected')) {
-                                              return FilledButton.icon(
-                                                onPressed: () =>
-                                                    _showApplicationStatusDialog(
-                                                      application,
-                                                    ),
-                                                icon: const Icon(
-                                                  CupertinoIcons.doc_text_fill,
-                                                ),
-                                                label: const Text(
-                                                  'View Application',
-                                                ),
-                                                style: FilledButton.styleFrom(
-                                                  backgroundColor:
-                                                      application.status ==
-                                                          'pending'
-                                                      ? Colors.teal
-                                                      : Colors.red,
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        vertical: 16,
-                                                      ),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          16,
-                                                        ),
-                                                  ),
-                                                ),
-                                              );
-                                            }
-
-                                            return FilledButton.icon(
-                                              onPressed: () =>
-                                                  _showBecomeEducatorDialog(),
-                                              icon: const Icon(
-                                                CupertinoIcons.briefcase_fill,
-                                              ),
-                                              label: const Text(
-                                                'Become an Educator',
-                                              ),
-                                              style: FilledButton.styleFrom(
-                                                backgroundColor: Colors.blue,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: 16,
-                                                    ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(16),
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                        const Divider(height: 48),
-                                      ],
-                                    ),
-                                  ],
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          'App Theme',
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.titleLarge,
-                                        ),
-                                      ),
-                                      ValueListenableBuilder<ThemeMode>(
-                                        valueListenable: themeNotifier,
-                                        builder: (context, mode, _) {
-                                          return CupertinoSlidingSegmentedControl<
-                                            ThemeMode
-                                          >(
-                                            groupValue: mode,
-                                            onValueChanged: (newMode) {
-                                              if (newMode != null) {
-                                                themeNotifier.value = newMode;
-                                                RoleService.instance
-                                                    .updateThemePreference(
-                                                      uid: widget.user.uid,
-                                                      theme:
-                                                          newMode ==
-                                                              ThemeMode.dark
-                                                          ? 'dark'
-                                                          : 'light',
-                                                    );
-                                              }
-                                            },
-                                            children: const {
-                                              ThemeMode.light: Padding(
-                                                padding: EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                ),
-                                                child: Icon(
-                                                  CupertinoIcons.sun_max_fill,
-                                                ),
-                                              ),
-                                              ThemeMode.dark: Padding(
-                                                padding: EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                ),
-                                                child: Icon(
-                                                  CupertinoIcons.moon_fill,
-                                                ),
-                                              ),
-                                            },
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 40),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: Colors.red,
-                                            side: const BorderSide(
-                                              color: Colors.red,
-                                            ),
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 16,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                            ),
-                                          ),
-                                          onPressed: () async {
-                                            await AuthService.instance
-                                                .signOut();
-                                          },
-                                          child: const Text('Sign Out'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: FilledButton(
-                                          style: FilledButton.styleFrom(
-                                            backgroundColor:
-                                                Colors.red.shade400,
-                                            foregroundColor: Colors.white,
-                                          ),
-                                          onPressed: () async {
-                                            final confirm = await showDialog<bool>(
-                                              context: context,
-                                              builder: (c) => AlertDialog(
-                                                title: const Text(
-                                                  'Delete Account?',
-                                                ),
-                                                content: const Text(
-                                                  'This action cannot be undone.',
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(c, false),
-                                                    child: const Text('Cancel'),
-                                                  ),
-                                                  FilledButton(
-                                                    style:
-                                                        FilledButton.styleFrom(
-                                                          backgroundColor:
-                                                              Colors.red,
-                                                          foregroundColor:
-                                                              Colors.white,
-                                                        ),
-                                                    onPressed: () =>
-                                                        Navigator.pop(c, true),
-                                                    child: const Text('Delete'),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                            if (confirm == true) {
-                                              try {
-                                                await AuthService.instance
-                                                    .deleteAccount();
-                                                // Auth changes will trigger navigation to login/onboarding automatically via main.dart
-                                              } catch (e) {
-                                                _showSnack(
-                                                  'Delete failed: $e',
-                                                  error: true,
-                                                );
-                                              }
-                                            }
-                                          },
-                                          child: const Text('Delete Account'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+  Widget _buildThemeToggle() {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, mode, _) {
+        final isDark = mode == ThemeMode.dark;
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
               ),
-            ),
+            ],
+          ),
+          padding: const EdgeInsets.all(4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  themeNotifier.value = ThemeMode.light;
+                  RoleService.instance.updateThemePreference(uid: widget.user.uid, theme: 'light');
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: !isDark ? const Color(0xFF81B655) : Colors.transparent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.light_mode, size: 20, color: !isDark ? Colors.white : Colors.grey),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  themeNotifier.value = ThemeMode.dark;
+                  RoleService.instance.updateThemePreference(uid: widget.user.uid, theme: 'dark');
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF81B655) : Colors.transparent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.dark_mode, size: 20, color: isDark ? Colors.white : Colors.grey),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  void _showBecomeEducatorDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Become an Educator'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Unlock powerful features to teach and monetize your content:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            const Text('• Monetize your lessons and quizzes'),
-            const Text('• Create and manage learner groups'),
-            const Text('• Detailed student progress tracking'),
-            const Text('• Direct interaction with your students'),
-            const SizedBox(height: 16),
-            const Text(
-              'Cost: \$5.00 / month',
-              style: TextStyle(
-                color: Colors.green,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+  Widget _buildLeftColumn() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentColor = const Color(0xFF81B655);
+
+    return _buildCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'My Profile',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : Colors.black,
+                  letterSpacing: -0.5,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
-              ),
-              child: Row(
+              if (!_isEditing)
+                TextButton.icon(
+                  onPressed: () => setState(() => _isEditing = true),
+                  icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF81B655)),
+                  label: const Text('Edit Profile', style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold)),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    backgroundColor: accentColor.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  ),
+                )
+              else
+                TextButton.icon(
+                  onPressed: () => setState(() => _isEditing = false),
+                  icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+                  label: const Text('Cancel Request', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 40),
+          
+          // Header Section
+          Row(
+            children: [
+              Stack(
                 children: [
-                  const Icon(CupertinoIcons.info_circle, color: Colors.amber),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Applications are subject to approval. Note that you may lose your educator role if you violate our teaching guidelines.',
-                      style: TextStyle(fontSize: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: accentColor.withOpacity(0.2), width: 4),
+                    ),
+                    child: CircleAvatar(
+                      radius: 48,
+                      backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                      child: (_photoUrl != null && _photoUrl!.isNotEmpty)
+                          ? ClipOval(
+                              child: Image.network(
+                                _photoUrl!,
+                                width: 96,
+                                height: 96,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Icon(Icons.person, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                              ),
+                            )
+                          : Icon(Icons.person, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
                     ),
                   ),
+                  if (_isEditing)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: () async {
+                          try {
+                            final pick = await FilePicker.platform.pickFiles(
+                              type: FileType.image,
+                              withData: true,
+                            );
+                            if (pick == null || pick.files.isEmpty || !mounted) return;
+                            
+                            final file = pick.files.first;
+                            if (file.bytes == null) return;
+
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => _PhotoAdjustmentDialog(imageBytes: file.bytes!),
+                            );
+
+                            if (confirmed == true && mounted) {
+                              final url = await DatabaseService.instance.uploadProfilePhotoWithBytes(
+                                widget.user, 
+                                file.bytes!, 
+                                file.name
+                              );
+                              if (url != null && mounted) {
+                                setState(() => _photoUrl = url);
+                                _showSnack('Profile photo updated');
+                              }
+                            }
+                          } catch (e) {
+                            _showSnack('Photo update failed', error: true);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                          child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                        ),
+                      ),
+                    ),
                 ],
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_displayName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: isDark ? Colors.white : Colors.black87)),
+                    const SizedBox(height: 4),
+                    Text(_displayEmail, style: TextStyle(fontSize: 14, color: isDark ? Colors.white54 : Colors.grey.shade600)),
+                    if (_phoneNumber != null && !_isEditing) ...[
+                       const SizedBox(height: 8),
+                       Text(_phoneNumber!, style: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : Colors.grey.shade500)),
+                    ]
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 40),
+
+          if (!_isEditing) ...[
+            // Status Section when not editing
+            if (_phoneNumber == null || _phoneNumber!.isEmpty || _dob == null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8E1), // Light Amber
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Profile Incomplete', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF795548))),
+                    const SizedBox(height: 8),
+                    const Text('Add phone number and date of birth to unlock educator and validator applications.', style: TextStyle(color: Color(0xFF795548), height: 1.4)),
+                  ],
+                ),
+              ),
+            
+            if (_bioCtrl.text.isNotEmpty) ...[
+               const SizedBox(height: 24),
+               const Text('Bio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+               const SizedBox(height: 8),
+               Text(_bioCtrl.text, style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, height: 1.5, fontSize: 14)),
+            ],
+            
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 24),
+            _buildInfoRow(Icons.calendar_today_outlined, 'Birthday', _dob != null ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}' : 'Not set'),
+            const SizedBox(height: 16),
+            _buildInfoRow(Icons.phone_android_outlined, 'Phone', _phoneNumber ?? 'Not set'),
+
+          ] else ...[
+            // Edit Mode Fields
+            Text('Edit Profile Information', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.black87)),
+            const SizedBox(height: 24),
+            
+            _buildEditLabel('Username'),
+            TextField(
+              controller: _usernameCtrl,
+              style: const TextStyle(fontSize: 14),
+              decoration: _customInputDecoration(hint: 'New Username'),
+            ),
+            const SizedBox(height: 24),
+            
+            _buildEditLabel('Bio'),
+            TextField(
+              controller: _bioCtrl,
+              maxLength: 300,
+              maxLines: 3,
+              style: const TextStyle(fontSize: 14),
+              decoration: _customInputDecoration(hint: 'Tell us about yourself...'),
+            ),
+            const SizedBox(height: 24),
+            
+            _buildEditLabel('Phone Number'),
+            IntlPhoneField(
+              controller: _phoneCtrl,
+              focusNode: _phoneFocus,
+              initialCountryCode: 'PH',
+              decoration: _customInputDecoration(hint: 'Phone Number'),
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
+              onChanged: (phone) => _completePhoneNumber = phone.completeNumber,
+            ),
+            const SizedBox(height: 24),
+            
+            _buildEditLabel('Date of Birth'),
+            InkWell(
+              onTap: _updateDob,
+              borderRadius: BorderRadius.circular(8),
+              child: InputDecorator(
+                decoration: _customInputDecoration(hint: ''),
+                child: Text(
+                  _dob != null ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}' : 'Select Date of Birth',
+                  style: TextStyle(fontSize: 14, color: _dob != null ? Colors.black : Colors.black54),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 48),
+            _buildGreenButton('Save Changes', () async {
+               // Update all fields
+               await _updateUsername();
+               await _updateBio();
+               await _updatePhone();
+               setState(() => _isEditing = false);
+            }),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => setState(() => _isEditing = false),
+                child: const Text('Cancel Request', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Maybe Later'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => EducatorApplicationPage(user: widget.user),
-                ),
-              );
-            },
-            child: const Text('Apply Now'),
-          ),
         ],
       ),
     );
   }
 
-  void _showApplicationStatusDialog(EducatorApplication application) {
+  Widget _buildEditLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: const Color(0xFF81B655).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+          child: Icon(icon, size: 20, color: const Color(0xFF81B655)),
+        ),
+        const SizedBox(width: 16),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black87)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRightColumn(UserRole role, {required bool isWide}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (isWide)
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: _buildThemeToggle(),
+            ),
+          ),
+          
+        _buildCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Change Password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _currentPasswordCtrl,
+                obscureText: _obscureCurrentPassword,
+                style: const TextStyle(fontSize: 14),
+                decoration: _customInputDecoration(hint: 'Current Password'),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _newPasswordCtrl,
+                obscureText: _obscureNewPassword,
+                style: const TextStyle(fontSize: 14),
+                decoration: _customInputDecoration(hint: 'New Password'),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _confirmPasswordCtrl,
+                obscureText: _obscureConfirmPassword,
+                style: const TextStyle(fontSize: 14),
+                decoration: _customInputDecoration(hint: 'Confirm New Password'),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(_error!, style: const TextStyle(color: Colors.red)),
+              ],
+              if (_info != null) ...[
+                const SizedBox(height: 12),
+                Text(_info!, style: const TextStyle(color: Color(0xFF81B655))),
+              ],
+              const SizedBox(height: 24),
+              _buildGreenButton('Update Password', () async {
+                setState(() { _info = null; _error = null; });
+                final email = widget.user.email;
+                final current = _currentPasswordCtrl.text;
+                final newPass = _newPasswordCtrl.text;
+                final confirm = _confirmPasswordCtrl.text;
+                if (email == null) { setState(() => _error = 'No email on account.'); return; }
+                if (newPass != confirm) { setState(() => _error = 'New passwords do not match.'); return; }
+                try {
+                  final cred = EmailAuthProvider.credential(email: email, password: current);
+                  await widget.user.reauthenticateWithCredential(cred);
+                  await widget.user.updatePassword(newPass);
+                  setState(() => _info = 'Password updated');
+                  _currentPasswordCtrl.clear(); _newPasswordCtrl.clear(); _confirmPasswordCtrl.clear();
+                } catch (e) {
+                  setState(() => _error = 'Failed to update password. Check current password.');
+                }
+              }),
+            ],
+          ),
+        ),
+
+        _buildCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Subscription', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
+              const SizedBox(height: 24),
+              _buildGreenButton('Manage Subscription', () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => ManageSubscriptionsPage(user: widget.user)));
+              }),
+            ],
+          ),
+        ),
+
+        if (role == UserRole.learner || role == UserRole.educator || role == UserRole.validator)
+          _buildCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Role Application', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
+                const SizedBox(height: 24),
+                StreamBuilder<EducatorApplication?>(
+                  stream: DatabaseService.instance.streamUserApplication(widget.user.uid),
+                  builder: (context, appSnap) {
+                    if (appSnap.hasError) return Text('Error: ${appSnap.error}', style: TextStyle(color: Colors.red));
+                    final application = appSnap.data;
+                    if (application != null && (application.status == 'pending' || application.status == 'rejected')) {
+                      return _buildGreenButton(
+                        'View Application Status',
+                        () => _showApplicationStatusDialog(application),
+                      );
+                    }
+                    return _buildGreenButton(
+                      role == UserRole.educator ? 'Apply as Validator' : 'Apply as an Educator',
+                      () => _showJoinGrammaticaDialog(role),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 56,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDF3F32), // EXACT mockup Red
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => AuthService.instance.signOut(),
+                  child: const Text('Sign out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: SizedBox(
+                height: 56,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF333333) : Colors.white,
+                    foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                    side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.transparent : Colors.black, width: Theme.of(context).brightness == Brightness.dark ? 0 : 2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (c) => AlertDialog(
+                        title: const Text('Delete Account?'),
+                        content: const Text('This action cannot be undone.'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                          FilledButton(
+                            style: FilledButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                            onPressed: () => Navigator.pop(c, true),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      try {
+                        await AuthService.instance.deleteAccount();
+                      } catch (e) {
+                        _showSnack('Delete failed: $e', error: true);
+                      }
+                    }
+                  },
+                  child: const Text('Delete Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<UserRole>(
+      stream: RoleService.instance.roleStream(widget.user.uid),
+      builder: (context, roleSnap) {
+        if (roleSnap.connectionState == ConnectionState.waiting || !roleSnap.hasData) {
+          return const Scaffold(backgroundColor: Colors.transparent, body: Center(child: CircularProgressIndicator()));
+        }
+        final role = roleSnap.data!;
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 900;
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1400),
+                    child: isWide 
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(flex: 5, child: _buildLeftColumn()),
+                            const SizedBox(width: 32),
+                            Expanded(flex: 6, child: _buildRightColumn(role, isWide: true)),
+                          ],
+                        )
+                      : Column(
+                          children: [
+                            _buildThemeToggle(),
+                            const SizedBox(height: 24),
+                            _buildLeftColumn(),
+                            const SizedBox(height: 24),
+                            _buildRightColumn(role, isWide: false),
+                          ],
+                        ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+void _showJoinGrammaticaDialog(UserRole currentRole) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Application Status'),
+        title: const Text('Join Grammatica'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (currentRole != UserRole.educator)
+              ListTile(
+                leading: const Icon(Icons.school),
+                title: const Text('Apply as Educator'),
+                subtitle: const Text('Teach and monetize your content'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RoleApplicationPage(
+                        user: widget.user,
+                        applicationType: 'educator',
+                      ),
+                    ),
+                  );
+                },
+              ),
+            if (currentRole != UserRole.validator)
+              ListTile(
+                leading: const Icon(Icons.verified_user),
+                title: const Text('Apply as Validator'),
+                subtitle: const Text('Verify expertise in the English field'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RoleApplicationPage(
+                        user: widget.user,
+                        applicationType: 'validator',
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showApplicationStatusDialog(EducatorApplication application) {
+    final isValidator = application.applicationType == 'validator';
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          isValidator ? 'Validator Application' : 'Educator Application',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1196,16 +929,16 @@ class ProfilePageState extends State<ProfilePage> {
                   ),
                   decoration: BoxDecoration(
                     color: application.status == 'pending'
-                        ? Colors.teal.withValues(alpha: 0.2)
-                        : Colors.red.withValues(alpha: 0.2),
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Theme.of(context).colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     application.status.toUpperCase(),
                     style: TextStyle(
                       color: application.status == 'pending'
-                          ? Colors.teal
-                          : Colors.red,
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.error,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1215,7 +948,7 @@ class ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 16),
             Text(
               application.status == 'pending'
-                  ? 'Your application for the Educator role is currently being reviewed by our super admins.'
+                  ? 'Your application for the ${isValidator ? 'Validator' : 'Educator'} role is currently being reviewed by our super admins.'
                   : 'Unfortunately, your application was not approved at this time. You can try applying again with updated credentials.',
               style: const TextStyle(fontSize: 14),
             ),
@@ -1227,12 +960,14 @@ class ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: 8),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(
-                CupertinoIcons.videocam_fill,
-                color: Colors.blue,
+              leading: Icon(
+                isValidator ? Icons.description : Icons.videocam,
+                color: Theme.of(context).colorScheme.primary,
               ),
-              title: const Text('Teaching Demo Video'),
-              trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
+              title: Text(
+                isValidator ? 'Credentials Document' : 'Teaching Demo Video',
+              ),
+              trailing: const Icon(Icons.chevron_right, size: 16),
               onTap: () async {
                 final uri = Uri.parse(application.videoUrl);
                 try {
@@ -1246,9 +981,16 @@ class ProfilePageState extends State<ProfilePage> {
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(CupertinoIcons.doc_fill, color: Colors.red),
-              title: const Text('Teaching Syllabus PDF'),
-              trailing: const Icon(CupertinoIcons.chevron_right, size: 16),
+              leading: Icon(
+                isValidator ? Icons.stars : Icons.insert_drive_file,
+                color: isValidator
+                    ? Colors.amber
+                    : Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                isValidator ? 'Introductory Demo' : 'Teaching Syllabus PDF',
+              ),
+              trailing: const Icon(Icons.chevron_right, size: 16),
               onTap: () async {
                 final uri = Uri.parse(application.syllabusUrl);
                 try {
@@ -1274,7 +1016,10 @@ class ProfilePageState extends State<ProfilePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => EducatorApplicationPage(user: widget.user),
+                    builder: (_) => RoleApplicationPage(
+                      user: widget.user,
+                      applicationType: application.applicationType,
+                    ),
                   ),
                 );
               },
@@ -1282,6 +1027,95 @@ class ProfilePageState extends State<ProfilePage> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _PhotoAdjustmentDialog extends StatefulWidget {
+  final Uint8List imageBytes;
+  const _PhotoAdjustmentDialog({required this.imageBytes});
+
+  @override
+  State<_PhotoAdjustmentDialog> createState() => _PhotoAdjustmentDialogState();
+}
+
+class _PhotoAdjustmentDialogState extends State<_PhotoAdjustmentDialog> {
+  final TransformationController _controller = TransformationController();
+  double _currentScale = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return AlertDialog(
+      backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: const Text('Adjust Photo', style: TextStyle(fontWeight: FontWeight.bold)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Pinch to zoom or drag to move. This is a preview of how your photo will appear.', 
+            style: TextStyle(fontSize: 13, color: Colors.grey)),
+          const SizedBox(height: 24),
+          Container(
+            width: 250,
+            height: 250,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.black26 : Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: ClipOval(
+              child: InteractiveViewer(
+                transformationController: _controller,
+                boundaryMargin: const EdgeInsets.all(100),
+                minScale: 0.5,
+                maxScale: 4.0,
+                onInteractionUpdate: (details) {
+                   setState(() {
+                     _currentScale = _controller.value.getMaxScaleOnAxis();
+                   });
+                },
+                child: Image.memory(widget.imageBytes, fit: BoxFit.cover),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              const Icon(Icons.zoom_out, size: 18, color: Colors.grey),
+              Expanded(
+                child: Slider(
+                  value: _currentScale.clamp(0.5, 4.0),
+                  min: 0.5,
+                  max: 4.0,
+                  activeColor: const Color(0xFF81B655),
+                  onChanged: (val) {
+                    setState(() {
+                      _currentScale = val;
+                      _controller.value = Matrix4.identity()..scale(val);
+                    });
+                  },
+                ),
+              ),
+              const Icon(Icons.zoom_in, size: 18, color: Colors.grey),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF81B655),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('Set as Profile'),
+        ),
+      ],
     );
   }
 }
@@ -1304,7 +1138,7 @@ class _ReauthDialog extends StatefulWidget {
 class _ReauthDialogState extends State<_ReauthDialog> {
   bool loading = false;
   String? errText;
-
+  bool _obscurePassword = true;
   Future<void> onConfirm() async {
     setState(() {
       loading = true;
@@ -1340,17 +1174,33 @@ class _ReauthDialogState extends State<_ReauthDialog> {
         children: [
           TextField(
             controller: widget.pwdCtrl,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Password'),
+            obscureText: _obscurePassword,
+            decoration: InputDecoration(
+              labelText: 'Password',
+              hintText: 'Enter your password',
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                ),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+              ),
+            ),
           ),
           if (errText != null) ...[
             const SizedBox(height: 8),
-            Text(errText!, style: const TextStyle(color: Colors.red)),
+            Text(
+              errText!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ],
           if (loading)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: CircularProgressIndicator(),
             ),
         ],
       ),
@@ -1360,10 +1210,7 @@ class _ReauthDialogState extends State<_ReauthDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.primaryGreen,
-            foregroundColor: Colors.white,
-          ),
+          style: FilledButton.styleFrom(foregroundColor: Colors.white),
           onPressed: loading ? null : onConfirm,
           child: const Text('Confirm'),
         ),
@@ -1371,4 +1218,3 @@ class _ReauthDialogState extends State<_ReauthDialog> {
     );
   }
 }
-

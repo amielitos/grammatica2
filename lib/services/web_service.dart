@@ -22,4 +22,9 @@ abstract class WebService {
   });
 
   void speak(String text);
+
+  // Mic monitoring + volume metering (web only)
+  Future<void> startMicMonitor({bool enableMonitoring = true});
+  double getMicVolume();
+  void stopMicMonitor();
 }

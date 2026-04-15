@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../theme/app_colors.dart';
 import '../services/database_service.dart';
 
 import 'quizzes_page.dart';
 import 'lesson_folder_page.dart';
 import 'profile_page.dart';
-import '../widgets/glass_card.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../widgets/modern_bottom_nav.dart';
 import '../widgets/sidebar.dart';
+import '../main.dart';
 import '../services/role_service.dart';
 import 'browse_educators_tab.dart';
 import 'practice_tab.dart';
 import '../widgets/notification_widgets.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../main.dart'; // To access notificationVisibleNotifier
-import '../widgets/animations.dart';
+import '../theme/app_colors.dart';
+import '../widgets/design_ornaments.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/universal_drawer.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -37,14 +38,17 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _tabIndex =
-      0; // 0=Lessons, 1=Practice, 2=Quizzes, 3=Subscription, 4=Profile
+  static int _persistedTabIndex = 0;
+  late int _tabIndex;
+  String? _activeFolderName;
+
   final _profileKey = GlobalKey<ProfilePageState>();
   final _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
+    _tabIndex = _persistedTabIndex;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkProfileCompletion();
     });
@@ -95,150 +99,111 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<ModernNavItem> _buildNavItems(User user) {
-    return [
+    final items = [
       const ModernNavItem(icon: Icons.book, label: 'Lessons'),
-      ModernNavItem(
-        icon: Icons.auto_awesome,
-        label: 'Practice',
-        selectedColor: Colors.teal.shade400,
-      ),
-      const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
+      const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
+      if (widget.role != UserRole.learner)
+        const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
       const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
       ModernNavItem(
         icon: Icons.person,
         label: widget.userData['username']?.split(' ').first ?? 'Profile',
       ),
     ];
+    return items;
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isDesktop = constraints.maxWidth > 900;
-        final user = widget.user;
-        final navItems = _buildNavItems(user);
+    final user = widget.user;
+    final navItems = _buildNavItems(user);
 
-        final mainContent = ResponsiveWrapper(
-          child: IndexedStack(
-            index: _tabIndex,
-            children: [
-              _LessonsList(user: user, role: widget.role),
-              const PracticeTab(),
-              QuizzesPage(user: user),
-              BrowseEducatorsTab(user: user),
-              ProfilePage(key: _profileKey, user: user),
-            ],
+    final mainContent = ResponsiveWrapper(
+      child: IndexedStack(
+        index: _tabIndex,
+        children: [
+          _LessonsList(
+            user: user,
+            role: widget.role,
+            onFolderChanged: (folderName) {
+              if (mounted) {
+                setState(() => _activeFolderName = folderName);
+              }
+            },
           ),
-        );
+          const PracticeTab(),
+          if (widget.role != UserRole.learner) QuizzesPage(user: user),
+          BrowseEducatorsTab(user: user),
+          ProfilePage(key: _profileKey, user: user),
+        ],
+      ),
+    );
+    final currentIcon = navItems[_tabIndex].icon;
+    String bgPath = 'assets/dashboardbg.png';
+    if (_activeFolderName == 'Grammatica Lessons') {
+      bgPath = 'assets/grammaticafolderbg.png';
+    } else if (_activeFolderName == 'Public') {
+      bgPath = 'assets/publicfolderbg.png';
+    } else if (currentIcon == Icons.auto_awesome) {
+      bgPath = 'assets/practicebg.png';
+    } else if (currentIcon == Icons.person) {
+      bgPath = 'assets/profilebg.png';
+    } else if (currentIcon == Icons.book) {
+      bgPath = 'assets/dashboardbg.png';
+    } else if (currentIcon == Icons.credit_card) {
+      bgPath = 'assets/subscriptionbg.png';
+    }
 
-        if (isDesktop) {
-          return Row(
-            children: [
-              Sidebar(
-                currentIndex: _tabIndex,
-                onTap: (index) {
-                  setState(() => _tabIndex = index);
-                  if (index == 4) {
-                    _profileKey.currentState?.fetchProfile();
-                  }
-                },
-                items: navItems,
-                showProfileWarning: widget.showProfileWarning,
-                isDrawer: false,
-              ),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: AppColors.getMainGradient(context),
-                  ),
-                  child: Scaffold(
-                    backgroundColor: Colors.transparent,
-                    extendBody: true,
-                    appBar: AppBar(
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      surfaceTintColor: Colors.transparent,
-                      centerTitle: true,
-                      automaticallyImplyLeading: false,
-                      actions: [
-                        NotificationIconButton(
-                          userId: user.uid,
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) =>
-                                  NotificationsDialog(userId: user.uid),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                    body: mainContent,
-                  ),
-                ),
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: CustomAppBar(
+        user: user,
+        userData: widget.userData,
+        onNotificationTap: () {
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: user.uid),
           );
-        }
-
-        // Mobile/Tablet Layout
-        return Container(
-          decoration: BoxDecoration(
-            gradient: AppColors.getMainGradient(context),
-          ),
-          child: Scaffold(
-            backgroundColor: Colors.transparent,
-            extendBody: true,
-            appBar: AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              surfaceTintColor: Colors.transparent,
-              centerTitle: true,
-              leading: Builder(
-                builder: (context) {
-                  return IconButton(
-                    icon: const Icon(Icons.menu),
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                  );
-                },
-              ),
-              actions: [
-                NotificationIconButton(
-                  userId: user.uid,
-                  onTap: () {
-                    notificationVisibleNotifier.value =
-                        !notificationVisibleNotifier.value;
-                  },
-                ),
-              ],
-            ),
-            drawer: Drawer(
-              child: Sidebar(
-                currentIndex: _tabIndex,
-                onTap: (index) {
-                  setState(() => _tabIndex = index);
-                  if (index == 4) {
-                    _profileKey.currentState?.fetchProfile();
-                  }
-                },
-                items: navItems,
-                showProfileWarning: widget.showProfileWarning,
-                isDrawer: true,
-              ),
-            ),
-            body: mainContent,
-          ),
-        );
-      },
+        },
+        onLogoTap: () {
+          setState(() {
+            _tabIndex = 0;
+          });
+        },
+        onProfileTap: () {
+          final profileIndex = navItems.indexWhere((item) => item.icon == Icons.person);
+          if (profileIndex != -1) {
+            setState(() {
+              _tabIndex = profileIndex;
+            });
+          }
+        },
+      ),
+      drawer: UniversalDrawer(
+        user: user,
+        userData: widget.userData,
+        currentIndex: _tabIndex,
+        onTap: (index) {
+          setState(() {
+            _tabIndex = index;
+            _persistedTabIndex = index;
+          });
+          if (index == 4) {
+            _profileKey.currentState?.fetchProfile();
+          }
+        },
+      ),
+      body: mainContent,
     );
   }
 }
 
 class _LessonsList extends StatefulWidget {
-  const _LessonsList({required this.user, required this.role});
+  const _LessonsList({required this.user, required this.role, this.onFolderChanged});
   final User user;
   final UserRole role;
+  final ValueChanged<String?>? onFolderChanged;
 
   @override
   State<_LessonsList> createState() => _LessonsListState();
@@ -246,6 +211,13 @@ class _LessonsList extends StatefulWidget {
 
 class _LessonsListState extends State<_LessonsList> {
   Map<String, dynamic>? _activeFolder;
+  late Stream<Map<String, Map<String, dynamic>>> _progressStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _progressStream = DatabaseService.instance.progressStream(widget.user);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -256,9 +228,7 @@ class _LessonsListState extends State<_LessonsList> {
       ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(color: AppColors.primaryGreen),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
@@ -269,7 +239,7 @@ class _LessonsListState extends State<_LessonsList> {
         final lessons = snapshot.data!;
 
         return StreamBuilder<Map<String, Map<String, dynamic>>>(
-          stream: DatabaseService.instance.progressStream(widget.user),
+          stream: _progressStream,
           builder: (context, progressSnap) {
             // 1. Grammatica Lessons
             final grammaticaLessons = lessons
@@ -291,62 +261,95 @@ class _LessonsListState extends State<_LessonsList> {
                 lessons: _activeFolder!['lessons'],
                 isPublicContentFolder:
                     _activeFolder!['isPublicFolder'] ?? false,
-                onBack: () => setState(() => _activeFolder = null),
+                onBack: () {
+                  setState(() => _activeFolder = null);
+                  widget.onFolderChanged?.call(null);
+                },
               );
             }
 
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-              child: Column(
-                children: [
-                  Center(
-                    child: Text(
-                      'Lessons',
-                      style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Wrap(
-                    spacing: 32,
-                    runSpacing: 32,
-                    alignment: WrapAlignment.center,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: Column(
                     children: [
-                      _buildFolderCard(
-                        context,
-                        title: 'Grammatica',
-                        description: 'Official lessons',
-                        pillLabel: 'Grammatica',
-                        pillColor: Colors.purple,
-                        onTap: () => setState(() {
-                          _activeFolder = {
-                            'title': 'Grammatica Lessons',
-                            'pillLabel': 'From Grammatica',
-                            'lessons': grammaticaLessons,
-                          };
-                        }),
+                      // Search Bar
+                      Container(
+                        height: 56,
+                        margin: const EdgeInsets.only(bottom: 64, top: 24),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF333333) : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            )
+                          ],
+                        ),
+                        child: TextField(
+                          style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Search lesson..',
+                            hintStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 16),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            suffixIcon: Padding(
+                              padding: const EdgeInsets.only(right: 16.0),
+                              child: Icon(Icons.search, color: isDark ? Colors.white : Colors.black, size: 24),
+                            ),
+                          ),
+                        ),
                       ),
-                      _buildFolderCard(
-                        context,
-                        title: 'Public',
-                        description: 'Community & Educators',
-                        pillLabel: 'Public',
-                        pillColor: Colors.blue,
-                        onTap: () => setState(() {
-                          _activeFolder = {
-                            'title': 'Public Content',
-                            'pillLabel': 'Public',
-                            'lessons': publicLessons,
-                            'isPublicFolder': true,
-                          };
-                        }),
+                      
+                      Wrap(
+                        spacing: 48,
+                        runSpacing: 48,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          _buildFolderCard(
+                            context,
+                            title: 'Grammatica',
+                            description: 'Official Lessons',
+                            iconColor: const Color(0xFFF3AF0D), // Exact Yellow mock
+                            onTap: () {
+                              setState(() {
+                                _activeFolder = {
+                                  'title': 'Grammatica Lessons',
+                                  'pillLabel': 'From Grammatica',
+                                  'lessons': grammaticaLessons,
+                                };
+                              });
+                              widget.onFolderChanged?.call('Grammatica Lessons');
+                            },
+                          ),
+                          _buildFolderCard(
+                            context,
+                            title: 'Public',
+                            description: 'Community and Educators',
+                            iconColor: const Color(0xFFDE372A), // Exact Red mock
+                            onTap: () {
+                              setState(() {
+                                _activeFolder = {
+                                  'title': 'Public Content',
+                                  'pillLabel': 'Public',
+                                  'lessons': publicLessons,
+                                  'isPublicFolder': true,
+                                };
+                              });
+                              widget.onFolderChanged?.call('Public');
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             );
           },
@@ -359,68 +362,70 @@ class _LessonsListState extends State<_LessonsList> {
     BuildContext context, {
     required String title,
     required String description,
-    required String pillLabel,
-    required Color pillColor,
+    required Color iconColor,
     required VoidCallback onTap,
   }) {
-    return HoverScale(
-      scale: 1.0, // Stable size on hover
-      child: GestureDetector(
-        onTap: onTap,
-        child: GlassCard(
-          width: 240,
-          height: 280, // Reduced from 320 to be more compact
-          hoverBorderColor: pillColor,
-          backgroundColor: AppColors.getCardColor(context),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: 320,
+      height: 400,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF333333) : Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          )
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(32),
+          onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(12.0), // Increased padding
+            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.folder,
-                  size: 42,
-                  color: title == 'Grammatica' ? Colors.purple : Colors.blue,
-                ),
+                const Spacer(),
+                Icon(Icons.folder_rounded, size: 100, color: iconColor),
+                const SizedBox(height: 16),
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: isDark ? Colors.white : Colors.black,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
                   description,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontSize: 14),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark ? Colors.grey.shade400 : Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
                 const Spacer(),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: pillColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: pillColor.withValues(alpha: 0.5)),
-                  ),
-                  child: Text(
-                    pillLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: pillColor.withValues(alpha: 1.0),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: onTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: iconColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
+                    child: const Text('Browse', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -431,4 +436,3 @@ class _LessonsListState extends State<_LessonsList> {
     );
   }
 }
-

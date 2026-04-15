@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/notification.dart';
 import '../../services/notification_service.dart';
-import '../../theme/app_colors.dart';
 import '../../widgets/notification_widgets.dart';
 
 class AdminNotificationsTab extends StatefulWidget {
@@ -37,7 +35,7 @@ class _AdminNotificationsTabState extends State<AdminNotificationsTab> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(16.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -45,30 +43,19 @@ class _AdminNotificationsTabState extends State<AdminNotificationsTab> {
                 _showArchived
                     ? 'Archived Notifications'
                     : 'Active Notifications',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24,
-                ),
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-              CupertinoSlidingSegmentedControl<bool>(
-                groupValue: _showArchived,
-                onValueChanged: (val) {
-                  if (val != null && val != _showArchived) {
-                    setState(() {
-                      _showArchived = val;
-                      _initStream();
-                    });
-                  }
-                },
-                children: const {
-                  false: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('Active'),
-                  ),
-                  true: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('Archived'),
-                  ),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(value: false, label: Text('Active')),
+                  ButtonSegment<bool>(value: true, label: Text('Archived')),
+                ],
+                selected: {_showArchived},
+                onSelectionChanged: (Set<bool> newSelection) {
+                  setState(() {
+                    _showArchived = newSelection.first;
+                    _initStream();
+                  });
                 },
               ),
             ],
@@ -79,11 +66,7 @@ class _AdminNotificationsTabState extends State<AdminNotificationsTab> {
             stream: _notificationsStream,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primaryGreen,
-                  ),
-                );
+                return const Center(child: CircularProgressIndicator());
               }
 
               if (snapshot.hasError) {
@@ -103,21 +86,14 @@ class _AdminNotificationsTabState extends State<AdminNotificationsTab> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        _showArchived
-                            ? CupertinoIcons.archivebox
-                            : CupertinoIcons.bell_slash,
+                        _showArchived ? Icons.archive : Icons.notifications_off,
                         size: 64,
-                        color: Colors.grey.withValues(alpha: 0.5),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         _showArchived
                             ? 'No archived notifications'
                             : 'No active notifications',
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 16,
-                        ),
                       ),
                     ],
                   ),

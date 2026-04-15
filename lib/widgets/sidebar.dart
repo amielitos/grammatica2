@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 import 'modern_bottom_nav.dart'; // For ModernNavItem class
 
 class Sidebar extends StatelessWidget {
@@ -21,141 +20,70 @@ class Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
-    final selectedColor = isDark ? Colors.white : AppColors.primaryGreen;
-    final unselectedColor = isDark ? Colors.grey[400] : Colors.grey[600];
-
     return Container(
       width: 250,
-      height: double.infinity,
-      color: backgroundColor,
-      child: Column(
-        children: [
-          // Logo Area
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-            child: Row(
-              children: [
-                // You can replace this with your actual logo asset if available
-                Icon(
-                  Icons.auto_stories,
-                  size: 32,
-                  color: AppColors.primaryGreen,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Grammatica',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primaryGreen,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF222222) : Colors.white,
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32.0),
+              child: Image.asset(
+                'assets/logotext.png',
+                height: 48,
+                fit: BoxFit.contain,
+              ),
             ),
-          ),
-
-          Divider(
-            height: 1,
-            color: isDark ? Colors.white24 : Colors.grey.shade300,
-          ),
-          const SizedBox(height: 16),
-
-          // Navigation Items
-          Expanded(
-            child: ListView.builder(
-              itemCount: items.length,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemBuilder: (context, index) {
-                final item = items[index];
-                final isSelected = currentIndex == index;
-                final itemColor = isSelected ? selectedColor : unselectedColor;
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
+            Divider(
+              color: isDark ? Colors.white24 : Colors.grey.shade400,
+              indent: 16,
+              endIndent: 16,
+              height: 1,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final isSelected = currentIndex == index;
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF7CB342) : Colors.transparent,
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
+                      leading: Icon(
+                        item.icon,
+                        color: isSelected ? Colors.white : const Color(0xFF7CB342),
+                        size: 28,
+                      ),
+                      title: Text(
+                        item.label,
+                        style: TextStyle(
+                          color: isSelected 
+                              ? Colors.white 
+                              : (isDark ? Colors.white70 : Colors.grey.shade600),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       onTap: () {
                         onTap(index);
                         if (isDrawer) {
-                          Navigator.pop(context); // Close drawer on selection
+                          Navigator.pop(context);
                         }
                       },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                          horizontal: 16,
-                        ),
-                        decoration: isSelected
-                            ? BoxDecoration(
-                                color: AppColors.primaryGreen.withValues(
-                                  alpha: 0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              )
-                            : null,
-                        child: Row(
-                          children: [
-                            Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Icon(item.icon, color: itemColor, size: 24),
-                                if (index == items.length - 1 &&
-                                    showProfileWarning)
-                                  Positioned(
-                                    top: -2,
-                                    right: -2,
-                                    child: Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.amber,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(width: 16),
-                            Text(
-                              item.label,
-                              style: TextStyle(
-                                color: itemColor,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // User Profile / Footer could go here
-          if (!isDrawer) ...[
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  '© 2026 Grammatica',
-                  style: TextStyle(
-                    color: isDark ? Colors.grey[500] : Colors.grey,
-                    fontSize: 12,
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }

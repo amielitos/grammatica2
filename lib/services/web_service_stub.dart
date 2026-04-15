@@ -24,6 +24,15 @@ class WebServiceStub implements WebService {
 
   @override
   void speak(String text) {}
+
+  @override
+  Future<void> startMicMonitor({bool enableMonitoring = true}) async {}
+
+  @override
+  double getMicVolume() => 0.0;
+
+  @override
+  void stopMicMonitor() {}
 }
 
 WebService getWebService() => WebServiceStub();
