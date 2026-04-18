@@ -3,8 +3,9 @@
 // This placeholder keeps the code compile-ready across mobile and web.
 
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
-import 'config/secrets.dart';
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform, kIsWeb;
+// import 'config/secrets.dart';
 
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
@@ -23,28 +24,32 @@ class DefaultFirebaseOptions {
       case TargetPlatform.linux:
         return linux;
       default:
-        throw UnsupportedError('DefaultFirebaseOptions are not supported for this platform.');
+        throw UnsupportedError(
+          'DefaultFirebaseOptions are not supported for this platform.',
+        );
     }
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: Secrets.firebaseWebApiKey,
+    apiKey: 'AIzaSyDg7QFpJ-O9YSp7w_4sN6uOlAZ89WYV8EA',
     appId: '1:458713583940:web:eb2a02ce9949dd4903c711',
     messagingSenderId: '458713583940',
     projectId: 'grammatica-68829',
     authDomain: 'grammatica-68829.firebaseapp.com',
-    databaseURL: 'https://grammatica-68829-default-rtdb.asia-southeast1.firebasedatabase.app',
+    databaseURL:
+        'https://grammatica-68829-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'grammatica-68829.firebasestorage.app',
   );
 
   // TODO: Replace all below configs with your Firebase project settings.
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: Secrets.firebaseAndroidApiKey,
+    apiKey: 'AIzaSyD_wcr5QUTJz8Wy0p7nf348Jr6znxkhzMs',
     appId: '1:458713583940:android:a97bae985c314d3e03c711',
     messagingSenderId: '458713583940',
     projectId: 'grammatica-68829',
-    databaseURL: 'https://grammatica-68829-default-rtdb.asia-southeast1.firebasedatabase.app',
+    databaseURL:
+        'https://grammatica-68829-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'grammatica-68829.firebasestorage.app',
   );
 

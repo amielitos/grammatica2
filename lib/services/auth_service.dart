@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'database_service.dart';
 import 'email_sender_service.dart';
 
-import '../config/secrets.dart';
+// import '../config/secrets.dart';
 
 class AuthService {
   // 1. Fields and Singleton first
@@ -51,17 +51,15 @@ class AuthService {
       try {
         final googleAuth = await event.user.authentication;
         final idToken = googleAuth.idToken;
-        
+
         if (idToken == null) {
           debugPrint('Google Sign-In Error: ID Token is null');
           return;
         }
 
-        final credential = GoogleAuthProvider.credential(
-          idToken: idToken,
-        );
+        final credential = GoogleAuthProvider.credential(idToken: idToken);
         final userCredential = await _auth.signInWithCredential(credential);
-        
+
         // Use userCredential property to detect if it's the first login with this provider
         if (userCredential.additionalUserInfo?.isNewUser ?? false) {
           justSignedUpWithGoogle = true;
@@ -107,7 +105,8 @@ class AuthService {
     if (user.email == null) return;
     try {
       // Setup a simple 6-character temporary password (e.g., GH78K2)
-      final chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid O, 0, I, 1 for clarity
+      final chars =
+          'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid O, 0, I, 1 for clarity
       final random = List.generate(6, (index) {
         final randIdx = DateTime.now().microsecondsSinceEpoch % chars.length;
         // Adding a bit more randomness logic here as simple epoch % can be predictable
@@ -123,7 +122,8 @@ class AuthService {
       await EmailSenderService.sendEmail(
         toEmail: user.email!,
         subject: 'Welcome to Grammatica! Your Temporary Password',
-        body: '''
+        body:
+            '''
         <div style="font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f7f9fa; padding: 30px; border-radius: 16px;">
           <div style="text-align: center; margin-bottom: 30px;">
             <h1 style="color: #81B655; margin: 0; font-size: 36px; font-weight: 800; letter-spacing: -1px;">Grammatica</h1>
@@ -161,7 +161,8 @@ class AuthService {
     if (_isGoogleSignInInitialized) return;
     if (_googleSignInInit != null) return _googleSignInInit;
 
-    const webClientId = Secrets.googleWebClientId;
+    const webClientId =
+        '458713583940-v6j8pjs8bj4ftmibm8ml78rl1qrm6ib5.apps.googleusercontent.com';
     _googleSignInInit = _googleSignIn.initialize(
       clientId: kIsWeb ? webClientId : null,
       serverClientId: kIsWeb ? null : webClientId,
@@ -194,7 +195,10 @@ class AuthService {
     );
 
     // Initial Security Check: check if the user is deactivated
-    final userDoc = await _firestore.collection('users').doc(userCredential.user?.uid).get();
+    final userDoc = await _firestore
+        .collection('users')
+        .doc(userCredential.user?.uid)
+        .get();
     final status = (userDoc.data()?['status'] as String?)?.toUpperCase();
     if (userDoc.exists && status == 'DEACTIVATED') {
       await _auth.signOut();
@@ -241,7 +245,10 @@ class AuthService {
       );
 
       // Security Check: Deactivated Status
-      final userDoc = await _firestore.collection('users').doc(userCredential.user?.uid).get();
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(userCredential.user?.uid)
+          .get();
       final status = (userDoc.data()?['status'] as String?)?.toUpperCase();
       if (userDoc.exists && status == 'DEACTIVATED') {
         await _auth.signOut();

@@ -4,11 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import '../config/secrets.dart';
+// import '../config/secrets.dart';
 
 class EmailSenderService {
-  static const String _smtpEmail = Secrets.smtpEmail; 
-  static const String _smtpPassword = Secrets.smtpPassword; 
+  static const String _smtpEmail = 'otokwikkservices@gmail.com';
+  static const String _smtpPassword = 'lcygqnnuaxnnsuhe';
 
   static Future<bool> sendOtpEmail({
     required String recipientEmail,
@@ -18,7 +18,8 @@ class EmailSenderService {
     return await sendEmail(
       toEmail: recipientEmail,
       subject: 'Your Grammatica Verification Code: $otpCode',
-      body: """
+      body:
+          """
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f7f6; padding: 20px; border-radius: 12px;">
         <div style="text-align: center; margin-bottom: 24px;">
           <h1 style="color: #81B655; margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -1px;">Grammatica</h1>
@@ -52,7 +53,8 @@ class EmailSenderService {
     return await sendEmail(
       toEmail: recipientEmail,
       subject: 'Grammatica Password Reset Code: $otpCode',
-      body: """
+      body:
+          """
       <div style="font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 620px; margin: 0 auto; background-color: #f7f9f7; padding: 32px 20px;">
 
         <!-- Header -->
@@ -136,7 +138,9 @@ class EmailSenderService {
     if (kIsWeb) {
       try {
         final response = await http.post(
-          Uri.parse('http://localhost:8081/send-generic'), // We should update relay to support this!
+          Uri.parse(
+            'http://localhost:8081/send-generic',
+          ), // We should update relay to support this!
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'smtpEmail': _smtpEmail,
@@ -157,8 +161,10 @@ class EmailSenderService {
         }
       } catch (e) {
         debugPrint("Local relay error: $e");
-        debugPrint("TIP: If you are testing on Web, you MUST run: dart scripts/local_email_relay.dart");
-        return false; 
+        debugPrint(
+          "TIP: If you are testing on Web, you MUST run: dart scripts/local_email_relay.dart",
+        );
+        return false;
       }
     }
 
