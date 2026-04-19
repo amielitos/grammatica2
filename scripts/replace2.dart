@@ -15,7 +15,7 @@ void main() {
     // Rewind back to @override
     final overrideIndex = content.lastIndexOf('@override', startIndex);
     final realStart = overrideIndex != -1 ? overrideIndex : startIndex;
-    
+
     // Also rewind endStr a bit if needed, but endStr starts without spaces here.
     final realEnd = content.lastIndexOf('  ', endIndex); // Find the indent
 
@@ -503,8 +503,11 @@ void main() {
     );
   }
 ''';
-    
-    final finalContent = content.substring(0, realStart) + newBuild + content.substring(endIndex);
+
+    final finalContent =
+        content.substring(0, realStart) +
+        newBuild +
+        content.substring(endIndex);
     file.writeAsStringSync(finalContent);
     print('Updated Profile layout completely.');
   } else {

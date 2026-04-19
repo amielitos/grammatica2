@@ -53,7 +53,9 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   Future<void> _initTts() async {
     try {
       _flutterTts.setStartHandler(() => setState(() => _isPlaying = true));
-      _flutterTts.setCompletionHandler(() => setState(() => _isPlaying = false));
+      _flutterTts.setCompletionHandler(
+        () => setState(() => _isPlaying = false),
+      );
       _flutterTts.setErrorHandler((msg) {
         debugPrint("TTS Error: $msg");
         setState(() => _isPlaying = false);
@@ -160,7 +162,8 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     await _audioPlayer.stop();
     await _flutterTts.stop();
 
-    if (currentWordObj.audioUrl != null && currentWordObj.audioUrl!.isNotEmpty) {
+    if (currentWordObj.audioUrl != null &&
+        currentWordObj.audioUrl!.isNotEmpty) {
       try {
         setState(() => _isPlaying = true);
         await _audioPlayer.play(UrlSource(currentWordObj.audioUrl!));
@@ -222,14 +225,15 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       DatabaseService.instance
           .checkAndAwardAchievement(widget.user.uid, 'first_spelling_bee')
           .then((awarded) {
-        if (awarded) {
-          NotificationService.instance.sendAchievementNotification(
-            uid: widget.user.uid,
-            title: 'Spelling Bee Master!',
-            message: 'Congratulations on completing your first Spelling Bee session!',
-          );
-        }
-      });
+            if (awarded) {
+              NotificationService.instance.sendAchievementNotification(
+                uid: widget.user.uid,
+                title: 'Spelling Bee Master!',
+                message:
+                    'Congratulations on completing your first Spelling Bee session!',
+              );
+            }
+          });
     }
   }
 
@@ -251,7 +255,9 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
           child: TextButton.icon(
             icon: Icon(Icons.arrow_back_ios_new_rounded, size: 16),
             label: Text(
-              _selectedDifficulty == null ? 'Back to Practice Tools' : 'Back to Spelling Bee',
+              _selectedDifficulty == null
+                  ? 'Back to Practice Tools'
+                  : 'Back to Spelling Bee',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
             style: TextButton.styleFrom(
@@ -272,9 +278,13 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
           StreamBuilder<UserRole>(
             stream: RoleService.instance.roleStream(widget.user.uid),
             builder: (context, snapshot) {
-              if (snapshot.data == UserRole.admin || snapshot.data == UserRole.superadmin) {
+              if (snapshot.data == UserRole.admin ||
+                  snapshot.data == UserRole.superadmin) {
                 return IconButton(
-                  icon: const Icon(Icons.settings_rounded, color: AppColors.textPrimary),
+                  icon: const Icon(
+                    Icons.settings_rounded,
+                    color: AppColors.textPrimary,
+                  ),
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const AdminSpellingWordsTab(),
@@ -288,8 +298,8 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         ],
       ),
       body: BackgroundWrapper(
-        imageAssetPath: _selectedDifficulty == null 
-            ? 'assets/practicebg.png' 
+        imageAssetPath: _selectedDifficulty == null
+            ? 'assets/practicebg.png'
             : 'assets/spellingbeebg.png',
         child: Center(
           child: ConstrainedBox(
@@ -325,10 +335,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
           Text(
             'Select a level for Spelling Bee',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
           ),
           SizedBox(height: 48),
           ConstrainedBox(
@@ -391,9 +398,23 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
         ],
       ),
     );
@@ -402,7 +423,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   Widget _buildGameSession() {
     final minutes = (_timeLeft / 60).floor().toString().padLeft(2, '0');
     final seconds = (_timeLeft % 60).toString().padLeft(2, '0');
-    
+
     String difficultyText = "";
     Color difficultyColor = Colors.black;
     switch (_selectedDifficulty) {
@@ -429,10 +450,17 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
-              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.black),
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
               children: [
                 TextSpan(text: 'Spelling Bee - '),
-                TextSpan(text: difficultyText, style: TextStyle(color: difficultyColor)),
+                TextSpan(
+                  text: difficultyText,
+                  style: TextStyle(color: difficultyColor),
+                ),
               ],
             ),
           ),
@@ -508,19 +536,32 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                     style: TextStyle(fontSize: 20, color: Colors.black),
                     decoration: InputDecoration(
                       hintText: 'Type your answer here...',
-                      hintStyle: TextStyle(fontSize: 16, color: Colors.grey, fontStyle: FontStyle.italic),
-                      contentPadding: EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+                      hintStyle: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        vertical: 24,
+                        horizontal: 24,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.4)),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withOpacity(0.4),
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.4)),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withOpacity(0.4),
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.8)),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withOpacity(0.8),
+                        ),
                       ),
                     ),
                     onSubmitted: (_) => _submitAnswer(),
@@ -532,7 +573,9 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                     child: ElevatedButton(
                       onPressed: _submitAnswer,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF81B655), // Match the solid green mockup button
+                        backgroundColor: const Color(
+                          0xFF81B655,
+                        ), // Match the solid green mockup button
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -540,14 +583,21 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                       ),
                       child: Text(
                         'Submit Answer',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
                   SizedBox(height: 24),
                   TextButton(
                     onPressed: _skipWord,
-                    child: Text('Skip this word', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                    child: Text(
+                      'Skip this word',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
                   ),
                   SizedBox(height: 8),
                   TextButton(
@@ -586,12 +636,20 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
               color: AppColors.primary.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.stars_rounded, size: 64, color: AppColors.primary),
+            child: const Icon(
+              Icons.stars_rounded,
+              size: 64,
+              color: AppColors.primary,
+            ),
           ),
           const SizedBox(height: 32),
           const Text(
             'Amazing Achievement!',
-            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -606,7 +664,12 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                 children: [
                   const Text(
                     'Precision Score',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 1,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -616,11 +679,19 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                     children: [
                       Text(
                         '$_score',
-                        style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        style: const TextStyle(
+                          fontSize: 64,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
                       Text(
                         '/${_sessionWords.length}',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -631,9 +702,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
           const SizedBox(height: 32),
           ElevatedButton(
             onPressed: () => setState(() => _selectedDifficulty = null),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(200, 56),
-            ),
+            style: ElevatedButton.styleFrom(minimumSize: const Size(200, 56)),
             child: const Text('Back to Menu'),
           ),
           const SizedBox(height: 24),
@@ -646,7 +715,9 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
             ...List.generate(_sessionWords.length, (index) {
               final wordObj = _sessionWords[index];
               final userAnswer = _userAnswers[index];
-              final isCorrect = userAnswer?.trim().toLowerCase() == wordObj.word.toLowerCase();
+              final isCorrect =
+                  userAnswer?.trim().toLowerCase() ==
+                  wordObj.word.toLowerCase();
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -657,12 +728,16 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: (isCorrect ? AppColors.primary : AppColors.error).withOpacity(0.1),
+                          color:
+                              (isCorrect ? AppColors.primary : AppColors.error)
+                                  .withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           isCorrect ? Icons.check_rounded : Icons.close_rounded,
-                          color: isCorrect ? AppColors.primary : AppColors.error,
+                          color: isCorrect
+                              ? AppColors.primary
+                              : AppColors.error,
                           size: 20,
                         ),
                       ),
@@ -673,12 +748,22 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                           children: [
                             Text(
                               wordObj.word,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              userAnswer?.isEmpty ?? true ? "(No input)" : '"${userAnswer}"',
-                              style: TextStyle(color: isCorrect ? AppColors.primary : AppColors.error, fontSize: 13),
+                              userAnswer?.isEmpty ?? true
+                                  ? "(No input)"
+                                  : '"${userAnswer}"',
+                              style: TextStyle(
+                                color: isCorrect
+                                    ? AppColors.primary
+                                    : AppColors.error,
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         ),
@@ -772,7 +857,9 @@ class _DifficultyCard extends StatelessWidget {
                       child: Container(
                         padding: EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: index < rating ? const Color(0xFFF6A119) : (isDark ? Colors.grey[600] : Colors.grey[400]),
+                          color: index < rating
+                              ? const Color(0xFFF6A119)
+                              : (isDark ? Colors.grey[600] : Colors.grey[400]),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(

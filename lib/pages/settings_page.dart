@@ -21,9 +21,14 @@ class _SettingsPageState extends State<SettingsPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF8F9FA),
+      backgroundColor: isDark
+          ? const Color(0xFF1A1A1A)
+          : const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Settings',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         elevation: 0,
         backgroundColor: Colors.transparent,
         foregroundColor: isDark ? Colors.white : Colors.black87,
@@ -37,9 +42,7 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSectionHeader('Appearance'),
-                _buildSettingsCard([
-                  _buildThemeToggle(isDark),
-                ]),
+                _buildSettingsCard([_buildThemeToggle(isDark)]),
                 const SizedBox(height: 32),
                 _buildSectionHeader('Preferences'),
                 _buildSettingsCard([
@@ -48,7 +51,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: 'Email Notifications',
                     subtitle: 'Receive updates about your subscription',
                     value: _emailNotifications,
-                    onChanged: (val) => setState(() => _emailNotifications = val),
+                    onChanged: (val) =>
+                        setState(() => _emailNotifications = val),
                   ),
                   const Divider(indent: 56),
                   _buildSliderTile(
@@ -62,11 +66,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 32),
                 _buildSectionHeader('Legal & About'),
                 _buildSettingsCard([
-                   _buildLinkTile(Icons.description_outlined, 'Terms of Service'),
-                   const Divider(indent: 56),
-                   _buildLinkTile(Icons.privacy_tip_outlined, 'Privacy Policy'),
-                   const Divider(indent: 56),
-                   _buildLinkTile(Icons.info_outline, 'App Version', trailing: 'v1.2.0'),
+                  _buildLinkTile(
+                    Icons.description_outlined,
+                    'Terms of Service',
+                  ),
+                  const Divider(indent: 56),
+                  _buildLinkTile(Icons.privacy_tip_outlined, 'Privacy Policy'),
+                  const Divider(indent: 56),
+                  _buildLinkTile(
+                    Icons.info_outline,
+                    'App Version',
+                    trailing: 'v1.2.0',
+                  ),
                 ]),
               ],
             ),
@@ -102,7 +113,7 @@ class _SettingsPageState extends State<SettingsPage> {
             color: Colors.black.withOpacity(0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Column(children: children),
@@ -118,10 +129,18 @@ class _SettingsPageState extends State<SettingsPage> {
           color: AppColors.primary.withOpacity(0.1),
           shape: BoxShape.circle,
         ),
-        child: Icon(isDark ? Icons.dark_mode : Icons.light_mode, color: AppColors.primary),
+        child: Icon(
+          isDark ? Icons.dark_mode : Icons.light_mode,
+          color: AppColors.primary,
+        ),
       ),
-      title: const Text('Dark Mode', style: TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(isDark ? 'Turn on for better viewing at night' : 'Switch to dark theme'),
+      title: const Text(
+        'Dark Mode',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      subtitle: Text(
+        isDark ? 'Turn on for better viewing at night' : 'Switch to dark theme',
+      ),
       trailing: Switch.adaptive(
         value: isDark,
         activeColor: AppColors.primary,
@@ -148,7 +167,10 @@ class _SettingsPageState extends State<SettingsPage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
         child: Icon(icon, color: Colors.blue),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -172,7 +194,10 @@ class _SettingsPageState extends State<SettingsPage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
         child: Icon(icon, color: Colors.orange),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -196,11 +221,14 @@ class _SettingsPageState extends State<SettingsPage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
         child: Icon(icon, color: Colors.grey),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-      trailing: trailing != null 
+      trailing: trailing != null
           ? Text(trailing, style: const TextStyle(color: Colors.grey))
           : const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
       onTap: () {},

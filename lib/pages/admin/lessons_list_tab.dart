@@ -130,7 +130,9 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                           padding: const EdgeInsets.all(16.0),
                                           child: Text(
                                             'Filter Lessons By',
-                                            style: Theme.of(context).textTheme.titleMedium,
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.titleMedium,
                                           ),
                                         ),
                                         ..._filterOptions.map((option) {
@@ -139,9 +141,12 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                               option,
                                               style: TextStyle(
                                                 color: _selectedFilter == option
-                                                    ? Theme.of(context).colorScheme.primary
+                                                    ? Theme.of(
+                                                        context,
+                                                      ).colorScheme.primary
                                                     : null,
-                                                fontWeight: _selectedFilter == option
+                                                fontWeight:
+                                                    _selectedFilter == option
                                                     ? FontWeight.bold
                                                     : null,
                                               ),
@@ -156,7 +161,10 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                         }),
                                         const Divider(),
                                         ListTile(
-                                          title: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                                          title: const Text(
+                                            'Cancel',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
                                           onTap: () => Navigator.pop(context),
                                         ),
                                       ],
@@ -173,7 +181,8 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                   });
                                 },
                                 decoration: const InputDecoration(
-                                  hintText: 'Search lesson by title or author..',
+                                  hintText:
+                                      'Search lesson by title or author..',
                                   hintStyle: TextStyle(color: Colors.grey),
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
@@ -195,25 +204,33 @@ class _LessonsListTabState extends State<LessonsListTab> {
                             return GridView.builder(
                               physics: const NeverScrollableScrollPhysics(),
                               shrinkWrap: true,
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: isWide ? 2 : 1,
-                                childAspectRatio: isWide ? 2.3 : 1.8,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                              ),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: isWide ? 2 : 1,
+                                    childAspectRatio: isWide ? 2.3 : 1.8,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                  ),
                               itemCount: lessons.length,
                               itemBuilder: (context, index) {
                                 final l = lessons[index];
-                                final currentUser = AuthService.instance.currentUser;
-                                final isPending = l.validationStatus == 'awaiting_approval';
-                                final isDark = Theme.of(context).brightness == Brightness.dark;
+                                final currentUser =
+                                    AuthService.instance.currentUser;
+                                final isPending =
+                                    l.validationStatus == 'awaiting_approval';
+                                final isDark =
+                                    Theme.of(context).brightness ==
+                                    Brightness.dark;
 
                                 return InkWell(
                                   onTap: () {
                                     if (currentUser != null) {
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
-                                          builder: (_) => LessonPage(user: currentUser, lesson: l),
+                                          builder: (_) => LessonPage(
+                                            user: currentUser,
+                                            lesson: l,
+                                          ),
                                         ),
                                       );
                                     }
@@ -221,16 +238,22 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                   child: Container(
                                     padding: const EdgeInsets.all(20),
                                     decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF333333) : Colors.white,
-                                      border: Border.all(color: Colors.grey.shade400),
+                                      color: isDark
+                                          ? const Color(0xFF333333)
+                                          : Colors.white,
+                                      border: Border.all(
+                                        color: Colors.grey.shade400,
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         // Top Row: Title + Status + Action Buttons
                                         Row(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Expanded(
                                               child: Text(
@@ -247,16 +270,42 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                             const SizedBox(width: 8),
                                             // Pill
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 16,
+                                                    vertical: 4,
+                                                  ),
                                               decoration: BoxDecoration(
-                                                color: (isPending ? Colors.orange : (l.isMembersOnly ? Colors.amber : Colors.blue)).withValues(alpha: 0.3),
-                                                borderRadius: BorderRadius.circular(4),
+                                                color:
+                                                    (isPending
+                                                            ? Colors.orange
+                                                            : (l.isMembersOnly
+                                                                  ? Colors.amber
+                                                                  : Colors
+                                                                        .blue))
+                                                        .withValues(alpha: 0.3),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
                                                 border: Border.all(
-                                                  color: (isPending ? Colors.orange : (l.isMembersOnly ? Colors.amber : Colors.blue)).withValues(alpha: 0.6),
+                                                  color:
+                                                      (isPending
+                                                              ? Colors.orange
+                                                              : (l.isMembersOnly
+                                                                    ? Colors
+                                                                          .amber
+                                                                    : Colors
+                                                                          .blue))
+                                                          .withValues(
+                                                            alpha: 0.6,
+                                                          ),
                                                 ),
                                               ),
                                               child: Text(
-                                                isPending ? 'Pending' : (l.isMembersOnly ? 'Members Only' : 'Public'),
+                                                isPending
+                                                    ? 'Pending'
+                                                    : (l.isMembersOnly
+                                                          ? 'Members Only'
+                                                          : 'Public'),
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color: Colors.black87,
@@ -265,22 +314,39 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                               ),
                                             ),
                                             const SizedBox(width: 16),
-                                            if (role == UserRole.admin || role == UserRole.superadmin || role == UserRole.educator) ...[
+                                            if (role == UserRole.admin ||
+                                                role == UserRole.superadmin ||
+                                                role == UserRole.educator) ...[
                                               if (l.quizId != null) ...[
                                                 GestureDetector(
-                                                  onTap: () => widget.onEditQuiz?.call(l),
-                                                  child: const Icon(Icons.quiz, size: 20, color: Colors.blueGrey),
+                                                  onTap: () => widget.onEditQuiz
+                                                      ?.call(l),
+                                                  child: const Icon(
+                                                    Icons.quiz,
+                                                    size: 20,
+                                                    color: Colors.blueGrey,
+                                                  ),
                                                 ),
                                                 const SizedBox(width: 12),
                                               ],
                                               GestureDetector(
-                                                onTap: () => widget.onEdit?.call(l),
-                                                child: const Icon(Icons.edit, size: 20, color: Colors.grey),
+                                                onTap: () =>
+                                                    widget.onEdit?.call(l),
+                                                child: const Icon(
+                                                  Icons.edit,
+                                                  size: 20,
+                                                  color: Colors.grey,
+                                                ),
                                               ),
                                               const SizedBox(width: 12),
                                               GestureDetector(
-                                                onTap: () => _confirmDelete(context, l),
-                                                child: const Icon(Icons.delete, size: 20, color: Colors.red),
+                                                onTap: () =>
+                                                    _confirmDelete(context, l),
+                                                child: const Icon(
+                                                  Icons.delete,
+                                                  size: 20,
+                                                  color: Colors.red,
+                                                ),
                                               ),
                                             ],
                                           ],
@@ -299,7 +365,8 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                         const Spacer(),
                                         // Bottom Row
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text(
                                               'By: ${l.createdByEmail ?? 'Unknown'}',

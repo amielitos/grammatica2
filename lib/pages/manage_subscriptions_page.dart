@@ -86,10 +86,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFCEDA72),
-            Color(0xFFE4EB6F),
-          ],
+          colors: [Color(0xFFCEDA72), Color(0xFFE4EB6F)],
         ),
       ),
       child: Scaffold(
@@ -101,16 +98,14 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             showDialog(
               context: context,
               barrierColor: Colors.transparent,
-              builder: (context) => NotificationsDialog(userId: widget.user.uid),
+              builder: (context) =>
+                  NotificationsDialog(userId: widget.user.uid),
             );
           },
           onLogoTap: () => Navigator.pop(context),
           onProfileTap: () => Navigator.pop(context),
         ),
-        drawer: UniversalDrawer(
-          user: widget.user,
-          userData: _userData ?? {},
-        ),
+        drawer: UniversalDrawer(user: widget.user, userData: _userData ?? {}),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
@@ -132,7 +127,11 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                     ),
                     const SizedBox(height: 32),
                     if (_isEducator) ...[
-                      _buildHeaderBox(Icons.payments_rounded, 'Subscription Pricing', Colors.orange),
+                      _buildHeaderBox(
+                        Icons.payments_rounded,
+                        'Subscription Pricing',
+                        Colors.orange,
+                      ),
                       const SizedBox(height: 16),
                       Container(
                         width: double.infinity,
@@ -161,11 +160,18 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF81B655),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 20),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                               onPressed: _savePricing,
-                              child: const Text('Save Pricing Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+                              child: const Text(
+                                'Save Pricing Settings',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ],
                         ),
@@ -229,32 +235,45 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
         suffixText: '\$',
         filled: true,
         fillColor: Colors.grey.shade50,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
 
   Widget _buildLearnerSubscriptions() {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid),
+      stream: DatabaseService.instance.streamLearnerSubscriptions(
+        widget.user.uid,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         final subscriptions = snapshot.data ?? [];
-        final active = subscriptions.where((s) => s['status'] == 'active').toList();
-        final history = subscriptions.where((s) => s['status'] != 'active').toList();
+        final active = subscriptions
+            .where((s) => s['status'] == 'active')
+            .toList();
+        final history = subscriptions
+            .where((s) => s['status'] != 'active')
+            .toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeaderBox(Icons.stars_rounded, 'Active Subscriptions', const Color(0xFFF9A825)),
+            _buildHeaderBox(
+              Icons.stars_rounded,
+              'Active Subscriptions',
+              const Color(0xFFF9A825),
+            ),
             const SizedBox(height: 16),
             if (active.isEmpty)
               _buildEmptyCard('No active subscriptions.')
             else
               ...active.map((s) => _buildSubscriptionCard(s, true)),
-            
+
             const SizedBox(height: 40),
             _buildHeaderBox(Icons.history_rounded, 'History', Colors.black54),
             const SizedBox(height: 16),
@@ -278,7 +297,10 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
         border: Border.all(color: Colors.black12),
       ),
       child: Center(
-        child: Text(text, style: const TextStyle(color: Colors.black38, fontSize: 16)),
+        child: Text(
+          text,
+          style: const TextStyle(color: Colors.black38, fontSize: 16),
+        ),
       ),
     );
   }
@@ -290,8 +312,12 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     final eduUid = sub['educatorUid'] as String;
 
     final isBasic = tier.toLowerCase() == 'basic';
-    final pillBg = isBasic ? const Color(0xFFFEE69F) : const Color(0xFFCEDA72).withOpacity(0.5);
-    final pillText = isBasic ? const Color(0xFFF9A825) : const Color(0xFF88B342);
+    final pillBg = isBasic
+        ? const Color(0xFFFEE69F)
+        : const Color(0xFFCEDA72).withOpacity(0.5);
+    final pillText = isBasic
+        ? const Color(0xFFF9A825)
+        : const Color(0xFF88B342);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -321,7 +347,11 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               borderRadius: BorderRadius.circular(40),
               child: (eduData['photoUrl'] as String?)?.isNotEmpty == true
                   ? Image.network(eduData['photoUrl']!, fit: BoxFit.cover)
-                  : const Icon(Icons.person_rounded, color: Colors.white, size: 50),
+                  : const Icon(
+                      Icons.person_rounded,
+                      color: Colors.white,
+                      size: 50,
+                    ),
             ),
           ),
           const SizedBox(width: 24),
@@ -331,26 +361,40 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               children: [
                 Text(
                   username,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: pillBg,
                         borderRadius: BorderRadius.circular(100),
                       ),
                       child: Text(
                         tier,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: pillText),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: pillText,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Text(
                       '• ${isActive ? 'Active' : 'Cancelled'}',
-                      style: const TextStyle(color: Colors.black38, fontSize: 14),
+                      style: const TextStyle(
+                        color: Colors.black38,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -359,7 +403,11 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
           ),
           if (isActive)
             IconButton(
-              icon: const Icon(Icons.cancel_rounded, color: Colors.redAccent, size: 40),
+              icon: const Icon(
+                Icons.cancel_rounded,
+                color: Colors.redAccent,
+                size: 40,
+              ),
               onPressed: () => _confirmCancel(context, eduUid, username),
             ),
         ],
@@ -372,9 +420,14 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Cancel Subscription?'),
-        content: Text('Are you sure you want to cancel your subscription to $name?'),
+        content: Text(
+          'Are you sure you want to cancel your subscription to $name?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Keep it')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Keep it'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(c, true),
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),

@@ -5,7 +5,8 @@ void main() {
   String content = file.readAsStringSync();
 
   // 1. Update _customInputDecoration
-  final oldInputDec = '''  InputDecoration _customInputDecoration({required String hint}) {
+  final oldInputDec =
+      '''  InputDecoration _customInputDecoration({required String hint}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(fontSize: 14, color: Colors.black54),
@@ -27,7 +28,8 @@ void main() {
     );
   }''';
 
-  final newInputDec = '''  InputDecoration _customInputDecoration({required String hint}) {
+  final newInputDec =
+      '''  InputDecoration _customInputDecoration({required String hint}) {
     // Inputs remain white even in dark mode based on the mock-up
     return InputDecoration(
       hintText: hint,
@@ -87,33 +89,33 @@ void main() {
   // 3. Update texts in _buildLeftColumn
   content = content.replaceAll(
     "Text(\n              'Profile',\n              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),\n            )",
-    "Text(\n              'Profile',\n              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),\n            )"
+    "Text(\n              'Profile',\n              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),\n            )",
   );
-  
+
   content = content.replaceAll(
     "Text(_displayName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black))",
-    "Text(_displayName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))"
+    "Text(_displayName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))",
   );
 
   content = content.replaceAll(
     "Text('Edit Profile', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black))",
-    "Text('Edit Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))"
+    "Text('Edit Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))",
   );
-  
+
   // Update texts in _buildRightColumn
   content = content.replaceAll(
     "Text('Change Password', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black))",
-    "Text('Change Password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))"
+    "Text('Change Password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))",
   );
-  
+
   content = content.replaceAll(
     "Text('Subscription', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black))",
-    "Text('Subscription', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))"
+    "Text('Subscription', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))",
   );
 
   content = content.replaceAll(
     "Text('Educator Role', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black))",
-    "Text('Educator Role', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))"
+    "Text('Educator Role', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black))",
   );
 
   final oldOutlinedBtn = '''                child: OutlinedButton(

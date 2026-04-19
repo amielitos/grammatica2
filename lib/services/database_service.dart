@@ -318,7 +318,7 @@ class DatabaseService {
 
   Future<void> _deleteFileFromUrl(String? url) async {
     if (url == null || url.isEmpty) return;
-    
+
     // Safety check: Only attempt to delete if it's a Firebase Storage URL.
     // External URLs (like Google Photo URLs: lh3.googleusercontent.com) will crash refFromURL.
     if (!url.contains('firebasestorage.googleapis.com')) {
@@ -358,7 +358,11 @@ class DatabaseService {
     await _firestore.collection('users').doc(uid).update({field: value});
   }
 
-  Future<String?> uploadProfilePhotoWithBytes(User user, Uint8List bytes, String originalName) async {
+  Future<String?> uploadProfilePhotoWithBytes(
+    User user,
+    Uint8List bytes,
+    String originalName,
+  ) async {
     try {
       if (bytes.lengthInBytes > 5 * 1024 * 1024) {
         throw Exception('Image exceeds 5MB limit');
@@ -369,18 +373,19 @@ class DatabaseService {
       final ref = _storage.ref().child(path);
 
       String contentType = 'image/jpeg';
-      if (ext == 'png') contentType = 'image/png';
-      else if (ext == 'webp') contentType = 'image/webp';
+      if (ext == 'png')
+        contentType = 'image/png';
+      else if (ext == 'webp')
+        contentType = 'image/webp';
 
       final metadata = SettableMetadata(contentType: contentType);
       final snapshot = await ref.putData(bytes, metadata);
       final url = await snapshot.ref.getDownloadURL();
 
       await user.updatePhotoURL(url);
-      await _firestore.collection('users').doc(user.uid).set(
-        {'photoUrl': url},
-        SetOptions(merge: true),
-      );
+      await _firestore.collection('users').doc(user.uid).set({
+        'photoUrl': url,
+      }, SetOptions(merge: true));
 
       return url;
     } catch (e) {
@@ -640,13 +645,17 @@ class DatabaseService {
   }
 
   Stream<List<Lesson>> streamAwaitingApprovalLessons() {
+    return streamLessonsByValidationStatus('awaiting_approval');
+  }
+
+  Stream<List<Lesson>> streamLessonsByValidationStatus(String status) {
     return _lessons
         .orderBy('createdAt', descending: false)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
               .map(Lesson.fromDoc)
-              .where((l) => l.validationStatus == 'awaiting_approval')
+              .where((l) => l.validationStatus == status)
               .toList(),
         );
   }
@@ -839,13 +848,17 @@ class DatabaseService {
   }
 
   Stream<List<Quiz>> streamAwaitingApprovalQuizzes() {
+    return streamQuizzesByValidationStatus('awaiting_approval');
+  }
+
+  Stream<List<Quiz>> streamQuizzesByValidationStatus(String status) {
     return _quizzes
         .orderBy('createdAt', descending: false)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
               .map(Quiz.fromDoc)
-              .where((q) => q.validationStatus == 'awaiting_approval')
+              .where((q) => q.validationStatus == status)
               .toList(),
         );
   }
@@ -1467,21 +1480,24 @@ class DatabaseService {
         .collection('subscribers')
         .snapshots()
         .asyncMap((snapshot) async {
-      final List<Map<String, dynamic>> subscribers = [];
-      for (final doc in snapshot.docs) {
-        final subData = doc.data();
-        final userDoc = await _firestore.collection('users').doc(doc.id).get();
-        if (userDoc.exists) {
-          subscribers.add({
-            'uid': doc.id,
-            ...userDoc.data()!,
-            'tier': subData['tier'],
-            'subscribedAt': subData['subscribedAt'],
-          });
-        }
-      }
-      return subscribers;
-    });
+          final List<Map<String, dynamic>> subscribers = [];
+          for (final doc in snapshot.docs) {
+            final subData = doc.data();
+            final userDoc = await _firestore
+                .collection('users')
+                .doc(doc.id)
+                .get();
+            if (userDoc.exists) {
+              subscribers.add({
+                'uid': doc.id,
+                ...userDoc.data()!,
+                'tier': subData['tier'],
+                'subscribedAt': subData['subscribedAt'],
+              });
+            }
+          }
+          return subscribers;
+        });
   }
 
   Future<void> deleteUserAccount(String uid) async {
@@ -1595,7 +1611,7 @@ class DatabaseService {
         .collection('users')
         .doc(educatorUid)
         .collection('reviews')
-        .doc(); 
+        .doc();
 
     final educatorRef = _firestore.collection('users').doc(educatorUid);
 
@@ -1612,7 +1628,7 @@ class DatabaseService {
       ...review.toMap(),
       'createdAt': FieldValue.serverTimestamp(),
     });
-    
+
     batch.update(educatorRef, {
       'totalRating': newTotalRating,
       'reviewCount': newReviewCount,
@@ -1629,22 +1645,24 @@ class DatabaseService {
         .collection('reviews')
         .snapshots()
         .map((snapshot) {
-      final reviews = snapshot.docs.map((doc) => Review.fromDoc(doc)).toList();
-      // Client-side sorting to handle documents with missing createdAt fields gracefully
-      // and to avoid the need for composite indexes.
-      reviews.sort((a, b) {
-        // First sort by rating (highest first)
-        int ratingCompare = b.rating.compareTo(a.rating);
-        if (ratingCompare != 0) return ratingCompare;
+          final reviews = snapshot.docs
+              .map((doc) => Review.fromDoc(doc))
+              .toList();
+          // Client-side sorting to handle documents with missing createdAt fields gracefully
+          // and to avoid the need for composite indexes.
+          reviews.sort((a, b) {
+            // First sort by rating (highest first)
+            int ratingCompare = b.rating.compareTo(a.rating);
+            if (ratingCompare != 0) return ratingCompare;
 
-        // Then sort by date (newest first)
-        if (a.createdAt == null && b.createdAt == null) return 0;
-        if (a.createdAt == null) return 1; // Put nulls at the end
-        if (b.createdAt == null) return -1;
-        return b.createdAt!.compareTo(a.createdAt!);
-      });
-      return reviews;
-    });
+            // Then sort by date (newest first)
+            if (a.createdAt == null && b.createdAt == null) return 0;
+            if (a.createdAt == null) return 1; // Put nulls at the end
+            if (b.createdAt == null) return -1;
+            return b.createdAt!.compareTo(a.createdAt!);
+          });
+          return reviews;
+        });
   }
 
   Future<void> clearAllLessons() async {

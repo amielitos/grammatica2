@@ -57,7 +57,7 @@ class NotificationService {
         .where('uid', isEqualTo: uid)
         .where('isRead', isEqualTo: false)
         .get();
-    
+
     final batch = _firestore.batch();
     for (var doc in unread.docs) {
       batch.update(doc.reference, {'isRead': true});

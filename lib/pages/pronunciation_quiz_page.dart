@@ -137,7 +137,11 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     if (!mounted) return;
     if (allWords.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No words found for this difficulty. Admin must add some!')),
+        const SnackBar(
+          content: Text(
+            'No words found for this difficulty. Admin must add some!',
+          ),
+        ),
       );
       return;
     }
@@ -151,7 +155,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       _currentIndex = 0;
       _score = 0;
       _isGameOver = false;
-       _recognizedText = "";
+      _recognizedText = "";
       _userAnswers = [];
       _showPreview = false;
       _isLastCorrect = null;
@@ -168,7 +172,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 
     if (!_isSpeechInitialized && !kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Speech recognition not supported on this device.')),
+        const SnackBar(
+          content: Text('Speech recognition not supported on this device.'),
+        ),
       );
       return;
     }
@@ -231,7 +237,11 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       } catch (e) {
         _stopRecording();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Speech recognition not available in this browser: $e')),
+          SnackBar(
+            content: Text(
+              'Speech recognition not available in this browser: $e',
+            ),
+          ),
         );
       }
     }
@@ -281,16 +291,16 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 
     // Clean up the recognized text: lowercase, trim, and remove punctuation
     String rawAnswer = _recognizedText.trim().toLowerCase();
-    
+
     // Apply profanity filter
     String answer = _filterProfanity(rawAnswer);
-    
+
     if (answer != rawAnswer) {
       _showProfanityWarning();
     }
 
     answer = answer.replaceAll(RegExp(r'[^\w\s]'), ''); // Remove punctuation
-    
+
     final correctWord = _sessionWords[_currentIndex].word.toLowerCase().trim();
 
     _userAnswers.add(_recognizedText);
@@ -299,11 +309,12 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     // 1. Exact match after cleaning
     // 2. Contains match (in case recognition adds extra words like "the apple")
     // 3. Fuzzy match (allow for slight misrecognitions)
-    
+
     double similarity = StringSimilarity.compareTwoStrings(answer, correctWord);
-    bool isCorrect = answer == correctWord || 
-                    answer.contains(correctWord) || 
-                    similarity >= 0.7; // Lowered from 0.8
+    bool isCorrect =
+        answer == correctWord ||
+        answer.contains(correctWord) ||
+        similarity >= 0.7; // Lowered from 0.8
 
     if (mounted) {
       setState(() {
@@ -342,20 +353,30 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       DatabaseService.instance
           .checkAndAwardAchievement(widget.user.uid, 'first_pronunciation')
           .then((awarded) {
-        if (awarded) {
-          NotificationService.instance.sendAchievementNotification(
-            uid: widget.user.uid,
-            title: 'Pronunciation Pro!',
-            message: 'Congratulations on completing your first Pronunciation Quiz session!',
-          );
-        }
-      });
+            if (awarded) {
+              NotificationService.instance.sendAchievementNotification(
+                uid: widget.user.uid,
+                title: 'Pronunciation Pro!',
+                message:
+                    'Congratulations on completing your first Pronunciation Quiz session!',
+              );
+            }
+          });
     }
   }
 
   String _filterProfanity(String text) {
     const profaneWords = [
-      'fuck', 'shit', 'asshole', 'bitch', 'cunt', 'dick', 'pussy', 'faggot', 'bastard', 'damn'
+      'fuck',
+      'shit',
+      'asshole',
+      'bitch',
+      'cunt',
+      'dick',
+      'pussy',
+      'faggot',
+      'bastard',
+      'damn',
     ];
     String filtered = text;
     for (final word in profaneWords) {
@@ -384,7 +405,13 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('I Understand', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF8BC34A))),
+            child: const Text(
+              'I Understand',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF8BC34A),
+              ),
+            ),
           ),
         ],
       ),
@@ -422,7 +449,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: const Text('Yes, Quit'),
           ),
@@ -448,80 +477,86 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         }
       },
       child: Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leadingWidth: 240,
-        leading: Padding(
-          padding: EdgeInsets.only(left: 16.0),
-          child: TextButton.icon(
-            icon: Icon(Icons.arrow_back_ios_new_rounded, size: 16),
-            label: Text(
-              _selectedDifficulty == null ? 'Back to Practice Tools' : 'Back to Pronunciation',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
-              alignment: Alignment.centerLeft,
-            ),
-            onPressed: () async {
-              if (_selectedDifficulty == null) {
-                widget.onBack();
-              } else if (_isGameOver) {
-                setState(() => _selectedDifficulty = null);
-              } else {
-                final shouldPop = await _showExitConfirmation();
-                if (shouldPop == true && mounted) {
-                  _timer?.cancel();
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leadingWidth: 240,
+          leading: Padding(
+            padding: EdgeInsets.only(left: 16.0),
+            child: TextButton.icon(
+              icon: Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+              label: Text(
+                _selectedDifficulty == null
+                    ? 'Back to Practice Tools'
+                    : 'Back to Pronunciation',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                alignment: Alignment.centerLeft,
+              ),
+              onPressed: () async {
+                if (_selectedDifficulty == null) {
+                  widget.onBack();
+                } else if (_isGameOver) {
                   setState(() => _selectedDifficulty = null);
+                } else {
+                  final shouldPop = await _showExitConfirmation();
+                  if (shouldPop == true && mounted) {
+                    _timer?.cancel();
+                    setState(() => _selectedDifficulty = null);
+                  }
                 }
-              }
-            },
+              },
+            ),
+          ),
+          // Removed title to match reference image which is clean in the middle
+          actions: [
+            StreamBuilder<UserRole>(
+              stream: RoleService.instance.roleStream(widget.user.uid),
+              builder: (context, snapshot) {
+                if (snapshot.data == UserRole.admin ||
+                    snapshot.data == UserRole.superadmin) {
+                  return IconButton(
+                    icon: Icon(
+                      Icons.settings_rounded,
+                      color: AppColors.textPrimary,
+                    ),
+                    onPressed: () async {
+                      if (_selectedDifficulty != null && !_isGameOver) {
+                        final shouldPop = await _showExitConfirmation();
+                        if (shouldPop != true) return;
+                      }
+                      if (mounted) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AdminSpellingWordsTab(),
+                          ),
+                        );
+                      }
+                    },
+                  );
+                }
+                return SizedBox.shrink();
+              },
+            ),
+          ],
+        ),
+        body: BackgroundWrapper(
+          imageAssetPath: _selectedDifficulty == null
+              ? 'assets/practicebg.png'
+              : 'assets/pronunciationbg.png',
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: _buildBody(),
+            ),
           ),
         ),
-        // Removed title to match reference image which is clean in the middle
-        actions: [
-          StreamBuilder<UserRole>(
-            stream: RoleService.instance.roleStream(widget.user.uid),
-            builder: (context, snapshot) {
-              if (snapshot.data == UserRole.admin || snapshot.data == UserRole.superadmin) {
-                return IconButton(
-                  icon: Icon(Icons.settings_rounded, color: AppColors.textPrimary),
-                  onPressed: () async {
-                    if (_selectedDifficulty != null && !_isGameOver) {
-                      final shouldPop = await _showExitConfirmation();
-                      if (shouldPop != true) return;
-                    }
-                    if (mounted) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AdminSpellingWordsTab(),
-                        ),
-                      );
-                    }
-                  },
-                );
-              }
-              return SizedBox.shrink();
-            },
-          ),
-        ],
       ),
-      body: BackgroundWrapper(
-        imageAssetPath: _selectedDifficulty == null 
-            ? 'assets/practicebg.png' 
-            : 'assets/pronunciationbg.png',
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: _buildBody(),
-          ),
-        ),
-      ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildBody() {
     if (_selectedDifficulty == null) return _buildDifficultySelection();
@@ -547,10 +582,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
           Text(
             'Select a level for Pronunciation',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
           ),
           SizedBox(height: 48),
           ConstrainedBox(
@@ -613,9 +645,23 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
         ],
       ),
     );
@@ -624,7 +670,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   Widget _buildGameSession() {
     final minutes = (_timeLeft / 60).floor().toString().padLeft(2, '0');
     final seconds = (_timeLeft % 60).toString().padLeft(2, '0');
-    
+
     String difficultyText = "";
     Color difficultyColor = Colors.black;
     switch (_selectedDifficulty) {
@@ -651,10 +697,17 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
           RichText(
             textAlign: TextAlign.center,
             text: TextSpan(
-              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.black),
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
               children: [
                 TextSpan(text: 'Pronunciation - '),
-                TextSpan(text: difficultyText, style: TextStyle(color: difficultyColor)),
+                TextSpan(
+                  text: difficultyText,
+                  style: TextStyle(color: difficultyColor),
+                ),
               ],
             ),
           ),
@@ -664,8 +717,14 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
             runSpacing: 16,
             alignment: WrapAlignment.center,
             children: [
-              _buildStatBox('Progress:', 'Word ${_currentIndex + 1} of ${_sessionWords.length}'),
-              _buildStatBox('Current Score:', '$_score/${_sessionWords.length}'),
+              _buildStatBox(
+                'Progress:',
+                'Word ${_currentIndex + 1} of ${_sessionWords.length}',
+              ),
+              _buildStatBox(
+                'Current Score:',
+                '$_score/${_sessionWords.length}',
+              ),
               _buildStatBox('Time:', '$minutes:$seconds'),
             ],
           ),
@@ -695,7 +754,10 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF8BC34A), width: 2), // The mockup shows a green border
+                        border: Border.all(
+                          color: const Color(0xFF8BC34A),
+                          width: 2,
+                        ), // The mockup shows a green border
                       ),
                       child: Center(
                         child: Column(
@@ -706,16 +768,22 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                               style: TextStyle(
                                 fontSize: 48,
                                 fontWeight: FontWeight.normal,
-                                color: _isTransitioning 
-                                  ? (_isLastCorrect == true ? Colors.green : Colors.red) 
-                                  : Colors.black,
+                                color: _isTransitioning
+                                    ? (_isLastCorrect == true
+                                          ? Colors.green
+                                          : Colors.red)
+                                    : Colors.black,
                               ),
                             ),
                             if (_isTransitioning) ...[
                               SizedBox(height: 8),
                               Icon(
-                                _isLastCorrect == true ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                                color: _isLastCorrect == true ? Colors.green : Colors.red,
+                                _isLastCorrect == true
+                                    ? Icons.check_circle_rounded
+                                    : Icons.cancel_rounded,
+                                color: _isLastCorrect == true
+                                    ? Colors.green
+                                    : Colors.red,
                                 size: 32,
                               ),
                             ],
@@ -733,24 +801,33 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                     ),
                   ),
                   SizedBox(height: 16),
-                  
+
                   // Waveform Mockup based on volume
                   SizedBox(
                     height: 50,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(31, (index) {
-                        double baseHeight = 10.0 + (index % 5) * 5.0; // static base height pattern
-                        double dynamicHeight = _isRecording ? baseHeight + (_micVolume * 40 * (index % 3 + 1)) : baseHeight;
-                        if (index == 15) dynamicHeight = _isRecording ? 50.0 + _micVolume * 30 : 25.0; // center is highest
-                        
+                        double baseHeight =
+                            10.0 +
+                            (index % 5) * 5.0; // static base height pattern
+                        double dynamicHeight = _isRecording
+                            ? baseHeight + (_micVolume * 40 * (index % 3 + 1))
+                            : baseHeight;
+                        if (index == 15)
+                          dynamicHeight = _isRecording
+                              ? 50.0 + _micVolume * 30
+                              : 25.0; // center is highest
+
                         return AnimatedContainer(
                           duration: const Duration(milliseconds: 100),
                           margin: EdgeInsets.symmetric(horizontal: 2),
                           width: 4,
                           height: dynamicHeight.clamp(4.0, 50.0),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.8), // Dark color from the screenshot
+                            color: Colors.black.withOpacity(
+                              0.8,
+                            ), // Dark color from the screenshot
                             borderRadius: BorderRadius.circular(2),
                           ),
                         );
@@ -760,14 +837,18 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                   SizedBox(height: 24),
                   if (_recognizedText.isNotEmpty) ...[
                     Text(
-                      _recognizedText == "Listening..." ? "Listening..." : "I heard: \"$_recognizedText\"",
+                      _recognizedText == "Listening..."
+                          ? "Listening..."
+                          : "I heard: \"$_recognizedText\"",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: _isTransitioning 
-                          ? (_isLastCorrect == true ? Colors.green : Colors.red) 
-                          : AppColors.primary,
+                        color: _isTransitioning
+                            ? (_isLastCorrect == true
+                                  ? Colors.green
+                                  : Colors.red)
+                            : AppColors.primary,
                       ),
                     ),
                     SizedBox(height: 16),
@@ -786,9 +867,19 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                           padding: EdgeInsets.all(12.0),
                           child: Column(
                             children: const [
-                              Icon(Icons.refresh_rounded, size: 28, color: Colors.black54),
+                              Icon(
+                                Icons.refresh_rounded,
+                                size: 28,
+                                color: Colors.black54,
+                              ),
                               SizedBox(height: 4),
-                              Text("Reset", style: TextStyle(fontSize: 12, color: Colors.black54)),
+                              Text(
+                                "Reset",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -801,19 +892,27 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                           width: 80,
                           height: 80,
                           decoration: BoxDecoration(
-                            color: _isRecording ? Colors.red : const Color(0xFF8BC34A), // Red when recording, Green when idle
+                            color: _isRecording
+                                ? Colors.red
+                                : const Color(
+                                    0xFF8BC34A,
+                                  ), // Red when recording, Green when idle
                             shape: BoxShape.circle,
                             boxShadow: [
                               if (_isRecording)
                                 BoxShadow(
-                                  color: const Color(0xFF8BC34A).withOpacity(0.4),
+                                  color: const Color(
+                                    0xFF8BC34A,
+                                  ).withOpacity(0.4),
                                   blurRadius: 20,
                                   spreadRadius: 8,
                                 ),
                             ],
                           ),
                           child: Icon(
-                            _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                            _isRecording
+                                ? Icons.stop_rounded
+                                : Icons.mic_rounded,
                             size: 40,
                             color: Colors.white,
                           ),
@@ -822,15 +921,31 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                       SizedBox(width: 40),
                       // Submit Button
                       InkWell(
-                        onTap: _recognizedText.isNotEmpty ? _submitAnswer : null,
+                        onTap: _recognizedText.isNotEmpty
+                            ? _submitAnswer
+                            : null,
                         borderRadius: BorderRadius.circular(32),
                         child: Padding(
                           padding: EdgeInsets.all(12.0),
                           child: Column(
                             children: [
-                              Icon(Icons.check_rounded, size: 28, color: _recognizedText.isNotEmpty ? Colors.black54 : Colors.black26),
+                              Icon(
+                                Icons.check_rounded,
+                                size: 28,
+                                color: _recognizedText.isNotEmpty
+                                    ? Colors.black54
+                                    : Colors.black26,
+                              ),
                               SizedBox(height: 4),
-                              Text("Submit", style: TextStyle(fontSize: 12, color: _recognizedText.isNotEmpty ? Colors.black54 : Colors.black26)),
+                              Text(
+                                "Submit",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: _recognizedText.isNotEmpty
+                                      ? Colors.black54
+                                      : Colors.black26,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -840,7 +955,10 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                   SizedBox(height: 40),
                   TextButton(
                     onPressed: _skipWord,
-                    child: Text('Skip this word', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                    child: Text(
+                      'Skip this word',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
                   ),
                   SizedBox(height: 8),
                   TextButton(
@@ -879,12 +997,20 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
               color: AppColors.primary.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.celebration_rounded, size: 64, color: AppColors.primary),
+            child: Icon(
+              Icons.celebration_rounded,
+              size: 64,
+              color: AppColors.primary,
+            ),
           ),
           SizedBox(height: 32),
           Text(
             'Brilliant Work!',
-            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
           SizedBox(height: 12),
           Text(
@@ -899,7 +1025,12 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                 children: [
                   Text(
                     'Final Score',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 1,
+                    ),
                   ),
                   SizedBox(height: 12),
                   Row(
@@ -909,11 +1040,19 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                     children: [
                       Text(
                         '$_score',
-                        style: TextStyle(fontSize: 64, fontWeight: FontWeight.bold, color: AppColors.primary),
+                        style: TextStyle(
+                          fontSize: 64,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
                       ),
                       Text(
                         '/${_sessionWords.length}',
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -924,9 +1063,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
           SizedBox(height: 32),
           ElevatedButton(
             onPressed: () => setState(() => _selectedDifficulty = null),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(200, 56),
-            ),
+            style: ElevatedButton.styleFrom(minimumSize: const Size(200, 56)),
             child: Text('Back to Menu'),
           ),
           SizedBox(height: 24),
@@ -957,12 +1094,16 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                       Container(
                         padding: EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: (isCorrect ? AppColors.primary : AppColors.error).withOpacity(0.1),
+                          color:
+                              (isCorrect ? AppColors.primary : AppColors.error)
+                                  .withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           isCorrect ? Icons.check_rounded : Icons.close_rounded,
-                          color: isCorrect ? AppColors.primary : AppColors.error,
+                          color: isCorrect
+                              ? AppColors.primary
+                              : AppColors.error,
                           size: 20,
                         ),
                       ),
@@ -973,12 +1114,20 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                           children: [
                             Text(
                               wordObj.word,
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                             SizedBox(height: 4),
                             Text(
-                              userAnswer?.isEmpty ?? true ? "(No input)" : '"${userAnswer}"',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                              userAnswer?.isEmpty ?? true
+                                  ? "(No input)"
+                                  : '"${userAnswer}"',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         ),
@@ -1072,7 +1221,9 @@ class _DifficultyCard extends StatelessWidget {
                       child: Container(
                         padding: EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: index < rating ? const Color(0xFFF6A119) : (isDark ? Colors.grey[600] : Colors.grey[400]),
+                          color: index < rating
+                              ? const Color(0xFFF6A119)
+                              : (isDark ? Colors.grey[600] : Colors.grey[400]),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -1141,11 +1292,13 @@ class _ControlButton extends StatelessWidget {
         ),
         Text(
           label,
-          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
     );
   }
 }
-
-

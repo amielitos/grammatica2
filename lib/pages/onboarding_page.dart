@@ -26,19 +26,25 @@ class _OnboardingPageState extends State<OnboardingPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (AuthService.justSignedUpWithGoogle) {
         AuthService.justSignedUpWithGoogle = false;
-        
+
         // Premium SWAL Style Dialog
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(32.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Color(0xFF679E3D), size: 80),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF679E3D),
+                    size: 80,
+                  ),
                   const SizedBox(height: 24),
                   const Text(
                     "Welcome to Grammatica!",
@@ -59,9 +65,17 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       onPressed: () => Navigator.pop(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF679E3D),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: const Text("Awesome!", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        "Awesome!",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -76,34 +90,42 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final List<OnboardingStep> _steps = [
     OnboardingStep(
       title: 'Welcome to Grammatica',
-      description: 'Your journey to mastering the English language starts here. Let\'s get you settled into your new learning sanctuary.',
+      description:
+          'Your journey to mastering the English language starts here. Let\'s get you settled into your new learning sanctuary.',
       icon: Icons.auto_awesome_rounded,
     ),
     OnboardingStep(
       title: 'Interactive Lessons',
-      description: 'Explore bite-sized, engaging lessons designed by experts to make grammar intuitive and fun.',
+      description:
+          'Explore bite-sized, engaging lessons designed by experts to make grammar intuitive and fun.',
       icon: Icons.import_contacts_rounded,
     ),
     OnboardingStep(
       title: 'Real-time Challenges',
-      description: 'Test your skills with interactive quizzes and track your progress as you climb the ranks.',
+      description:
+          'Test your skills with interactive quizzes and track your progress as you climb the ranks.',
       icon: Icons.psychology_rounded,
     ),
     OnboardingStep(
       title: 'Expert Community',
-      description: 'Connect with verified educators and fellow learners in a supportive, growth-oriented environment.',
+      description:
+          'Connect with verified educators and fellow learners in a supportive, growth-oriented environment.',
       icon: Icons.groups_rounded,
     ),
     OnboardingStep(
       title: 'Ready to Begin?',
-      description: 'Dive into your first lesson and unlock your full linguistic potential today.',
+      description:
+          'Dive into your first lesson and unlock your full linguistic potential today.',
       icon: Icons.rocket_launch_rounded,
       isLast: true,
     ),
   ];
 
   Future<void> _completeOnboarding() async {
-    await FirebaseFirestore.instance.collection('users').doc(widget.user.uid).update({'has_completed_onboarding': true});
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.user.uid)
+        .update({'has_completed_onboarding': true});
   }
 
   @override
@@ -120,7 +142,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   padding: const EdgeInsets.all(16.0),
                   child: TextButton(
                     onPressed: _completeOnboarding,
-                    child: const Text('Skip', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -178,23 +206,31 @@ class _OnboardingPageState extends State<OnboardingPage> {
                             const SizedBox(height: 40),
                             // Terms and Conditions
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.surface.withOpacity(0.5),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+                                border: Border.all(
+                                  color: AppColors.divider.withOpacity(0.5),
+                                ),
                               ),
                               child: Row(
                                 children: [
                                   Checkbox(
                                     value: _agreedToTerms,
                                     activeColor: AppColors.primary,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                     onChanged: (val) async {
                                       if (val == true) {
                                         final accepted = await showDialog<bool>(
                                           context: context,
-                                          builder: (context) => TermsAndConditionsDialog(),
+                                          builder: (context) =>
+                                              TermsAndConditionsDialog(),
                                         );
                                         if (accepted == true) {
                                           setState(() => _agreedToTerms = true);
@@ -208,28 +244,38 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                     child: GestureDetector(
                                       onTap: () async {
                                         if (!_agreedToTerms) {
-                                          final accepted = await showDialog<bool>(
-                                            context: context,
-                                            builder: (context) => TermsAndConditionsDialog(),
-                                          );
+                                          final accepted =
+                                              await showDialog<bool>(
+                                                context: context,
+                                                builder: (context) =>
+                                                    TermsAndConditionsDialog(),
+                                              );
                                           if (accepted == true) {
-                                            setState(() => _agreedToTerms = true);
+                                            setState(
+                                              () => _agreedToTerms = true,
+                                            );
                                           }
                                         } else {
-                                          setState(() => _agreedToTerms = false);
+                                          setState(
+                                            () => _agreedToTerms = false,
+                                          );
                                         }
                                       },
                                       child: const Text.rich(
                                         TextSpan(
                                           text: 'I agree to the ',
-                                          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: AppColors.textSecondary,
+                                          ),
                                           children: [
                                             TextSpan(
                                               text: 'Terms and Conditions',
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 color: AppColors.primary,
-                                                decoration: TextDecoration.underline,
+                                                decoration:
+                                                    TextDecoration.underline,
                                               ),
                                             ),
                                           ],
@@ -264,7 +310,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           height: 8,
                           width: _currentPage == index ? 32 : 8,
                           decoration: BoxDecoration(
-                            color: _currentPage == index ? AppColors.primary : AppColors.divider,
+                            color: _currentPage == index
+                                ? AppColors.primary
+                                : AppColors.divider,
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -276,9 +324,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       ElevatedButton(
                         onPressed: _agreedToTerms ? _completeOnboarding : null,
                         style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 16,
+                          ),
                         ),
-                        child: const Text('GET STARTED', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text(
+                          'GET STARTED',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       )
                     else
                       ElevatedButton(
@@ -292,7 +346,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           shape: const CircleBorder(),
                           padding: const EdgeInsets.all(20),
                         ),
-                        child: const Icon(Icons.arrow_forward_rounded, size: 28),
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 28,
+                        ),
                       ),
                   ],
                 ),

@@ -29,13 +29,9 @@ class AILogicService {
         'POST',
         Uri.parse('$_baseUrl/convert/markdown'),
       );
-      
+
       request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          bytes,
-          filename: 'lesson.pdf',
-        ),
+        http.MultipartFile.fromBytes('file', bytes, filename: 'lesson.pdf'),
       );
 
       final streamedResponse = await request.send();

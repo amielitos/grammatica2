@@ -18,6 +18,8 @@ class AdminValidationTab extends StatefulWidget {
 }
 
 class _AdminValidationTabState extends State<AdminValidationTab> {
+  int _selectedIndex = 0;
+
   String _formatTs(dynamic ts) {
     if (ts == null) return 'N/A';
     DateTime d;
@@ -31,19 +33,9 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isSuperAdmin = widget.role == UserRole.superadmin;
-
-    if (isSuperAdmin) {
-      return _EducatorApplicationsList(
-        formatDate: _formatTs,
-        type: 'validator',
-      );
-    }
-
+  Widget _buildContentTabs(String status) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Column(
         children: [
           TabBar(
@@ -55,7 +47,6 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
             tabs: const [
               Tab(text: 'Lessons'),
               Tab(text: 'Quizzes'),
-              Tab(text: 'Educators'),
             ],
           ),
           Expanded(
@@ -63,25 +54,82 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
               children: [
                 _ValidationList(
                   stream: DatabaseService.instance
-                      .streamAwaitingApprovalLessons(),
+                      .streamLessonsByValidationStatus(status),
                   collection: 'lessons',
                   formatDate: _formatTs,
+                  status: status,
                 ),
                 _ValidationList(
                   stream: DatabaseService.instance
-                      .streamAwaitingApprovalQuizzes(),
+                      .streamQuizzesByValidationStatus(status),
                   collection: 'quizzes',
                   formatDate: _formatTs,
-                ),
-                _EducatorApplicationsList(
-                  formatDate: _formatTs,
-                  type: 'educator',
+                  status: status,
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isSuperAdmin = widget.role == UserRole.superadmin;
+
+    if (isSuperAdmin) {
+      return _EducatorApplicationsList(
+        formatDate: _formatTs,
+        type: 'validator',
+      );
+    }
+
+    return Row(
+      children: [
+        NavigationRail(
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: (int index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          },
+          labelType: NavigationRailLabelType.all,
+          destinations: const [
+            NavigationRailDestination(
+              icon: Icon(Icons.pending_actions),
+              label: Text('Pending'),
+            ),
+            NavigationRailDestination(
+              icon: Icon(Icons.check_circle_outline),
+              label: Text('Approved'),
+            ),
+            NavigationRailDestination(
+              icon: Icon(Icons.highlight_off),
+              label: Text('Denied'),
+            ),
+            NavigationRailDestination(
+              icon: Icon(Icons.school),
+              label: Text('Educators'),
+            ),
+          ],
+        ),
+        const VerticalDivider(thickness: 1, width: 1),
+        Expanded(
+          child: IndexedStack(
+            index: _selectedIndex,
+            children: [
+              _buildContentTabs('awaiting_approval'), // Pending
+              _buildContentTabs('approved'), // Approved
+              _buildContentTabs('rejected'), // Denied
+              _EducatorApplicationsList(
+                formatDate: _formatTs,
+                type: 'educator',
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -419,11 +467,13 @@ class _ValidationList extends StatelessWidget {
   final Stream<List<dynamic>> stream;
   final String collection;
   final String Function(dynamic) formatDate;
+  final String status;
 
   const _ValidationList({
     required this.stream,
     required this.collection,
     required this.formatDate,
+    required this.status,
   });
 
   @override
@@ -459,7 +509,7 @@ class _ValidationList extends StatelessWidget {
         }
         final items = snapshot.data ?? [];
         if (items.isEmpty) {
-          return const Center(child: Text('No items awaiting approval.'));
+          return Center(child: Text('No items in this category.'));
         }
 
         return ListView.separated(
@@ -591,20 +641,36 @@ class _ValidationList extends StatelessWidget {
                               }
                             },
                           ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.check_circle_outline,
-                              color: Colors.green,
+                          if (status == 'awaiting_approval' ||
+                              status == 'rejected')
+                            IconButton(
+                              icon: const Icon(
+                                Icons.check_circle_outline,
+                                color: Colors.green,
+                              ),
+                              tooltip: 'Approve',
+                              onPressed: () => _approve(context, item.id),
                             ),
-                            onPressed: () => _approve(context, item.id),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.highlight_off,
-                              color: Colors.red,
+                          if (status == 'awaiting_approval' ||
+                              status == 'approved')
+                            IconButton(
+                              icon: const Icon(
+                                Icons.highlight_off,
+                                color: Colors.red,
+                              ),
+                              tooltip: 'Reject',
+                              onPressed: () => _reject(context, item.id),
                             ),
-                            onPressed: () => _reject(context, item.id),
-                          ),
+                          if (status == 'rejected')
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_forever,
+                                color: Colors.red,
+                              ),
+                              tooltip: 'Delete Permanently',
+                              onPressed: () =>
+                                  _deletePermanently(context, item.id),
+                            ),
                         ],
                       ),
                     ],
@@ -645,7 +711,7 @@ class _ValidationList extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Reject Content'),
         content: const Text(
-          'Are you sure you want to reject (delete) this content?',
+          'Are you sure you want to reject this content? It will be moved to the Denied tab.',
         ),
         actions: [
           TextButton(
@@ -653,6 +719,52 @@ class _ValidationList extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await DatabaseService.instance.updateContentStatus(
+          collection,
+          id,
+          'rejected',
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Rejected')));
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      }
+    }
+  }
+
+  Future<void> _deletePermanently(BuildContext context, String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Permanently'),
+        content: const Text(
+          'Are you sure you want to permanently delete this content? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete'),
           ),
@@ -670,7 +782,7 @@ class _ValidationList extends StatelessWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('Rejected and Deleted')));
+          ).showSnackBar(const SnackBar(content: Text('Deleted Permanently')));
         }
       } catch (e) {
         if (context.mounted) {

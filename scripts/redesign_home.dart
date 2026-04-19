@@ -6,7 +6,7 @@ void main() {
 
   final startStr = '            return SingleChildScrollView(';
   final endStr = '  Widget _buildFolderCard(';
-  
+
   final startIdx = content.indexOf(startStr);
   final rebuildFolderCardIdx = content.indexOf(endStr);
   final endClassIdx = content.lastIndexOf('}'); // file ends with `}`
@@ -182,7 +182,8 @@ void main() {
 ''';
 
   if (startIdx != -1 && rebuildFolderCardIdx != -1) {
-    String newContent = content.substring(0, startIdx) + firstReplacement + buildFolderCard;
+    String newContent =
+        content.substring(0, startIdx) + firstReplacement + buildFolderCard;
     file.writeAsStringSync(newContent);
     print('Replaced folder UI structure successfully');
   } else {

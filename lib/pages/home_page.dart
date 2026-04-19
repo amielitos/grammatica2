@@ -172,7 +172,9 @@ class _HomePageState extends State<HomePage> {
           });
         },
         onProfileTap: () {
-          final profileIndex = navItems.indexWhere((item) => item.icon == Icons.person);
+          final profileIndex = navItems.indexWhere(
+            (item) => item.icon == Icons.person,
+          );
           if (profileIndex != -1) {
             setState(() {
               _tabIndex = profileIndex;
@@ -200,7 +202,11 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _LessonsList extends StatefulWidget {
-  const _LessonsList({required this.user, required this.role, this.onFolderChanged});
+  const _LessonsList({
+    required this.user,
+    required this.role,
+    this.onFolderChanged,
+  });
   final User user;
   final UserRole role;
   final ValueChanged<String?>? onFolderChanged;
@@ -282,31 +288,45 @@ class _LessonsListState extends State<_LessonsList> {
                         height: 56,
                         margin: const EdgeInsets.only(bottom: 64, top: 24),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF333333) : Colors.white,
+                          color: isDark
+                              ? const Color(0xFF333333)
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.04),
                               blurRadius: 10,
                               offset: const Offset(0, 5),
-                            )
+                            ),
                           ],
                         ),
                         child: TextField(
-                          style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
                           decoration: InputDecoration(
                             border: InputBorder.none,
                             hintText: 'Search lesson..',
-                            hintStyle: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 16),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            hintStyle: TextStyle(
+                              color: isDark ? Colors.white70 : Colors.black87,
+                              fontSize: 16,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 16,
+                            ),
                             suffixIcon: Padding(
                               padding: const EdgeInsets.only(right: 16.0),
-                              child: Icon(Icons.search, color: isDark ? Colors.white : Colors.black, size: 24),
+                              child: Icon(
+                                Icons.search,
+                                color: isDark ? Colors.white : Colors.black,
+                                size: 24,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                      
+
                       Wrap(
                         spacing: 48,
                         runSpacing: 48,
@@ -316,7 +336,9 @@ class _LessonsListState extends State<_LessonsList> {
                             context,
                             title: 'Grammatica',
                             description: 'Official Lessons',
-                            iconColor: const Color(0xFFF3AF0D), // Exact Yellow mock
+                            iconColor: const Color(
+                              0xFFF3AF0D,
+                            ), // Exact Yellow mock
                             onTap: () {
                               setState(() {
                                 _activeFolder = {
@@ -325,14 +347,18 @@ class _LessonsListState extends State<_LessonsList> {
                                   'lessons': grammaticaLessons,
                                 };
                               });
-                              widget.onFolderChanged?.call('Grammatica Lessons');
+                              widget.onFolderChanged?.call(
+                                'Grammatica Lessons',
+                              );
                             },
                           ),
                           _buildFolderCard(
                             context,
                             title: 'Public',
                             description: 'Community and Educators',
-                            iconColor: const Color(0xFFDE372A), // Exact Red mock
+                            iconColor: const Color(
+                              0xFFDE372A,
+                            ), // Exact Red mock
                             onTap: () {
                               setState(() {
                                 _activeFolder = {
@@ -377,7 +403,7 @@ class _LessonsListState extends State<_LessonsList> {
             color: Colors.black.withOpacity(0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
-          )
+          ),
         ],
       ),
       child: Material(
@@ -386,7 +412,10 @@ class _LessonsListState extends State<_LessonsList> {
           borderRadius: BorderRadius.circular(32),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 32.0,
+              vertical: 40.0,
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -425,7 +454,13 @@ class _LessonsListState extends State<_LessonsList> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text('Browse', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Browse',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],

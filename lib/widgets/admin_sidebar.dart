@@ -20,7 +20,7 @@ class AdminSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       width: 250,
       decoration: BoxDecoration(
@@ -30,7 +30,10 @@ class AdminSidebar extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 32.0,
+              ),
               child: Image.asset(
                 'assets/logotext.png',
                 height: 48,
@@ -54,21 +57,30 @@ class AdminSidebar extends StatelessWidget {
 
                   return Container(
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF7CB342) : Colors.transparent,
+                      color: isSelected
+                          ? const Color(0xFF7CB342)
+                          : Colors.transparent,
                     ),
                     child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 4,
+                      ),
                       leading: Icon(
                         item.icon,
-                        color: isSelected ? Colors.white : const Color(0xFF7CB342),
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF7CB342),
                         size: 28,
                       ),
                       title: Text(
                         item.label,
                         style: TextStyle(
-                          color: isSelected 
-                              ? Colors.white 
-                              : (isDark ? Colors.white70 : Colors.grey.shade600),
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark
+                                    ? Colors.white70
+                                    : Colors.grey.shade600),
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
@@ -92,8 +104,15 @@ class AdminSidebar extends StatelessWidget {
               height: 1,
             ),
             ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-              leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error, size: 28),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: 8,
+              ),
+              leading: Icon(
+                Icons.logout,
+                color: Theme.of(context).colorScheme.error,
+                size: 28,
+              ),
               title: Text(
                 'Sign Out',
                 style: TextStyle(

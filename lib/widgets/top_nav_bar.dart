@@ -12,9 +12,7 @@ class TopNavBar extends StatelessWidget {
       height: 80,
       padding: EdgeInsets.symmetric(horizontal: 48),
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.white,
-      ),
+      decoration: BoxDecoration(color: Colors.white),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -64,5 +62,3 @@ class TopNavBar extends StatelessWidget {
     );
   }
 }
-
-

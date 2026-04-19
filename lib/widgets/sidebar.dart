@@ -29,7 +29,10 @@ class Sidebar extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 32.0,
+              ),
               child: Image.asset(
                 'assets/logotext.png',
                 height: 48,
@@ -52,21 +55,30 @@ class Sidebar extends StatelessWidget {
                   final isSelected = currentIndex == index;
                   return Container(
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF7CB342) : Colors.transparent,
+                      color: isSelected
+                          ? const Color(0xFF7CB342)
+                          : Colors.transparent,
                     ),
                     child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 4,
+                      ),
                       leading: Icon(
                         item.icon,
-                        color: isSelected ? Colors.white : const Color(0xFF7CB342),
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF7CB342),
                         size: 28,
                       ),
                       title: Text(
                         item.label,
                         style: TextStyle(
-                          color: isSelected 
-                              ? Colors.white 
-                              : (isDark ? Colors.white70 : Colors.grey.shade600),
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark
+                                    ? Colors.white70
+                                    : Colors.grey.shade600),
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),

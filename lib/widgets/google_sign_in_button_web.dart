@@ -35,8 +35,11 @@ Widget buildWebButton({bool enabled = true, VoidCallback? onDisabledPress}) {
                       theme: web.GSIButtonTheme.outline,
                       size: web.GSIButtonSize.large,
                       text: web.GSIButtonText.continueWith,
-                      shape: web.GSIButtonShape.pill, // Curve the button to match 'Next'
-                      logoAlignment: web.GSIButtonLogoAlignment.center, // Center contents
+                      shape: web
+                          .GSIButtonShape
+                          .pill, // Curve the button to match 'Next'
+                      logoAlignment:
+                          web.GSIButtonLogoAlignment.center, // Center contents
                       minimumWidth: 320, // Make it wider to match form fields
                     ),
                   ),

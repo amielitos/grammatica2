@@ -50,11 +50,16 @@ class _LessonPageState extends State<LessonPage> {
       return Text('By: ${fallbackEmail ?? 'Unknown'}', style: style);
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .snapshots(),
       builder: (context, snap) {
         final data = snap.data?.data();
         final username = (data?['username'] as String?)?.trim();
-        final display = (username != null && username.isNotEmpty) ? username : (fallbackEmail ?? 'Unknown');
+        final display = (username != null && username.isNotEmpty)
+            ? username
+            : (fallbackEmail ?? 'Unknown');
         return Text('By: $display', style: style);
       },
     );
@@ -71,11 +76,13 @@ class _LessonPageState extends State<LessonPage> {
     _fetchUserData();
 
     if (!widget.previewMode) {
-      DatabaseService.instance.checkAndAwardAchievement(widget.user.uid, 'first_lesson').then((awarded) {
-        if (awarded) {
-          // Achievement awarded
-        }
-      });
+      DatabaseService.instance
+          .checkAndAwardAchievement(widget.user.uid, 'first_lesson')
+          .then((awarded) {
+            if (awarded) {
+              // Achievement awarded
+            }
+          });
     }
   }
 
@@ -91,7 +98,9 @@ class _LessonPageState extends State<LessonPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFCEDA72), // Lime green background from image
+      backgroundColor: const Color(
+        0xFFCEDA72,
+      ), // Lime green background from image
       appBar: CustomAppBar(
         user: widget.user,
         userData: _userData,
@@ -103,10 +112,7 @@ class _LessonPageState extends State<LessonPage> {
           );
         },
       ),
-      drawer: UniversalDrawer(
-        user: widget.user,
-        userData: _userData ?? {},
-      ),
+      drawer: UniversalDrawer(user: widget.user, userData: _userData ?? {}),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth > 900;
@@ -299,19 +305,16 @@ class _LessonPageState extends State<LessonPage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => QuizDetailPage(
-              user: widget.user,
-              quiz: quiz,
-            ),
+            builder: (context) => QuizDetailPage(user: widget.user, quiz: quiz),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingQuiz = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading quiz: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading quiz: $e')));
       }
     }
   }
@@ -344,7 +347,8 @@ class _LessonPageState extends State<LessonPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: (passed ? const Color(0xFF88B342) : Colors.red).withOpacity(0.1),
+              color: (passed ? const Color(0xFF88B342) : Colors.red)
+                  .withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -376,7 +380,9 @@ class _LessonPageState extends State<LessonPage> {
             width: double.infinity,
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: passed ? const Color(0xFF88B342) : Colors.red),
+                side: BorderSide(
+                  color: passed ? const Color(0xFF88B342) : Colors.red,
+                ),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               onPressed: _isLoadingQuiz ? null : _takeQuizAction,
@@ -391,7 +397,9 @@ class _LessonPageState extends State<LessonPage> {
                     )
                   : Text(
                       passed ? 'Retake Quiz' : 'Try Again',
-                      style: TextStyle(color: passed ? const Color(0xFF88B342) : Colors.red),
+                      style: TextStyle(
+                        color: passed ? const Color(0xFF88B342) : Colors.red,
+                      ),
                     ),
             ),
           ),
@@ -405,12 +413,21 @@ class _LessonPageState extends State<LessonPage> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.grey,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
       ],
     );

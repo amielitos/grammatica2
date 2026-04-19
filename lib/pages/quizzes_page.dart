@@ -77,7 +77,10 @@ class _QuizzesPageState extends State<QuizzesPage> {
                 }
 
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
                   child: Column(
                     children: [
                       Center(
@@ -169,9 +172,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
                 const SizedBox(height: 24),
                 Text(
                   title,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),

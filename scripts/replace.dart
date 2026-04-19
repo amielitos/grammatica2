@@ -11,7 +11,8 @@ void main() {
   final endIndex = content.indexOf(endStr);
 
   if (startIndex != -1 && endIndex != -1) {
-    final newBuild = '''
+    final newBuild =
+        '''
   InputDecoration _customInputDecoration({required String hint}) {
     return InputDecoration(
       hintText: hint,
@@ -493,9 +494,13 @@ void main() {
         );
       },
     );
-  ''' + endStr;
-    
-    final finalContent = content.substring(0, startIndex) + newBuild + content.substring(endIndex + endStr.length);
+  ''' +
+        endStr;
+
+    final finalContent =
+        content.substring(0, startIndex) +
+        newBuild +
+        content.substring(endIndex + endStr.length);
     file.writeAsStringSync(finalContent);
     print('Successfully modified layout!');
   } else {

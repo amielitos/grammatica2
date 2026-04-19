@@ -23,11 +23,19 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String fullName = userData?['username'] ?? userData?['full_name'] ?? user.displayName ?? 'User';
-    final String profileImageUrl = userData?['photoUrl'] ?? userData?['profile_image_url'] ?? user.photoURL ?? '';
+    final String fullName =
+        userData?['username'] ??
+        userData?['full_name'] ??
+        user.displayName ??
+        'User';
+    final String profileImageUrl =
+        userData?['photoUrl'] ??
+        userData?['profile_image_url'] ??
+        user.photoURL ??
+        '';
     final screenWidth = MediaQuery.of(context).size.width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return AppBar(
       backgroundColor: isDark ? const Color(0xFF333333) : Colors.white,
       elevation: 0,
@@ -35,7 +43,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       shape: Border(
         bottom: BorderSide(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+          color: isDark
+              ? Colors.white.withOpacity(0.05)
+              : Colors.black.withOpacity(0.05),
           width: 1,
         ),
       ),
@@ -58,7 +68,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ],
                 ),
               ),
-            
+
             // Left Group: Burger + Logo
             Align(
               alignment: Alignment.centerLeft,
@@ -66,14 +76,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.menu, color: isDark ? Colors.white : Colors.black87, size: 28),
+                    icon: Icon(
+                      Icons.menu,
+                      color: isDark ? Colors.white : Colors.black87,
+                      size: 28,
+                    ),
                     onPressed: () {
                       final scaffold = Scaffold.maybeOf(context);
                       if (scaffold?.hasDrawer ?? false) {
                         scaffold?.openDrawer();
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Menu is available on the main dashboard.')),
+                          const SnackBar(
+                            content: Text(
+                              'Menu is available on the main dashboard.',
+                            ),
+                          ),
                         );
                       }
                     },
@@ -83,17 +101,26 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8),
-                      hoverColor: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                      hoverColor: isDark
+                          ? Colors.white.withOpacity(0.1)
+                          : Colors.black.withOpacity(0.05),
                       mouseCursor: SystemMouseCursors.click,
                       onTap: () {
                         if (onLogoTap != null) {
                           onLogoTap!();
                         } else {
-                          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/',
+                            (route) => false,
+                          );
                         }
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         child: Image.asset('assets/logotext.png', height: 24),
                       ),
                     ),
@@ -101,7 +128,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ],
               ),
             ),
-            
+
             // Right Group: Profile Info
             Align(
               alignment: Alignment.centerRight,
@@ -112,7 +139,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   children: [
                     PopupMenuButton<String>(
                       offset: const Offset(0, 45),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       color: isDark ? const Color(0xFF333333) : Colors.white,
                       onSelected: (value) {
                         if (value == 'profile') {
@@ -133,9 +162,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           value: 'profile',
                           child: Row(
                             children: [
-                              Icon(Icons.person_outline, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                              Icon(
+                                Icons.person_outline,
+                                size: 20,
+                                color: isDark ? Colors.white70 : Colors.black87,
+                              ),
                               const SizedBox(width: 12),
-                              Text('My Profile', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                              Text(
+                                'My Profile',
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -143,9 +181,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           value: 'settings',
                           child: Row(
                             children: [
-                              Icon(Icons.settings_outlined, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                              Icon(
+                                Icons.settings_outlined,
+                                size: 20,
+                                color: isDark ? Colors.white70 : Colors.black87,
+                              ),
                               const SizedBox(width: 12),
-                              Text('Settings', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                              Text(
+                                'Settings',
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -154,7 +201,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           value: 'logout',
                           child: Row(
                             children: [
-                              Icon(Icons.logout, size: 20, color: Theme.of(context).colorScheme.error),
+                              Icon(
+                                Icons.logout,
+                                size: 20,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
                               const SizedBox(width: 12),
                               Text(
                                 'Sign Out',
@@ -183,10 +234,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           CircleAvatar(
                             radius: 14,
                             backgroundColor: AppColors.primary,
-                            backgroundImage: profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null,
-                            child: profileImageUrl.isEmpty ? const Icon(Icons.person, color: Colors.white, size: 16) : null,
+                            backgroundImage: profileImageUrl.isNotEmpty
+                                ? NetworkImage(profileImageUrl)
+                                : null,
+                            child: profileImageUrl.isEmpty
+                                ? const Icon(
+                                    Icons.person,
+                                    color: Colors.white,
+                                    size: 16,
+                                  )
+                                : null,
                           ),
-                          Icon(Icons.keyboard_arrow_down, size: 18, color: isDark ? Colors.white54 : Colors.black54),
+                          Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 18,
+                            color: isDark ? Colors.white54 : Colors.black54,
+                          ),
                         ],
                       ),
                     ),

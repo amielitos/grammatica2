@@ -12,12 +12,14 @@ class AdminQuizzesTab extends StatefulWidget {
   final bool isEmbedded;
   final Function(String?)? onQuizSaved;
   final String? initialQuizId;
+  final VoidCallback? onChanged;
 
   const AdminQuizzesTab({
     super.key,
     this.isEmbedded = false,
     this.onQuizSaved,
     this.initialQuizId,
+    this.onChanged,
   });
 
   @override
@@ -37,6 +39,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   @override
   void initState() {
     super.initState();
+    _title.addListener(_notifyChanged);
+    _description.addListener(_notifyChanged);
     if (widget.initialQuizId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         loadQuiz(widget.initialQuizId!);
@@ -44,8 +48,55 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     }
   }
 
-  List<TextEditingController> _questionCtrls = [TextEditingController()];
-  List<TextEditingController> _answerCtrls = [TextEditingController()];
+  void _notifyChanged() {
+    if (widget.onChanged != null) {
+      widget.onChanged!();
+    }
+  }
+
+  bool get isEmpty {
+    if (_title.text.trim().isNotEmpty) return false;
+    if (_description.text.trim().isNotEmpty) return false;
+    if (_questionCtrls.any((c) => c.text.trim().isNotEmpty)) return false;
+    return true;
+  }
+
+  String? validateQuiz() {
+    final questions = List.generate(_questionCtrls.length, (i) {
+      return QuizQuestion(
+        question: _questionCtrls[i].text.trim(),
+        answer: _answerCtrls[i].text.trim(),
+        type: _questionTypes[i],
+        options: _questionTypes[i] == 'multiple_choice'
+            ? _optionsCtrls[i]
+                  .map((c) => c.text.trim())
+                  .where((t) => t.isNotEmpty)
+                  .toList()
+            : null,
+      );
+    }).where((q) => q.question.isNotEmpty).toList();
+
+    if (questions.isEmpty) return 'Add at least one question';
+
+    for (var i = 0; i < questions.length; i++) {
+      final q = questions[i];
+      if (q.question.isEmpty) return 'Question ${i + 1} is empty';
+      if (q.answer.isEmpty)
+        return 'Question ${i + 1} has no correct answer selected';
+      if (q.type == 'multiple_choice') {
+        if (q.options == null || q.options!.length < 2) {
+          return 'Question ${i + 1} must have at least 2 options';
+        }
+        if (!q.options!.contains(q.answer)) {
+          return 'Question ${i + 1} correct answer is not among the options';
+        }
+      }
+    }
+    return null;
+  }
+
+  List<TextEditingController> _questionCtrls = [];
+  List<TextEditingController> _answerCtrls = [];
   List<String> _questionTypes = ['text'];
   List<List<TextEditingController>> _optionsCtrls = [[]];
   bool _isVisible = true;
@@ -121,35 +172,51 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: _buildQuestionsSection(),
         ),
-        const SizedBox(height: 24),
-        const Divider(height: 1),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              OutlinedButton(
-                onPressed: resetForm,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.black87,
-                  side: BorderSide(color: Colors.grey.shade400),
+        if (!widget.isEmbedded) ...[
+          const SizedBox(height: 24),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 16.0,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton(
+                  onPressed: resetForm,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black87,
+                    side: BorderSide(color: Colors.grey.shade400),
+                  ),
+                  child: const Text('Cancel'),
                 ),
-                child: const Text('Cancel'),
-              ),
-              const SizedBox(width: 16),
-              FilledButton.icon(
-                onPressed: (_creatingOrUpdating || _title.text.trim().isEmpty) ? null : _saveQuiz,
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF88B342),
+                const SizedBox(width: 16),
+                FilledButton.icon(
+                  onPressed: (_creatingOrUpdating || _title.text.trim().isEmpty)
+                      ? null
+                      : _saveQuiz,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF88B342),
+                  ),
+                  icon: _creatingOrUpdating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.save),
+                  label: Text(
+                    _selectedQuizId == null ? 'Save Quiz' : 'Update Quiz',
+                  ),
                 ),
-                icon: _creatingOrUpdating
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.save),
-                label: Text(_selectedQuizId == null ? 'Save Quiz' : 'Update Quiz'),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -186,7 +253,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     children: [
                       const Text(
                         'Existing Quizzes',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                       if (_selectedQuizId != null)
                         TextButton.icon(
@@ -212,9 +282,13 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                               width: 200,
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFF88B342).withOpacity(0.1) : Colors.white,
+                                color: isSelected
+                                    ? const Color(0xFF88B342).withOpacity(0.1)
+                                    : Colors.white,
                                 border: Border.all(
-                                  color: isSelected ? const Color(0xFF88B342) : Colors.grey.shade300,
+                                  color: isSelected
+                                      ? const Color(0xFF88B342)
+                                      : Colors.grey.shade300,
                                   width: isSelected ? 2 : 1,
                                 ),
                                 borderRadius: BorderRadius.circular(8),
@@ -227,30 +301,43 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                       Expanded(
                                         child: Text(
                                           q.title,
-                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                       IconButton(
-                                        icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          size: 18,
+                                          color: Colors.grey,
+                                        ),
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        onPressed: () => _confirmDeleteQuiz(context, q),
+                                        onPressed: () =>
+                                            _confirmDeleteQuiz(context, q),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     q.description,
-                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   const Spacer(),
                                   Text(
                                     '${q.questions.length} Questions',
-                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -293,13 +380,15 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
         await DatabaseService.instance.deleteQuiz(quiz.id);
         if (_selectedQuizId == quiz.id) resetForm();
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Quiz deleted')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Quiz deleted')));
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
         }
       }
     }
@@ -459,19 +548,21 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Questions', style: Theme.of(context).textTheme.titleMedium),
-            ElevatedButton.icon(
-              onPressed: _isGeneratingFromPdf
-                  ? null
-                  : _generateQuestionsFromPdf,
-              icon: _isGeneratingFromPdf
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_awesome),
-              label: const Text('Generate from PDF'),
-            ),
+            _isGeneratingFromPdf
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : IconButton.filled(
+                    onPressed: _generateQuestionsFromPdf,
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF88B342),
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.picture_as_pdf),
+                    tooltip: 'Generate from PDF',
+                  ),
           ],
         ),
         const SizedBox(height: 8),
@@ -513,10 +604,16 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                             ),
                             onPressed: () {
                               setState(() {
+                                _questionCtrls[index].dispose();
+                                _answerCtrls[index].dispose();
+                                for (var c in _optionsCtrls[index]) {
+                                  c.dispose();
+                                }
                                 _questionCtrls.removeAt(index);
                                 _answerCtrls.removeAt(index);
                                 _questionTypes.removeAt(index);
                                 _optionsCtrls.removeAt(index);
+                                _notifyChanged();
                               });
                             },
                           ),
@@ -549,10 +646,13 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                             if (v == 'multiple_choice' &&
                                 _optionsCtrls[index].isEmpty) {
                               _optionsCtrls[index] = [
-                                TextEditingController(),
-                                TextEditingController(),
+                                TextEditingController()
+                                  ..addListener(_notifyChanged),
+                                TextEditingController()
+                                  ..addListener(_notifyChanged),
                               ];
                             }
+                            _notifyChanged();
                           });
                         }
                       },
@@ -576,6 +676,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                             setState(() {
                               _answerCtrls[index].text =
                                   _optionsCtrls[index][val].text;
+                              _notifyChanged();
                             });
                           }
                         },
@@ -606,6 +707,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                           _answerCtrls[index].text = val;
                                         }
                                         setState(() {});
+                                        _notifyChanged();
                                       },
                                     ),
                                   ),
@@ -615,7 +717,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                     ),
                                     onPressed: () {
                                       setState(() {
+                                        _optionsCtrls[index][optIdx].dispose();
                                         _optionsCtrls[index].removeAt(optIdx);
+                                        _notifyChanged();
                                       });
                                     },
                                   ),
@@ -626,8 +730,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                               onPressed: () {
                                 setState(() {
                                   _optionsCtrls[index].add(
-                                    TextEditingController(),
+                                    TextEditingController()
+                                      ..addListener(_notifyChanged),
                                   );
+                                  _notifyChanged();
                                 });
                               },
                               icon: const Icon(Icons.add),
@@ -663,10 +769,15 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           child: TextButton.icon(
             onPressed: () {
               setState(() {
-                _questionCtrls.add(TextEditingController());
-                _answerCtrls.add(TextEditingController());
+                _questionCtrls.add(
+                  TextEditingController()..addListener(_notifyChanged),
+                );
+                _answerCtrls.add(
+                  TextEditingController()..addListener(_notifyChanged),
+                );
                 _questionTypes.add('text');
                 _optionsCtrls.add([]);
+                _notifyChanged();
               });
             },
             icon: const Icon(Icons.add_circle_outline),
@@ -714,17 +825,28 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           }
 
           for (final q in generatedQuestions) {
-            _questionCtrls.add(TextEditingController(text: q['question']));
-            _answerCtrls.add(TextEditingController(text: q['correctAnswer']));
+            _questionCtrls.add(
+              TextEditingController(text: q['question'])
+                ..addListener(_notifyChanged),
+            );
+            _answerCtrls.add(
+              TextEditingController(text: q['correctAnswer'])
+                ..addListener(_notifyChanged),
+            );
             _questionTypes.add('multiple_choice');
 
             final options = (q['options'] as List<String>)
-                .map((opt) => TextEditingController(text: opt))
+                .map(
+                  (opt) =>
+                      TextEditingController(text: opt)
+                        ..addListener(_notifyChanged),
+                )
                 .toList();
             _optionsCtrls.add(options);
           }
 
           _isGeneratingFromPdf = false;
+          _notifyChanged();
         });
 
         if (mounted) {
@@ -749,7 +871,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Attach PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Text(
+          'Attach PDF',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
@@ -778,13 +903,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 Icon(Icons.upload_file, size: 48, color: Colors.grey.shade500),
                 const SizedBox(height: 16),
                 Text(
-                  _selectedFiles.isNotEmpty ? _selectedFiles.first.name : (_currentAttachmentName ?? 'No PDF uploaded yet'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  _selectedFiles.isNotEmpty
+                      ? _selectedFiles.first.name
+                      : (_currentAttachmentName ?? 'No PDF uploaded yet'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  (_selectedFiles.isNotEmpty || _currentAttachmentName != null) ? 'Click to change file' : 'Upload PDF to attach to this quiz.',
+                  (_selectedFiles.isNotEmpty || _currentAttachmentName != null)
+                      ? 'Click to change file'
+                      : 'Upload PDF to attach to this quiz.',
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
               ],
@@ -804,14 +936,30 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _selectedFiles = [];
     _currentAttachmentName = null;
     _currentAttachmentUrl = null;
-    _questionCtrls = [TextEditingController()];
-    _answerCtrls = [TextEditingController()];
+    for (var c in _questionCtrls) {
+      c.dispose();
+    }
+    for (var c in _answerCtrls) {
+      c.dispose();
+    }
+    for (var list in _optionsCtrls) {
+      for (var c in list) {
+        c.dispose();
+      }
+    }
+
+    _questionCtrls = [TextEditingController()..addListener(_notifyChanged)];
+    _answerCtrls = [TextEditingController()..addListener(_notifyChanged)];
+    _optionsCtrls = [[]];
+    _questionTypes = ['text'];
+
     _isVisible = true;
     _isMembersOnly = false;
     _isGrammaticaQuiz = false;
     _visibility = ContentVisibility.public;
     _visibleTo = [];
     setState(() {});
+    _notifyChanged();
   }
 
   Future<String?> _saveQuiz() async {
@@ -963,19 +1111,44 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           _visibleTo = quiz.visibleTo;
           _currentAttachmentName = quiz.attachmentName;
           _currentAttachmentUrl = quiz.attachmentUrl;
+          for (var c in _questionCtrls) {
+            c.dispose();
+          }
+          for (var c in _answerCtrls) {
+            c.dispose();
+          }
+          for (var list in _optionsCtrls) {
+            for (var c in list) {
+              c.dispose();
+            }
+          }
+
           _questionCtrls = quiz.questions
-              .map((q) => TextEditingController(text: q.question))
+              .map(
+                (q) =>
+                    TextEditingController(text: q.question)
+                      ..addListener(_notifyChanged),
+              )
               .toList();
           _answerCtrls = quiz.questions
-              .map((q) => TextEditingController(text: q.answer))
+              .map(
+                (q) =>
+                    TextEditingController(text: q.answer)
+                      ..addListener(_notifyChanged),
+              )
               .toList();
           _questionTypes = quiz.questions.map((q) => q.type).toList();
           _optionsCtrls = quiz.questions.map((q) {
             return (q.options ?? [])
-                .map((opt) => TextEditingController(text: opt))
+                .map(
+                  (opt) =>
+                      TextEditingController(text: opt)
+                        ..addListener(_notifyChanged),
+                )
                 .toList();
           }).toList();
         });
+        _notifyChanged();
       }
     } catch (e) {
       debugPrint('Error loading quiz: $e');

@@ -14,7 +14,10 @@ class MarkdownGuideDialog extends StatelessWidget {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Markdown Guide', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+        title: const Text(
+          'Markdown Guide',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
         centerTitle: true,
         surfaceTintColor: Colors.transparent,
         backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.grey[50],
@@ -52,8 +55,10 @@ class MarkdownGuideDialog extends StatelessWidget {
                 _buildGuideCard(
                   context,
                   title: 'Lists',
-                  syntax: '- Unordered item 1\n- Unordered item 2\n\n1. Ordered item 1\n2. Ordered item 2',
-                  result: '- Unordered item 1\n- Unordered item 2\n\n1. Ordered item 1\n2. Ordered item 2',
+                  syntax:
+                      '- Unordered item 1\n- Unordered item 2\n\n1. Ordered item 1\n2. Ordered item 2',
+                  result:
+                      '- Unordered item 1\n- Unordered item 2\n\n1. Ordered item 1\n2. Ordered item 2',
                 ),
                 _buildGuideCard(
                   context,
@@ -66,14 +71,18 @@ class MarkdownGuideDialog extends StatelessWidget {
                 _buildGuideCard(
                   context,
                   title: 'Code',
-                  syntax: 'Inline `code`.\n\n```dart\n// Code block\nvoid main() {\n  print("Hello");\n}\n```',
-                  result: 'Inline `code`.\n\n```dart\n// Code block\nvoid main() {\n  print("Hello");\n}\n```',
+                  syntax:
+                      'Inline `code`.\n\n```dart\n// Code block\nvoid main() {\n  print("Hello");\n}\n```',
+                  result:
+                      'Inline `code`.\n\n```dart\n// Code block\nvoid main() {\n  print("Hello");\n}\n```',
                 ),
                 _buildGuideCard(
                   context,
                   title: 'Links & Images',
-                  syntax: '[Grammatica Website](https://grammatica.app)\n\n![Alt Text](url_to_image)',
-                  result: '[Grammatica Website](https://grammatica.app)\n\n*(Images will display if URL is valid)*',
+                  syntax:
+                      '[Grammatica Website](https://grammatica.app)\n\n![Alt Text](url_to_image)',
+                  result:
+                      '[Grammatica Website](https://grammatica.app)\n\n*(Images will display if URL is valid)*',
                 ),
                 const SizedBox(height: 64),
               ],
@@ -89,7 +98,10 @@ class MarkdownGuideDialog extends StatelessWidget {
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [primaryColor.withOpacity(0.1), primaryColor.withOpacity(0.05)],
+          colors: [
+            primaryColor.withOpacity(0.1),
+            primaryColor.withOpacity(0.05),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -105,10 +117,7 @@ class MarkdownGuideDialog extends StatelessWidget {
               const SizedBox(width: 16),
               const Text(
                 'Markdown Syntax',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -118,7 +127,9 @@ class MarkdownGuideDialog extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               height: 1.5,
-              color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[400] : Colors.grey[700],
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey[400]
+                  : Colors.grey[700],
             ),
           ),
         ],
@@ -142,10 +153,7 @@ class MarkdownGuideDialog extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -159,14 +167,16 @@ class MarkdownGuideDialog extends StatelessWidget {
     required String result,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.08)),
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.black.withOpacity(0.08),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -193,7 +203,9 @@ class MarkdownGuideDialog extends StatelessWidget {
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.all(24),
-                    color: isDark ? Colors.black.withOpacity(0.15) : Colors.grey[50],
+                    color: isDark
+                        ? Colors.black.withOpacity(0.15)
+                        : Colors.grey[50],
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -205,7 +217,9 @@ class MarkdownGuideDialog extends StatelessWidget {
                             fontFamily: 'monospace',
                             fontSize: 13,
                             height: 1.6,
-                            color: isDark ? Colors.green[300] : const Color(0xFF2E7D32),
+                            color: isDark
+                                ? Colors.green[300]
+                                : const Color(0xFF2E7D32),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -213,7 +227,12 @@ class MarkdownGuideDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                Container(width: 1, color: isDark ? Colors.white10 : Colors.black.withOpacity(0.08)),
+                Container(
+                  width: 1,
+                  color: isDark
+                      ? Colors.white10
+                      : Colors.black.withOpacity(0.08),
+                ),
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.all(24),
@@ -225,26 +244,57 @@ class MarkdownGuideDialog extends StatelessWidget {
                         MarkdownBody(
                           data: result,
                           styleSheet: MarkdownStyleSheet(
-                            p: TextStyle(fontSize: 14, height: 1.5, color: isDark ? Colors.grey[300] : Colors.grey[800]),
-                            h1: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                            h2: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            h3: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            listBullet: TextStyle(color: const Color(0xFF81B655)),
+                            p: TextStyle(
+                              fontSize: 14,
+                              height: 1.5,
+                              color: isDark
+                                  ? Colors.grey[300]
+                                  : Colors.grey[800],
+                            ),
+                            h1: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            h2: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            h3: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            listBullet: TextStyle(
+                              color: const Color(0xFF81B655),
+                            ),
                             code: TextStyle(
-                              backgroundColor: isDark ? Colors.white10 : Colors.grey[200],
+                              backgroundColor: isDark
+                                  ? Colors.white10
+                                  : Colors.grey[200],
                               fontFamily: 'monospace',
                               fontSize: 13,
                             ),
                             codeblockDecoration: BoxDecoration(
                               color: isDark ? Colors.black : Colors.grey[100],
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+                              border: Border.all(
+                                color: isDark ? Colors.white10 : Colors.black12,
+                              ),
                             ),
-                            blockquotePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            blockquotePadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             blockquoteDecoration: BoxDecoration(
-                              color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+                              color: isDark
+                                  ? Colors.white.withOpacity(0.05)
+                                  : Colors.grey[100],
                               borderRadius: BorderRadius.circular(8),
-                              border: const Border(left: BorderSide(color: Color(0xFF81B655), width: 4)),
+                              border: const Border(
+                                left: BorderSide(
+                                  color: Color(0xFF81B655),
+                                  width: 4,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -279,4 +329,3 @@ class MarkdownGuideDialog extends StatelessWidget {
     );
   }
 }
-

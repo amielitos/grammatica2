@@ -24,7 +24,12 @@ class SubscriptionTierDialog extends StatelessWidget {
       child: Container(
         width: 960,
         height: 534,
-        padding: const EdgeInsets.only(top: 32.0, bottom: 24.0, left: 32.0, right: 32.0),
+        padding: const EdgeInsets.only(
+          top: 32.0,
+          bottom: 24.0,
+          left: 32.0,
+          right: 32.0,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -157,7 +162,9 @@ class SubscriptionTierDialog extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 55), // Space for circle overlapping below header
+            const SizedBox(
+              height: 55,
+            ), // Space for circle overlapping below header
             Text(
               role,
               style: const TextStyle(
@@ -169,10 +176,7 @@ class SubscriptionTierDialog extends StatelessWidget {
             const SizedBox(height: 16),
             const Text(
               'Includes:',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.black87),
             ),
             const SizedBox(height: 6),
             Padding(
@@ -222,8 +226,10 @@ class HeaderCurveClipper extends CustomClipper<Path> {
     Path path = Path();
     path.lineTo(0, size.height - 35);
     path.quadraticBezierTo(
-      size.width / 2, size.height + 15, 
-      size.width, size.height - 35
+      size.width / 2,
+      size.height + 15,
+      size.width,
+      size.height - 35,
     );
     path.lineTo(size.width, 0);
     path.close();

@@ -114,7 +114,8 @@ class ProfilePageState extends State<ProfilePage> {
               : (widget.user.displayName ?? 'User');
           _photoUrl = fetchedPhoto ?? widget.user.photoURL;
           _bioCtrl.text = fetchedBio;
-          _usernameCtrl.text = _displayName; // Set username field to current name
+          _usernameCtrl.text =
+              _displayName; // Set username field to current name
           _phoneNumber = fetchedPhone;
           _dob = fetchedDob;
           if (_phoneNumber != null) {
@@ -257,7 +258,7 @@ class ProfilePageState extends State<ProfilePage> {
     }
   }
 
-    InputDecoration _customInputDecoration({required String hint}) {
+  InputDecoration _customInputDecoration({required String hint}) {
     // Inputs remain white even in dark mode based on the mock-up
     return InputDecoration(
       hintText: hint,
@@ -292,7 +293,10 @@ class ProfilePageState extends State<ProfilePage> {
           padding: const EdgeInsets.symmetric(vertical: 20),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        child: Text(
+          text,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
       ),
     );
   }
@@ -306,7 +310,13 @@ class ProfilePageState extends State<ProfilePage> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF333333) : Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 5))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: child,
     );
@@ -336,29 +346,47 @@ class ProfilePageState extends State<ProfilePage> {
               GestureDetector(
                 onTap: () {
                   themeNotifier.value = ThemeMode.light;
-                  RoleService.instance.updateThemePreference(uid: widget.user.uid, theme: 'light');
+                  RoleService.instance.updateThemePreference(
+                    uid: widget.user.uid,
+                    theme: 'light',
+                  );
                 },
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: !isDark ? const Color(0xFF81B655) : Colors.transparent,
+                    color: !isDark
+                        ? const Color(0xFF81B655)
+                        : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.light_mode, size: 20, color: !isDark ? Colors.white : Colors.grey),
+                  child: Icon(
+                    Icons.light_mode,
+                    size: 20,
+                    color: !isDark ? Colors.white : Colors.grey,
+                  ),
                 ),
               ),
               GestureDetector(
                 onTap: () {
                   themeNotifier.value = ThemeMode.dark;
-                  RoleService.instance.updateThemePreference(uid: widget.user.uid, theme: 'dark');
+                  RoleService.instance.updateThemePreference(
+                    uid: widget.user.uid,
+                    theme: 'dark',
+                  );
                 },
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF81B655) : Colors.transparent,
+                    color: isDark
+                        ? const Color(0xFF81B655)
+                        : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.dark_mode, size: 20, color: isDark ? Colors.white : Colors.grey),
+                  child: Icon(
+                    Icons.dark_mode,
+                    size: 20,
+                    color: isDark ? Colors.white : Colors.grey,
+                  ),
                 ),
               ),
             ],
@@ -391,24 +419,45 @@ class ProfilePageState extends State<ProfilePage> {
               if (!_isEditing)
                 TextButton.icon(
                   onPressed: () => setState(() => _isEditing = true),
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF81B655)),
-                  label: const Text('Edit Profile', style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold)),
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    size: 18,
+                    color: Color(0xFF81B655),
+                  ),
+                  label: const Text(
+                    'Edit Profile',
+                    style: TextStyle(
+                      color: Color(0xFF81B655),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     backgroundColor: accentColor.withOpacity(0.1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
                   ),
                 )
               else
                 TextButton.icon(
                   onPressed: () => setState(() => _isEditing = false),
                   icon: const Icon(Icons.close, size: 18, color: Colors.grey),
-                  label: const Text('Cancel Request', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                  label: const Text(
+                    'Cancel Request',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
             ],
           ),
           const SizedBox(height: 40),
-          
+
           // Header Section
           Row(
             children: [
@@ -417,11 +466,16 @@ class ProfilePageState extends State<ProfilePage> {
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: accentColor.withOpacity(0.2), width: 4),
+                      border: Border.all(
+                        color: accentColor.withOpacity(0.2),
+                        width: 4,
+                      ),
                     ),
                     child: CircleAvatar(
                       radius: 48,
-                      backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
+                      backgroundColor: isDark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade100,
                       child: (_photoUrl != null && _photoUrl!.isNotEmpty)
                           ? ClipOval(
                               child: Image.network(
@@ -429,10 +483,22 @@ class ProfilePageState extends State<ProfilePage> {
                                 width: 96,
                                 height: 96,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Icon(Icons.person, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                                errorBuilder: (_, __, ___) => Icon(
+                                  Icons.person,
+                                  size: 48,
+                                  color: isDark
+                                      ? Colors.white24
+                                      : Colors.grey.shade300,
+                                ),
                               ),
                             )
-                          : Icon(Icons.person, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                          : Icon(
+                              Icons.person,
+                              size: 48,
+                              color: isDark
+                                  ? Colors.white24
+                                  : Colors.grey.shade300,
+                            ),
                     ),
                   ),
                   if (_isEditing)
@@ -446,22 +512,26 @@ class ProfilePageState extends State<ProfilePage> {
                               type: FileType.image,
                               withData: true,
                             );
-                            if (pick == null || pick.files.isEmpty || !mounted) return;
-                            
+                            if (pick == null || pick.files.isEmpty || !mounted)
+                              return;
+
                             final file = pick.files.first;
                             if (file.bytes == null) return;
 
                             final confirmed = await showDialog<bool>(
                               context: context,
-                              builder: (context) => _PhotoAdjustmentDialog(imageBytes: file.bytes!),
+                              builder: (context) => _PhotoAdjustmentDialog(
+                                imageBytes: file.bytes!,
+                              ),
                             );
 
                             if (confirmed == true && mounted) {
-                              final url = await DatabaseService.instance.uploadProfilePhotoWithBytes(
-                                widget.user, 
-                                file.bytes!, 
-                                file.name
-                              );
+                              final url = await DatabaseService.instance
+                                  .uploadProfilePhotoWithBytes(
+                                    widget.user,
+                                    file.bytes!,
+                                    file.name,
+                                  );
                               if (url != null && mounted) {
                                 setState(() => _photoUrl = url);
                                 _showSnack('Profile photo updated');
@@ -473,8 +543,16 @@ class ProfilePageState extends State<ProfilePage> {
                         },
                         child: Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                          child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                          decoration: BoxDecoration(
+                            color: accentColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 16,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
@@ -485,19 +563,38 @@ class ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_displayName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: isDark ? Colors.white : Colors.black87)),
+                    Text(
+                      _displayName,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(_displayEmail, style: TextStyle(fontSize: 14, color: isDark ? Colors.white54 : Colors.grey.shade600)),
+                    Text(
+                      _displayEmail,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isDark ? Colors.white54 : Colors.grey.shade600,
+                      ),
+                    ),
                     if (_phoneNumber != null && !_isEditing) ...[
-                       const SizedBox(height: 8),
-                       Text(_phoneNumber!, style: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : Colors.grey.shade500)),
-                    ]
+                      const SizedBox(height: 8),
+                      Text(
+                        _phoneNumber!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? Colors.white38 : Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
-          
+
           const SizedBox(height: 40),
 
           if (!_isEditing) ...[
@@ -514,32 +611,68 @@ class ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Profile Incomplete', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF795548))),
+                    const Text(
+                      'Profile Incomplete',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        color: Color(0xFF795548),
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    const Text('Add phone number and date of birth to unlock educator and validator applications.', style: TextStyle(color: Color(0xFF795548), height: 1.4)),
+                    const Text(
+                      'Add phone number and date of birth to unlock educator and validator applications.',
+                      style: TextStyle(color: Color(0xFF795548), height: 1.4),
+                    ),
                   ],
                 ),
               ),
-            
+
             if (_bioCtrl.text.isNotEmpty) ...[
-               const SizedBox(height: 24),
-               const Text('Bio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-               const SizedBox(height: 8),
-               Text(_bioCtrl.text, style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, height: 1.5, fontSize: 14)),
+              const SizedBox(height: 24),
+              const Text(
+                'Bio',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _bioCtrl.text,
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : Colors.black87,
+                  height: 1.5,
+                  fontSize: 14,
+                ),
+              ),
             ],
-            
+
             const SizedBox(height: 32),
             const Divider(),
             const SizedBox(height: 24),
-            _buildInfoRow(Icons.calendar_today_outlined, 'Birthday', _dob != null ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}' : 'Not set'),
+            _buildInfoRow(
+              Icons.calendar_today_outlined,
+              'Birthday',
+              _dob != null
+                  ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}'
+                  : 'Not set',
+            ),
             const SizedBox(height: 16),
-            _buildInfoRow(Icons.phone_android_outlined, 'Phone', _phoneNumber ?? 'Not set'),
-
+            _buildInfoRow(
+              Icons.phone_android_outlined,
+              'Phone',
+              _phoneNumber ?? 'Not set',
+            ),
           ] else ...[
             // Edit Mode Fields
-            Text('Edit Profile Information', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.black87)),
+            Text(
+              'Edit Profile Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
             const SizedBox(height: 24),
-            
+
             _buildEditLabel('Username'),
             TextField(
               controller: _usernameCtrl,
@@ -547,17 +680,19 @@ class ProfilePageState extends State<ProfilePage> {
               decoration: _customInputDecoration(hint: 'New Username'),
             ),
             const SizedBox(height: 24),
-            
+
             _buildEditLabel('Bio'),
             TextField(
               controller: _bioCtrl,
               maxLength: 300,
               maxLines: 3,
               style: const TextStyle(fontSize: 14),
-              decoration: _customInputDecoration(hint: 'Tell us about yourself...'),
+              decoration: _customInputDecoration(
+                hint: 'Tell us about yourself...',
+              ),
             ),
             const SizedBox(height: 24),
-            
+
             _buildEditLabel('Phone Number'),
             IntlPhoneField(
               controller: _phoneCtrl,
@@ -565,11 +700,14 @@ class ProfilePageState extends State<ProfilePage> {
               initialCountryCode: 'PH',
               decoration: _customInputDecoration(hint: 'Phone Number'),
               keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
               onChanged: (phone) => _completePhoneNumber = phone.completeNumber,
             ),
             const SizedBox(height: 24),
-            
+
             _buildEditLabel('Date of Birth'),
             InkWell(
               onTap: _updateDob,
@@ -577,26 +715,37 @@ class ProfilePageState extends State<ProfilePage> {
               child: InputDecorator(
                 decoration: _customInputDecoration(hint: ''),
                 child: Text(
-                  _dob != null ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}' : 'Select Date of Birth',
-                  style: TextStyle(fontSize: 14, color: _dob != null ? Colors.black : Colors.black54),
+                  _dob != null
+                      ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}'
+                      : 'Select Date of Birth',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _dob != null ? Colors.black : Colors.black54,
+                  ),
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 48),
             _buildGreenButton('Save Changes', () async {
-               // Update all fields
-               await _updateUsername();
-               await _updateBio();
-               await _updatePhone();
-               setState(() => _isEditing = false);
+              // Update all fields
+              await _updateUsername();
+              await _updateBio();
+              await _updatePhone();
+              setState(() => _isEditing = false);
             }),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: TextButton(
                 onPressed: () => setState(() => _isEditing = false),
-                child: const Text('Cancel Request', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Cancel Request',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ],
@@ -608,7 +757,14 @@ class ProfilePageState extends State<ProfilePage> {
   Widget _buildEditLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+          color: Colors.grey,
+        ),
+      ),
     );
   }
 
@@ -618,16 +774,33 @@ class ProfilePageState extends State<ProfilePage> {
       children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: const Color(0xFF81B655).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: const Color(0xFF81B655).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Icon(icon, size: 20, color: const Color(0xFF81B655)),
         ),
         const SizedBox(width: 16),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black87)),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
           ],
         ),
       ],
@@ -646,12 +819,21 @@ class ProfilePageState extends State<ProfilePage> {
               child: _buildThemeToggle(),
             ),
           ),
-          
+
         _buildCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Change Password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
+              Text(
+                'Change Password',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                ),
+              ),
               const SizedBox(height: 24),
               TextField(
                 controller: _currentPasswordCtrl,
@@ -671,7 +853,9 @@ class ProfilePageState extends State<ProfilePage> {
                 controller: _confirmPasswordCtrl,
                 obscureText: _obscureConfirmPassword,
                 style: const TextStyle(fontSize: 14),
-                decoration: _customInputDecoration(hint: 'Confirm New Password'),
+                decoration: _customInputDecoration(
+                  hint: 'Confirm New Password',
+                ),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
@@ -683,21 +867,38 @@ class ProfilePageState extends State<ProfilePage> {
               ],
               const SizedBox(height: 24),
               _buildGreenButton('Update Password', () async {
-                setState(() { _info = null; _error = null; });
+                setState(() {
+                  _info = null;
+                  _error = null;
+                });
                 final email = widget.user.email;
                 final current = _currentPasswordCtrl.text;
                 final newPass = _newPasswordCtrl.text;
                 final confirm = _confirmPasswordCtrl.text;
-                if (email == null) { setState(() => _error = 'No email on account.'); return; }
-                if (newPass != confirm) { setState(() => _error = 'New passwords do not match.'); return; }
+                if (email == null) {
+                  setState(() => _error = 'No email on account.');
+                  return;
+                }
+                if (newPass != confirm) {
+                  setState(() => _error = 'New passwords do not match.');
+                  return;
+                }
                 try {
-                  final cred = EmailAuthProvider.credential(email: email, password: current);
+                  final cred = EmailAuthProvider.credential(
+                    email: email,
+                    password: current,
+                  );
                   await widget.user.reauthenticateWithCredential(cred);
                   await widget.user.updatePassword(newPass);
                   setState(() => _info = 'Password updated');
-                  _currentPasswordCtrl.clear(); _newPasswordCtrl.clear(); _confirmPasswordCtrl.clear();
+                  _currentPasswordCtrl.clear();
+                  _newPasswordCtrl.clear();
+                  _confirmPasswordCtrl.clear();
                 } catch (e) {
-                  setState(() => _error = 'Failed to update password. Check current password.');
+                  setState(
+                    () => _error =
+                        'Failed to update password. Check current password.',
+                  );
                 }
               }),
             ],
@@ -708,35 +909,70 @@ class ProfilePageState extends State<ProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Subscription', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
+              Text(
+                'Subscription',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                ),
+              ),
               const SizedBox(height: 24),
               _buildGreenButton('Manage Subscription', () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => ManageSubscriptionsPage(user: widget.user)));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ManageSubscriptionsPage(user: widget.user),
+                  ),
+                );
               }),
             ],
           ),
         ),
 
-        if (role == UserRole.learner || role == UserRole.educator || role == UserRole.validator)
+        if (role == UserRole.learner ||
+            role == UserRole.educator ||
+            role == UserRole.validator)
           _buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Role Application', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
+                Text(
+                  'Role Application',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
+                  ),
+                ),
                 const SizedBox(height: 24),
                 StreamBuilder<EducatorApplication?>(
-                  stream: DatabaseService.instance.streamUserApplication(widget.user.uid),
+                  stream: DatabaseService.instance.streamUserApplication(
+                    widget.user.uid,
+                  ),
                   builder: (context, appSnap) {
-                    if (appSnap.hasError) return Text('Error: ${appSnap.error}', style: TextStyle(color: Colors.red));
+                    if (appSnap.hasError)
+                      return Text(
+                        'Error: ${appSnap.error}',
+                        style: TextStyle(color: Colors.red),
+                      );
                     final application = appSnap.data;
-                    if (application != null && (application.status == 'pending' || application.status == 'rejected')) {
+                    if (application != null &&
+                        (application.status == 'pending' ||
+                            application.status == 'rejected')) {
                       return _buildGreenButton(
                         'View Application Status',
                         () => _showApplicationStatusDialog(application),
                       );
                     }
                     return _buildGreenButton(
-                      role == UserRole.educator ? 'Apply as Validator' : 'Apply as an Educator',
+                      role == UserRole.educator
+                          ? 'Apply as Validator'
+                          : 'Apply as an Educator',
                       () => _showJoinGrammaticaDialog(role),
                     );
                   },
@@ -752,13 +988,20 @@ class ProfilePageState extends State<ProfilePage> {
                 height: 56,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFDF3F32), // EXACT mockup Red
+                    backgroundColor: const Color(
+                      0xFFDF3F32,
+                    ), // EXACT mockup Red
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   onPressed: () => AuthService.instance.signOut(),
-                  child: const Text('Sign out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: const Text(
+                    'Sign out',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                 ),
               ),
             ),
@@ -768,10 +1011,25 @@ class ProfilePageState extends State<ProfilePage> {
                 height: 56,
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF333333) : Colors.white,
-                    foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-                    side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.transparent : Colors.black, width: Theme.of(context).brightness == Brightness.dark ? 0 : 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    backgroundColor:
+                        Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF333333)
+                        : Colors.white,
+                    foregroundColor:
+                        Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
+                    side: BorderSide(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.transparent
+                          : Colors.black,
+                      width: Theme.of(context).brightness == Brightness.dark
+                          ? 0
+                          : 2,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   onPressed: () async {
                     final confirm = await showDialog<bool>(
@@ -780,9 +1038,15 @@ class ProfilePageState extends State<ProfilePage> {
                         title: const Text('Delete Account?'),
                         content: const Text('This action cannot be undone.'),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(c, false),
+                            child: const Text('Cancel'),
+                          ),
                           FilledButton(
-                            style: FilledButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
                             onPressed: () => Navigator.pop(c, true),
                             child: const Text('Delete'),
                           ),
@@ -797,7 +1061,10 @@ class ProfilePageState extends State<ProfilePage> {
                       }
                     }
                   },
-                  child: const Text('Delete Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: const Text(
+                    'Delete Account',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                 ),
               ),
             ),
@@ -812,8 +1079,12 @@ class ProfilePageState extends State<ProfilePage> {
     return StreamBuilder<UserRole>(
       stream: RoleService.instance.roleStream(widget.user.uid),
       builder: (context, roleSnap) {
-        if (roleSnap.connectionState == ConnectionState.waiting || !roleSnap.hasData) {
-          return const Scaffold(backgroundColor: Colors.transparent, body: Center(child: CircularProgressIndicator()));
+        if (roleSnap.connectionState == ConnectionState.waiting ||
+            !roleSnap.hasData) {
+          return const Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         final role = roleSnap.data!;
         return Scaffold(
@@ -822,28 +1093,34 @@ class ProfilePageState extends State<ProfilePage> {
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > 900;
               return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 40,
+                ),
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1400),
-                    child: isWide 
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(flex: 5, child: _buildLeftColumn()),
-                            const SizedBox(width: 32),
-                            Expanded(flex: 6, child: _buildRightColumn(role, isWide: true)),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            _buildThemeToggle(),
-                            const SizedBox(height: 24),
-                            _buildLeftColumn(),
-                            const SizedBox(height: 24),
-                            _buildRightColumn(role, isWide: false),
-                          ],
-                        ),
+                    child: isWide
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(flex: 5, child: _buildLeftColumn()),
+                              const SizedBox(width: 32),
+                              Expanded(
+                                flex: 6,
+                                child: _buildRightColumn(role, isWide: true),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              _buildThemeToggle(),
+                              const SizedBox(height: 24),
+                              _buildLeftColumn(),
+                              const SizedBox(height: 24),
+                              _buildRightColumn(role, isWide: false),
+                            ],
+                          ),
                   ),
                 ),
               );
@@ -853,7 +1130,8 @@ class ProfilePageState extends State<ProfilePage> {
       },
     );
   }
-void _showJoinGrammaticaDialog(UserRole currentRole) {
+
+  void _showJoinGrammaticaDialog(UserRole currentRole) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1049,12 +1327,17 @@ class _PhotoAdjustmentDialogState extends State<_PhotoAdjustmentDialog> {
     return AlertDialog(
       backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: const Text('Adjust Photo', style: TextStyle(fontWeight: FontWeight.bold)),
+      title: const Text(
+        'Adjust Photo',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Pinch to zoom or drag to move. This is a preview of how your photo will appear.', 
-            style: TextStyle(fontSize: 13, color: Colors.grey)),
+          const Text(
+            'Pinch to zoom or drag to move. This is a preview of how your photo will appear.',
+            style: TextStyle(fontSize: 13, color: Colors.grey),
+          ),
           const SizedBox(height: 24),
           Container(
             width: 250,
@@ -1070,9 +1353,9 @@ class _PhotoAdjustmentDialogState extends State<_PhotoAdjustmentDialog> {
                 minScale: 0.5,
                 maxScale: 4.0,
                 onInteractionUpdate: (details) {
-                   setState(() {
-                     _currentScale = _controller.value.getMaxScaleOnAxis();
-                   });
+                  setState(() {
+                    _currentScale = _controller.value.getMaxScaleOnAxis();
+                  });
                 },
                 child: Image.memory(widget.imageBytes, fit: BoxFit.cover),
               ),
@@ -1111,7 +1394,9 @@ class _PhotoAdjustmentDialogState extends State<_PhotoAdjustmentDialog> {
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF81B655),
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: const Text('Set as Profile'),
         ),

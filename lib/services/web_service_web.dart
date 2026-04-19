@@ -23,7 +23,8 @@ extension type AudioContext._(JSObject _) implements JSObject {
   external AudioContext();
   external AnalyserNode createAnalyser();
   external MediaStreamAudioSourceNode createMediaStreamSource(
-      web.MediaStream stream);
+    web.MediaStream stream,
+  );
   external JSObject get destination;
   external JSPromise<JSAny?> close();
 }

@@ -238,11 +238,7 @@ class _PracticeCard extends StatelessWidget {
                         color: themeColor,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Icon(
-                        icon,
-                        color: Colors.white,
-                        size: 40,
-                      ),
+                      child: Icon(icon, color: Colors.white, size: 40),
                     ),
                     const SizedBox(height: 32),
                     Text(

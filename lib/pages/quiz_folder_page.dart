@@ -66,15 +66,18 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            color: AppColors.textPrimary,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.title,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
         ),
       ),
       body: _buildContent(context),
@@ -117,16 +120,19 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: AppColors.textPrimary,
+                  ),
                   onPressed: widget.onBack,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   widget.title,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ],
             ),
@@ -198,13 +204,9 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                               ),
                               const Spacer(),
                               AuthorName(
-                                uid: authorUid == 'Unknown'
-                                    ? null
-                                    : authorUid,
+                                uid: authorUid == 'Unknown' ? null : authorUid,
                                 fallbackEmail: authorEmail,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
+                                style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.textPrimary,
@@ -298,13 +300,17 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                      icon: const Icon(
+                        Icons.arrow_back_rounded,
+                        color: AppColors.textPrimary,
+                      ),
                       onPressed: widget.onBack,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       widget.title,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppColors.textPrimary,
                           ),
@@ -366,7 +372,12 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth >= 900;
                   final listBlock = filteredQuizzes.isEmpty
-                      ? const Center(child: Text('No quizzes found.', style: TextStyle(color: AppColors.textSecondary)))
+                      ? const Center(
+                          child: Text(
+                            'No quizzes found.',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                        )
                       : ListView.separated(
                           padding: const EdgeInsets.all(24),
                           itemCount: filteredQuizzes.length,
@@ -402,8 +413,12 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                       Container(
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
-                                          color: AppColors.primary.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(16),
+                                          color: AppColors.primary.withOpacity(
+                                            0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                         child: const Icon(
                                           Icons.quiz_rounded,
@@ -451,7 +466,8 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                       else
                                         Icon(
                                           Icons.chevron_right_rounded,
-                                          color: AppColors.textSecondary.withOpacity(0.3),
+                                          color: AppColors.textSecondary
+                                              .withOpacity(0.3),
                                         ),
                                     ],
                                   ),
@@ -554,7 +570,11 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
               children: [
                 const Text(
                   'Folder Progress',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 ClipRRect(
@@ -571,7 +591,10 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                 const SizedBox(height: 12),
                 Text(
                   '$completedCount / ${quizzes.length} Quizzes Completed',
-                  style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -579,7 +602,10 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                   children: [
                     const Text(
                       'Success Rate',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     Text(
                       '${(passRate * 100).toInt()}%',
@@ -604,17 +630,25 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
               children: [
                 const Text(
                   'Recent Activity',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 if (recentlyCompleted.isEmpty)
-                  const Text('No activity yet.', style: TextStyle(color: AppColors.textSecondary))
+                  const Text(
+                    'No activity yet.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  )
                 else
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: recentlyCompleted.length,
-                    separatorBuilder: (c, i) => Divider(color: AppColors.divider),
+                    separatorBuilder: (c, i) =>
+                        Divider(color: AppColors.divider),
                     itemBuilder: (context, index) {
                       final item = recentlyCompleted[index];
                       final success = item['success'] as bool;
@@ -623,17 +657,20 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                         child: Row(
                           children: [
                             Icon(
-                              success ? Icons.check_circle_rounded : Icons.error_rounded,
-                              color: success
-                                  ? Colors.green
-                                  : Colors.redAccent,
+                              success
+                                  ? Icons.check_circle_rounded
+                                  : Icons.error_rounded,
+                              color: success ? Colors.green : Colors.redAccent,
                               size: 18,
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 item['title'],
-                                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textPrimary,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),

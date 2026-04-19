@@ -20,6 +20,7 @@ import '../widgets/design_ornaments.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import '../main.dart';
+
 class AdminDashboard extends StatefulWidget {
   final User user;
   final UserRole role;
@@ -124,10 +125,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         );
         navItems.add(
-          const ModernNavItem(
-            icon: Icons.edit_document,
-            label: 'Contents',
-          ),
+          const ModernNavItem(icon: Icons.edit_document, label: 'Contents'),
         );
       }
 
@@ -207,7 +205,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       bgPath = 'assets/profilebg.png';
     } else if (currentIcon == Icons.credit_card) {
       bgPath = 'assets/subscriptionbg.png';
-    } else if (currentIcon == Icons.book || currentIcon == Icons.edit_document) {
+    } else if (currentIcon == Icons.book ||
+        currentIcon == Icons.edit_document) {
       bgPath = 'assets/dashboardbg.png';
     }
 
@@ -229,7 +228,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
           });
         },
         onProfileTap: () {
-          final profileTabIndex = navItems.indexWhere((item) => item.icon == Icons.person);
+          final profileTabIndex = navItems.indexWhere(
+            (item) => item.icon == Icons.person,
+          );
           if (profileTabIndex != -1) {
             setState(() {
               _index = profileTabIndex;

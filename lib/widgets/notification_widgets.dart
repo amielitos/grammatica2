@@ -24,7 +24,9 @@ class _NotificationIconButtonState extends State<NotificationIconButton> {
   @override
   void initState() {
     super.initState();
-    _notificationStream = NotificationService.instance.streamNotifications(widget.userId);
+    _notificationStream = NotificationService.instance.streamNotifications(
+      widget.userId,
+    );
   }
 
   @override
@@ -40,7 +42,10 @@ class _NotificationIconButtonState extends State<NotificationIconButton> {
           clipBehavior: Clip.none,
           children: [
             IconButton(
-              icon: Icon(CupertinoIcons.bell, color: isDark ? Colors.white : Colors.black87),
+              icon: Icon(
+                CupertinoIcons.bell,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
               onPressed: widget.onTap,
             ),
             if (unreadCount > 0)
@@ -52,13 +57,23 @@ class _NotificationIconButtonState extends State<NotificationIconButton> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFDE372A),
                     shape: BoxShape.circle,
-                    border: Border.all(color: isDark ? const Color(0xFF333333) : Colors.white, width: 2),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF333333) : Colors.white,
+                      width: 2,
+                    ),
                   ),
-                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
                   child: Center(
                     child: Text(
                       unreadCount > 9 ? '9+' : '$unreadCount',
-                      style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -269,9 +284,14 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                         if (!_showArchived)
                           TextButton(
                             onPressed: () {
-                              NotificationService.instance.markAllAsRead(widget.userId);
+                              NotificationService.instance.markAllAsRead(
+                                widget.userId,
+                              );
                             },
-                            child: const Text('Mark all as read', style: TextStyle(fontSize: 12)),
+                            child: const Text(
+                              'Mark all as read',
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ),
                         IconButton(
                           icon: Icon(
@@ -304,17 +324,20 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                 child: StreamBuilder<List<NotificationModel>>(
                   stream: _notificationStream,
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                    if (snapshot.connectionState == ConnectionState.waiting &&
+                        !snapshot.hasData) {
                       return const Center(child: CupertinoActivityIndicator());
                     }
-                    
+
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              _showArchived ? CupertinoIcons.archivebox : CupertinoIcons.bell_slash,
+                              _showArchived
+                                  ? CupertinoIcons.archivebox
+                                  : CupertinoIcons.bell_slash,
                               size: 48,
                               color: Colors.grey.shade300,
                             ),
@@ -377,7 +400,9 @@ class NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      color: notification.isRead ? Colors.transparent : (isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF1F8E9)),
+      color: notification.isRead
+          ? Colors.transparent
+          : (isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF1F8E9)),
       child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -387,7 +412,11 @@ class NotificationTile extends StatelessWidget {
             color: _getIconColor(notification.type).withOpacity(0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(_getIcon(notification.type), size: 20, color: _getIconColor(notification.type)),
+          child: Icon(
+            _getIcon(notification.type),
+            size: 20,
+            color: _getIconColor(notification.type),
+          ),
         ),
         title: Text(
           notification.title,
@@ -422,7 +451,10 @@ class NotificationTile extends StatelessWidget {
                 margin: const EdgeInsets.only(top: 4),
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(color: Color(0xFF81B655), shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF81B655),
+                  shape: BoxShape.circle,
+                ),
               ),
           ],
         ),
@@ -432,11 +464,16 @@ class NotificationTile extends StatelessWidget {
 
   Color _getIconColor(NotificationType type) {
     switch (type) {
-      case NotificationType.appApproved: return const Color(0xFF81B655);
-      case NotificationType.appRejected: return Colors.red;
-      case NotificationType.achievement: return Colors.orange;
-      case NotificationType.subscription: return Colors.blue;
-      default: return Colors.grey;
+      case NotificationType.appApproved:
+        return const Color(0xFF81B655);
+      case NotificationType.appRejected:
+        return Colors.red;
+      case NotificationType.achievement:
+        return Colors.orange;
+      case NotificationType.subscription:
+        return Colors.blue;
+      default:
+        return Colors.grey;
     }
   }
 

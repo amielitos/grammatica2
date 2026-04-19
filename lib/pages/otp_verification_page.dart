@@ -29,34 +29,53 @@ class OtpVerificationPage extends StatefulWidget {
 }
 
 class _OtpVerificationPageState extends State<OtpVerificationPage> {
-  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _controllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isLoading = false;
 
   @override
   void dispose() {
-    for (var c in _controllers) { c.dispose(); }
-    for (var f in _focusNodes) { f.dispose(); }
+    for (var c in _controllers) {
+      c.dispose();
+    }
+    for (var f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
   void _verifyOtp() async {
     String enteredOtp = _controllers.map((c) => c.text).join();
-    
+
     if (enteredOtp.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter the 6-digit code"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter the 6-digit code"),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
     if (enteredOtp != widget.expectedOtp) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Invalid OTP code. Please try again."), backgroundColor: Colors.red));
-      for (var c in _controllers) { c.clear(); }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Invalid OTP code. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      for (var c in _controllers) {
+        c.clear();
+      }
       _focusNodes[0].requestFocus();
       return;
     }
 
     setState(() => _isLoading = true);
-    
+
     try {
       // Create user after successful OTP verification
       await AuthService.instance.registerWithEmailPassword(
@@ -71,7 +90,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       if (user != null) {
         await NotificationService.instance.sendWelcomeNotification(user.uid);
       }
-      
+
       // Sign out immediately so they have to log in manually
       await AuthService.instance.signOut();
 
@@ -81,27 +100,54 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
           barrierDismissible: false,
           builder: (context) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Text("Verification Successful", style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold)),
-              content: const Text("Your account has been successfully created and verified! Please log in to continue."),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: const Text(
+                "Verification Successful",
+                style: TextStyle(
+                  color: Color(0xFF81B655),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              content: const Text(
+                "Your account has been successfully created and verified! Please log in to continue.",
+              ),
               actions: [
                 ElevatedButton(
                   onPressed: () {
                     // Navigate back to sign in
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF81B655)),
-                  child: const Text("Go to Sign In", style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF81B655),
+                  ),
+                  child: const Text(
+                    "Go to Sign In",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             );
-          }
+          },
         );
       }
     } on FirebaseAuthException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message ?? 'Registration failed'), backgroundColor: Colors.red));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'Registration failed'),
+            backgroundColor: Colors.red,
+          ),
+        );
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -123,7 +169,11 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(32),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 24, offset: const Offset(0, 12)),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                    ),
                   ],
                 ),
                 child: Column(
@@ -136,18 +186,29 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                         color: const Color(0xFFE2F3D9),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.mark_email_read_outlined, size: 40, color: Color(0xFF81B655)),
+                      child: const Icon(
+                        Icons.mark_email_read_outlined,
+                        size: 40,
+                        color: Color(0xFF81B655),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     const Text(
                       "Verify Your Email",
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       "We've sent a 6-digit verification code to\n${widget.email}",
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 14, color: Colors.black54),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                      ),
                     ),
                     const SizedBox(height: 32),
                     Row(
@@ -162,7 +223,10 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                             keyboardType: TextInputType.number,
                             textAlign: TextAlign.center,
                             maxLength: 1,
-                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
                             decoration: InputDecoration(
                               filled: true,
                               fillColor: Colors.grey[100],
@@ -170,18 +234,28 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                               contentPadding: EdgeInsets.zero,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF81B655)),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF81B655),
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                                borderSide: BorderSide(
+                                  color: Colors.grey.shade300,
+                                  width: 1.5,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF81B655), width: 2.5),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF81B655),
+                                  width: 2.5,
+                                ),
                               ),
                             ),
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                             onChanged: (value) {
                               if (value.isNotEmpty && index < 5) {
                                 _focusNodes[index + 1].requestFocus();
@@ -205,44 +279,92 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                         onPressed: _isLoading ? null : _verifyOtp,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF81B655),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         child: _isLoading
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Text("Verify Now", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                "Verify Now",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text("Didn't receive code? ", style: TextStyle(color: Colors.black54)),
+                        const Text(
+                          "Didn't receive code? ",
+                          style: TextStyle(color: Colors.black54),
+                        ),
                         InkWell(
                           onTap: () async {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Resending code...")));
-                            
-                            bool success = await EmailSenderService.sendOtpEmail(
-                              recipientEmail: widget.email,
-                              recipientName: widget.fullName,
-                              otpCode: widget.expectedOtp,
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Resending code..."),
+                              ),
                             );
-                            
+
+                            bool success =
+                                await EmailSenderService.sendOtpEmail(
+                                  recipientEmail: widget.email,
+                                  recipientName: widget.fullName,
+                                  otpCode: widget.expectedOtp,
+                                );
+
                             if (mounted) {
                               if (success) {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Code resent successfully!"), backgroundColor: Color(0xFF81B655)));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Code resent successfully!"),
+                                    backgroundColor: Color(0xFF81B655),
+                                  ),
+                                );
                               } else {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to resend code. Please try again."), backgroundColor: Colors.red));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "Failed to resend code. Please try again.",
+                                    ),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
                               }
                             }
                           },
-                          child: const Text("Resend", style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold)),
+                          child: const Text(
+                            "Resend",
+                            style: TextStyle(
+                              color: Color(0xFF81B655),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text("Go Back", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        "Go Back",
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),

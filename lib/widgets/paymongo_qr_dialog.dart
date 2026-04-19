@@ -32,12 +32,12 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
         width: 450,
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
         padding: const EdgeInsets.all(32.0),
         child: SingleChildScrollView(
           child: Column(
@@ -48,7 +48,11 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.qr_code_scanner, color: Color(0xFF1E88E5), size: 36),
+                  const Icon(
+                    Icons.qr_code_scanner,
+                    color: Color(0xFF1E88E5),
+                    size: 36,
+                  ),
                   const SizedBox(width: 12),
                   Text(
                     'PayMongo QR PH',
@@ -67,7 +71,7 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
                 style: TextStyle(fontSize: 14, color: Colors.black54),
               ),
               const SizedBox(height: 32),
-              
+
               // The QR Mock/Image
               Container(
                 width: 250,
@@ -81,7 +85,7 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
                       color: Colors.blue.shade900.withOpacity(0.08),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
-                    )
+                    ),
                   ],
                 ),
                 child: ClipRRect(
@@ -92,23 +96,31 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
                     errorBuilder: (context, error, stackTrace) => Stack(
                       alignment: Alignment.center,
                       children: [
-                        Icon(Icons.qr_code_2, size: 200, color: Colors.blue.shade900),
+                        Icon(
+                          Icons.qr_code_2,
+                          size: 200,
+                          color: Colors.blue.shade900,
+                        ),
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: const BoxDecoration(
                             color: Colors.white,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.warning, color: Colors.amber, size: 40),
-                        )
+                          child: const Icon(
+                            Icons.warning,
+                            color: Colors.amber,
+                            size: 40,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 32),
-              
+
               // Payment Details
               Container(
                 padding: const EdgeInsets.all(16),
@@ -121,23 +133,40 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
                   children: [
                     _buildDetailRow('Merchant', 'Grammatica'),
                     const SizedBox(height: 8),
-                    _buildDetailRow('Subscription', '${widget.tier} to ${widget.educatorName}'),
+                    _buildDetailRow(
+                      'Subscription',
+                      '${widget.tier} to ${widget.educatorName}',
+                    ),
                     const SizedBox(height: 8),
                     const Divider(),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Total Amount', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54)),
-                        Text('₱${widget.amount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1E88E5))),
+                        const Text(
+                          'Total Amount',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black54,
+                          ),
+                        ),
+                        Text(
+                          '₱${widget.amount.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1E88E5),
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 32),
-              
+
               // Testing Actions
               if (_isProcessing)
                 const CircularProgressIndicator(color: Color(0xFF1E88E5))
@@ -149,15 +178,25 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel Request', style: TextStyle(color: Colors.red, fontSize: 16)),
+                      child: const Text(
+                        'Cancel Request',
+                        style: TextStyle(color: Colors.red, fontSize: 16),
+                      ),
                     ),
                     ElevatedButton(
                       onPressed: _simulateSuccess,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E88E5), // PayMongo Blue theme
+                        backgroundColor: const Color(
+                          0xFF1E88E5,
+                        ), // PayMongo Blue theme
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: const Text('Simulate Payment'),
                     ),
@@ -174,8 +213,18 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: Colors.black54, fontSize: 14)),
-        Text(val, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 14)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.black54, fontSize: 14),
+        ),
+        Text(
+          val,
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
       ],
     );
   }

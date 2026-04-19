@@ -130,9 +130,9 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               Text(
                 'Manage Content',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
               const SizedBox(height: 16),
               // Segmented Toggle
@@ -152,14 +152,18 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                           onTap: () => setState(() => _tabIndex = 0),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: _tabIndex == 0 ? const Color(0xFF88B342) : Colors.transparent,
+                              color: _tabIndex == 0
+                                  ? const Color(0xFF88B342)
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             alignment: Alignment.center,
                             child: Text(
                               'Lessons',
                               style: TextStyle(
-                                color: _tabIndex == 0 ? Colors.white : Colors.grey.shade700,
+                                color: _tabIndex == 0
+                                    ? Colors.white
+                                    : Colors.grey.shade700,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -171,14 +175,18 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                           onTap: () => setState(() => _tabIndex = 1),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: _tabIndex == 1 ? const Color(0xFF88B342) : Colors.transparent,
+                              color: _tabIndex == 1
+                                  ? const Color(0xFF88B342)
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             alignment: Alignment.center,
                             child: Text(
                               'Quizzes',
                               style: TextStyle(
-                                color: _tabIndex == 1 ? Colors.white : Colors.grey.shade700,
+                                color: _tabIndex == 1
+                                    ? Colors.white
+                                    : Colors.grey.shade700,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -192,21 +200,68 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               const SizedBox(height: 16),
               // Main Card Content
               Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.white,
-                  borderRadius: const BorderRadius.only(
+                  borderRadius: BorderRadius.only(
                     topRight: Radius.circular(12),
                     bottomLeft: Radius.circular(12),
                     bottomRight: Radius.circular(12),
                   ),
                 ),
-                child: IndexedStack(
-                  index: _tabIndex,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildLessonForm(roleSnap.data),
-                    AdminQuizzesTab(
-                      key: _quizKey,
-                      initialQuizId: _selectedQuizId,
+                    IndexedStack(
+                      index: _tabIndex,
+                      children: [
+                        _buildLessonForm(roleSnap.data),
+                        AdminQuizzesTab(
+                          key: _quizKey,
+                          initialQuizId: _selectedQuizId,
+                          isEmbedded: true,
+                          onChanged: () => setState(() {}),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 16.0,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => _resetForm(),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.black87,
+                              side: BorderSide(color: Colors.grey.shade400),
+                            ),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 16),
+                          FilledButton.icon(
+                            onPressed: _isSaveDisabled()
+                                ? null
+                                : _saveIntegratedLesson,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF88B342),
+                            ),
+                            icon: _creatingLesson
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.save),
+                            label: const Text('Save Lesson'),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -216,6 +271,13 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         );
       },
     );
+  }
+
+  bool _isSaveDisabled() {
+    if (_title.text.trim().isEmpty || _prompt.text.trim().isEmpty) return true;
+    if (_quizKey.currentState?.isEmpty ?? true) return true;
+    if (_creatingLesson) return true;
+    return false;
   }
 
   Widget _buildLessonForm(UserRole? role) {
@@ -236,7 +298,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                       children: [
                         Expanded(flex: 2, child: _buildLessonLeftCol(role)),
                         const SizedBox(width: 32),
-                        Expanded(flex: 1, child: _buildPdfAttachZone()),
+                        Expanded(flex: 1, child: _buildPreviewArea()),
                       ],
                     );
                   } else {
@@ -245,39 +307,11 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                       children: [
                         _buildLessonLeftCol(role),
                         const SizedBox(height: 24),
-                        _buildPdfAttachZone(),
+                        _buildPreviewArea(),
                       ],
                     );
                   }
                 },
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              OutlinedButton(
-                onPressed: () => _resetForm(),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.black87,
-                  side: BorderSide(color: Colors.grey.shade400),
-                ),
-                child: const Text('Cancel'),
-              ),
-              const SizedBox(width: 16),
-              FilledButton.icon(
-                onPressed: (_creatingLesson || _title.text.trim().isEmpty) ? null : _saveIntegratedLesson,
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF88B342),
-                ),
-                icon: _creatingLesson
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.save),
-                label: const Text('Save Lesson'),
               ),
             ],
           ),
@@ -290,18 +324,27 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Title', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Text(
+          'Title',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: _title,
           decoration: InputDecoration(
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
           ),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 20),
-        const Text('Content', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Text(
+          'Content',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: _prompt,
@@ -311,6 +354,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             contentPadding: const EdgeInsets.all(16),
           ),
           maxLines: 10,
+          onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 16),
         Row(
@@ -320,97 +364,21 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             const SizedBox(width: 16),
             const MarkdownGuideButton(),
             const SizedBox(width: 16),
-            ElevatedButton.icon(
-              onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF88B342),
-                foregroundColor: Colors.white,
-              ),
-              icon: _isGeneratingFromPdf
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.auto_awesome),
-              label: const Text('Generate from PDF'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPdfAttachZone() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Attach PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: _pickFiles,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            height: 200,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.upload_file, size: 48, color: Colors.grey.shade500),
-                const SizedBox(height: 16),
-                Text(
-                  _selectedFiles.isNotEmpty ? _selectedFiles.first.name : 'No PDF uploaded yet',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _selectedFiles.isNotEmpty ? 'Click to change file' : 'Upload PDF to attach to this lesson.',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInputFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: _title,
-          decoration: const InputDecoration(labelText: 'Title of Lesson:'),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _prompt,
-          decoration: const InputDecoration(
-            labelText: 'Content (markdown):',
-            alignLabelWithHint: true,
-          ),
-          maxLines: 8,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const MarkdownGuideButton(),
-            ElevatedButton.icon(
-              onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
-              icon: _isGeneratingFromPdf
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_awesome),
-              label: const Text('Generate from PDF'),
-            ),
+            _isGeneratingFromPdf
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : IconButton.filled(
+                    onPressed: _generateFromPdf,
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF88B342),
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.picture_as_pdf),
+                    tooltip: 'Generate from PDF',
+                  ),
           ],
         ),
       ],
@@ -480,10 +448,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Visibility',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        const Text('Visibility', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         SegmentedButton<ContentVisibility>(
           segments: [
@@ -534,7 +499,8 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           SwitchListTile(
             title: const Text('Upload as Grammatica lesson'),
             subtitle: const Text(
-                'This will make the lesson show up in the learning section for all users'),
+              'This will make the lesson show up in the learning section for all users',
+            ),
             value: _isGrammaticaLesson,
             onChanged: (value) => setState(() => _isGrammaticaLesson = value),
             controlAffinity: ListTileControlAffinity.leading,
@@ -660,6 +626,16 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Future<void> _saveIntegratedLesson() async {
+    final quizError = _quizKey.currentState?.validateQuiz();
+    if (quizError != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Quiz error: $quizError')));
+      }
+      return;
+    }
+
     setState(() => _creatingLesson = true);
     try {
       String? finalQuizId = _selectedQuizId;
@@ -683,7 +659,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         visibleTo: _visibleTo,
         isMembersOnly: _isMembersOnly,
         isGrammaticaLesson: _isGrammaticaLesson,
-        quizId: finalQuizId, 
+        quizId: finalQuizId,
         createdAt: _selectedLesson?.createdAt ?? Timestamp.now(),
       );
 

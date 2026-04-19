@@ -12,7 +12,10 @@ void main() {
 
   if (startIndex != -1 && endIndex != -1) {
     print('Found markers!');
-    final finalContent = content.substring(0, startIndex) + "/* REPLACED */\n  " + content.substring(endIndex);
+    final finalContent =
+        content.substring(0, startIndex) +
+        "/* REPLACED */\n  " +
+        content.substring(endIndex);
     File('lib/pages/profile_page_temp.dart').writeAsStringSync(finalContent);
   } else {
     print('start: ' + startIndex.toString());

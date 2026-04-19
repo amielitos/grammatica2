@@ -112,26 +112,37 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       children: [
         if (widget.onBack != null)
           Padding(
-            padding: EdgeInsets.fromLTRB(24, widget.onBack != null ? 24 : 100, 24, 0),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              widget.onBack != null ? 24 : 100,
+              24,
+              0,
+            ),
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: AppColors.textPrimary,
+                  ),
                   onPressed: widget.onBack,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   widget.title,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ],
             ),
           ),
         Padding(
-          padding: EdgeInsets.symmetric(vertical: widget.onBack != null ? 24 : 100, horizontal: 24),
+          padding: EdgeInsets.symmetric(
+            vertical: widget.onBack != null ? 24 : 100,
+            horizontal: 24,
+          ),
           child: Align(
             alignment: Alignment.centerLeft,
             child: ConstrainedBox(
@@ -197,13 +208,9 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                               ),
                               const Spacer(),
                               AuthorName(
-                                uid: authorUid == 'Unknown'
-                                    ? null
-                                    : authorUid,
+                                uid: authorUid == 'Unknown' ? null : authorUid,
                                 fallbackEmail: authorEmail,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
+                                style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.textPrimary,
@@ -272,10 +279,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
         cmp = tsA == null && tsB == null
             ? 0
             : tsA == null
-                ? 1
-                : tsB == null
-                    ? -1
-                    : tsB.compareTo(tsA);
+            ? 1
+            : tsB == null
+            ? -1
+            : tsB.compareTo(tsA);
       }
       return cmp == 0
           ? a.title.toLowerCase().compareTo(b.title.toLowerCase())
@@ -293,13 +300,21 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
           final cat = _inferCategory(lesson.title);
           grouped.putIfAbsent(cat, () => []).add(lesson);
         }
-        const categoryOrder = ['Grammar', 'Reading', 'Vocabulary', 'Writing', 'General'];
+        const categoryOrder = [
+          'Grammar',
+          'Reading',
+          'Vocabulary',
+          'Writing',
+          'General',
+        ];
         final sortedKeys = [
           ...categoryOrder.where((c) => grouped.containsKey(c)),
           ...grouped.keys.where((k) => !categoryOrder.contains(k)),
         ];
 
-        final authorLabel = (widget.pillLabel == 'From Grammatica' || widget.pillLabel == 'Grammatica')
+        final authorLabel =
+            (widget.pillLabel == 'From Grammatica' ||
+                widget.pillLabel == 'Grammatica')
             ? 'Grammatica'
             : null;
 
@@ -318,10 +333,19 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                           onTap: widget.onBack,
                           child: const Row(
                             children: [
-                              Icon(Icons.arrow_back_ios_rounded, size: 16, color: AppColors.textPrimary),
+                              Icon(
+                                Icons.arrow_back_ios_rounded,
+                                size: 16,
+                                color: AppColors.textPrimary,
+                              ),
                               SizedBox(width: 4),
-                              Text('Back to Folders',
-                                  style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                              Text(
+                                'Back to Folders',
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -329,7 +353,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     ),
                   ),
                 Padding(
-                  padding: EdgeInsets.fromLTRB(28, widget.onBack != null ? 16 : 100, 28, 0),
+                  padding: EdgeInsets.fromLTRB(
+                    28,
+                    widget.onBack != null ? 16 : 100,
+                    28,
+                    0,
+                  ),
                   child: Center(
                     child: Text(
                       widget.title,
@@ -342,22 +371,43 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 14,
+                  ),
                   child: TextField(
                     controller: _searchController,
                     onChanged: (val) => setState(() => _searchQuery = val),
-                    style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Search lesson..',
-                      hintStyle: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : AppColors.textSecondary),
-                      suffixIcon: Icon(Icons.search_rounded, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : AppColors.textSecondary),
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : AppColors.textSecondary,
+                      ),
+                      suffixIcon: Icon(
+                        Icons.search_rounded,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : AppColors.textSecondary,
+                      ),
                       filled: true,
-                      fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF333333) : Colors.white,
+                      fillColor: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF333333)
+                          : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 14,
+                        horizontal: 20,
+                      ),
                     ),
                   ),
                 ),
@@ -368,7 +418,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                 ? const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32),
-                      child: Text('No lessons found.', style: TextStyle(color: AppColors.textSecondary)),
+                      child: Text(
+                        'No lessons found.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
                     ),
                   )
                 : SingleChildScrollView(
@@ -391,7 +444,8 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                             spacing: 10,
                             runSpacing: 10,
                             children: grouped[cat]!.map((lesson) {
-                              final completed = progress[lesson.id]?['completed'] == true;
+                              final completed =
+                                  progress[lesson.id]?['completed'] == true;
                               return _buildSmallLessonCard(
                                 context,
                                 lesson: lesson,
@@ -405,7 +459,11 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     ),
                   );
 
-            final metricsBlock = _buildMetricsSection(context, widget.lessons, progress);
+            final metricsBlock = _buildMetricsSection(
+              context,
+              widget.lessons,
+              progress,
+            );
 
             if (isWide) {
               return Column(
@@ -433,7 +491,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                 children: [
                   headerBlock,
                   Expanded(child: lessonsBlock),
-                  Padding(padding: const EdgeInsets.all(24), child: metricsBlock),
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: metricsBlock,
+                  ),
                 ],
               );
             }
@@ -445,25 +506,41 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
   String _inferCategory(String title) {
     final t = title.toLowerCase();
-    if (t.contains('grammar') || t.contains('verb') || t.contains('tense') ||
-        t.contains('noun') || t.contains('adjective') || t.contains('adverb') ||
-        t.contains('pronoun') || t.contains('conjunction') ||
-        t.contains('preposition') || t.contains('parts of speech')) {
+    if (t.contains('grammar') ||
+        t.contains('verb') ||
+        t.contains('tense') ||
+        t.contains('noun') ||
+        t.contains('adjective') ||
+        t.contains('adverb') ||
+        t.contains('pronoun') ||
+        t.contains('conjunction') ||
+        t.contains('preposition') ||
+        t.contains('parts of speech')) {
       return 'Grammar';
     }
-    if (t.contains('reading') || t.contains('comprehension') ||
-        t.contains('inference') || t.contains('main idea') ||
-        t.contains('supporting') || t.contains('context clue')) {
+    if (t.contains('reading') ||
+        t.contains('comprehension') ||
+        t.contains('inference') ||
+        t.contains('main idea') ||
+        t.contains('supporting') ||
+        t.contains('context clue')) {
       return 'Reading';
     }
-    if (t.contains('vocabulary') || t.contains('word') ||
-        t.contains('synonym') || t.contains('antonym') ||
-        t.contains('definition') || t.contains('spelling')) {
+    if (t.contains('vocabulary') ||
+        t.contains('word') ||
+        t.contains('synonym') ||
+        t.contains('antonym') ||
+        t.contains('definition') ||
+        t.contains('spelling')) {
       return 'Vocabulary';
     }
-    if (t.contains('writing') || t.contains('essay') || t.contains('paragraph') ||
-        t.contains('composition') || t.contains('structure') ||
-        t.contains('organization') || t.contains('sentence')) {
+    if (t.contains('writing') ||
+        t.contains('essay') ||
+        t.contains('paragraph') ||
+        t.contains('composition') ||
+        t.contains('structure') ||
+        t.contains('organization') ||
+        t.contains('sentence')) {
       return 'Writing';
     }
     return 'General';
@@ -476,7 +553,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     String? authorLabel,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     // Determine icon color based on folder type
     Color iconColor = const Color(0xFFE8B84B); // Default Gold for Grammatica
     if (widget.pillLabel == 'Public' || widget.pillLabel == 'Public Lessons') {
@@ -485,7 +562,8 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
     return SizedBox(
       width: 200,
-      height: 280, // Even taller, giving a more pronounced portrait format that feels larger overall
+      height:
+          280, // Even taller, giving a more pronounced portrait format that feels larger overall
       child: GestureDetector(
         onTap: () {
           Navigator.of(context).push(
@@ -497,7 +575,9 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
         child: Card(
           elevation: 0,
           color: isDark ? const Color(0xFF333333) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24), // Increased padding
             child: Column(
@@ -510,21 +590,32 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       Positioned(
                         right: 0,
                         top: 0,
-                        child: Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 14),
+                        child: Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.primary,
+                          size: 14,
+                        ),
                       ),
                   ],
                 ),
                 const Spacer(), // Use Spacer to push text to the bottom
                 Text(
                   lesson.title,
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'by: ${authorLabel ?? lesson.createdByEmail ?? 'Unknown'}',
-                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -535,8 +626,6 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       ),
     );
   }
-
-
 
   Widget _buildMetricsSection(
     BuildContext context,
@@ -581,7 +670,11 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
               children: [
                 Text(
                   'Folder Progress',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 ClipRRect(
@@ -598,7 +691,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                 const SizedBox(height: 12),
                 Text(
                   '$completedCount / ${lessons.length} Lessons Completed',
-                  style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? Colors.white : AppColors.textSecondary),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -613,17 +709,28 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
               children: [
                 Text(
                   'Recent Activity',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 if (recentlyCompleted.isEmpty)
-                  Text('No recent activities...', style: TextStyle(color: isDark ? Colors.white54 : AppColors.textSecondary))
+                  Text(
+                    'No recent activities...',
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : AppColors.textSecondary,
+                    ),
+                  )
                 else
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: recentlyCompleted.length,
-                    separatorBuilder: (c, i) => Divider(color: isDark ? Colors.grey[800] : AppColors.divider),
+                    separatorBuilder: (c, i) => Divider(
+                      color: isDark ? Colors.grey[800] : AppColors.divider,
+                    ),
                     itemBuilder: (context, index) {
                       final item = recentlyCompleted[index];
                       return Padding(
@@ -639,7 +746,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                             Expanded(
                               child: Text(
                                 item['title'],
-                                style: TextStyle(fontSize: 14, color: isDark ? Colors.white : AppColors.textPrimary),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDark
+                                      ? Colors.white
+                                      : AppColors.textPrimary,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),

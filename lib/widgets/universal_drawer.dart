@@ -23,30 +23,50 @@ class UniversalDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final role = roleFromString(userData['role'] as String?);
-    final isAdmin = role == UserRole.admin || role == UserRole.superadmin || role == UserRole.validator;
+    final isAdmin =
+        role == UserRole.admin ||
+        role == UserRole.superadmin ||
+        role == UserRole.validator;
     final isEducator = role == UserRole.educator;
-    final username = (userData['username'] as String?)?.split(' ').first ?? 'User';
+    final username =
+        (userData['username'] as String?)?.split(' ').first ?? 'User';
 
     if (isAdmin || isEducator) {
       // Logic from AdminDashboard
       final List<ModernNavItem> navItems = [];
       if (role == UserRole.validator) {
         navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
-        navItems.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
-        navItems.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
-        navItems.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
+        navItems.add(
+          const ModernNavItem(icon: Icons.verified_user, label: 'Validation'),
+        );
+        navItems.add(
+          const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
+        );
+        navItems.add(
+          const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
+        );
       } else {
         if (role == UserRole.admin || role == UserRole.superadmin) {
           navItems.add(const ModernNavItem(icon: Icons.people, label: 'Users'));
         }
         if (role == UserRole.superadmin) {
-           navItems.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
+          navItems.add(
+            const ModernNavItem(icon: Icons.verified_user, label: 'Validation'),
+          );
         }
-        navItems.add(const ModernNavItem(icon: Icons.edit_document, label: 'Contents'));
+        navItems.add(
+          const ModernNavItem(icon: Icons.edit_document, label: 'Contents'),
+        );
         navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
-        navItems.add(const ModernNavItem(icon: Icons.group, label: 'Premium Group'));
-        navItems.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
-        navItems.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
+        navItems.add(
+          const ModernNavItem(icon: Icons.group, label: 'Premium Group'),
+        );
+        navItems.add(
+          const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
+        );
+        navItems.add(
+          const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
+        );
       }
       navItems.add(ModernNavItem(icon: Icons.person, label: username));
 
@@ -70,7 +90,8 @@ class UniversalDrawer extends StatelessWidget {
       final navItems = [
         const ModernNavItem(icon: Icons.book, label: 'Lessons'),
         const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
-        if (role != UserRole.learner) const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
+        if (role != UserRole.learner)
+          const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
         const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
         ModernNavItem(icon: Icons.person, label: username),
       ];
@@ -78,7 +99,7 @@ class UniversalDrawer extends StatelessWidget {
       return Sidebar(
         currentIndex: currentIndex ?? -1,
         onTap: (i) {
-           if (onTap != null) {
+          if (onTap != null) {
             onTap!(i);
           } else {
             Navigator.pop(context);

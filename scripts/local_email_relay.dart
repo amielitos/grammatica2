@@ -9,18 +9,30 @@ import 'package:mailer/smtp_server.dart';
 Future<void> main() async {
   final port = 8081;
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
-  print('========================================================================');
+  print(
+    '========================================================================',
+  );
   print('GRAMMATICA LOCAL EMAIL RELAY ACTIVE!');
   print('Listening on http://localhost:$port');
-  print('Now your Flutter Web app can send emails perfectly via HTTP to this app.');
+  print(
+    'Now your Flutter Web app can send emails perfectly via HTTP to this app.',
+  );
   print('Keep this terminal running while testing on Chrome!');
-  print('========================================================================');
+  print(
+    '========================================================================',
+  );
 
   await for (HttpRequest request in server) {
     // Add CORS headers to allow Chrome Web App to connect
     request.response.headers.add('Access-Control-Allow-Origin', '*');
-    request.response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    request.response.headers.add('Access-Control-Allow-Headers', 'Content-Type');
+    request.response.headers.add(
+      'Access-Control-Allow-Methods',
+      'POST, OPTIONS',
+    );
+    request.response.headers.add(
+      'Access-Control-Allow-Headers',
+      'Content-Type',
+    );
 
     if (request.method == 'OPTIONS') {
       request.response.statusCode = HttpStatus.ok;
@@ -36,7 +48,7 @@ Future<void> main() async {
         final String smtpEmail = data['smtpEmail'];
         final String smtpPassword = data['smtpPassword'];
         final String recipientEmail = data['recipientEmail'];
-        
+
         final smtpServer = gmail(smtpEmail, smtpPassword);
         final message = Message()
           ..from = Address(smtpEmail, 'Grammatica Team')
@@ -45,13 +57,16 @@ Future<void> main() async {
         if (request.uri.path == '/send-generic') {
           message.subject = data['subject'];
           message.html = data['body'];
-          print('[GENERIC] Sending email to $recipientEmail with subject: ${message.subject}');
+          print(
+            '[GENERIC] Sending email to $recipientEmail with subject: ${message.subject}',
+          );
         } else {
           final String recipientName = data['recipientName'] ?? 'Learner';
           final String otpCode = data['otpCode'];
           print('[OTP] Sending OTP $otpCode to $recipientEmail...');
-          
-          String htmlTemplate = """
+
+          String htmlTemplate =
+              """
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f7f6; padding: 20px; border-radius: 12px;">
               <div style="text-align: center; margin-bottom: 24px;">
                 <h1 style="color: #81B655; margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -1px;">Grammatica</h1>
@@ -77,7 +92,9 @@ Future<void> main() async {
         }
 
         final sendReport = await send(message, smtpServer);
-        print('[SUCCESS] Successfully sent to $recipientEmail: ${sendReport.toString()}');
+        print(
+          '[SUCCESS] Successfully sent to $recipientEmail: ${sendReport.toString()}',
+        );
 
         request.response.statusCode = HttpStatus.ok;
         request.response.write('{"status":"success"}');

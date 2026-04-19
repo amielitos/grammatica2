@@ -46,15 +46,21 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
     }
   }
 
-  String get _title => widget.applicationType == 'validator' ? 'Become a Validator' : 'Become an Educator';
+  String get _title => widget.applicationType == 'validator'
+      ? 'Become a Validator'
+      : 'Become an Educator';
 
-  String get _demoLabel => widget.applicationType == 'validator' ? 'Expertise Demo' : 'Teaching Demo';
+  String get _demoLabel => widget.applicationType == 'validator'
+      ? 'Expertise Demo'
+      : 'Teaching Demo';
 
   String get _demoDescription => widget.applicationType == 'validator'
       ? 'Showcase your English expertise in a short introductory video.'
       : 'Upload a 3-minute video demonstrating your teaching style.';
 
-  String get _docLabel => widget.applicationType == 'validator' ? 'Professional Credentials' : 'Teaching Syllabus';
+  String get _docLabel => widget.applicationType == 'validator'
+      ? 'Professional Credentials'
+      : 'Teaching Syllabus';
 
   String get _docDescription => widget.applicationType == 'validator'
       ? 'Upload your certifications, degrees, or relevant professional documents.'
@@ -89,7 +95,9 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
 
   Future<void> _submit() async {
     if (_videoFile == null || _docFile == null) {
-      setState(() => _error = 'Please upload both required modules to proceed.');
+      setState(
+        () => _error = 'Please upload both required modules to proceed.',
+      );
       return;
     }
 
@@ -176,10 +184,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         onLogoTap: () => Navigator.pop(context),
         onProfileTap: () => Navigator.pop(context),
       ),
-      drawer: UniversalDrawer(
-        user: widget.user,
-        userData: _userData ?? {},
-      ),
+      drawer: UniversalDrawer(user: widget.user, userData: _userData ?? {}),
       body: BackgroundWrapper(
         imageAssetPath: 'assets/subscriptionbg.png',
         child: SafeArea(
@@ -192,12 +197,19 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
                   children: [
                     Text(
                       _title,
-                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: Color(0xFF2C3E50)),
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2C3E50),
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Join our elite community of language enthusiasts and expert',
-                      style: TextStyle(fontSize: 16, color: const Color(0xFF2C3E50).withOpacity(0.6)),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: const Color(0xFF2C3E50).withOpacity(0.6),
+                      ),
                     ),
                     const SizedBox(height: 32),
                     LayoutBuilder(
@@ -227,7 +239,10 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
                         padding: const EdgeInsets.only(bottom: 16),
                         child: Text(
                           _error!,
-                          style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     _buildSubmitBtn(),
@@ -247,8 +262,12 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
     final desc = isVideo ? _demoDescription : _docDescription;
     final selectText = isVideo ? 'Select Video File' : 'Select PDF File';
 
-    final pillBg = isVideo ? const Color(0xFFFEE69F) : const Color(0xFFCEDA72).withOpacity(0.5);
-    final pillTextColor = isVideo ? const Color(0xFFF9A825) : const Color(0xFF88B342);
+    final pillBg = isVideo
+        ? const Color(0xFFFEE69F)
+        : const Color(0xFFCEDA72).withOpacity(0.5);
+    final pillTextColor = isVideo
+        ? const Color(0xFFF9A825)
+        : const Color(0xFF88B342);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -285,12 +304,20 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
                       color: const Color(0xFFE0E0E0),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.file_upload_outlined, color: Colors.white, size: 32),
+                    child: const Icon(
+                      Icons.file_upload_outlined,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     selectText,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                 ],
               ),
@@ -310,13 +337,20 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
                   Expanded(
                     child: Text(
                       file.name,
-                      style: TextStyle(color: pillTextColor, fontWeight: FontWeight.bold, fontSize: 13),
+                      style: TextStyle(
+                        color: pillTextColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
                     iconSize: 20,
-                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Colors.redAccent,
+                    ),
                     onPressed: () {
                       setState(() {
                         if (isVideo) {
@@ -336,13 +370,21 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
           const SizedBox(height: 16),
           Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
             desc,
-            style: TextStyle(fontSize: 13, color: Colors.black.withOpacity(0.4), height: 1.4),
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.black.withOpacity(0.4),
+              height: 1.4,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -366,7 +408,9 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
           backgroundColor: const Color(0xFF81B655),
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 64, vertical: 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           elevation: 0,
         ),
         onPressed: _isUploading ? null : _submit,
@@ -374,7 +418,10 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
             ? SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
               )
             : const Text(
                 'Submit Application',
@@ -405,8 +452,12 @@ class _FilePickerButton extends StatelessWidget {
       icon: Icon(icon),
       label: Text(label, overflow: TextOverflow.ellipsis),
       style: OutlinedButton.styleFrom(
-        foregroundColor: isUploaded ? Theme.of(context).colorScheme.primary : null,
-        side: isUploaded ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2) : null,
+        foregroundColor: isUploaded
+            ? Theme.of(context).colorScheme.primary
+            : null,
+        side: isUploaded
+            ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)
+            : null,
       ),
     );
   }

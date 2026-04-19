@@ -42,31 +42,45 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                   color: Colors.black.withOpacity(0.05),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
-                )
+                ),
               ],
             ),
             child: TextField(
               controller: _searchCtrl,
-              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+              onChanged: (val) =>
+                  setState(() => _searchQuery = val.toLowerCase()),
               style: TextStyle(color: isDark ? Colors.white : Colors.black87),
               decoration: InputDecoration(
                 hintText: 'Search educator by name..',
-                hintStyle: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade500),
+                hintStyle: TextStyle(
+                  color: isDark ? Colors.white54 : Colors.grey.shade500,
+                ),
                 prefixIcon: Padding(
                   padding: const EdgeInsets.only(left: 16.0, right: 8.0),
-                  child: Icon(Icons.tune_rounded, color: isDark ? Colors.white54 : Colors.grey.shade600),
+                  child: Icon(
+                    Icons.tune_rounded,
+                    color: isDark ? Colors.white54 : Colors.grey.shade600,
+                  ),
                 ),
                 suffixIcon: Padding(
                   padding: const EdgeInsets.only(right: 16.0),
                   child: _searchQuery.isNotEmpty
                       ? IconButton(
-                          icon: Icon(Icons.cancel_rounded, color: isDark ? Colors.white54 : Colors.grey.shade600),
+                          icon: Icon(
+                            Icons.cancel_rounded,
+                            color: isDark
+                                ? Colors.white54
+                                : Colors.grey.shade600,
+                          ),
                           onPressed: () {
                             _searchCtrl.clear();
                             setState(() => _searchQuery = '');
                           },
                         )
-                      : Icon(Icons.search_rounded, color: isDark ? Colors.white54 : Colors.grey.shade600),
+                      : Icon(
+                          Icons.search_rounded,
+                          color: isDark ? Colors.white54 : Colors.grey.shade600,
+                        ),
                 ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(vertical: 20),
@@ -100,12 +114,17 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.search_off_rounded,
-                          size: 64, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                      Icon(
+                        Icons.search_off_rounded,
+                        size: 64,
+                        color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'No educators found matching your search.',
-                        style: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade600),
+                        style: TextStyle(
+                          color: isDark ? Colors.white54 : Colors.grey.shade600,
+                        ),
                       ),
                     ],
                   ),
@@ -117,38 +136,48 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                   constraints: const BoxConstraints(maxWidth: 1200),
                   child: GridView.builder(
                     padding: const EdgeInsets.fromLTRB(48, 0, 48, 64),
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 280,
-                      childAspectRatio: 0.72,
-                      crossAxisSpacing: 24,
-                      mainAxisSpacing: 24,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 280,
+                          childAspectRatio: 0.72,
+                          crossAxisSpacing: 24,
+                          mainAxisSpacing: 24,
+                        ),
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final educator = filtered[index];
                       final photoUrl = educator['photoUrl'] as String?;
-                      final name = educator['username'] as String? ?? 'John Doe';
+                      final name =
+                          educator['username'] as String? ?? 'John Doe';
                       String bio = educator['bio'] as String? ?? '';
                       if (bio.trim().isEmpty) {
                         bio = 'Bio Description';
                       }
-                      
+
                       // Using average rating or defaulting to 5.0 to match visual mock if zero
-                      double rating = (educator['averageRating'] as num?)?.toDouble() ?? 0.0;
-                      if (rating == 0.0) rating = 5.0; 
+                      double rating =
+                          (educator['averageRating'] as num?)?.toDouble() ??
+                          0.0;
+                      if (rating == 0.0) rating = 5.0;
 
                       return Container(
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                          color: isDark
+                              ? const Color(0xFF2C2C2C)
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          border: isDark ? Border.all(color: Colors.white12) : null,
-                          boxShadow: isDark ? [] : [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            )
-                          ],
+                          border: isDark
+                              ? Border.all(color: Colors.white12)
+                              : null,
+                          boxShadow: isDark
+                              ? []
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                         ),
                         padding: const EdgeInsets.all(16),
                         child: Column(
@@ -157,12 +186,18 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                             Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.black12, width: 1),
+                                border: Border.all(
+                                  color: Colors.black12,
+                                  width: 1,
+                                ),
                               ),
                               child: CircleAvatar(
                                 radius: 48,
                                 backgroundColor: const Color(0xFFD9D9D9),
-                                backgroundImage: (photoUrl != null && photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
+                                backgroundImage:
+                                    (photoUrl != null && photoUrl.isNotEmpty)
+                                    ? NetworkImage(photoUrl)
+                                    : null,
                                 child: (photoUrl == null || photoUrl.isEmpty)
                                     ? const SizedBox() // Empty like the mock if no real photo
                                     : null,
@@ -183,29 +218,49 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                             Text(
                               bio,
                               style: TextStyle(
-                                color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                color: isDark
+                                    ? Colors.white54
+                                    : Colors.grey.shade600,
                                 fontSize: 13,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 16),
-                            Divider(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                            Divider(
+                              color: isDark
+                                  ? Colors.white24
+                                  : Colors.grey.shade300,
+                            ),
                             const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Rating', style: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade600, fontSize: 13)),
+                                Text(
+                                  'Rating',
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white54
+                                        : Colors.grey.shade600,
+                                    fontSize: 13,
+                                  ),
+                                ),
                                 Row(
                                   children: [
-                                    const Icon(Icons.star, color: Colors.amber, size: 16),
+                                    const Icon(
+                                      Icons.star,
+                                      color: Colors.amber,
+                                      size: 16,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       rating.toStringAsFixed(1),
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
-                                        color: isDark ? Colors.white : Colors.black87,
+                                        color: isDark
+                                            ? Colors.white
+                                            : Colors.black87,
                                       ),
                                     ),
                                   ],
@@ -221,7 +276,9 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                                   backgroundColor: const Color(0xFF7CB342),
                                   foregroundColor: Colors.white,
                                   elevation: 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
                                 onPressed: () {
                                   Navigator.push(
@@ -234,7 +291,13 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                                     ),
                                   );
                                 },
-                                child: const Text('Browse Educator', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                child: const Text(
+                                  'Browse Educator',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ),
                             ),
                           ],

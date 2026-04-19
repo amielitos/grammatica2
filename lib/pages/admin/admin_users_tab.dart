@@ -42,10 +42,18 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             var users = List<Map<String, dynamic>>.from(allUsers);
 
             // Calculate Counts
-            final adminCount = allUsers.where((u) => u['role'] == 'ADMIN').length;
-            final validatorCount = allUsers.where((u) => u['role'] == 'VALIDATOR').length;
-            final educatorCount = allUsers.where((u) => u['role'] == 'EDUCATOR').length;
-            final learnerCount = allUsers.where((u) => u['role'] == 'LEARNER').length;
+            final adminCount = allUsers
+                .where((u) => u['role'] == 'ADMIN')
+                .length;
+            final validatorCount = allUsers
+                .where((u) => u['role'] == 'VALIDATOR')
+                .length;
+            final educatorCount = allUsers
+                .where((u) => u['role'] == 'EDUCATOR')
+                .length;
+            final learnerCount = allUsers
+                .where((u) => u['role'] == 'LEARNER')
+                .length;
 
             if (_searchQuery.isNotEmpty) {
               final query = _searchQuery.toLowerCase();
@@ -64,16 +72,24 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   (b['username'] ?? '').toString().toLowerCase(),
                 );
               } else if (_selectedFilter == 'Role') {
-                cmp = (a['role'] ?? '').toString().compareTo((b['role'] ?? '').toString());
+                cmp = (a['role'] ?? '').toString().compareTo(
+                  (b['role'] ?? '').toString(),
+                );
               } else if (_selectedFilter == 'Status') {
-                cmp = (a['status'] ?? '').toString().compareTo((b['status'] ?? '').toString());
+                cmp = (a['status'] ?? '').toString().compareTo(
+                  (b['status'] ?? '').toString(),
+                );
               } else if (_selectedFilter == 'Create Date') {
                 final tsA = a['createdAt'] as Timestamp?;
                 final tsB = b['createdAt'] as Timestamp?;
-                if (tsA == null && tsB == null) cmp = 0;
-                else if (tsA == null) cmp = 1;
-                else if (tsB == null) cmp = -1;
-                else cmp = tsB.compareTo(tsA);
+                if (tsA == null && tsB == null)
+                  cmp = 0;
+                else if (tsA == null)
+                  cmp = 1;
+                else if (tsB == null)
+                  cmp = -1;
+                else
+                  cmp = tsB.compareTo(tsA);
               }
               if (cmp == 0) {
                 return (a['username'] ?? '').toString().toLowerCase().compareTo(
@@ -112,7 +128,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.tune_rounded, color: Colors.grey),
+                          icon: const Icon(
+                            Icons.tune_rounded,
+                            color: Colors.grey,
+                          ),
                           onPressed: _showFilterDialog,
                         ),
                         Expanded(
@@ -161,14 +180,22 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         if (users.isEmpty)
                           const Padding(
                             padding: EdgeInsets.all(48.0),
-                            child: Text('No users found', style: TextStyle(color: Colors.grey)),
+                            child: Text(
+                              'No users found',
+                              style: TextStyle(color: Colors.grey),
+                            ),
                           )
                         else
                           ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: users.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFEEEEEE), indent: 24, endIndent: 24),
+                            separatorBuilder: (_, __) => const Divider(
+                              height: 1,
+                              color: Color(0xFFEEEEEE),
+                              indent: 24,
+                              endIndent: 24,
+                            ),
                             itemBuilder: (context, index) {
                               final u = users[index];
                               return _buildUserRow(u);
@@ -200,12 +227,20 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           children: [
             Text(
               label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               '$count',
-              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.normal, color: Colors.black),
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.normal,
+                color: Colors.black,
+              ),
             ),
           ],
         ),
@@ -222,11 +257,18 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           children: [
             const Padding(
               padding: EdgeInsets.all(16.0),
-              child: Text('Filter Users By', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(
+                'Filter Users By',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
             ..._filterOptions.map((option) {
               return ListTile(
-                leading: Icon(_selectedFilter == option ? Icons.radio_button_checked : Icons.radio_button_off),
+                leading: Icon(
+                  _selectedFilter == option
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                ),
                 title: Text(option),
                 onTap: () {
                   setState(() => _selectedFilter = option);
@@ -246,7 +288,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       child: Text(
         label,
         textAlign: center ? TextAlign.center : TextAlign.start,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87),
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+          color: Colors.black87,
+        ),
       ),
     );
   }
@@ -272,7 +318,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 CircleAvatar(
                   radius: 18,
                   backgroundColor: const Color(0xFFE0E0E0),
-                  backgroundImage: u['photoUrl'] != null ? NetworkImage(u['photoUrl']) : null,
+                  backgroundImage: u['photoUrl'] != null
+                      ? NetworkImage(u['photoUrl'])
+                      : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -286,15 +334,46 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             ),
           ),
           // Email
-          Expanded(flex: 4, child: Text(email, style: const TextStyle(fontSize: 13, color: Colors.black87), overflow: TextOverflow.ellipsis)),
+          Expanded(
+            flex: 4,
+            child: Text(
+              email,
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
           // Role
-          Expanded(flex: 2, child: Text(role, style: const TextStyle(fontSize: 13, color: Colors.black87))),
+          Expanded(
+            flex: 2,
+            child: Text(
+              role,
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+          ),
           // Status
-          Expanded(flex: 2, child: Text(status.toUpperCase(), style: const TextStyle(fontSize: 13, color: Colors.black87))),
+          Expanded(
+            flex: 2,
+            child: Text(
+              status.toUpperCase(),
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+          ),
           // Sub
-          Expanded(flex: 2, child: Text(subscription.toUpperCase(), style: const TextStyle(fontSize: 13, color: Colors.black87))),
+          Expanded(
+            flex: 2,
+            child: Text(
+              subscription.toUpperCase(),
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+          ),
           // Created At
-          Expanded(flex: 2, child: Text(createdAt, style: const TextStyle(fontSize: 13, color: Colors.black87))),
+          Expanded(
+            flex: 2,
+            child: Text(
+              createdAt,
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+          ),
           // Role Action
           Expanded(
             flex: 3,
@@ -309,19 +388,25 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   isExpanded: true,
                   value: roleFromString(role),
                   icon: const Icon(Icons.expand_more, size: 16),
-                  items: UserRole.values.where((r) => r != UserRole.superadmin).map((r) {
-                    return DropdownMenuItem(
-                      value: r,
-                      child: Text(
-                        roleToString(r).toUpperCase(),
-                        style: const TextStyle(fontSize: 12),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
+                  items: UserRole.values
+                      .where((r) => r != UserRole.superadmin)
+                      .map((r) {
+                        return DropdownMenuItem(
+                          value: r,
+                          child: Text(
+                            roleToString(r).toUpperCase(),
+                            style: const TextStyle(fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      })
+                      .toList(),
                   onChanged: (newRole) async {
                     if (newRole != null && roleToString(newRole) != role) {
-                      await RoleService.instance.setUserRole(uid: uid, role: newRole);
+                      await RoleService.instance.setUserRole(
+                        uid: uid,
+                        role: newRole,
+                      );
                     }
                   },
                 ),
@@ -334,16 +419,27 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4.0),
               child: ElevatedButton(
-                onPressed: () => _showStatusToggleConfirmation(uid, username, status),
+                onPressed: () =>
+                    _showStatusToggleConfirmation(uid, username, status),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: status.toLowerCase() == 'active' ? Colors.orange.shade400 : Colors.green.shade400,
+                  backgroundColor: status.toLowerCase() == 'active'
+                      ? Colors.orange.shade400
+                      : Colors.green.shade400,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
                 ),
-                child: Text(status.toLowerCase() == 'active' ? 'DEACTIVATE' : 'ACTIVATE'),
+                child: Text(
+                  status.toLowerCase() == 'active' ? 'DEACTIVATE' : 'ACTIVATE',
+                ),
               ),
             ),
           ),
@@ -352,25 +448,40 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     );
   }
 
-  void _showStatusToggleConfirmation(String uid, String username, String currentStatus) {
+  void _showStatusToggleConfirmation(
+    String uid,
+    String username,
+    String currentStatus,
+  ) {
     final isDeactivating = currentStatus.toLowerCase() == 'active';
     final newStatus = isDeactivating ? 'DEACTIVATED' : 'ACTIVE';
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('${isDeactivating ? 'Deactivate' : 'Activate'} Account'),
-        content: Text('Are you sure you want to ${isDeactivating ? 'deactivate' : 'activate'} $username\'s account?'),
+        content: Text(
+          'Are you sure you want to ${isDeactivating ? 'deactivate' : 'activate'} $username\'s account?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await DatabaseService.instance.updateUserField(uid, 'status', newStatus);
+              await DatabaseService.instance.updateUserField(
+                uid,
+                'status',
+                newStatus,
+              );
             },
             child: Text(
-              isDeactivating ? 'Deactivate' : 'Activate', 
-              style: TextStyle(color: isDeactivating ? Colors.orange : Colors.green),
+              isDeactivating ? 'Deactivate' : 'Activate',
+              style: TextStyle(
+                color: isDeactivating ? Colors.orange : Colors.green,
+              ),
             ),
           ),
         ],
