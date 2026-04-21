@@ -81,8 +81,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     for (var i = 0; i < questions.length; i++) {
       final q = questions[i];
       if (q.question.isEmpty) return 'Question ${i + 1} is empty';
-      if (q.answer.isEmpty)
+      if (q.answer.isEmpty) {
         return 'Question ${i + 1} has no correct answer selected';
+      }
       if (q.type == 'multiple_choice') {
         if (q.options == null || q.options!.length < 2) {
           return 'Question ${i + 1} must have at least 2 options';
@@ -128,6 +129,16 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       }
     }
     super.dispose();
+  }
+
+  Future<void> saveIndependent() async {
+    final result = await _saveQuiz();
+    if (result != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quiz saved successfully')),
+      );
+      resetForm();
+    }
   }
 
   @override
@@ -283,7 +294,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? const Color(0xFF88B342).withOpacity(0.1)
+                                    ? const Color(0xFF88B342).withValues(alpha: 0.1)
                                     : Colors.white,
                                 border: Border.all(
                                   color: isSelected

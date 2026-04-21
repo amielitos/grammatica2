@@ -54,7 +54,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Lesson? _editingLesson;
-  int _editingLessonTabIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -117,10 +116,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         tabs.add(
           AdminLessonsTab(
             initialLesson: _editingLesson,
-            initialTabIndex: _editingLessonTabIndex,
             onReset: () => setState(() {
               _editingLesson = null;
-              _editingLessonTabIndex = 0;
             }),
           ),
         );
@@ -136,7 +133,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
             if (manageLessonsIndex != null) {
               setState(() {
                 _editingLesson = l;
-                _editingLessonTabIndex = 0;
                 _index = manageLessonsIndex!;
               });
             }
@@ -145,7 +141,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
             if (manageLessonsIndex != null) {
               setState(() {
                 _editingLesson = l;
-                _editingLessonTabIndex = 1; // Show Quizzes tab
                 _index = manageLessonsIndex!;
               });
             }

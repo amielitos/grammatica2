@@ -1,0 +1,11 @@
+﻿Analyzing admin_lessons_tab.dart...
+
+  error - admin_lessons_tab.dart:682:38 - The method 'saveIndependent' isn't defined for the type 'AdminQuizzesTabState'. Try correcting the name to the name of an existing method, or defining a method named 'saveIndependent'. - undefined_method
+  error - admin_lessons_tab.dart:696:60 - The method 'validateQuiz' isn't defined for the type 'AdminAssessmentsTabState'. Try correcting the name to the name of an existing method, or defining a method named 'validateQuiz'. - undefined_method
+warning - admin_lessons_tab.dart:617:10 - The declaration '_buildRawTextButton' isn't referenced. Try removing the declaration of '_buildRawTextButton'. - unused_element
+warning - admin_lessons_tab.dart:807:10 - The declaration '_buildDangerZone' isn't referenced. Try removing the declaration of '_buildDangerZone'. - unused_element
+   info - admin_lessons_tab.dart:313:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - admin_lessons_tab.dart:843:36 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - admin_lessons_tab.dart:850:17 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+
+7 issues found.

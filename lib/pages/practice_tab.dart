@@ -4,11 +4,9 @@ import 'spelling_bee_page.dart';
 import 'pronunciation_quiz_page.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
-import '../theme/app_colors.dart';
 import 'quiz_folder_page.dart';
-import 'admin/admin_quizzes_tab.dart';
+import 'admin/admin_assessments_tab.dart';
 
-import '../theme/app_colors.dart';
 import '../widgets/design_ornaments.dart';
 
 class PracticeTab extends StatefulWidget {
@@ -20,6 +18,9 @@ class PracticeTab extends StatefulWidget {
 
 class _PracticeTabState extends State<PracticeTab> {
   int? _selectedSubTab; // null = Selection, 0 = Bee, 1 = Voice, 2 = Assessment
+  bool _showAssessmentEditor = false;
+  final GlobalKey<AdminAssessmentsTabState> _assessmentKey =
+      GlobalKey<AdminAssessmentsTabState>();
 
   @override
   Widget build(BuildContext context) {
@@ -49,140 +50,154 @@ class _PracticeTabState extends State<PracticeTab> {
           final role = roleSnap.data;
           final canEdit =
               role == UserRole.admin ||
-              role == UserRole.superadmin ||
-              role == UserRole.educator;
+              role == UserRole.superadmin;
 
-          return StatefulBuilder(
-            builder: (context, setInternalState) {
-              bool showEditor = false;
-
-              return Column(
-                children: [
-                  if (canEdit)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+          return Column(
+            children: [
+              if (canEdit)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(
+                        value: false,
+                        label: Text('View'),
+                        icon: Icon(Icons.visibility),
                       ),
-                      child: SegmentedButton<bool>(
-                        segments: const [
-                          ButtonSegment(
-                            value: false,
-                            label: Text('View'),
-                            icon: Icon(Icons.visibility),
+                      ButtonSegment(
+                        value: true,
+                        label: Text('Manage'),
+                        icon: Icon(Icons.edit),
+                      ),
+                    ],
+                    selected: {_showAssessmentEditor},
+                    onSelectionChanged: (val) {
+                      setState(() => _showAssessmentEditor = val.first);
+                    },
+                  ),
+                ),
+              Expanded(
+                child: _showAssessmentEditor
+                    ? Scaffold(
+                        appBar: AppBar(
+                          leading: IconButton(
+                            icon: const Icon(Icons.arrow_back),
+                            onPressed: () =>
+                                setState(() => _selectedSubTab = null),
                           ),
-                          ButtonSegment(
-                            value: true,
-                            label: Text('Manage'),
-                            icon: Icon(Icons.edit),
-                          ),
-                        ],
-                        selected: {showEditor},
-                        onSelectionChanged: (val) {
-                          setInternalState(() => showEditor = val.first);
+                          title: const Text('Assessment Editor'),
+                          actions: [
+                            TextButton.icon(
+                              onPressed: () async {
+                                await _assessmentKey.currentState
+                                    ?.saveIndependent();
+                                setState(() => _showAssessmentEditor = false);
+                              },
+                              icon: const Icon(Icons.save),
+                              label: const Text('Save'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFF88B342),
+                              ),
+                            ),
+                          ],
+                        ),
+                        body: AdminAssessmentsTab(
+                          key: _assessmentKey,
+                          isEmbedded: true,
+                        ),
+                      )
+                    : StreamBuilder<List<Quiz>>(
+                        stream: DatabaseService.instance.streamQuizzes(
+                          userRole: role,
+                          userId: user.uid,
+                        ),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          final assessments = (snapshot.data ?? [])
+                              .where((q) => q.isAssessment)
+                              .toList();
+
+                          return QuizFolderPage(
+                            user: user,
+                            title: 'English Assessment',
+                            pillLabel: 'Assessment',
+                            quizzes: assessments,
+                            onBack: () =>
+                                setState(() => _selectedSubTab = null),
+                          );
                         },
                       ),
-                    ),
-                  Expanded(
-                    child: showEditor
-                        ? Scaffold(
-                            appBar: AppBar(
-                              leading: IconButton(
-                                icon: const Icon(Icons.arrow_back),
-                                onPressed: () =>
-                                    setState(() => _selectedSubTab = null),
-                              ),
-                              title: const Text('Assessment Editor'),
-                            ),
-                            body: const SingleChildScrollView(
-                              child: AdminQuizzesTab(isEmbedded: true),
-                            ),
-                          )
-                        : StreamBuilder<List<Quiz>>(
-                            stream: DatabaseService.instance.streamQuizzes(
-                              userRole: role,
-                              userId: user.uid,
-                            ),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
-                              }
-                              final assessments = (snapshot.data ?? [])
-                                  .where((q) => q.isAssessment)
-                                  .toList();
-
-                              return QuizFolderPage(
-                                user: user,
-                                title: 'English Assessment',
-                                pillLabel: 'Assessment',
-                                quizzes: assessments,
-                                onBack: () =>
-                                    setState(() => _selectedSubTab = null),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              );
-            },
+              ),
+            ],
           );
         },
       );
     }
 
     return BackgroundWrapper(
-      imageAssetPath: 'assets/practicebg.png',
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-        child: Column(
-          children: [
-            const Text(
-              'Practice Tools',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Practice Tools',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 64),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1000),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _PracticeCard(
-                      title: 'Spelling Bee',
-                      icon: Icons.emoji_nature_outlined, // Closer to bee
-                      themeColor: const Color(0xFFF6BC00), // Yellow orange
-                      onTap: () => setState(() => _selectedSubTab = 0),
+              const SizedBox(height: 64),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1000),
+                child: Wrap(
+                  spacing: 32,
+                  runSpacing: 32,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 300,
+                      child: _PracticeCard(
+                        title: 'Spelling Bee',
+                        icon: Icons.emoji_nature_outlined,
+                        themeColor: const Color(0xFFF6BC00),
+                        onTap: () => setState(() => _selectedSubTab = 0),
+                      ),
                     ),
-                  ),
-                  SizedBox(width: 32),
-                  Expanded(
-                    child: _PracticeCard(
-                      title: 'Pronunciation',
-                      icon: Icons.record_voice_over_rounded,
-                      themeColor: const Color(0xFF75A94B), // Green
-                      onTap: () => setState(() => _selectedSubTab = 1),
+                    SizedBox(
+                      width: 300,
+                      child: _PracticeCard(
+                        title: 'Pronunciation',
+                        icon: Icons.record_voice_over_rounded,
+                        themeColor: const Color(0xFF75A94B),
+                        onTap: () => setState(() => _selectedSubTab = 1),
+                      ),
                     ),
-                  ),
-                  SizedBox(width: 32),
-                  Expanded(
-                    child: _PracticeCard(
-                      title: 'English Assessment',
-                      icon: Icons.fact_check_outlined,
-                      themeColor: const Color(0xFFDF3F32), // Red
-                      onTap: () => setState(() => _selectedSubTab = 2),
+                    SizedBox(
+                      width: 300,
+                      child: _PracticeCard(
+                        title: 'English Assessment',
+                        icon: Icons.fact_check_outlined,
+                        themeColor: const Color(0xFFDF3F32),
+                        onTap: () => setState(() => _selectedSubTab = 2),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

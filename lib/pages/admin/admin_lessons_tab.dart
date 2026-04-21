@@ -11,18 +11,15 @@ import '../../services/role_service.dart';
 import '../../widgets/user_visibility_selector.dart';
 import '../../models/content_visibility.dart';
 
-import 'admin_quizzes_tab.dart'; // Import to use as a sub-tab
+import 'admin_quizzes_tab.dart';
 
 class AdminLessonsTab extends StatelessWidget {
   final Lesson? initialLesson;
   final VoidCallback? onReset;
-  final int initialTabIndex;
-
   const AdminLessonsTab({
     super.key,
     this.initialLesson,
     this.onReset,
-    this.initialTabIndex = 0,
   });
 
   @override
@@ -30,7 +27,6 @@ class AdminLessonsTab extends StatelessWidget {
     return _ManageLessonsView(
       initialLesson: initialLesson,
       onReset: onReset,
-      initialTabIndex: initialTabIndex,
     );
   }
 }
@@ -38,12 +34,10 @@ class AdminLessonsTab extends StatelessWidget {
 class _ManageLessonsView extends StatefulWidget {
   final Lesson? initialLesson;
   final VoidCallback? onReset;
-  final int initialTabIndex;
 
   const _ManageLessonsView({
     this.initialLesson,
     this.onReset,
-    this.initialTabIndex = 0,
   });
 
   @override
@@ -55,7 +49,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   Lesson? _selectedLesson;
   bool _creatingLesson = false;
   bool _isGeneratingFromPdf = false;
-  String? _tempPdfText; // Store extracted text temporarily
   final AILogicService _aiLogicService = AILogicService();
   final _title = TextEditingController();
   final _prompt = TextEditingController();
@@ -72,7 +65,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   @override
   void initState() {
     super.initState();
-    _tabIndex = widget.initialTabIndex;
     if (widget.initialLesson != null) {
       _loadInitialLesson();
     }
@@ -81,9 +73,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   @override
   void didUpdateWidget(_ManageLessonsView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.initialTabIndex != oldWidget.initialTabIndex) {
-      setState(() => _tabIndex = widget.initialTabIndex);
-    }
     if (widget.initialLesson != oldWidget.initialLesson) {
       if (widget.initialLesson != null) {
         _loadInitialLesson();
@@ -113,8 +102,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     });
   }
 
-  int _tabIndex = 0; // 0 for Lessons, 1 for Quizzes
-
   @override
   Widget build(BuildContext context) {
     final user = AuthService.instance.currentUser;
@@ -122,113 +109,55 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
       stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
       builder: (context, roleSnap) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
-              Text(
+              const Text(
                 'Manage Content',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                style: TextStyle(
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: Colors.black,
                 ),
               ),
               const SizedBox(height: 16),
-              // Segmented Toggle
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  height: 36,
-                  width: 240,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _tabIndex = 0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: _tabIndex == 0
-                                  ? const Color(0xFF88B342)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              'Lessons',
-                              style: TextStyle(
-                                color: _tabIndex == 0
-                                    ? Colors.white
-                                    : Colors.grey.shade700,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _tabIndex = 1),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: _tabIndex == 1
-                                  ? const Color(0xFF88B342)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              'Quizzes',
-                              style: TextStyle(
-                                color: _tabIndex == 1
-                                    ? Colors.white
-                                    : Colors.grey.shade700,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Main Card Content
               Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(12),
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
-                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    IndexedStack(
-                      index: _tabIndex,
-                      children: [
-                        _buildLessonForm(roleSnap.data),
-                        AdminQuizzesTab(
-                          key: _quizKey,
-                          initialQuizId: _selectedQuizId,
-                          isEmbedded: true,
-                          onChanged: () => setState(() {}),
+                    _buildLessonForm(roleSnap.data),
+                    const SizedBox(height: 32),
+                    const Divider(),
+                    const Padding(
+                      padding: EdgeInsets.all(24.0),
+                      child: Text(
+                        'Lesson Quiz',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ],
+                      ),
+                    ),
+                    AdminQuizzesTab(
+                      key: _quizKey,
+                      initialQuizId: _selectedQuizId,
+                      isEmbedded: true,
+                      onChanged: () => setState(() {}),
                     ),
                     const Divider(height: 1),
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 16.0,
-                      ),
+                      padding: const EdgeInsets.all(24.0),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -274,7 +203,9 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   bool _isSaveDisabled() {
-    if (_title.text.trim().isEmpty || _prompt.text.trim().isEmpty) return true;
+    if (_title.text.trim().isEmpty || _prompt.text.trim().isEmpty) {
+      return true;
+    }
     if (_quizKey.currentState?.isEmpty ?? true) return true;
     if (_creatingLesson) return true;
     return false;
@@ -406,11 +337,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           throw Exception('Could not read file data');
         }
 
-        final extractedText = await _aiLogicService.extractTextFromPdf(bytes);
-
-        setState(() {
-          _tempPdfText = extractedText;
-        });
+        await _aiLogicService.extractTextFromPdf(bytes);
 
         // Use MarkItDown (via backend) to convert original PDF bytes to markdown
         final generatedMarkdown = await _aiLogicService.convertToMarkdown(
@@ -573,30 +500,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     );
   }
 
-  Widget _buildRawTextButton() {
-    return TextButton.icon(
-      onPressed: () {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Raw Extracted Text'),
-            content: SingleChildScrollView(
-              child: SelectableText(_tempPdfText!),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
-            ],
-          ),
-        );
-      },
-      icon: const Icon(Icons.description_outlined),
-      label: const Text('View Raw Extracted Text'),
-    );
-  }
-
   Future<void> _pickFiles() async {
     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
     if (result != null) {
@@ -618,7 +521,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     _isVisible = true;
     _isMembersOnly = false;
     _isGrammaticaLesson = false;
-    _tempPdfText = null; // Clear the temporary PDF text
     _visibility = ContentVisibility.public;
     _visibleTo = [];
     _quizKey.currentState?.resetForm();
@@ -626,12 +528,13 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Future<void> _saveIntegratedLesson() async {
+    setState(() => _creatingLesson = true);
+    // Default: Lesson + Quiz
     final quizError = _quizKey.currentState?.validateQuiz();
     if (quizError != null) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Quiz error: $quizError')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Quiz error: $quizError')));
       }
       return;
     }
@@ -704,77 +607,14 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
       _resetForm();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving lesson: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error saving lesson: $e')));
       }
     } finally {
       if (mounted) {
         setState(() => _creatingLesson = false);
       }
     }
-  }
-
-  Widget _buildDangerZone(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-      tooltip: 'Danger Zone',
-      onSelected: (val) async {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Confirm Wipeout'),
-            content: Text(
-              'Are you SURE you want to clear ALL $val? This cannot be undone.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                ),
-                child: const Text('Wipe Status'),
-              ),
-            ],
-          ),
-        );
-
-        if (confirmed == true && mounted) {
-          try {
-            if (val == 'Lessons') {
-              await DatabaseService.instance.clearAllLessons();
-            } else {
-              await DatabaseService.instance.clearAllQuizzes();
-            }
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('All $val wiped successfully.')),
-              );
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('Error: $e')));
-            }
-          }
-        }
-      },
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: 'Lessons',
-          child: Text('Wipe All Lessons', style: TextStyle(color: Colors.red)),
-        ),
-        const PopupMenuItem(
-          value: 'Quizzes',
-          child: Text('Wipe All Quizzes', style: TextStyle(color: Colors.red)),
-        ),
-      ],
-    );
   }
 
   @override

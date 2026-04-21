@@ -46,19 +46,19 @@ class _QuizzesPageState extends State<QuizzesPage> {
               return const Center(child: Text('No quizzes available.'));
             }
             final allQuizzes = snapshot.data!;
-            final quizzes = allQuizzes.where((q) {
-              if (q.isAssessment == false) return true;
-              return role == UserRole.admin || role == UserRole.superadmin;
-            }).toList();
+            final nonFilteredQuizzes = allQuizzes;
 
             return StreamBuilder<Map<String, Map<String, dynamic>>>(
               stream: _progressStream,
               builder: (context, progressSnap) {
-                final grammaticaQuizzes = quizzes
+                final assessments = nonFilteredQuizzes.where((q) => q.isAssessment).toList();
+                final regularQuizzes = nonFilteredQuizzes.where((q) => !q.isAssessment).toList();
+
+                final grammaticaQuizzes = regularQuizzes
                     .where((q) => q.isGrammaticaQuiz == true)
                     .toList();
 
-                final publicQuizzes = quizzes.where((q) {
+                final publicQuizzes = regularQuizzes.where((q) {
                   if (q.isGrammaticaQuiz) return false;
                   if (!q.isVisible) return false;
                   return true;
@@ -85,7 +85,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
                     children: [
                       Center(
                         child: Text(
-                          'Quizzes',
+                          'Quizzes & Assessments',
                           style: Theme.of(context).textTheme.headlineMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
@@ -99,6 +99,21 @@ class _QuizzesPageState extends State<QuizzesPage> {
                         runSpacing: 32,
                         alignment: WrapAlignment.center,
                         children: [
+                          _buildFolderCard(
+                            context,
+                            title: 'Assessments',
+                            description: 'Tests and Exams',
+                            pillLabel: 'Assessments',
+                            iconColor: Colors.orange,
+                            icon: Icons.assignment_turned_in_rounded,
+                            onTap: () => setState(() {
+                              _activeFolder = {
+                                'title': 'Assessments',
+                                'pillLabel': 'Independent Assessments',
+                                'quizzes': assessments,
+                              };
+                            }),
+                          ),
                           _buildFolderCard(
                             context,
                             title: 'Grammatica',
@@ -148,6 +163,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
     required String pillLabel,
     required Color iconColor,
     required VoidCallback onTap,
+    IconData icon = Icons.quiz_rounded,
   }) {
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -167,7 +183,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
                     color: iconColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(Icons.quiz_rounded, size: 40, color: iconColor),
+                  child: Icon(icon, size: 40, color: iconColor),
                 ),
                 const SizedBox(height: 24),
                 Text(
