@@ -210,6 +210,7 @@ class Quiz {
   final bool isMembersOnly;
   final bool isGrammaticaQuiz;
   final bool isAssessment;
+  final String? passage;
 
   Quiz({
     required this.id,
@@ -229,6 +230,7 @@ class Quiz {
     this.isMembersOnly = false,
     this.isGrammaticaQuiz = false,
     this.isAssessment = false,
+    this.passage,
   });
 
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -258,6 +260,7 @@ class Quiz {
       isMembersOnly: d['isMembersOnly'] ?? false,
       isGrammaticaQuiz: d['isGrammaticaQuiz'] ?? false,
       isAssessment: d['isAssessment'] ?? false,
+      passage: d['passage'] as String?,
     );
   }
 }
@@ -713,6 +716,7 @@ class DatabaseService {
     bool isMembersOnly = false,
     bool isGrammaticaQuiz = false,
     bool isAssessment = false,
+    String? passage,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -742,6 +746,7 @@ class DatabaseService {
       'isMembersOnly': isMembersOnly,
       'isGrammaticaQuiz': isGrammaticaQuiz,
       'isAssessment': isAssessment,
+      'passage': passage,
     });
     return doc.id;
   }
@@ -760,6 +765,7 @@ class DatabaseService {
     bool? isMembersOnly,
     bool? isGrammaticaQuiz,
     bool? isAssessment,
+    String? passage,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -776,6 +782,7 @@ class DatabaseService {
     if (isMembersOnly != null) data['isMembersOnly'] = isMembersOnly;
     if (isGrammaticaQuiz != null) data['isGrammaticaQuiz'] = isGrammaticaQuiz;
     if (isAssessment != null) data['isAssessment'] = isAssessment;
+    if (passage != null) data['passage'] = passage;
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
     }
