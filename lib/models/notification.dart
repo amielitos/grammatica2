@@ -59,7 +59,7 @@ class NotificationModel {
       'title': title,
       'message': message,
       'type': type.toString().split('.').last,
-      'createdAt': FieldValue.serverTimestamp(),
+      'createdAt': createdAt,
       'isRead': isRead,
       'isArchived': isArchived,
       'rejectionReason': rejectionReason,

@@ -57,6 +57,12 @@ class _LessonsListTabState extends State<LessonsListTab> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   var lessons = snapshot.data!.toList();
+                  
+                  // Educators should only see and manage their own lessons
+                  if (role == UserRole.educator && user != null) {
+                    lessons = lessons.where((l) => l.createdByUid == user.uid).toList();
+                  }
+
                   if (_searchQuery.isNotEmpty) {
                     final query = _searchQuery.toLowerCase();
                     lessons = lessons.where((l) {

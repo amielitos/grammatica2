@@ -84,7 +84,20 @@ class RoleService {
     required String uid,
     required UserRole role,
   }) async {
-    await _users.doc(uid).update({'role': roleToString(role)});
+    final docRef = _users.doc(uid);
+    final doc = await docRef.get();
+    final currentRole = doc.data()?['role'];
+    
+    final updates = <String, dynamic>{'role': roleToString(role)};
+    
+    if (role == UserRole.educator && currentRole != 'EDUCATOR') {
+      updates['educatorStartDate'] = FieldValue.serverTimestamp();
+      updates['educatorEndDate'] = null;
+    } else if (currentRole == 'EDUCATOR' && role != UserRole.educator) {
+      updates['educatorEndDate'] = FieldValue.serverTimestamp();
+    }
+    
+    await docRef.update(updates);
   }
 
   Future<void> updateUsername({

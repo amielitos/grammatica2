@@ -51,6 +51,8 @@ class EducatorApplication {
   final String id;
   final String applicantUid;
   final String applicantEmail;
+  final String cvUrl;
+  final List<String> certificateUrls;
   final String videoUrl;
   final String syllabusUrl;
   final String status; // 'pending', 'approved', 'rejected'
@@ -61,6 +63,8 @@ class EducatorApplication {
     required this.id,
     required this.applicantUid,
     required this.applicantEmail,
+    required this.cvUrl,
+    required this.certificateUrls,
     required this.videoUrl,
     required this.syllabusUrl,
     required this.status,
@@ -76,6 +80,11 @@ class EducatorApplication {
       id: doc.id,
       applicantUid: data['applicantUid'] ?? '',
       applicantEmail: data['applicantEmail'] ?? '',
+      cvUrl: data['cvUrl'] ?? '',
+      certificateUrls: (data['certificateUrls'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? 
+                       (data['certificateUrl'] != null && data['certificateUrl'].toString().isNotEmpty 
+                           ? [data['certificateUrl'].toString()] 
+                           : <String>[]),
       videoUrl: data['videoUrl'] ?? '',
       syllabusUrl: data['syllabusUrl'] ?? '',
       status: data['status'] ?? 'pending',
@@ -88,6 +97,8 @@ class EducatorApplication {
     return {
       'applicantUid': applicantUid,
       'applicantEmail': applicantEmail,
+      'cvUrl': cvUrl,
+      'certificateUrls': certificateUrls,
       'videoUrl': videoUrl,
       'syllabusUrl': syllabusUrl,
       'status': status,
@@ -309,12 +320,20 @@ class DatabaseService {
   final _firestore = FirebaseFirestore.instance;
   final _storage = FirebaseStorage.instance;
 
+  Future<Map<String, dynamic>?> getUserDoc(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    if (!doc.exists) return null;
+    return {...doc.data()!, 'uid': doc.id};
+  }
+
   // Caching for streams to avoid rapid recreation issues on web
   final Map<String, Stream<Map<String, Map<String, dynamic>>>>
   _quizProgressCache = {};
   final Map<String, Stream<Map<String, Map<String, dynamic>>>>
   _lessonProgressCache = {};
   final Map<String, Stream<EducatorApplication?>> _userApplicationCache = {};
+  final Map<String, Stream<List<Map<String, dynamic>>>> _subscribersCache = {};
+  final Map<String, Stream<List<Map<String, dynamic>>>> _mentorshipCache = {};
 
   Future<void> _deleteFileFromUrl(String? url) async {
     if (url == null || url.isEmpty) return;
@@ -392,6 +411,8 @@ class DatabaseService {
   Future<void> submitEducatorApplication({
     required String uid,
     required String email,
+    required String cvUrl,
+    required List<String> certificateUrls,
     required String videoUrl,
     required String syllabusUrl,
     required String applicationType,
@@ -399,6 +420,8 @@ class DatabaseService {
     await _educatorApplications.add({
       'applicantUid': uid,
       'applicantEmail': email,
+      'cvUrl': cvUrl,
+      'certificateUrls': certificateUrls,
       'videoUrl': videoUrl,
       'syllabusUrl': syllabusUrl,
       'status': 'pending',
@@ -408,21 +431,23 @@ class DatabaseService {
   }
 
   Stream<List<EducatorApplication>> streamEducatorApplications({String? type}) {
-    Query<Map<String, dynamic>> query = _educatorApplications.where(
-      'status',
-      isEqualTo: 'pending',
-    );
-
-    if (type != null) {
-      query = query.where('applicationType', isEqualTo: type);
-    }
-
-    return query
-        .orderBy('appliedAt', descending: false)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map(EducatorApplication.fromDoc).toList(),
-        );
+    // Basic query on status first
+    Query<Map<String, dynamic>> query = _educatorApplications;
+    
+    // We filter status in Dart if needed, or keep it minimal in query
+    return query.snapshots().map((snapshot) {
+      var apps = snapshot.docs.map(EducatorApplication.fromDoc).toList();
+      
+      // Filter for pending status
+      apps = apps.where((a) => a.status == 'pending').toList();
+      
+      // Filter by type if provided
+      if (type != null) {
+        apps = apps.where((a) => a.applicationType == type).toList();
+      }
+      
+      return apps;
+    });
   }
 
   Stream<EducatorApplication?> streamUserApplication(String uid) {
@@ -447,12 +472,66 @@ class DatabaseService {
     await _educatorApplications.doc(id).update({'status': status});
   }
 
+  Future<void> createMentorshipSession({
+    required String educatorId,
+    required String studentId,
+    required String studentName,
+    required DateTime startTime,
+    required DateTime endTime,
+    required String meetingLink,
+  }) async {
+    await _firestore.collection('mentorship_sessions').add({
+      'educatorId': educatorId,
+      'studentId': studentId,
+      'studentName': studentName,
+      'startTime': Timestamp.fromDate(startTime),
+      'endTime': Timestamp.fromDate(endTime),
+      'meetingLink': meetingLink,
+      'status': 'scheduled',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> cancelMentorshipSession(String sessionId) async {
+    await _firestore.collection('mentorship_sessions').doc(sessionId).delete();
+  }
+
+  Stream<List<Map<String, dynamic>>> streamEducatorMentorshipSessions(String educatorId) {
+    return _firestore.collection('mentorship_sessions')
+        .where('educatorId', isEqualTo: educatorId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => {
+          ...doc.data(),
+          'id': doc.id,
+        }).toList());
+  }
+
+  Stream<List<Map<String, dynamic>>> streamStudentMentorshipSessions(String studentId) {
+    return _firestore.collection('mentorship_sessions')
+        .where('studentId', isEqualTo: studentId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => {
+          ...doc.data(),
+          'id': doc.id,
+        }).toList());
+  }
+
+
+
   Future<void> rejectEducatorApplication(
     EducatorApplication app, {
     String? reason,
     String? description,
   }) async {
     // Delete files from storage
+    if (app.cvUrl.isNotEmpty) {
+      await _deleteFileFromUrl(app.cvUrl);
+    }
+    for (String url in app.certificateUrls) {
+      if (url.isNotEmpty) {
+        await _deleteFileFromUrl(url);
+      }
+    }
     if (app.videoUrl.isNotEmpty) {
       await _deleteFileFromUrl(app.videoUrl);
     }
@@ -462,6 +541,8 @@ class DatabaseService {
     // Update status and clear URLs in Firestore
     await _educatorApplications.doc(app.id).update({
       'status': 'rejected',
+      'cvUrl': '',
+      'certificateUrls': [],
       'videoUrl': '', // Clear URLs to indicate files are gone
       'syllabusUrl': '',
       'rejectionReason': reason,
@@ -508,11 +589,11 @@ class DatabaseService {
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
-    String status = 'approved';
+    String status = 'approved'; 
     if (user != null) {
       final doc = await _firestore.collection('users').doc(user.uid).get();
       final role = doc.data()?['role'];
-      if (role == 'EDUCATOR' || role == 'SUPERADMIN') {
+      if (role == 'EDUCATOR' || role == 'VALIDATOR') {
         status = 'awaiting_approval';
       }
     }
@@ -707,11 +788,11 @@ class DatabaseService {
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
-    String status = 'approved';
+    String status = 'approved'; 
     if (user != null) {
       final doc = await _firestore.collection('users').doc(user.uid).get();
       final role = doc.data()?['role'];
-      if (role == 'EDUCATOR' || role == 'SUPERADMIN') {
+      if (role == 'EDUCATOR' || role == 'VALIDATOR') {
         status = 'awaiting_approval';
       }
     }
@@ -1466,21 +1547,19 @@ class DatabaseService {
         .doc(educatorUid)
         .collection('subscribers')
         .snapshots()
-        .asyncMap((snapshot) async {
-      final List<Map<String, dynamic>> subscribers = [];
-      for (final doc in snapshot.docs) {
-        final subData = doc.data();
-        final userDoc = await _firestore.collection('users').doc(doc.id).get();
-        if (userDoc.exists) {
-          subscribers.add({
-            'uid': doc.id,
-            ...userDoc.data()!,
-            'tier': subData['tier'],
-            'subscribedAt': subData['subscribedAt'],
-          });
-        }
-      }
-      return subscribers;
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => {
+        'uid': doc.id,
+        ...doc.data(),
+      }).toList();
+    });
+  }
+
+  // New helper for fetching user details without blocking the subscriber stream
+  Stream<Map<String, dynamic>> streamUserDetails(String uid) {
+    return _firestore.collection('users').doc(uid).snapshots().map((doc) => {
+      ...doc.data() ?? {},
+      'uid': doc.id,
     });
   }
 

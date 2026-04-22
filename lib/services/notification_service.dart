@@ -6,7 +6,6 @@ class NotificationService {
   static final instance = NotificationService._();
 
   final _firestore = FirebaseFirestore.instance;
-  // Removed _notificationCache to fix stale stream issues
 
   CollectionReference<Map<String, dynamic>> get _notifications =>
       _firestore.collection('notifications');
@@ -15,15 +14,17 @@ class NotificationService {
     String uid, {
     bool archived = false,
   }) {
+    // Removed orderBy to fix potential missing index issues in Firestore
     return _notifications
         .where('uid', isEqualTo: uid)
         .where('isArchived', isEqualTo: archived)
-        .orderBy('createdAt', descending: true)
+        .limit(50)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
               .map((doc) => NotificationModel.fromDoc(doc))
-              .toList(),
+              .toList()
+                ..sort((a, b) => b.createdAt.compareTo(a.createdAt)), // Manual sort
         );
   }
 
@@ -35,21 +36,29 @@ class NotificationService {
     String? rejectionReason,
     String? rejectionDescription,
   }) async {
-    final notification = NotificationModel(
-      id: '',
-      uid: uid,
-      title: title,
-      message: message,
-      type: type,
-      createdAt: DateTime.now(),
-      rejectionReason: rejectionReason,
-      rejectionDescription: rejectionDescription,
-    );
-    await _notifications.add(notification.toMap());
+    try {
+      final notification = NotificationModel(
+        id: '',
+        uid: uid,
+        title: title,
+        message: message,
+        type: type,
+        createdAt: DateTime.now(),
+        rejectionReason: rejectionReason,
+        rejectionDescription: rejectionDescription,
+      );
+      await _notifications.add(notification.toMap());
+    } catch (e) {
+      print('NOTIFICATION ERROR: $e');
+    }
   }
 
   Future<void> markAsRead(String id) async {
-    await _notifications.doc(id).update({'isRead': true});
+    try {
+      await _notifications.doc(id).update({'isRead': true});
+    } catch (e) {
+      print('Error marking as read: $e');
+    }
   }
 
   Future<void> markAllAsRead(String uid) async {
@@ -74,38 +83,38 @@ class NotificationService {
   }
 
   Future<void> sendDailyLessonReminders(String educatorUid) async {
-    // Check if today is Mon-Fri
     final now = DateTime.now();
     if (now.weekday < 1 || now.weekday > 5) return;
 
-    // Check if we already sent a reminder today to avoid spamming on every dashboard load
-    final today = DateTime(now.year, now.month, now.day);
-    final existingReminders = await _notifications
-        .where('uid', isEqualTo: educatorUid)
-        .where('type', isEqualTo: 'general')
-        .where('title', isEqualTo: 'Mandatory Lesson Upload Reminder')
-        .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
-        .get();
+    try {
+      final today = DateTime(now.year, now.month, now.day);
+      final existingReminders = await _notifications
+          .where('uid', isEqualTo: educatorUid)
+          .where('type', isEqualTo: 'general')
+          .where('title', isEqualTo: 'Mandatory Lesson Upload Reminder')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
+          .get();
 
-    if (existingReminders.docs.isNotEmpty) return;
+      if (existingReminders.docs.isNotEmpty) return;
 
-    // Fetch premium subscribers
-    final subscribers = await _firestore
-        .collection('users')
-        .doc(educatorUid)
-        .collection('subscribers')
-        .where('tier', isEqualTo: 'Premium')
-        .get();
+      final subscribers = await _firestore
+          .collection('users')
+          .doc(educatorUid)
+          .collection('subscribers')
+          .where('tier', isEqualTo: 'Premium')
+          .get();
 
-    if (subscribers.docs.isNotEmpty) {
-      // Send a general notification to the educator
-      await sendNotification(
-        uid: educatorUid,
-        title: 'Mandatory Lesson Upload Reminder',
-        message:
-            'You have active premium learners. Please remember to upload a lesson for them today.',
-        type: NotificationType.general,
-      );
+      if (subscribers.docs.isNotEmpty) {
+        await sendNotification(
+          uid: educatorUid,
+          title: 'Mandatory Lesson Upload Reminder',
+          message:
+              'You have active premium learners. Please remember to upload a lesson for them today.',
+          type: NotificationType.general,
+        );
+      }
+    } catch (e) {
+      print('Failed to send daily lesson reminder: $e');
     }
   }
 
@@ -144,6 +153,22 @@ class NotificationService {
     );
   }
 
+  Future<void> sendContentValidationNotification({
+    required String uid,
+    required String title,
+    required bool approved,
+    String? reason,
+  }) async {
+    await sendNotification(
+      uid: uid,
+      title: approved ? 'Content Approved!' : 'Content Rejected',
+      message: approved 
+          ? 'Your content "$title" has been approved and is now live!'
+          : 'Your content "$title" was not approved. ${reason ?? ""}',
+      type: approved ? NotificationType.general : NotificationType.appRejected,
+    );
+  }
+
   Future<void> sendAchievementNotification({
     required String uid,
     required String title,
@@ -174,7 +199,6 @@ class NotificationService {
     required String educatorName,
     required String tier,
   }) async {
-    // Notify Learner
     await sendNotification(
       uid: learnerUid,
       title: 'Subscription Successful!',
@@ -183,7 +207,6 @@ class NotificationService {
       type: NotificationType.subscription,
     );
 
-    // Notify Educator
     await sendNotification(
       uid: educatorUid,
       title: 'New Subscriber!',

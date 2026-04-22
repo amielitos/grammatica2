@@ -6,8 +6,6 @@ import 'package:flutter/material.dart';
 import 'database_service.dart';
 import 'email_sender_service.dart';
 
-import '../config/secrets.dart';
-
 class AuthService {
   // 1. Fields and Singleton first
   static final instance = AuthService._();
@@ -161,7 +159,8 @@ class AuthService {
     if (_isGoogleSignInInitialized) return;
     if (_googleSignInInit != null) return _googleSignInInit;
 
-    const webClientId = Secrets.googleWebClientId;
+    const webClientId =
+        '458713583940-v6j8pjs8bj4ftmibm8ml78rl1qrm6ib5.apps.googleusercontent.com';
     _googleSignInInit = _googleSignIn.initialize(
       clientId: kIsWeb ? webClientId : null,
       serverClientId: kIsWeb ? null : webClientId,

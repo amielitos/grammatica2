@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'manage_subscriptions_page.dart';
 import 'role_application_page.dart';
+import '../widgets/video_player_modal.dart';
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -704,20 +705,21 @@ class ProfilePageState extends State<ProfilePage> {
           ),
         ),
 
-        _buildCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Subscription', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
-              const SizedBox(height: 24),
-              _buildGreenButton('Manage Subscription', () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => ManageSubscriptionsPage(user: widget.user)));
-              }),
-            ],
+        if (role != UserRole.educator && role != UserRole.validator)
+          _buildCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Subscription', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
+                const SizedBox(height: 24),
+                _buildGreenButton('Manage Subscription', () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => ManageSubscriptionsPage(user: widget.user)));
+                }),
+              ],
+            ),
           ),
-        ),
 
-        if (role == UserRole.learner || role == UserRole.educator || role == UserRole.validator)
+        if (role == UserRole.learner || role == UserRole.educator)
           _buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -879,7 +881,7 @@ void _showJoinGrammaticaDialog(UserRole currentRole) {
                   );
                 },
               ),
-            if (currentRole != UserRole.validator)
+            if (currentRole == UserRole.educator)
               ListTile(
                 leading: const Icon(Icons.verified_user),
                 title: const Text('Apply as Validator'),
@@ -960,46 +962,47 @@ void _showJoinGrammaticaDialog(UserRole currentRole) {
             const SizedBox(height: 8),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                isValidator ? Icons.description : Icons.videocam,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              title: Text(
-                isValidator ? 'Credentials Document' : 'Teaching Demo Video',
-              ),
-              trailing: const Icon(Icons.chevron_right, size: 16),
+              leading: const Icon(Icons.assignment_ind, color: Color(0xFF81B655)),
+              title: const Text('CV Document'),
+              trailing: const Icon(Icons.open_in_new, size: 16),
               onTap: () async {
-                final uri = Uri.parse(application.videoUrl);
-                try {
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  }
-                } catch (e) {
-                  debugPrint('Error: $e');
-                }
+                final uri = Uri.parse(application.cvUrl);
+                if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+            ),
+            ...application.certificateUrls.asMap().entries.map((e) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.verified, color: Colors.indigo),
+              title: Text('Certificate Document ${e.key + 1}'),
+              trailing: const Icon(Icons.open_in_new, size: 16),
+              onTap: () async {
+                final uri = Uri.parse(e.value);
+                if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+            )),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.videocam, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Teaching Demo Video'),
+              trailing: const Icon(Icons.play_circle_outline, size: 16),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => VideoPlayerModal(
+                    videoUrl: application.videoUrl,
+                    title: 'Teaching Demo',
+                  ),
+                );
               },
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                isValidator ? Icons.stars : Icons.insert_drive_file,
-                color: isValidator
-                    ? Colors.amber
-                    : Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                isValidator ? 'Introductory Demo' : 'Teaching Syllabus PDF',
-              ),
-              trailing: const Icon(Icons.chevron_right, size: 16),
+              leading: const Icon(Icons.insert_drive_file, color: Colors.teal),
+              title: const Text('Teaching Syllabus PDF'),
+              trailing: const Icon(Icons.open_in_new, size: 16),
               onTap: () async {
                 final uri = Uri.parse(application.syllabusUrl);
-                try {
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  }
-                } catch (e) {
-                  debugPrint('Error: $e');
-                }
+                if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
               },
             ),
           ],

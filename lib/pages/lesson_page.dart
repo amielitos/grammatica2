@@ -69,14 +69,6 @@ class _LessonPageState extends State<LessonPage> {
     super.initState();
     _lesson = widget.lesson;
     _fetchUserData();
-
-    if (!widget.previewMode) {
-      DatabaseService.instance.checkAndAwardAchievement(widget.user.uid, 'first_lesson').then((awarded) {
-        if (awarded) {
-          // Achievement awarded
-        }
-      });
-    }
   }
 
   Future<void> _fetchUserData() async {
@@ -95,6 +87,7 @@ class _LessonPageState extends State<LessonPage> {
       appBar: CustomAppBar(
         user: widget.user,
         userData: _userData,
+        showBackButton: widget.previewMode,
         onNotificationTap: () {
           showDialog(
             context: context,
@@ -187,7 +180,8 @@ class _LessonPageState extends State<LessonPage> {
   }
 
   Widget _buildQuizSidebar() {
-    if (_previewMode || _lesson.quizId == null) {
+    final isValidator = _userData?['role'] == 'VALIDATOR';
+    if (_previewMode || _lesson.quizId == null || isValidator) {
       return const SizedBox.shrink();
     }
 

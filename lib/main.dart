@@ -24,8 +24,6 @@ void main() async {
 
   if (kIsWeb) {
     try {
-      // Clear any corrupted persistence state on web to fix b815 assertion
-      await FirebaseFirestore.instance.clearPersistence();
       FirebaseFirestore.instance.settings = const Settings(
         persistenceEnabled: false,
         webExperimentalForceLongPolling: true,
@@ -180,7 +178,10 @@ class _AuthWrapper extends StatelessWidget {
             final hasCompletedOnboarding =
                 data['has_completed_onboarding'] ?? true;
 
-            if (role == UserRole.admin || role == UserRole.educator) {
+            if (role == UserRole.admin ||
+                role == UserRole.educator ||
+                role == UserRole.validator ||
+                role == UserRole.superadmin) {
               return AdminDashboard(
                 user: user,
                 role: role,

@@ -150,8 +150,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                               _tableH('Role', 2),
                               _tableH('Status', 2),
                               _tableH('Subscription', 2),
-                              _tableH('Created At', 2),
-                              _tableH('Role Action', 3),
+                              _tableH('Educ. Dates', 3),
+                              _tableH('Role Action', 2),
                               _tableH('Action', 2, center: true),
                             ],
                           ),
@@ -258,7 +258,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final username = (u['username'] ?? 'N/A') as String;
     final status = (u['status'] ?? 'N/A') as String;
     final subscription = (u['subscription_status'] ?? 'NONE') as String;
-    final createdAt = _formatTs(u['createdAt']);
+    
+    final educStart = u['educatorStartDate'] != null ? _formatTs(u['educatorStartDate']) : 'N/A';
+    final educEnd = u['educatorEndDate'] != null ? _formatTs(u['educatorEndDate']) : 'Present';
+    final educDates = role == 'EDUCATOR' ? '$educStart - $educEnd' : 'N/A';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -293,11 +296,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           Expanded(flex: 2, child: Text(status.toUpperCase(), style: const TextStyle(fontSize: 13, color: Colors.black87))),
           // Sub
           Expanded(flex: 2, child: Text(subscription.toUpperCase(), style: const TextStyle(fontSize: 13, color: Colors.black87))),
-          // Created At
-          Expanded(flex: 2, child: Text(createdAt, style: const TextStyle(fontSize: 13, color: Colors.black87))),
+          // Educ Dates
+          Expanded(flex: 3, child: Text(educDates, style: const TextStyle(fontSize: 12, color: Colors.black87))),
           // Role Action
           Expanded(
-            flex: 3,
+            flex: 2,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(

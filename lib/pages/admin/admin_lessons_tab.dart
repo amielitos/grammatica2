@@ -139,28 +139,39 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Container(
-                  height: 36,
-                  width: 240,
+                  height: 48,
+                  width: 320,
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
                       Expanded(
                         child: GestureDetector(
                           onTap: () => setState(() => _tabIndex = 0),
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             decoration: BoxDecoration(
-                              color: _tabIndex == 0 ? const Color(0xFF88B342) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(4),
+                              color: _tabIndex == 0 ? const Color(0xFF81B655) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: _tabIndex == 0 ? [BoxShadow(color: const Color(0xFF81B655).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))] : [],
                             ),
                             alignment: Alignment.center,
                             child: Text(
                               'Lessons',
                               style: TextStyle(
-                                color: _tabIndex == 0 ? Colors.white : Colors.grey.shade700,
+                                color: _tabIndex == 0 ? Colors.white : Colors.grey.shade600,
                                 fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
                           ),
@@ -169,17 +180,20 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                       Expanded(
                         child: GestureDetector(
                           onTap: () => setState(() => _tabIndex = 1),
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             decoration: BoxDecoration(
-                              color: _tabIndex == 1 ? const Color(0xFF88B342) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(4),
+                              color: _tabIndex == 1 ? const Color(0xFF81B655) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: _tabIndex == 1 ? [BoxShadow(color: const Color(0xFF81B655).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))] : [],
                             ),
                             alignment: Alignment.center,
                             child: Text(
                               'Quizzes',
                               style: TextStyle(
-                                color: _tabIndex == 1 ? Colors.white : Colors.grey.shade700,
+                                color: _tabIndex == 1 ? Colors.white : Colors.grey.shade600,
                                 fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
                           ),
@@ -189,16 +203,19 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               // Main Card Content
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(12),
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
-                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    )
+                  ],
                 ),
                 child: IndexedStack(
                   index: _tabIndex,
@@ -256,28 +273,40 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         ),
         const Divider(height: 1),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              OutlinedButton(
-                onPressed: () => _resetForm(),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.black87,
-                  side: BorderSide(color: Colors.grey.shade400),
+              SizedBox(
+                height: 50,
+                width: 120,
+                child: OutlinedButton(
+                  onPressed: () => _resetForm(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black87,
+                    side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                child: const Text('Cancel'),
               ),
               const SizedBox(width: 16),
-              FilledButton.icon(
-                onPressed: (_creatingLesson || _title.text.trim().isEmpty) ? null : _saveIntegratedLesson,
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF88B342),
+              SizedBox(
+                height: 50,
+                width: 180,
+                child: FilledButton.icon(
+                  onPressed: (_creatingLesson || _title.text.trim().isEmpty) ? null : _saveIntegratedLesson,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF81B655),
+                    elevation: 4,
+                    shadowColor: const Color(0xFF81B655).withOpacity(0.4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: _creatingLesson
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.check_circle_outline, size: 20),
+                  label: const Text('Save Content', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
-                icon: _creatingLesson
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.save),
-                label: const Text('Save Lesson'),
               ),
             ],
           ),
@@ -320,16 +349,21 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             const SizedBox(width: 16),
             const MarkdownGuideButton(),
             const SizedBox(width: 16),
-            ElevatedButton.icon(
-              onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF88B342),
-                foregroundColor: Colors.white,
+            SizedBox(
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF81B655),
+                  foregroundColor: Colors.white,
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: _isGeneratingFromPdf
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.auto_awesome, size: 20),
+                label: const Text('AI Generate', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-              icon: _isGeneratingFromPdf
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.auto_awesome),
-              label: const Text('Generate from PDF'),
             ),
           ],
         ),

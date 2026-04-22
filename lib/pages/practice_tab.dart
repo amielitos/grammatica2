@@ -12,14 +12,21 @@ import '../theme/app_colors.dart';
 import '../widgets/design_ornaments.dart';
 
 class PracticeTab extends StatefulWidget {
-  const PracticeTab({super.key});
+  final int? initialSubTab;
+  const PracticeTab({super.key, this.initialSubTab});
 
   @override
   State<PracticeTab> createState() => _PracticeTabState();
 }
 
 class _PracticeTabState extends State<PracticeTab> {
-  int? _selectedSubTab; // null = Selection, 0 = Bee, 1 = Voice, 2 = Assessment
+  late int? _selectedSubTab; // null = Selection, 0 = Bee, 1 = Voice, 2 = Assessment
+  
+  @override
+  void initState() {
+    super.initState();
+    _selectedSubTab = widget.initialSubTab;
+  }
 
   @override
   Widget build(BuildContext context) {

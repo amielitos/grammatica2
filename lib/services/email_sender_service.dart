@@ -4,11 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-import '../config/secrets.dart';
-
 class EmailSenderService {
-  static const String _smtpEmail = Secrets.smtpEmail; 
-  static const String _smtpPassword = Secrets.smtpPassword; 
+  static const String _smtpEmail = 'otokwikkservices@gmail.com'; 
+  static const String _smtpPassword = 'lcygqnnuaxnnsuhe'; 
 
   static Future<bool> sendOtpEmail({
     required String recipientEmail,

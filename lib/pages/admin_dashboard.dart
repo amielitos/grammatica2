@@ -19,7 +19,12 @@ import '../services/notification_service.dart';
 import '../widgets/design_ornaments.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
+import 'admin/validator_dashboard_tab.dart';
+import 'admin/educator_dashboard_tab.dart';
 import '../main.dart';
+import 'dart:async';
+import '../models/notification.dart';
+
 class AdminDashboard extends StatefulWidget {
   final User user;
   final UserRole role;
@@ -40,11 +45,18 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard> {
   static int _persistedIndex = 0;
   late int _index;
+  int _initialValidationTabIndex = 0;
+  int? _initialPracticeSubTab;
+  Lesson? _editingLesson;
+  int _editingLessonTabIndex = 0;
+  StreamSubscription? _notifSubscription;
+  final Set<String> _notifiedIds = {};
 
   @override
   void initState() {
     super.initState();
     _index = _persistedIndex;
+    _setupNotificationListener();
 
     // Trigger daily lesson reminders for educators
     if (widget.role == UserRole.educator) {
@@ -52,8 +64,50 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
-  Lesson? _editingLesson;
-  int _editingLessonTabIndex = 0;
+  void _setupNotificationListener() {
+    _notifSubscription?.cancel();
+    _notifSubscription = NotificationService.instance
+        .streamNotifications(widget.user.uid)
+        .listen((notifs) {
+      if (!mounted) return;
+      final unread = notifs.where((n) => !n.isRead).toList();
+      for (var n in unread) {
+        if (!_notifiedIds.contains(n.id)) {
+          _notifiedIds.add(n.id);
+          // SnackBars removed as per user preference (prefers relying on red dot icon)
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _notifSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _showEditLessonModal(BuildContext context, Lesson lesson, int tabIndex) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog.fullscreen(
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text('Edit Lesson: ${lesson.title}'),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: AdminLessonsTab(
+            initialLesson: lesson,
+            initialTabIndex: tabIndex,
+            onReset: () => Navigator.pop(context),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,34 +121,43 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final List<Widget> tabs = [];
     final List<ModernNavItem> navItems = [];
 
-    // Define tabs and nav items based on roles
     if (isValidator) {
-      // Validators: Lessons, Validation, Profile
-      tabs.add(
-        LessonsListTab(
-          onEdit: (l) {
-            // Validators can't edit in Manage Lessons tab as they don't have it
-          },
-        ),
-      );
-      navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
+      tabs.add(ValidatorDashboardTab(
+        onReviewRequests: (subIndex) => setState(() {
+          _index = 1;
+          _initialValidationTabIndex = subIndex;
+        }),
+      ));
+      navItems.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
 
-      tabs.add(AdminValidationTab(role: widget.role));
+      tabs.add(AdminValidationTab(
+        key: ValueKey('validation_$_initialValidationTabIndex'),
+        role: widget.role,
+        initialTabIndex: _initialValidationTabIndex,
+      ));
       navItems.add(
         const ModernNavItem(icon: Icons.verified_user, label: 'Validation'),
       );
-
-      // Practice & Subscription
-      tabs.add(const PracticeTab());
-      navItems.add(
-        const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
-      );
-
-      tabs.add(BrowseEducatorsTab(user: widget.user));
-      navItems.add(
-        const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
-      );
     } else {
+      // 0: Dashboard (Educator)
+      if (isEducator) {
+        tabs.add(EducatorDashboardTab(
+          userData: widget.userData,
+          onTabChange: (i) {
+            setState(() {
+              if (i == 4) {
+                // English Assessment index
+                _initialPracticeSubTab = 2; // Assessment sub-tab
+              } else {
+                _initialPracticeSubTab = null;
+              }
+              _index = i;
+            });
+          },
+        ));
+        navItems.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
+      }
+
       // 0: Users (Admin only)
       if (isAdmin) {
         tabs.add(const AdminUsersTab());
@@ -103,7 +166,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       // Validation (Super Admin only - Validators handled above)
       if (widget.role == UserRole.superadmin) {
-        tabs.add(AdminValidationTab(role: widget.role));
+        tabs.add(AdminValidationTab(
+          key: ValueKey('validation_$_initialValidationTabIndex'),
+          role: widget.role,
+          initialTabIndex: _initialValidationTabIndex,
+        ));
         navItems.add(
           const ModernNavItem(icon: Icons.verified_user, label: 'Validation'),
         );
@@ -135,7 +202,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
       tabs.add(
         LessonsListTab(
           onEdit: (l) {
-            if (manageLessonsIndex != null) {
+            if (isEducator) {
+              _showEditLessonModal(context, l, 0);
+            } else if (manageLessonsIndex != null) {
               setState(() {
                 _editingLesson = l;
                 _editingLessonTabIndex = 0;
@@ -144,7 +213,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             }
           },
           onEditQuiz: (l) {
-            if (manageLessonsIndex != null) {
+            if (isEducator) {
+              _showEditLessonModal(context, l, 1);
+            } else if (manageLessonsIndex != null) {
               setState(() {
                 _editingLesson = l;
                 _editingLessonTabIndex = 1; // Show Quizzes tab
@@ -160,20 +231,32 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (isEducator || isAdmin) {
         tabs.add(EducatorGroupsTab(user: widget.user));
         navItems.add(
-          const ModernNavItem(icon: Icons.group, label: 'Premium Group'),
+          const ModernNavItem(icon: Icons.event, label: 'Mentorship'),
         );
       }
 
-      // Practice & Subscription
-      tabs.add(const PracticeTab());
-      navItems.add(
-        const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
-      );
+      // Practice (Admin only) or English Assessment (Educator)
+      if (isAdmin) {
+        tabs.add(const PracticeTab());
+        navItems.add(
+          const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
+        );
+      } else if (isEducator) {
+        tabs.add(PracticeTab(
+          key: ValueKey('practice_$_initialPracticeSubTab'),
+          initialSubTab: _initialPracticeSubTab,
+        ));
+        navItems.add(
+          const ModernNavItem(icon: Icons.assignment, label: 'English Assessment'),
+        );
+      }
 
-      tabs.add(BrowseEducatorsTab(user: widget.user));
-      navItems.add(
-        const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
-      );
+      if (!isEducator) {
+        tabs.add(BrowseEducatorsTab(user: widget.user));
+        navItems.add(
+          const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
+        );
+      }
     }
 
     // Profile (All)
@@ -184,6 +267,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _index = 0;
     }
 
+    // We build the sidebar but only use it if needed
     final sidebar = AdminSidebar(
       selectedIndex: _index,
       userName: username,
@@ -192,24 +276,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         setState(() {
           _index = i;
           _persistedIndex = i;
-          // If switching away from Manage Lessons, maybe we don't clear?
-          // Actually, let's keep it until they explicitly cancel or save.
         });
       },
       onSignOut: () => AuthService.instance.signOut(),
     );
-
-    final currentIcon = navItems[_index].icon;
-    String bgPath = 'assets/dashboardbg.png';
-    if (currentIcon == Icons.auto_awesome) {
-      bgPath = 'assets/practicebg.png';
-    } else if (currentIcon == Icons.person) {
-      bgPath = 'assets/profilebg.png';
-    } else if (currentIcon == Icons.credit_card) {
-      bgPath = 'assets/subscriptionbg.png';
-    } else if (currentIcon == Icons.book || currentIcon == Icons.edit_document) {
-      bgPath = 'assets/dashboardbg.png';
-    }
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -248,8 +318,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
           });
         },
       ),
-      body: ResponsiveWrapper(
-        child: IndexedStack(index: _index, children: tabs),
+      body: IndexedStack(
+        index: _index,
+        children: tabs,
       ),
     );
   }

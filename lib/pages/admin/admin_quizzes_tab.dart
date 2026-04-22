@@ -160,6 +160,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
       builder: (context, roleSnap) {
         final role = roleSnap.data ?? UserRole.learner;
+        
         return StreamBuilder<List<Quiz>>(
           stream: DatabaseService.instance.streamQuizzes(
             approvedOnly: false,
@@ -168,7 +169,14 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           ),
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const SizedBox.shrink();
-            final quizzes = snapshot.data!;
+            
+            var quizzes = snapshot.data!.toList();
+            
+            // Educators should only see and manage their own quizzes
+            if (role == UserRole.educator && user != null) {
+              quizzes = quizzes.where((q) => q.createdByUid == user.uid).toList();
+            }
+
             if (quizzes.isEmpty) return const SizedBox.shrink();
 
             return Container(

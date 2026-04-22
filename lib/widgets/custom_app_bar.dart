@@ -11,6 +11,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onNotificationTap;
   final VoidCallback? onLogoTap;
   final VoidCallback? onProfileTap;
+  final bool showBackButton;
 
   const CustomAppBar({
     super.key,
@@ -19,6 +20,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onNotificationTap,
     this.onLogoTap,
     this.onProfileTap,
+    this.showBackButton = false,
   });
 
   @override
@@ -27,6 +29,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final String profileImageUrl = userData?['photoUrl'] ?? userData?['profile_image_url'] ?? user.photoURL ?? '';
     final screenWidth = MediaQuery.of(context).size.width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Only open drawer if we are not on a wide screen that already shows the sidebar
+    final isWide = MediaQuery.of(context).size.width > 900;
     
     return AppBar(
       backgroundColor: isDark ? const Color(0xFF333333) : Colors.white,
@@ -65,19 +70,19 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.menu, color: isDark ? Colors.white : Colors.black87, size: 28),
-                    onPressed: () {
-                      final scaffold = Scaffold.maybeOf(context);
-                      if (scaffold?.hasDrawer ?? false) {
+                  if (showBackButton)
+                    IconButton(
+                      icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black87, size: 28),
+                      onPressed: () => Navigator.maybePop(context),
+                    )
+                  else
+                    IconButton(
+                      icon: Icon(Icons.menu, color: isDark ? Colors.white : Colors.black87, size: 28),
+                      onPressed: () {
+                        final scaffold = Scaffold.maybeOf(context);
                         scaffold?.openDrawer();
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Menu is available on the main dashboard.')),
-                        );
-                      }
-                    },
-                  ),
+                      },
+                    ),
                   const SizedBox(width: 4),
                   Material(
                     color: Colors.transparent,

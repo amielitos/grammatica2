@@ -20,60 +20,60 @@ class AdminSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Container(
-      width: 250,
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF222222) : Colors.white,
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32.0),
-              child: Image.asset(
-                'assets/logotext.png',
-                height: 48,
-                fit: BoxFit.contain,
-              ),
-            ),
-            Divider(
-              color: isDark ? Colors.white24 : Colors.grey.shade400,
-              indent: 16,
-              endIndent: 16,
-              height: 1,
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  final isSelected = selectedIndex == index;
+    const brandGreen = Color(0xFF8CB31D); // The bright green from the image
 
-                  return Container(
+    return Container(
+      width: 280, // Slightly wider for better text spacing
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+      ),
+      child: Column(
+        children: [
+          // Logo Section matching the image
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32.0, horizontal: 20.0),
+            child: Image.asset(
+              'assets/logotext.png',
+              height: 40,
+              fit: BoxFit.contain,
+            ),
+          ),
+          const Divider(height: 1, indent: 20, endIndent: 20),
+          const SizedBox(height: 8),
+          
+          Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                final isSelected = selectedIndex == index;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF7CB342) : Colors.transparent,
+                      color: isSelected ? brandGreen : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
+                      hoverColor: brandGreen.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                       leading: Icon(
                         item.icon,
-                        color: isSelected ? Colors.white : const Color(0xFF7CB342),
-                        size: 28,
+                        color: isSelected ? Colors.white : brandGreen,
+                        size: 24,
                       ),
                       title: Text(
                         item.label,
                         style: TextStyle(
-                          color: isSelected 
-                              ? Colors.white 
-                              : (isDark ? Colors.white70 : Colors.grey.shade600),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.grey.shade700),
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 15,
                         ),
                       ),
-                      selected: isSelected,
                       onTap: () {
                         if (Scaffold.maybeOf(context)?.isDrawerOpen ?? false) {
                           Navigator.pop(context);
@@ -81,32 +81,28 @@ class AdminSidebar extends StatelessWidget {
                         onItemSelected(index);
                       },
                     ),
-                  );
-                },
+                  ),
+                );
+              },
+            ),
+          ),
+
+          const Divider(height: 1),
+          // User profile / Sign out section at bottom
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            leading: const Icon(Icons.logout, color: Colors.redAccent),
+            title: const Text(
+              'Sign Out',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            Divider(
-              color: isDark ? Colors.white24 : Colors.grey.shade400,
-              indent: 16,
-              endIndent: 16,
-              height: 1,
-            ),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-              leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error, size: 28),
-              title: Text(
-                'Sign Out',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              onTap: onSignOut,
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
+            onTap: onSignOut,
+          ),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }

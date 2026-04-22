@@ -31,22 +31,29 @@ class UniversalDrawer extends StatelessWidget {
       // Logic from AdminDashboard
       final List<ModernNavItem> navItems = [];
       if (role == UserRole.validator) {
-        navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
+        navItems.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
         navItems.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
-        navItems.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
-        navItems.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
       } else {
-        if (role == UserRole.admin || role == UserRole.superadmin) {
-          navItems.add(const ModernNavItem(icon: Icons.people, label: 'Users'));
+        if (role == UserRole.educator) {
+          navItems.insert(0, const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
         }
+
         if (role == UserRole.superadmin) {
            navItems.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
         }
         navItems.add(const ModernNavItem(icon: Icons.edit_document, label: 'Contents'));
         navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
         navItems.add(const ModernNavItem(icon: Icons.group, label: 'Premium Group'));
-        navItems.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
-        navItems.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
+        
+        if (role == UserRole.admin) {
+          navItems.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
+        } else if (role == UserRole.educator) {
+           navItems.add(const ModernNavItem(icon: Icons.assignment, label: 'English Assessment'));
+        }
+
+        if (role != UserRole.educator) {
+          navItems.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
+        }
       }
       navItems.add(ModernNavItem(icon: Icons.person, label: username));
 

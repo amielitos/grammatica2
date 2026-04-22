@@ -252,6 +252,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       appBar: CustomAppBar(
         user: widget.user,
         userData: _userData,
+        showBackButton: _previewMode,
         onNotificationTap: () {
           showDialog(
             context: context,
