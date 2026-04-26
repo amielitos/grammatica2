@@ -51,11 +51,12 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
     }
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       initialIndex: widget.initialTabIndex,
       child: Column(
         children: [
           TabBar(
+            isScrollable: true,
             labelColor: Theme.of(context).colorScheme.primary,
             unselectedLabelColor: Theme.of(
               context,
@@ -64,6 +65,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
             tabs: const [
               Tab(text: 'Lessons'),
               Tab(text: 'Quizzes'),
+              Tab(text: 'Assessments'),
               Tab(text: 'Educators'),
             ],
           ),
@@ -79,6 +81,12 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
                 _ValidationList(
                   stream: DatabaseService.instance
                       .streamAwaitingApprovalQuizzes(),
+                  collection: 'quizzes',
+                  formatDate: _formatTs,
+                ),
+                _ValidationList(
+                  stream: DatabaseService.instance
+                      .streamAwaitingApprovalAssessments(),
                   collection: 'quizzes',
                   formatDate: _formatTs,
                 ),

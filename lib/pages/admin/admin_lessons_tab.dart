@@ -12,6 +12,7 @@ import '../../widgets/user_visibility_selector.dart';
 import '../../models/content_visibility.dart';
 
 import 'admin_quizzes_tab.dart'; // Import to use as a sub-tab
+import 'admin_assessments_tab.dart';
 
 class AdminLessonsTab extends StatelessWidget {
   final Lesson? initialLesson;
@@ -199,6 +200,28 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                           ),
                         ),
                       ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _tabIndex = 2),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              color: _tabIndex == 2 ? const Color(0xFF81B655) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: _tabIndex == 2 ? [BoxShadow(color: const Color(0xFF81B655).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))] : [],
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              'Assessments',
+                              style: TextStyle(
+                                color: _tabIndex == 2 ? Colors.white : Colors.grey.shade600,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -211,7 +234,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     )
@@ -224,6 +247,10 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                     AdminQuizzesTab(
                       key: _quizKey,
                       initialQuizId: _selectedQuizId,
+                    ),
+                    AdminAssessmentsTab(
+                      isEmbedded: true,
+                      initialQuizId: _tabIndex == 2 ? _selectedQuizId : null,
                     ),
                   ],
                 ),
@@ -299,7 +326,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF81B655),
                     elevation: 4,
-                    shadowColor: const Color(0xFF81B655).withOpacity(0.4),
+                    shadowColor: const Color(0xFF81B655).withValues(alpha: 0.4),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   icon: _creatingLesson
@@ -405,47 +432,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               ],
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInputFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: _title,
-          decoration: const InputDecoration(labelText: 'Title of Lesson:'),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _prompt,
-          decoration: const InputDecoration(
-            labelText: 'Content (markdown):',
-            alignLabelWithHint: true,
-          ),
-          maxLines: 8,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const MarkdownGuideButton(),
-            ElevatedButton.icon(
-              onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
-              icon: _isGeneratingFromPdf
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_awesome),
-              label: const Text('Generate from PDF'),
-            ),
-          ],
         ),
       ],
     );
@@ -641,30 +627,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     );
   }
 
-  Widget _buildRawTextButton() {
-    return TextButton.icon(
-      onPressed: () {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Raw Extracted Text'),
-            content: SingleChildScrollView(
-              child: SelectableText(_tempPdfText!),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
-            ],
-          ),
-        );
-      },
-      icon: const Icon(Icons.description_outlined),
-      label: const Text('View Raw Extracted Text'),
-    );
-  }
-
   Future<void> _pickFiles() async {
     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
     if (result != null) {
@@ -771,68 +733,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         setState(() => _creatingLesson = false);
       }
     }
-  }
-
-  Widget _buildDangerZone(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-      tooltip: 'Danger Zone',
-      onSelected: (val) async {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Confirm Wipeout'),
-            content: Text(
-              'Are you SURE you want to clear ALL $val? This cannot be undone.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                ),
-                child: const Text('Wipe Status'),
-              ),
-            ],
-          ),
-        );
-
-        if (confirmed == true && mounted) {
-          try {
-            if (val == 'Lessons') {
-              await DatabaseService.instance.clearAllLessons();
-            } else {
-              await DatabaseService.instance.clearAllQuizzes();
-            }
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('All $val wiped successfully.')),
-              );
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('Error: $e')));
-            }
-          }
-        }
-      },
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: 'Lessons',
-          child: Text('Wipe All Lessons', style: TextStyle(color: Colors.red)),
-        ),
-        const PopupMenuItem(
-          value: 'Quizzes',
-          child: Text('Wipe All Quizzes', style: TextStyle(color: Colors.red)),
-        ),
-      ],
-    );
   }
 
   @override

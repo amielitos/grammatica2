@@ -34,6 +34,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
           stream: DatabaseService.instance.streamQuizzes(
             userRole: role,
             userId: widget.user.uid,
+            isAssessment: false,
           ),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -45,11 +46,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Center(child: Text('No quizzes available.'));
             }
-            final allQuizzes = snapshot.data!;
-            final quizzes = allQuizzes.where((q) {
-              if (q.isAssessment == false) return true;
-              return role == UserRole.admin || role == UserRole.superadmin;
-            }).toList();
+            final quizzes = snapshot.data!;
 
             return StreamBuilder<Map<String, Map<String, dynamic>>>(
               stream: _progressStream,

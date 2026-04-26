@@ -8,12 +8,12 @@ import '../../widgets/user_visibility_selector.dart';
 import '../../services/ai_logic_service.dart';
 import 'dart:io';
 
-class AdminQuizzesTab extends StatefulWidget {
+class AdminAssessmentsTab extends StatefulWidget {
   final bool isEmbedded;
   final Function(String?)? onQuizSaved;
   final String? initialQuizId;
 
-  const AdminQuizzesTab({
+  const AdminAssessmentsTab({
     super.key,
     this.isEmbedded = false,
     this.onQuizSaved,
@@ -21,10 +21,10 @@ class AdminQuizzesTab extends StatefulWidget {
   });
 
   @override
-  State<AdminQuizzesTab> createState() => AdminQuizzesTabState();
+  State<AdminAssessmentsTab> createState() => AdminAssessmentsTabState();
 }
 
-class AdminQuizzesTabState extends State<AdminQuizzesTab> {
+class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
   String? _selectedQuizId;
   bool _creatingOrUpdating = false;
   bool _isGeneratingFromPdf = false;
@@ -135,7 +135,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   icon: _creatingOrUpdating
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : const Icon(Icons.save),
-                  label: Text(_selectedQuizId == null ? 'Save Quiz' : 'Update Quiz'),
+                  label: Text(_selectedQuizId == null ? 'Save Assessment' : 'Update Assessment'),
                 ),
               ],
             ),
@@ -157,7 +157,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             approvedOnly: false,
             userRole: role,
             userId: user?.uid,
-            isAssessment: false,
+            isAssessment: true,
           ),
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const SizedBox.shrink();
@@ -185,7 +185,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Existing Quizzes',
+                        'Existing Assessments',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       if (_selectedQuizId != null)
@@ -273,7 +273,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Quiz?'),
+        title: const Text('Delete Assessment?'),
         content: Text('Are you sure you want to delete "${quiz.title}"?'),
         actions: [
           TextButton(
@@ -294,7 +294,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
         if (_selectedQuizId == quiz.id) resetForm();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Quiz deleted')),
+            const SnackBar(content: Text('Assessment deleted')),
           );
         }
       } catch (e) {
@@ -424,9 +424,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               final role = snapshot.data;
               if (role == UserRole.admin || role == UserRole.superadmin) {
                 return CheckboxListTile(
-                  title: const Text('Upload as Grammatica Quiz'),
+                  title: const Text('Official Assessment'),
                   subtitle: const Text(
-                    'This will appear in the official "Grammatica Quizzes" folder',
+                    'This will appear in the official "Grammatica Assessments" folder',
                   ),
                   value: _isGrammaticaQuiz,
                   onChanged: (val) {
@@ -802,7 +802,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _selectedQuizId = null;
     _title.clear();
     _description.clear();
-    _durationCtrl.text = '0';
+    _durationCtrl.text = '00:00:00';
     _maxAttemptsCtrl.text = '1';
     _selectedFiles = [];
     _currentAttachmentName = null;
@@ -883,6 +883,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
           isGrammaticaQuiz: _isGrammaticaQuiz,
+          isAssessment: true,
         );
         if (mounted && !widget.isEmbedded) {
           final role = await RoleService.instance.getRole(
@@ -913,6 +914,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
           isGrammaticaQuiz: _isGrammaticaQuiz,
+          isAssessment: true,
         );
         if (mounted && !widget.isEmbedded) {
           ScaffoldMessenger.of(
@@ -959,6 +961,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           _visibleTo = quiz.visibleTo;
           _currentAttachmentName = quiz.attachmentName;
           _currentAttachmentUrl = quiz.attachmentUrl;
+
           for (final q in _questions) {
             q.dispose();
           }

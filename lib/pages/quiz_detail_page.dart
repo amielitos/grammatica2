@@ -13,6 +13,18 @@ import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import '../main.dart';
 
+class _RenderableQuestion {
+  final QuizQuestion question;
+  final QuizQuestion? parentPassage;
+  final int? nestedIndex; // 0-indexed index within the passage
+
+  _RenderableQuestion({
+    required this.question,
+    this.parentPassage,
+    this.nestedIndex,
+  });
+}
+
 class QuizDetailPage extends StatefulWidget {
   final User user;
   final Quiz quiz;
@@ -32,7 +44,7 @@ class QuizDetailPage extends StatefulWidget {
 class _QuizDetailPageState extends State<QuizDetailPage> {
   int _currentQuestionIndex = 0;
   bool _quizStarted = false;
-  List<QuizQuestion> _shuffledQuestions = [];
+  List<_RenderableQuestion> _shuffledQuestions = [];
   List<TextEditingController> _answerCtrls = [];
   Timer? _timer;
   int _secondsRemaining = 0;
@@ -60,7 +72,35 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   void initState() {
     super.initState();
     _fetchUserData();
-    _shuffledQuestions = List.from(widget.quiz.questions)..shuffle();
+    
+    // Flatten hierarchical questions (Passages with nested questions)
+    List<_RenderableQuestion> flattened = [];
+    final originalQuestions = List<QuizQuestion>.from(widget.quiz.questions);
+    
+    // We only shuffle the top-level items to keep passages and their questions together
+    originalQuestions.shuffle();
+    
+    for (var q in originalQuestions) {
+      if (q.type == 'passage') {
+        // Only add as a standalone slide if there are NO nested questions
+        if (q.nestedQuestions == null || q.nestedQuestions!.isEmpty) {
+          flattened.add(_RenderableQuestion(question: q));
+        } else {
+          // Add nested questions directly
+          for (int i = 0; i < q.nestedQuestions!.length; i++) {
+            flattened.add(_RenderableQuestion(
+              question: q.nestedQuestions![i],
+              parentPassage: q,
+              nestedIndex: i,
+            ));
+          }
+        }
+      } else {
+        flattened.add(_RenderableQuestion(question: q));
+      }
+    }
+    
+    _shuffledQuestions = flattened;
     _answerCtrls = List.generate(
       _shuffledQuestions.length,
       (_) => TextEditingController(),
@@ -120,7 +160,13 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     super.dispose();
   }
 
-  bool get _allAnswered => _answerCtrls.every((ctrl) => ctrl.text.trim().isNotEmpty);
+  bool get _allAnswered => _answerCtrls.asMap().entries.every((entry) {
+    final i = entry.key;
+    final ctrl = entry.value;
+    // Top-level passages (intro slides) don't require an answer
+    if (_shuffledQuestions[i].question.type == 'passage' && _shuffledQuestions[i].parentPassage == null) return true;
+    return ctrl.text.trim().isNotEmpty;
+  });
 
   void _startQuiz() {
     setState(() {
@@ -167,14 +213,20 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
 
     int score = 0;
     List<String> userAnswers = [];
+    int scorableCount = 0;
     for (int i = 0; i < _shuffledQuestions.length; i++) {
+      final q = _shuffledQuestions[i].question;
+      // Skip top-level passages (intro slides) from scoring
+      if (q.type == 'passage' && _shuffledQuestions[i].parentPassage == null) continue;
+      
+      scorableCount++;
       final input = _normalize(_answerCtrls[i].text);
-      final expected = _normalize(_shuffledQuestions[i].answer);
+      final expected = _normalize(q.answer);
       if (input == expected) score++;
       userAnswers.add(_answerCtrls[i].text.trim());
     }
 
-    final bool isCorrect = score == _shuffledQuestions.length;
+    final bool isCorrect = score == scorableCount;
 
     setState(() => _submitting = true);
     _timer?.cancel();
@@ -184,7 +236,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     }
 
     try {
-      final double percentage = (score / _shuffledQuestions.length) * 100;
+      final double percentage = scorableCount > 0 ? (score / scorableCount) * 100 : 100.0;
       final bool isPassed = percentage >= 90;
 
       final lesson = await DatabaseService.instance.getLessonByQuizId(widget.quiz.id);
@@ -195,7 +247,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         passed: isPassed,
         isCorrect: isCorrect,
         score: score,
-        totalQuestions: _shuffledQuestions.length,
+        totalQuestions: scorableCount,
         answers: userAnswers,
         timeTaken: _timeTaken,
         lessonId: lesson?.id,
@@ -319,7 +371,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                 Center(
                   child: SingleChildScrollView(
                     physics: _completedLocal ? const NeverScrollableScrollPhysics() : null,
-                    padding: const EdgeInsets.all(32),
+                    padding: EdgeInsets.all(constraints.maxWidth < 600 ? 12 : 32),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -344,10 +396,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 1300),
                           child: Container(
-                            padding: const EdgeInsets.all(64),
+                            padding: EdgeInsets.all(constraints.maxWidth < 600 ? 16 : (constraints.maxWidth < 900 ? 32 : 64)),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(32),
+                              borderRadius: BorderRadius.circular(constraints.maxWidth < 600 ? 16 : 32),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.05),
@@ -726,8 +778,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     if (_shuffledQuestions.isEmpty) {
       return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('This quiz has no questions yet.', style: TextStyle(fontSize: 18, color: Colors.grey))));
     }
-    final question = _shuffledQuestions[_currentQuestionIndex];
+    final renderable = _shuffledQuestions[_currentQuestionIndex];
+    final question = renderable.question;
     final isMultipleChoice = question.type == 'multiple_choice';
+    final isNested = renderable.parentPassage != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -751,17 +805,101 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Question ${_currentQuestionIndex + 1}',
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
+                    'Question ${_currentQuestionIndex + 1} of ${_shuffledQuestions.length}',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary, letterSpacing: 0.5),
                   ),
                   if (widget.quiz.duration > 0 && !_isReviewing) _buildTimerBadge(),
                 ],
               ),
-              const SizedBox(height: 24),
-              Text(
-                question.question,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w400, color: Colors.black87, height: 1.4),
-              ),
+              const SizedBox(height: 12),
+              
+              // Show passage context prominently if it's a nested question
+              if (isNested) ...[
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.08),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.menu_book_rounded, size: 18, color: AppColors.primary),
+                            SizedBox(width: 10),
+                            Text(
+                              'REFERENCE PASSAGE',
+                              style: TextStyle(
+                                fontSize: 12, 
+                                fontWeight: FontWeight.bold, 
+                                color: AppColors.primary, 
+                                letterSpacing: 1.2
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: SelectableText(
+                          renderable.parentPassage!.question,
+                          style: const TextStyle(
+                            fontSize: 17, 
+                            height: 1.6, 
+                            color: Colors.black87,
+                            fontStyle: FontStyle.normal,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                const Divider(height: 1, color: Colors.black12),
+                const SizedBox(height: 32),
+              ],
+
+              if (!isNested && question.type == 'passage') ...[
+                // Standalone passage (no nested questions)
+                Text(
+                  'Reading Passage',
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
+                ),
+                const SizedBox(height: 24),
+                SelectableText(
+                  question.question,
+                  style: const TextStyle(fontSize: 18, height: 1.6, color: Colors.black87),
+                ),
+              ] else ...[
+                // Normal question or nested question text
+                Text(
+                  question.question,
+                  style: const TextStyle(
+                    fontSize: 26, 
+                    fontWeight: FontWeight.w600, 
+                    color: Colors.black, 
+                    height: 1.4,
+                    letterSpacing: -0.2
+                  ),
+                ),
+              ],
+
                 const SizedBox(height: 40),
                 if (isMultipleChoice)
                   ...question.options!.map((opt) {
@@ -826,6 +964,23 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                       ),
                     );
                   })
+                else if (question.type == 'passage')
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                    ),
+                    child: SelectableText(
+                      question.question,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        height: 1.6,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  )
                 else
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1014,9 +1169,11 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      'Question ${index + 1}',
+                      _shuffledQuestions[index].parentPassage != null 
+                        ? 'Q ${index + 1} (Nested)' 
+                        : (_shuffledQuestions[index].question.type == 'passage' ? 'Passage' : 'Q ${index + 1}'),
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: isSelected ? Colors.white : Colors.black54,
                       ),
@@ -1054,7 +1211,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     final seconds = _timeTaken % 60;
     final timeStr = minutes > 0 ? '${minutes}m ${seconds}s' : '${seconds}s';
 
-    final double percentage = (_lastScore ?? 0) / _shuffledQuestions.length;
+    final scorableCount = _shuffledQuestions.where((q) => !(q.question.type == 'passage' && q.parentPassage == null)).length;
+    final double percentage = scorableCount > 0 ? (_lastScore ?? 0) / scorableCount : 1.0;
     String feedbackMessage = 'Keep practicing to achieve mastery! ✨';
     if (percentage >= 1.0) {
       feedbackMessage = 'Perfect Score! You are a true Grammatica expert! 🏆';
@@ -1100,7 +1258,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           children: [
             _buildResultPill(
               label: 'Score',
-              value: '${_lastScore ?? 0}/${_shuffledQuestions.length}',
+              value: '${_lastScore ?? 0}/$scorableCount',
               color: const Color(0xFFFEE69F),
               textColor: const Color(0xFFF9A825),
             ),

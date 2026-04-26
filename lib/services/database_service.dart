@@ -172,14 +172,16 @@ class Lesson {
 class QuizQuestion {
   final String question;
   final String answer;
-  final String type; // 'text', 'multiple_choice'
+  final String type; // 'text', 'multiple_choice', 'passage'
   final List<String>? options;
+  final List<QuizQuestion>? nestedQuestions;
 
   QuizQuestion({
     required this.question,
     required this.answer,
     this.type = 'text',
     this.options,
+    this.nestedQuestions,
   });
 
   factory QuizQuestion.fromMap(Map<String, dynamic> map) {
@@ -190,6 +192,11 @@ class QuizQuestion {
       options: map['options'] != null
           ? List<String>.from(map['options'])
           : null,
+      nestedQuestions: map['nestedQuestions'] != null
+          ? (map['nestedQuestions'] as List)
+              .map((q) => QuizQuestion.fromMap(Map<String, dynamic>.from(q)))
+              .toList()
+          : null,
     );
   }
 
@@ -199,6 +206,7 @@ class QuizQuestion {
       'answer': answer,
       'type': type,
       'options': options,
+      'nestedQuestions': nestedQuestions?.map((q) => q.toMap()).toList(),
     };
   }
 }
@@ -785,15 +793,20 @@ class DatabaseService {
     bool isMembersOnly = false,
     bool isGrammaticaQuiz = false,
     bool isAssessment = false,
+    String? validationStatus,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-    // Determine initial status based on role
-    String status = 'approved'; 
-    if (user != null) {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      final role = doc.data()?['role'];
-      if (role == 'EDUCATOR' || role == 'VALIDATOR') {
+    // Determine initial status based on role if not explicitly provided
+    String status = validationStatus ?? 'approved';
+    if (validationStatus == null) {
+      if (isAssessment) {
         status = 'awaiting_approval';
+      } else if (user != null) {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        final role = doc.data()?['role'];
+        if (role == 'EDUCATOR' || role == 'VALIDATOR') {
+          status = 'awaiting_approval';
+        }
       }
     }
 
@@ -832,6 +845,7 @@ class DatabaseService {
     bool? isMembersOnly,
     bool? isGrammaticaQuiz,
     bool? isAssessment,
+    String? validationStatus,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -848,6 +862,16 @@ class DatabaseService {
     if (isMembersOnly != null) data['isMembersOnly'] = isMembersOnly;
     if (isGrammaticaQuiz != null) data['isGrammaticaQuiz'] = isGrammaticaQuiz;
     if (isAssessment != null) data['isAssessment'] = isAssessment;
+    if (validationStatus != null) {
+      data['validationStatus'] = validationStatus;
+    } else if (isAssessment == true) {
+      data['validationStatus'] = 'awaiting_approval';
+    } else {
+      // If we don't know if it's an assessment from the call, we might want to check the current doc
+      // but that would require an extra read. For now, since AdminAssessmentsTab passes isAssessment: true,
+      // it will work for new/existing assessments being edited through that tab.
+    }
+
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
     }
@@ -883,13 +907,18 @@ class DatabaseService {
     bool approvedOnly = true,
     UserRole? userRole,
     String? userId,
+    bool? isAssessment,
   }) {
     // To avoid composite index requirements and support legacy content,
     // we filter out awaiting_approval docs in Dart.
     return _quizzes.orderBy('createdAt', descending: false).snapshots().map((
       snapshot,
     ) {
-      final quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
+      var quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
+
+      if (isAssessment != null) {
+        quizzes = quizzes.where((q) => q.isAssessment == isAssessment).toList();
+      }
 
       // Admins and Superadmins see all items
       if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
@@ -926,7 +955,19 @@ class DatabaseService {
         .map(
           (snapshot) => snapshot.docs
               .map(Quiz.fromDoc)
-              .where((q) => q.validationStatus == 'awaiting_approval')
+              .where((q) => q.validationStatus == 'awaiting_approval' && !q.isAssessment)
+              .toList(),
+        );
+  }
+
+  Stream<List<Quiz>> streamAwaitingApprovalAssessments() {
+    return _quizzes
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(Quiz.fromDoc)
+              .where((q) => q.validationStatus == 'awaiting_approval' && q.isAssessment)
               .toList(),
         );
   }

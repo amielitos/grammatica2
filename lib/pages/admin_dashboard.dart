@@ -47,6 +47,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   late int _index;
   int _initialValidationTabIndex = 0;
   int? _initialPracticeSubTab;
+  bool _initialPracticeShowEditor = false;
   Lesson? _editingLesson;
   int _editingLessonTabIndex = 0;
   StreamSubscription? _notifSubscription;
@@ -148,8 +149,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               if (i == 4) {
                 // English Assessment index
                 _initialPracticeSubTab = 2; // Assessment sub-tab
+                _initialPracticeShowEditor = true; // Go to editor directly
               } else {
                 _initialPracticeSubTab = null;
+                _initialPracticeShowEditor = false;
               }
               _index = i;
             });
@@ -243,8 +246,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
       } else if (isEducator) {
         tabs.add(PracticeTab(
-          key: ValueKey('practice_$_initialPracticeSubTab'),
+          key: ValueKey('practice_${_initialPracticeSubTab}_$_initialPracticeShowEditor'),
           initialSubTab: _initialPracticeSubTab,
+          initialShowEditor: _initialPracticeShowEditor,
         ));
         navItems.add(
           const ModernNavItem(icon: Icons.assignment, label: 'English Assessment'),

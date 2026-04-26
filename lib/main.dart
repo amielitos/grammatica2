@@ -148,9 +148,14 @@ class _AuthWrapper extends StatelessWidget {
             if (status == 'DEACTIVATED') {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 AuthService.instance.signOut();
-                AuthService.showSnackBar('Your account has been deactivated. Please contact support.');
+                AuthService.showSnackBar(
+                  'Your account has been deactivated. Please contact support.',
+                );
               });
-              return Theme(data: AppTheme.lightTheme, child: const LandingPage());
+              return Theme(
+                data: AppTheme.lightTheme,
+                child: const LandingPage(),
+              );
             }
 
             // Sync theme preference
