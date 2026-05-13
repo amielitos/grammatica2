@@ -49,19 +49,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         height: 70,
         child: Stack(
           children: [
-            // Middle Group: Links (Dead Center)
-            if (screenWidth > 1100)
-              Align(
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildNavLink('All About Grammatica', isDark),
-                    const SizedBox(width: 40),
-                    _buildNavLink("FAQ's", isDark),
-                  ],
-                ),
-              ),
+
             
             // Left Group: Burger + Logo
             Align(
@@ -209,16 +197,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  Widget _buildNavLink(String text, bool isDark) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: isDark ? Colors.white70 : Colors.black87,
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-      ),
-    );
-  }
 
   @override
   Size get preferredSize => const Size.fromHeight(80.0);

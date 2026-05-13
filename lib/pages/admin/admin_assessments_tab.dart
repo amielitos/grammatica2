@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../services/database_service.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../models/content_visibility.dart';
@@ -306,148 +307,354 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
   }
 
   Widget _buildInputFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: _title,
-          decoration: const InputDecoration(labelText: 'Title'),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _description,
-          decoration: const InputDecoration(labelText: 'Description'),
-          maxLines: 3,
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _durationCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Duration (HH:MM:SS)',
-                  hintText: '00:30:00',
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: TextField(
-                controller: _maxAttemptsCtrl,
-                decoration: const InputDecoration(labelText: 'Max Attempts'),
-                keyboardType: TextInputType.number,
-                enabled: !_isGrammaticaQuiz,
-              ),
-            ),
-          ],
-        ),
-        if (!widget.isEmbedded) ...[
-          const SizedBox(height: 16),
-          const SizedBox(height: 16),
-          StreamBuilder<UserRole>(
-            stream: RoleService.instance.roleStream(
-              AuthService.instance.currentUser?.uid ?? '',
-            ),
-            builder: (context, roleSnap) {
-              final isEducator = roleSnap.data == UserRole.educator;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Visibility',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  SegmentedButton<ContentVisibility>(
-                    segments: [
-                      const ButtonSegment(
-                        value: ContentVisibility.public,
-                        label: Text('Public'),
-                        icon: Icon(Icons.public),
-                      ),
-                      const ButtonSegment(
-                        value: ContentVisibility.membersOnly,
-                        label: Text('Standard'),
-                        icon: Icon(Icons.people_outline),
-                      ),
-                      const ButtonSegment(
-                        value: ContentVisibility.certainUsers,
-                        label: Text('Premium'),
-                        icon: Icon(Icons.star),
-                      ),
-                    ],
-                    selected: {_visibility},
-                    onSelectionChanged: (Set<ContentVisibility> newSelection) {
-                      setState(() {
-                        _visibility = newSelection.first;
-                        // Map visibility to database flags
-                        if (_visibility == ContentVisibility.public) {
-                          _isVisible = true;
-                          _isMembersOnly = false;
-                        } else if (_visibility ==
-                            ContentVisibility.membersOnly) {
-                          _isVisible = true;
-                          _isMembersOnly = true;
-                        } else if (_visibility ==
-                            ContentVisibility.certainUsers) {
-                          _isVisible = false;
-                          _isMembersOnly = false;
-                        }
-                      });
-                    },
-                  ),
-                  if (_visibility == ContentVisibility.certainUsers) ...[
-                    const SizedBox(height: 16),
-                    UserVisibilitySelector(
-                      selectedUserIds: _visibleTo,
-                      educatorUid: isEducator
-                          ? AuthService.instance.currentUser?.uid
-                          : null,
-                      onChanged: (users) {
-                        setState(() => _visibleTo = users);
-                      },
-                    ),
-                  ],
-                ],
-              );
-            },
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
-        const SizedBox(height: 16),
-        if (!widget.isEmbedded)
-          StreamBuilder<UserRole>(
-            stream: RoleService.instance.roleStream(
-              AuthService.instance.currentUser?.uid ?? '',
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Basic Details',
+            style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A)),
+          ),
+          const SizedBox(height: 24),
+          _buildStyledTextField(
+            controller: _title,
+            label: 'Title',
+            icon: Icons.title_rounded,
+          ),
+          const SizedBox(height: 16),
+          _buildStyledTextField(
+            controller: _description,
+            label: 'Description',
+            icon: Icons.description_rounded,
+            maxLines: 3,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: _buildDurationDropdown(),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildMaxAttemptsCounter(),
+              ),
+            ],
+          ),
+          if (!widget.isEmbedded) ...[
+            const SizedBox(height: 32),
+            StreamBuilder<UserRole>(
+              stream: RoleService.instance.roleStream(
+                AuthService.instance.currentUser?.uid ?? '',
+              ),
+              builder: (context, roleSnap) {
+                final isEducator = roleSnap.data == UserRole.educator;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Visibility Options',
+                      style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A)),
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        ChoiceChip(
+                          label: Text('Public', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                          avatar: const Icon(Icons.public, size: 18),
+                          selected: _visibility == ContentVisibility.public,
+                          selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
+                          checkmarkColor: const Color(0xFF88B342),
+                          labelStyle: TextStyle(color: _visibility == ContentVisibility.public ? const Color(0xFF88B342) : Colors.black87),
+                          onSelected: (val) {
+                            if (val) {
+                              setState(() {
+                                _visibility = ContentVisibility.public;
+                                _isVisible = true;
+                                _isMembersOnly = false;
+                              });
+                            }
+                          },
+                        ),
+                        ChoiceChip(
+                          label: Text('Standard', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                          avatar: const Icon(Icons.people_outline, size: 18),
+                          selected: _visibility == ContentVisibility.membersOnly,
+                          selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
+                          checkmarkColor: const Color(0xFF88B342),
+                          labelStyle: TextStyle(color: _visibility == ContentVisibility.membersOnly ? const Color(0xFF88B342) : Colors.black87),
+                          onSelected: (val) {
+                            if (val) {
+                              setState(() {
+                                _visibility = ContentVisibility.membersOnly;
+                                _isVisible = true;
+                                _isMembersOnly = true;
+                              });
+                            }
+                          },
+                        ),
+                        ChoiceChip(
+                          label: Text('Premium', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                          avatar: const Icon(Icons.star_rounded, size: 18),
+                          selected: _visibility == ContentVisibility.certainUsers,
+                          selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
+                          checkmarkColor: const Color(0xFF88B342),
+                          labelStyle: TextStyle(color: _visibility == ContentVisibility.certainUsers ? const Color(0xFF88B342) : Colors.black87),
+                          onSelected: (val) {
+                            if (val) {
+                              setState(() {
+                                _visibility = ContentVisibility.certainUsers;
+                                _isVisible = false;
+                                _isMembersOnly = false;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    if (_visibility == ContentVisibility.certainUsers) ...[
+                      const SizedBox(height: 16),
+                      UserVisibilitySelector(
+                        selectedUserIds: _visibleTo,
+                        educatorUid: isEducator ? AuthService.instance.currentUser?.uid : null,
+                        onChanged: (users) {
+                          setState(() => _visibleTo = users);
+                        },
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
-            builder: (context, snapshot) {
-              final role = snapshot.data;
-              if (role == UserRole.admin || role == UserRole.superadmin) {
-                return CheckboxListTile(
-                  title: const Text('Official Assessment'),
-                  subtitle: const Text(
-                    'This will appear in the official "Grammatica Assessments" folder',
-                  ),
-                  value: _isGrammaticaQuiz,
-                  onChanged: (val) {
+          ],
+          if (!widget.isEmbedded) ...[
+            const SizedBox(height: 24),
+            StreamBuilder<UserRole>(
+              stream: RoleService.instance.roleStream(
+                AuthService.instance.currentUser?.uid ?? '',
+              ),
+              builder: (context, snapshot) {
+                final role = snapshot.data;
+                if (role == UserRole.admin || role == UserRole.superadmin) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF88B342).withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF88B342).withValues(alpha: 0.3)),
+                    ),
+                    child: CheckboxListTile(
+                      title: Text('Official Grammatica Content', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A))),
+                      subtitle: Text('This will appear in the official folders', style: GoogleFonts.inter(fontSize: 12, color: Colors.black54)),
+                      activeColor: const Color(0xFF88B342),
+                      value: _isGrammaticaQuiz,
+                      onChanged: (val) {
+                        setState(() {
+                          _isGrammaticaQuiz = val ?? false;
+                          if (_isGrammaticaQuiz) {
+                            _maxAttemptsCtrl.text = '1000000';
+                          } else {
+                            _maxAttemptsCtrl.text = '1';
+                          }
+                        });
+                      },
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDurationDropdown() {
+    final options = {
+      '00:05:00': '5 Minutes',
+      '00:10:00': '10 Minutes',
+      '00:15:00': '15 Minutes',
+      '00:20:00': '20 Minutes',
+      '00:30:00': '30 Minutes',
+      '00:45:00': '45 Minutes',
+      '01:00:00': '1 Hour',
+      '01:30:00': '1.5 Hours',
+      '02:00:00': '2 Hours',
+      '03:00:00': '3 Hours',
+    };
+
+    // Ensure current text is in options or default to 30 mins
+    String currentVal = _durationCtrl.text;
+    if (!options.containsKey(currentVal)) {
+      currentVal = '00:30:00';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _durationCtrl.text = currentVal;
+        }
+      });
+    }
+
+    return DropdownButtonFormField<String>(
+      value: currentVal,
+      style: GoogleFonts.inter(fontSize: 16, color: Colors.black87),
+      decoration: InputDecoration(
+        labelText: 'Duration',
+        labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
+        prefixIcon: const Icon(Icons.timer_outlined, color: Color(0xFF88B342)),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF88B342), width: 2),
+        ),
+      ),
+      items: options.entries.map((e) {
+        return DropdownMenuItem(
+          value: e.key,
+          child: Text(e.value),
+        );
+      }).toList(),
+      onChanged: (val) {
+        if (val != null) {
+          setState(() {
+            _durationCtrl.text = val;
+          });
+        }
+      },
+    );
+  }
+
+  Widget _buildStyledTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    int minLines = 1,
+    int maxLines = 1,
+    String? hint,
+  }) {
+    return TextField(
+      controller: controller,
+      minLines: minLines,
+      maxLines: maxLines,
+      style: GoogleFonts.inter(fontSize: 16),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
+        prefixIcon: Icon(icon, color: const Color(0xFF88B342)),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF88B342), width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMaxAttemptsCounter() {
+    int currentVal = int.tryParse(_maxAttemptsCtrl.text) ?? 1;
+
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: 'Max Attempts',
+        labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            onPressed: _isGrammaticaQuiz || currentVal <= 1
+                ? null
+                : () {
                     setState(() {
-                      _isGrammaticaQuiz = val ?? false;
-                      if (_isGrammaticaQuiz) {
-                        _maxAttemptsCtrl.text = '1000000';
-                      } else {
-                        _maxAttemptsCtrl.text = '1';
-                      }
+                      currentVal--;
+                      _maxAttemptsCtrl.text = currentVal.toString();
                     });
                   },
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.zero,
-                );
-              }
-              return const SizedBox.shrink();
-            },
+            icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
           ),
-        const SizedBox(height: 24),
-      ],
+          Expanded(
+            child: TextField(
+              controller: _maxAttemptsCtrl,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF88B342)),
+              keyboardType: TextInputType.number,
+              enabled: !_isGrammaticaQuiz,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: (val) {
+                if (val.isNotEmpty) {
+                  int parsed = int.tryParse(val) ?? 1;
+                  if (parsed < 1) {
+                     _maxAttemptsCtrl.text = '1';
+                  }
+                }
+              },
+            ),
+          ),
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            onPressed: _isGrammaticaQuiz
+                ? null
+                : () {
+                    setState(() {
+                      currentVal++;
+                      _maxAttemptsCtrl.text = currentVal.toString();
+                    });
+                  },
+            icon: const Icon(Icons.add_circle_outline, color: Color(0xFF88B342)),
+          ),
+        ],
+      ),
     );
   }
 

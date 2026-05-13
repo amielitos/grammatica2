@@ -164,7 +164,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       // 0: Users (Admin only)
       if (isAdmin) {
         tabs.add(const AdminUsersTab());
-        navItems.add(const ModernNavItem(icon: Icons.people, label: 'Users'));
+        navItems.add(const ModernNavItem(icon: Icons.people, label: 'User Management'));
       }
 
       // Validation (Super Admin only - Validators handled above)
@@ -234,7 +234,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (isEducator || isAdmin) {
         tabs.add(EducatorGroupsTab(user: widget.user));
         navItems.add(
-          const ModernNavItem(icon: Icons.event, label: 'Mentorship'),
+          const ModernNavItem(icon: Icons.group, label: 'Premium Group'),
         );
       }
 
@@ -305,6 +305,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
         currentIndex: _index,
         onTap: (i) {
           setState(() {
+            // For educators, tab index 4 = English Assessment.
+            // Set the sub-tab so PracticeTab reinitialises directly
+            // on the assessment view (skips the Practice Tools screen).
+            if (isEducator && i == 4) {
+              _initialPracticeSubTab = 2;
+              _initialPracticeShowEditor = false;
+            } else {
+              _initialPracticeSubTab = null;
+              _initialPracticeShowEditor = false;
+            }
             _index = i;
             _persistedIndex = i;
           });

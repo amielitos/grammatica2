@@ -113,7 +113,7 @@ class _WebPdfViewerState extends State<WebPdfViewer> {
 
 void showFilePreviewModal(BuildContext context, String url, String fileName) {
   final bool isImage = ['jpg', 'jpeg', 'png'].contains(fileName.toLowerCase().split('.').last);
-  final bool isVideo = ['mp4', 'mov', 'avi'].contains(fileName.toLowerCase().split('.').last);
+  final bool isVideo = ['mp4', 'mov', 'avi', 'webm', 'm4v'].contains(fileName.toLowerCase().split('.').last);
   final bool isPdf = fileName.toLowerCase().endsWith('.pdf');
 
   showDialog(

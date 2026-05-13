@@ -30,28 +30,42 @@ class UniversalDrawer extends StatelessWidget {
     if (isAdmin || isEducator) {
       // Logic from AdminDashboard
       final List<ModernNavItem> navItems = [];
+      final isSuperAdmin = role == UserRole.superadmin;
+      final isAdminOrSuperAdmin = role == UserRole.admin || role == UserRole.superadmin;
+      
       if (role == UserRole.validator) {
         navItems.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
         navItems.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
       } else {
-        if (role == UserRole.educator) {
-          navItems.insert(0, const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
+        if (isEducator) {
+          navItems.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
         }
 
-        if (role == UserRole.superadmin) {
+        if (isAdminOrSuperAdmin) {
+          navItems.add(const ModernNavItem(icon: Icons.people, label: 'User Management'));
+        }
+
+        if (isSuperAdmin) {
            navItems.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
         }
-        navItems.add(const ModernNavItem(icon: Icons.edit_document, label: 'Contents'));
+
+        if (isAdminOrSuperAdmin || isEducator) {
+          navItems.add(const ModernNavItem(icon: Icons.edit_document, label: 'Contents'));
+        }
+
         navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
-        navItems.add(const ModernNavItem(icon: Icons.group, label: 'Premium Group'));
         
-        if (role == UserRole.admin) {
+        if (isAdminOrSuperAdmin || isEducator) {
+          navItems.add(const ModernNavItem(icon: Icons.group, label: 'Premium Group'));
+        }
+        
+        if (isAdminOrSuperAdmin) {
           navItems.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
-        } else if (role == UserRole.educator) {
+        } else if (isEducator) {
            navItems.add(const ModernNavItem(icon: Icons.assignment, label: 'English Assessment'));
         }
 
-        if (role != UserRole.educator) {
+        if (!isEducator) {
           navItems.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
         }
       }

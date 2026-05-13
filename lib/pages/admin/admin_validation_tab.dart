@@ -11,6 +11,9 @@ import '../lesson_page.dart';
 
 import '../../services/role_service.dart';
 import '../../services/notification_service.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/design_ornaments.dart';
 
 class AdminValidationTab extends StatefulWidget {
   final UserRole role;
@@ -53,22 +56,29 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
     return DefaultTabController(
       length: 4,
       initialIndex: widget.initialTabIndex,
-      child: Column(
-        children: [
-          TabBar(
-            isScrollable: true,
-            labelColor: Theme.of(context).colorScheme.primary,
-            unselectedLabelColor: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
-            indicatorColor: Theme.of(context).colorScheme.primary,
-            tabs: const [
-              Tab(text: 'Lessons'),
-              Tab(text: 'Quizzes'),
-              Tab(text: 'Assessments'),
-              Tab(text: 'Educators'),
-            ],
-          ),
+      child: BackgroundWrapper(
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 16),
+              child: TabBar(
+                isScrollable: true,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: AppColors.textSecondary,
+                indicatorColor: AppColors.primary,
+                indicatorWeight: 4,
+                indicatorSize: TabBarIndicatorSize.label,
+                dividerColor: Colors.transparent,
+                labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+                unselectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w500, fontSize: 16),
+                tabs: const [
+                  Tab(text: 'Lessons'),
+                  Tab(text: 'Quizzes'),
+                  Tab(text: 'Assessments'),
+                  Tab(text: 'Educators'),
+                ],
+              ),
+            ),
           Expanded(
             child: TabBarView(
               children: [
@@ -99,8 +109,9 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _EducatorApplicationsList extends StatelessWidget {
@@ -298,7 +309,7 @@ class _EducatorApplicationsList extends StatelessWidget {
     
     // Extract extension from Firebase Storage URL (ignoring tokens)
     final bool isImage = ['jpg', 'jpeg', 'png'].contains(url.toLowerCase().split('?').first.split('.').last);
-    final bool isVideo = ['mp4', 'mov', 'avi'].contains(url.toLowerCase().split('?').first.split('.').last);
+    final bool isVideo = ['mp4', 'mov', 'avi', 'webm', 'm4v'].contains(url.toLowerCase().split('?').first.split('.').last);
 
     return Container(
       decoration: BoxDecoration(

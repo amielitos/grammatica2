@@ -103,40 +103,56 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
     });
 
     try {
+      String getContentType(String name) {
+        final ext = name.toLowerCase().split('.').last;
+        if (ext == 'pdf') return 'application/pdf';
+        if (['jpg', 'jpeg'].contains(ext)) return 'image/jpeg';
+        if (ext == 'png') return 'image/png';
+        if (ext == 'mp4') return 'video/mp4';
+        if (ext == 'mov') return 'video/quicktime';
+        if (ext == 'avi') return 'video/x-msvideo';
+        if (ext == 'webm') return 'video/webm';
+        return 'application/octet-stream';
+      }
+
       // Start upload process
+      if (_cvFile?.bytes == null) throw Exception('CV file data not loaded');
       final cvUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
         fileBytes: _cvFile!.bytes!,
         fileName: _cvFile!.name,
-        contentType: _cvFile!.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+        contentType: getContentType(_cvFile!.name),
       );
 
       // Progress update
       List<String> certUrls = [];
       for (var file in _certificateFiles) {
+        if (file.bytes == null) continue;
         final url = await DatabaseService.instance.uploadApplicationFile(
           uid: widget.user.uid,
           fileBytes: file.bytes!,
           fileName: file.name,
-          contentType: file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+          contentType: getContentType(file.name),
         );
         certUrls.add(url);
       }
 
       // Progress update
+      if (_videoFile?.bytes == null) throw Exception('Video file data not loaded');
       final videoUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
         fileBytes: _videoFile!.bytes!,
         fileName: _videoFile!.name,
-        contentType: 'video/mp4',
+        contentType: getContentType(_videoFile!.name),
       );
 
       // Progress update
+      if (_syllabusFile?.bytes == null) throw Exception('Syllabus file data not loaded');
       final syllabusUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
         fileBytes: _syllabusFile!.bytes!,
         fileName: _syllabusFile!.name,
-        contentType: _syllabusFile!.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+        contentType: getContentType(_syllabusFile!.name),
       );
 
       // Finalizing upload
