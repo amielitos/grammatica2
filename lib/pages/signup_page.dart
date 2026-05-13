@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import '../services/auth_service.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import '../services/notification_service.dart';
+
 import 'package:flutter/services.dart';
 import '../widgets/google_sign_in_button.dart';
 import '../widgets/design_ornaments.dart';
-import '../theme/app_colors.dart';
+
 import '../widgets/top_nav_bar.dart';
 import 'otp_verification_page.dart';
 import '../services/email_sender_service.dart';
@@ -300,7 +300,7 @@ class _SignupPageState extends State<SignupPage> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 24, offset: const Offset(0, 12)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 24, offset: const Offset(0, 12)),
                 ],
               ),
               clipBehavior: Clip.antiAlias,
@@ -408,7 +408,7 @@ class _SignupPageState extends State<SignupPage> {
                 decoration: BoxDecoration(
                   color: isActive ? const Color(0xFF81B655) : Colors.grey[200],
                   shape: BoxShape.circle,
-                  boxShadow: isActive ? [BoxShadow(color: const Color(0xFF81B655).withOpacity(0.3), blurRadius: 8)] : [],
+                  boxShadow: isActive ? [BoxShadow(color: const Color(0xFF81B655).withValues(alpha: 0.3), blurRadius: 8)] : [],
                 ),
                 child: Center(
                   child: Text("${stepIndex + 1}", style: TextStyle(color: isActive ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)),
@@ -636,7 +636,7 @@ class _SignupPageState extends State<SignupPage> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     gradient: const LinearGradient(colors: [Color(0xFF81B655), Color(0xFF75A94B)]),
-                    boxShadow: [BoxShadow(color: const Color(0xFF81B655).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                    boxShadow: [BoxShadow(color: const Color(0xFF81B655).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
                   ),
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : (_currentStep == 2 ? _register : _nextStep),
@@ -709,8 +709,8 @@ class _SignupPageState extends State<SignupPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
-        border: Border.all(color: Colors.black.withOpacity(0.05)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
       child: TextFormField(
         inputFormatters: inputFormatters,
@@ -746,13 +746,13 @@ class _SignupPageState extends State<SignupPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
-        border: Border.all(color: Colors.black.withOpacity(0.05)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButtonFormField<String>(
           isExpanded: true,
-          value: _selectedSuffix,
+          initialValue: _selectedSuffix,
           decoration: const InputDecoration(
             hintText: "Suffix (Optional)",
             hintStyle: TextStyle(color: Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
@@ -771,8 +771,8 @@ class _SignupPageState extends State<SignupPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
-        border: Border.all(color: Colors.black.withOpacity(0.05)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
       child: IntlPhoneField(
         controller: _phoneController,

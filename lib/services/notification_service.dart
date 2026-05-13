@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification.dart';
 
@@ -49,7 +50,7 @@ class NotificationService {
       );
       await _notifications.add(notification.toMap());
     } catch (e) {
-      print('NOTIFICATION ERROR: $e');
+      debugPrint('NOTIFICATION ERROR: $e');
     }
   }
 
@@ -57,7 +58,7 @@ class NotificationService {
     try {
       await _notifications.doc(id).update({'isRead': true});
     } catch (e) {
-      print('Error marking as read: $e');
+      debugPrint('Error marking as read: $e');
     }
   }
 
@@ -88,14 +89,21 @@ class NotificationService {
 
     try {
       final today = DateTime(now.year, now.month, now.day);
-      final existingReminders = await _notifications
+      // Simplify query to avoid index errors, filter in Dart instead
+      final snapshots = await _notifications
           .where('uid', isEqualTo: educatorUid)
-          .where('type', isEqualTo: 'general')
-          .where('title', isEqualTo: 'Mandatory Lesson Upload Reminder')
-          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
           .get();
 
-      if (existingReminders.docs.isNotEmpty) return;
+      final existingReminders = snapshots.docs.where((doc) {
+        final data = doc.data();
+        final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+        return data['type'] == 'general' &&
+               data['title'] == 'Mandatory Lesson Upload Reminder' &&
+               createdAt != null &&
+               createdAt.isAfter(today);
+      });
+
+      if (existingReminders.isNotEmpty) return;
 
       final subscribers = await _firestore
           .collection('users')
@@ -114,7 +122,7 @@ class NotificationService {
         );
       }
     } catch (e) {
-      print('Failed to send daily lesson reminder: $e');
+      debugPrint('Failed to send daily lesson reminder: $e');
     }
   }
 

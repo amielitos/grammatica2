@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/email_sender_service.dart';
 import '../widgets/design_ornaments.dart';
@@ -58,8 +57,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
   void dispose() {
     _pageController.dispose();
     _emailController.dispose();
-    for (var c in _otpControllers) c.dispose();
-    for (var f in _otpFocusNodes) f.dispose();
+    for (var c in _otpControllers) {
+      c.dispose();
+    }
+    for (var f in _otpFocusNodes) {
+      f.dispose();
+    }
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -134,7 +137,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
           _isVerifying = false;
           _otpError = true;
         });
-        for (var c in _otpControllers) c.clear();
+        for (var c in _otpControllers) {
+          c.clear();
+        }
         _otpFocusNodes[0].requestFocus();
         _showSnack('Incorrect verification code.', error: true);
       }
@@ -248,7 +253,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(40),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 40, offset: const Offset(0, 20))],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 40, offset: const Offset(0, 20))],
                 ),
                 child: Column(
                   children: [
@@ -294,7 +299,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset('assets/logotext.png', height: 26, errorBuilder: (_, __, ___) => const Icon(Icons.lock, color: Color(0xFF81B655))),
+          Image.asset('assets/logotext.png', height: 26, errorBuilder: (_, _, _) => const Icon(Icons.lock, color: Color(0xFF81B655))),
           const SizedBox(height: 20),
           Text(titles[_step], style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: -1)),
           const SizedBox(height: 4),
@@ -384,7 +389,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with TickerProv
   Widget _otpBox(int i) {
     return Container(
       width: 46, height: 58,
-      decoration: BoxDecoration(color: _otpError ? Colors.red.withOpacity(0.05) : const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: _otpError ? Colors.red : const Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(color: _otpError ? Colors.red.withValues(alpha: 0.05) : const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: _otpError ? Colors.red : const Color(0xFFE2E8F0))),
       child: TextField(
         controller: _otpControllers[i], focusNode: _otpFocusNodes[i],
         textAlign: TextAlign.center, keyboardType: TextInputType.number, maxLength: 1,

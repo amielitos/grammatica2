@@ -13,7 +13,7 @@ import '../models/spelling_word.dart';
 import '../widgets/design_ornaments.dart';
 import '../pages/admin/admin_spelling_words_tab.dart';
 import '../theme/app_colors.dart';
-import '../main.dart';
+
 
 class PronunciationQuizPage extends StatefulWidget {
   final User user;
@@ -54,7 +54,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   // Timer fields
   Timer? _timer;
   int _timeLeft = 0;
-  int _totalTime = 0;
+
 
   @override
   void initState() {
@@ -109,7 +109,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         _timeLeft = 30;
         break;
     }
-    _totalTime = _timeLeft;
+
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_timeLeft > 0) {
@@ -166,7 +166,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       await _initSpeech();
     }
 
-    if (!_isSpeechInitialized && !kIsWeb) {
+    if (!_isSpeechInitialized && !kIsWeb && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Speech recognition not supported on this device.')),
       );
@@ -203,10 +203,12 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         },
         listenFor: const Duration(seconds: 10),
         pauseFor: const Duration(seconds: 3),
-        partialResults: true,
         localeId: 'en-US',
-        cancelOnError: true,
-        listenMode: stt.ListenMode.confirmation,
+        listenOptions: stt.SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: true,
+          listenMode: stt.ListenMode.confirmation,
+        ),
       );
     } else if (kIsWeb) {
       // FALLBACK for Web: Use the raw browser API if the plugin failed
@@ -230,9 +232,11 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         }
       } catch (e) {
         _stopRecording();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Speech recognition not available in this browser: $e')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Speech recognition not available in this browser: $e')),
+          );
+        }
       }
     }
   }
@@ -268,13 +272,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     }
   }
 
-  void _toggleRecording() {
-    if (_isRecording) {
-      _stopRecording();
-    } else {
-      _startRecording();
-    }
-  }
+
 
   void _submitAnswer() {
     if (_isTransitioning || _currentIndex >= _sessionWords.length) return;
@@ -438,7 +436,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final shouldPop = await _showExitConfirmation();
-        if (shouldPop == true && context.mounted) {
+        if (shouldPop == true && mounted) {
           if (_selectedDifficulty != null && !_isGameOver) {
             _timer?.cancel();
             setState(() => _selectedDifficulty = null);
@@ -493,7 +491,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                       final shouldPop = await _showExitConfirmation();
                       if (shouldPop != true) return;
                     }
-                    if (mounted) {
+                    if (context.mounted) {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const AdminSpellingWordsTab(),
@@ -601,10 +599,10 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -680,7 +678,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -750,7 +748,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                           width: 4,
                           height: dynamicHeight.clamp(4.0, 50.0),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.8), // Dark color from the screenshot
+                            color: Colors.black.withValues(alpha: 0.8), // Dark color from the screenshot
                             borderRadius: BorderRadius.circular(2),
                           ),
                         );
@@ -806,7 +804,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                             boxShadow: [
                               if (_isRecording)
                                 BoxShadow(
-                                  color: const Color(0xFF8BC34A).withOpacity(0.4),
+                                  color: const Color(0xFF8BC34A).withValues(alpha: 0.4),
                                   blurRadius: 20,
                                   spreadRadius: 8,
                                 ),
@@ -876,7 +874,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
           Container(
             padding: EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(Icons.celebration_rounded, size: 64, color: AppColors.primary),
@@ -957,7 +955,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                       Container(
                         padding: EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: (isCorrect ? AppColors.primary : AppColors.error).withOpacity(0.1),
+                          color: (isCorrect ? AppColors.primary : AppColors.error).withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -977,7 +975,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                             ),
                             SizedBox(height: 4),
                             Text(
-                              userAnswer?.isEmpty ?? true ? "(No input)" : '"${userAnswer}"',
+                              userAnswer?.isEmpty ?? true ? "(No input)" : '"$userAnswer"',
                               style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                             ),
                           ],
@@ -1020,7 +1018,7 @@ class _DifficultyCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -1116,36 +1114,6 @@ class _DifficultyCard extends StatelessWidget {
   }
 }
 
-class _ControlButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final Color color;
 
-  const _ControlButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        IconButton(
-          onPressed: onTap,
-          icon: Icon(icon),
-          color: color,
-          iconSize: 32,
-        ),
-        Text(
-          label,
-          style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
-        ),
-      ],
-    );
-  }
-}
 
 

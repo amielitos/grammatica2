@@ -11,19 +11,19 @@ import 'browse_educators_tab.dart';
 import 'admin/educator_groups_tab.dart';
 import 'practice_tab.dart';
 import '../widgets/notification_widgets.dart';
-import '../widgets/admin_sidebar.dart';
-import '../widgets/responsive_wrapper.dart';
+
+
 import '../services/database_service.dart';
-import '../services/auth_service.dart';
+
 import '../services/notification_service.dart';
-import '../widgets/design_ornaments.dart';
+
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import 'admin/validator_dashboard_tab.dart';
 import 'admin/educator_dashboard_tab.dart';
-import '../main.dart';
+
 import 'dart:async';
-import '../models/notification.dart';
+
 
 class AdminDashboard extends StatefulWidget {
   final User user;
@@ -271,19 +271,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _index = 0;
     }
 
-    // We build the sidebar but only use it if needed
-    final sidebar = AdminSidebar(
-      selectedIndex: _index,
-      userName: username,
-      items: navItems,
-      onItemSelected: (i) {
-        setState(() {
-          _index = i;
-          _persistedIndex = i;
-        });
-      },
-      onSignOut: () => AuthService.instance.signOut(),
-    );
+    // We build the navigation items for the drawer and dashboard
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,

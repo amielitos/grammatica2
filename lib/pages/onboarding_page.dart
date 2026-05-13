@@ -5,7 +5,7 @@ import '../theme/app_colors.dart';
 import '../widgets/design_ornaments.dart';
 import '../widgets/terms_and_conditions_dialog.dart';
 import '../services/auth_service.dart';
-import '../main.dart';
+
 
 class OnboardingPage extends StatefulWidget {
   final User user;
@@ -143,7 +143,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           Container(
                             padding: const EdgeInsets.all(32),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
+                              color: AppColors.primary.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -180,9 +180,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               decoration: BoxDecoration(
-                                color: AppColors.surface.withOpacity(0.5),
+                                color: AppColors.surface.withValues(alpha: 0.5),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.divider.withOpacity(0.5)),
+                                border: Border.all(color: AppColors.divider.withValues(alpha: 0.5)),
                               ),
                               child: Row(
                                 children: [

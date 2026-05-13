@@ -13,7 +13,7 @@ import '../models/spelling_word.dart';
 import '../pages/admin/admin_spelling_words_tab.dart';
 import '../theme/app_colors.dart';
 import '../widgets/design_ornaments.dart';
-import '../main.dart';
+
 
 class SpellingBeePage extends StatefulWidget {
   final User user;
@@ -42,7 +42,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
 
   Timer? _timer;
   int _timeLeft = 0;
-  int _totalTime = 0;
+
 
   @override
   void initState() {
@@ -102,7 +102,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         _timeLeft = 30;
         break;
     }
-    _totalTime = _timeLeft;
+
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_timeLeft > 0) {
@@ -379,10 +379,10 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -458,7 +458,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -477,7 +477,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                         boxShadow: [
                           if (_isPlaying)
                             BoxShadow(
-                              color: difficultyColor.withOpacity(0.4),
+                              color: difficultyColor.withValues(alpha: 0.4),
                               blurRadius: 30,
                               spreadRadius: 8,
                             ),
@@ -512,15 +512,15 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                       contentPadding: EdgeInsets.symmetric(vertical: 24, horizontal: 24),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.4)),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.4)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.4)),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.4)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.8)),
+                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.8)),
                       ),
                     ),
                     onSubmitted: (_) => _submitAnswer(),
@@ -583,7 +583,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.stars_rounded, size: 64, color: AppColors.primary),
@@ -657,7 +657,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: (isCorrect ? AppColors.primary : AppColors.error).withOpacity(0.1),
+                          color: (isCorrect ? AppColors.primary : AppColors.error).withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -677,7 +677,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              userAnswer?.isEmpty ?? true ? "(No input)" : '"${userAnswer}"',
+                              userAnswer?.isEmpty ?? true ? "(No input)" : '"$userAnswer"',
                               style: TextStyle(color: isCorrect ? AppColors.primary : AppColors.error, fontSize: 13),
                             ),
                           ],
@@ -720,7 +720,7 @@ class _DifficultyCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

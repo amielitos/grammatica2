@@ -47,7 +47,7 @@ class AuthService {
   ) async {
     if (event is GoogleSignInAuthenticationEventSignIn) {
       try {
-        final googleAuth = await event.user.authentication;
+        final googleAuth = event.user.authentication;
         final idToken = googleAuth.idToken;
         
         if (idToken == null) {

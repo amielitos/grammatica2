@@ -7,16 +7,14 @@ import 'lesson_folder_page.dart';
 import 'profile_page.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../widgets/modern_bottom_nav.dart';
-import '../widgets/sidebar.dart';
-import '../main.dart';
+
 import '../services/role_service.dart';
 import 'browse_educators_tab.dart';
 import 'practice_tab.dart';
 import '../widgets/notification_widgets.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../theme/app_colors.dart';
-import '../widgets/design_ornaments.dart';
+
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 
@@ -40,7 +38,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   static int _persistedTabIndex = 0;
   late int _tabIndex;
-  String? _activeFolderName;
+
 
   final _profileKey = GlobalKey<ProfilePageState>();
   final _firestore = FirebaseFirestore.instance;
@@ -126,9 +124,7 @@ class _HomePageState extends State<HomePage> {
             user: user,
             role: widget.role,
             onFolderChanged: (folderName) {
-              if (mounted) {
-                setState(() => _activeFolderName = folderName);
-              }
+              // Not used in UI but kept for callback structure
             },
           ),
           const PracticeTab(),
@@ -138,21 +134,8 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
-    final currentIcon = navItems[_tabIndex].icon;
-    String bgPath = 'assets/dashboardbg.png';
-    if (_activeFolderName == 'Grammatica Lessons') {
-      bgPath = 'assets/grammaticafolderbg.png';
-    } else if (_activeFolderName == 'Public') {
-      bgPath = 'assets/publicfolderbg.png';
-    } else if (currentIcon == Icons.auto_awesome) {
-      bgPath = 'assets/practicebg.png';
-    } else if (currentIcon == Icons.person) {
-      bgPath = 'assets/profilebg.png';
-    } else if (currentIcon == Icons.book) {
-      bgPath = 'assets/dashboardbg.png';
-    } else if (currentIcon == Icons.credit_card) {
-      bgPath = 'assets/subscriptionbg.png';
-    }
+
+
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -286,7 +269,7 @@ class _LessonsListState extends State<_LessonsList> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
+                              color: Colors.black.withValues(alpha: 0.04),
                               blurRadius: 10,
                               offset: const Offset(0, 5),
                             )
@@ -374,7 +357,7 @@ class _LessonsListState extends State<_LessonsList> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
           )

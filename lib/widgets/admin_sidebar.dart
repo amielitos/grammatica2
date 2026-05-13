@@ -58,7 +58,7 @@ class AdminSidebar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: ListTile(
-                      hoverColor: brandGreen.withOpacity(0.1),
+                      hoverColor: brandGreen.withValues(alpha: 0.1),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                       leading: Icon(

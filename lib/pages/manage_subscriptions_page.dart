@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
-import '../theme/app_colors.dart';
-import '../widgets/design_ornaments.dart';
+
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
 import '../widgets/universal_drawer.dart';
-import '../main.dart';
+
 
 class ManageSubscriptionsPage extends StatefulWidget {
   final User user;
@@ -194,7 +193,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             borderRadius: BorderRadius.circular(8),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -290,7 +289,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     final eduUid = sub['educatorUid'] as String;
 
     final isBasic = tier.toLowerCase() == 'basic';
-    final pillBg = isBasic ? const Color(0xFFFEE69F) : const Color(0xFFCEDA72).withOpacity(0.5);
+    final pillBg = isBasic ? const Color(0xFFFEE69F) : const Color(0xFFCEDA72).withValues(alpha: 0.5);
     final pillText = isBasic ? const Color(0xFFF9A825) : const Color(0xFF88B342);
 
     return Container(
@@ -299,10 +298,10 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

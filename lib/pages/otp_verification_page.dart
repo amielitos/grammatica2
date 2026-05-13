@@ -123,7 +123,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(32),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 24, offset: const Offset(0, 12)),
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 24, offset: const Offset(0, 12)),
                   ],
                 ),
                 child: Column(
@@ -227,7 +227,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                               otpCode: widget.expectedOtp,
                             );
                             
-                            if (mounted) {
+                            if (context.mounted) {
                               if (success) {
                                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Code resent successfully!"), backgroundColor: Color(0xFF81B655)));
                               } else {

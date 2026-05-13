@@ -31,7 +31,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     // Only open drawer if we are not on a wide screen that already shows the sidebar
-    final isWide = MediaQuery.of(context).size.width > 900;
     
     return AppBar(
       backgroundColor: isDark ? const Color(0xFF333333) : Colors.white,
@@ -40,7 +39,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       shape: Border(
         bottom: BorderSide(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
           width: 1,
         ),
       ),
@@ -88,7 +87,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8),
-                      hoverColor: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                      hoverColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
                       mouseCursor: SystemMouseCursors.click,
                       onTap: () {
                         if (onLogoTap != null) {

@@ -4,8 +4,7 @@ import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../lesson_page.dart';
-import '../../widgets/app_search_bar.dart';
-import '../../widgets/author_name_widget.dart';
+
 
 class LessonsListTab extends StatefulWidget {
   final Function(Lesson)? onEdit;

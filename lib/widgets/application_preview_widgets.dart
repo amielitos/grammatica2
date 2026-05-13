@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 import 'dart:ui_web' as ui_web;
 
 class LocalVideoPlayer extends StatefulWidget {
@@ -86,8 +85,14 @@ class _WebPdfViewerState extends State<WebPdfViewer> {
     _viewId = 'pdf-viewer-${DateTime.now().millisecondsSinceEpoch}';
 
     ui_web.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
-      final iframe = html.IFrameElement()
-        ..src = widget.url
+      String finalUrl = widget.url;
+      // If it's a network URL (not a blob), use Google Docs Viewer for better reliability on web
+      if (finalUrl.startsWith('http')) {
+        finalUrl = 'https://docs.google.com/viewer?url=${Uri.encodeComponent(finalUrl)}&embedded=true';
+      }
+
+      final iframe = web.HTMLIFrameElement()
+        ..src = finalUrl
         ..style.border = 'none'
         ..style.width = '100%'
         ..style.height = '100%';
@@ -117,7 +122,7 @@ void showFilePreviewModal(BuildContext context, String url, String fileName) {
       backgroundColor: Colors.black,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       clipBehavior: Clip.antiAlias,
-      child: Container(
+      child: SizedBox(
         width: MediaQuery.of(context).size.width * 0.9,
         height: MediaQuery.of(context).size.height * 0.9,
         child: Column(

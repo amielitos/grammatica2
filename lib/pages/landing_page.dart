@@ -82,9 +82,9 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           decoration: BoxDecoration(
-            color: _isScrolled ? Colors.white.withOpacity(0.95) : Colors.transparent,
+            color: _isScrolled ? Colors.white.withValues(alpha: 0.95) : Colors.transparent,
             boxShadow: _isScrolled 
-              ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))]
+              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 2))]
               : [],
           ),
           child: ClipRRect(
@@ -237,10 +237,10 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF0F172A).withOpacity(0.9),
-                  const Color(0xFF0F172A).withOpacity(0.6),
+                  const Color(0xFF0F172A).withValues(alpha: 0.9),
+                  const Color(0xFF0F172A).withValues(alpha: 0.6),
                   Colors.transparent,
-                  const Color(0xFF0F172A).withOpacity(0.9),
+                  const Color(0xFF0F172A).withValues(alpha: 0.9),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -251,7 +251,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
           
           // Additional dark overlay to ensure text readability
           Container(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
           ),
 
           // Content
@@ -273,9 +273,9 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: Colors.white.withOpacity(0.3)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(30),
@@ -311,7 +311,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
                               color: Colors.white,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withOpacity(0.5),
+                                  color: Colors.black.withValues(alpha: 0.5),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 )
@@ -333,7 +333,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
                               style: GoogleFonts.inter(
                                 fontSize: isDesktop ? 22 : 18,
                                 height: 1.6,
-                                color: Colors.white.withOpacity(0.85),
+                                color: Colors.white.withValues(alpha: 0.85),
                               ),
                             ),
                           ),
@@ -355,7 +355,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
                                   backgroundColor: const Color(0xFF81B655),
                                   foregroundColor: Colors.white,
                                   elevation: 20,
-                                  shadowColor: const Color(0xFF81B655).withOpacity(0.6),
+                                  shadowColor: const Color(0xFF81B655).withValues(alpha: 0.6),
                                   padding: EdgeInsets.symmetric(horizontal: isDesktop ? 40 : 32, vertical: isDesktop ? 24 : 20),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                 ),
@@ -398,12 +398,12 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 30,
             offset: const Offset(0, 10),
           )
@@ -438,7 +438,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF81B655).withOpacity(0.2),
+              color: const Color(0xFF81B655).withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: const Color(0xFF81B655), size: 28),
@@ -460,7 +460,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
                 label,
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -475,7 +475,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
     return Container(
       height: 50,
       width: 1,
-      color: Colors.white.withOpacity(0.2),
+      color: Colors.white.withValues(alpha: 0.2),
       margin: const EdgeInsets.symmetric(horizontal: 10),
     );
   }
@@ -547,10 +547,10 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withOpacity(0.04),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
             blurRadius: 30,
             offset: const Offset(0, 10)
           )
@@ -570,7 +570,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF81B655).withOpacity(0.3),
+                  color: const Color(0xFF81B655).withValues(alpha: 0.3),
                   blurRadius: 15,
                   offset: const Offset(0, 8),
                 )
@@ -674,7 +674,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF81B655).withOpacity(0.2),
+                color: const Color(0xFF81B655).withValues(alpha: 0.2),
                 blurRadius: 25,
                 offset: const Offset(0, 12),
               )
@@ -770,7 +770,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         fontSize: 20,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         height: 1.6,
                       )
                     ),
@@ -786,7 +786,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
                         padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         elevation: 15,
-                        shadowColor: Colors.black.withOpacity(0.3),
+                        shadowColor: Colors.black.withValues(alpha: 0.3),
                       ),
                       child: Text(
                         'Get Started for Free',
@@ -844,7 +844,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
                 ],
               ),
               const SizedBox(height: 48),
-              Divider(color: Colors.white.withOpacity(0.1)),
+              Divider(color: Colors.white.withValues(alpha: 0.1)),
               const SizedBox(height: 32),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -852,7 +852,7 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
                   Text(
                     "© 2026 Grammatica. All rights reserved.",
                     style: GoogleFonts.inter(
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 14,
                     )
                   ),
@@ -860,12 +860,12 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
                     children: [
                       TextButton(
                         onPressed: () {},
-                        child: Text("Privacy", style: GoogleFonts.inter(color: Colors.white.withOpacity(0.5), fontSize: 14))
+                        child: Text("Privacy", style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.5), fontSize: 14))
                       ),
                       const SizedBox(width: 16),
                       TextButton(
                         onPressed: () {},
-                        child: Text("Terms", style: GoogleFonts.inter(color: Colors.white.withOpacity(0.5), fontSize: 14))
+                        child: Text("Terms", style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.5), fontSize: 14))
                       ),
                     ],
                   )
@@ -882,11 +882,11 @@ class _LandingPageState extends State<LandingPage> with SingleTickerProviderStat
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
-      child: Icon(icon, color: Colors.white.withOpacity(0.8), size: 24),
+      child: Icon(icon, color: Colors.white.withValues(alpha: 0.8), size: 24),
     );
   }
 }
@@ -896,7 +896,7 @@ class ScrollReveal extends StatefulWidget {
   final Duration delay;
   final bool slide;
 
-  const ScrollReveal({Key? key, required this.child, this.delay = Duration.zero, this.slide = true}) : super(key: key);
+  const ScrollReveal({super.key, required this.child, this.delay = Duration.zero, this.slide = true});
 
   @override
   State<ScrollReveal> createState() => _ScrollRevealState();

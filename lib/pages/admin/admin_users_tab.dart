@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/role_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../widgets/app_search_bar.dart';
+
 import '../../services/database_service.dart';
 
 class AdminUsersTab extends StatefulWidget {
@@ -31,7 +31,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 900;
+
         return StreamBuilder<List<Map<String, dynamic>>>(
           stream: RoleService.instance.allUsersStream(),
           builder: (context, snapshot) {
@@ -70,10 +70,15 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               } else if (_selectedFilter == 'Create Date') {
                 final tsA = a['createdAt'] as Timestamp?;
                 final tsB = b['createdAt'] as Timestamp?;
-                if (tsA == null && tsB == null) cmp = 0;
-                else if (tsA == null) cmp = 1;
-                else if (tsB == null) cmp = -1;
-                else cmp = tsB.compareTo(tsA);
+                if (tsA == null && tsB == null) {
+                  cmp = 0;
+                } else if (tsA == null) {
+                  cmp = 1;
+                } else if (tsB == null) {
+                  cmp = -1;
+                } else {
+                  cmp = tsB.compareTo(tsA);
+                }
               }
               if (cmp == 0) {
                 return (a['username'] ?? '').toString().toLowerCase().compareTo(
@@ -168,7 +173,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: users.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFEEEEEE), indent: 24, endIndent: 24),
+                            separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFEEEEEE), indent: 24, endIndent: 24),
                             itemBuilder: (context, index) {
                               final u = users[index];
                               return _buildUserRow(u);
@@ -233,7 +238,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   Navigator.pop(context);
                 },
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -304,7 +309,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: DropdownButtonHideUnderline(

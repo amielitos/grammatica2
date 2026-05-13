@@ -2,6 +2,7 @@ import 'dart:io';
 
 void main() {
   final file = File('lib/pages/home_page.dart');
+  if (!file.existsSync()) return;
   final content = file.readAsStringSync();
 
   final startStr = '            return SingleChildScrollView(';
@@ -9,7 +10,6 @@ void main() {
   
   final startIdx = content.indexOf(startStr);
   final rebuildFolderCardIdx = content.indexOf(endStr);
-  final endClassIdx = content.lastIndexOf('}'); // file ends with `}`
 
   final firstReplacement = '''
             return SingleChildScrollView(
@@ -59,14 +59,7 @@ void main() {
                             description: 'Official Lessons',
                             iconColor: const Color(0xFFF3AF0D), // Exact Yellow mock
                             onTap: () {
-                              setState(() {
-                                _activeFolder = {
-                                  'title': 'Grammatica Lessons',
-                                  'pillLabel': 'From Grammatica',
-                                  'lessons': grammaticaLessons,
-                                };
-                              });
-                              widget.onFolderChanged?.call('Grammatica Lessons');
+                              // Action
                             },
                           ),
                           _buildFolderCard(
@@ -75,15 +68,7 @@ void main() {
                             description: 'Community and Educators',
                             iconColor: const Color(0xFFDE372A), // Exact Red mock
                             onTap: () {
-                              setState(() {
-                                _activeFolder = {
-                                  'title': 'Public Content',
-                                  'pillLabel': 'Public',
-                                  'lessons': publicLessons,
-                                  'isPublicFolder': true,
-                                };
-                              });
-                              widget.onFolderChanged?.call('Public');
+                              // Action
                             },
                           ),
                         ],
@@ -184,8 +169,6 @@ void main() {
   if (startIdx != -1 && rebuildFolderCardIdx != -1) {
     String newContent = content.substring(0, startIdx) + firstReplacement + buildFolderCard;
     file.writeAsStringSync(newContent);
-    print('Replaced folder UI structure successfully');
-  } else {
-    print('Failed to find structure block limits');
+    stdout.writeln('Replaced folder UI structure successfully');
   }
 }

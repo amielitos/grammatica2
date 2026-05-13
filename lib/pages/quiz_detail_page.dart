@@ -2,16 +2,13 @@ import 'package:confetti/confetti.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/notification_widgets.dart';
-import '../widgets/design_ornaments.dart';
 import '../theme/app_colors.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
-import '../main.dart';
 
 class _RenderableQuestion {
   final QuizQuestion question;
@@ -48,7 +45,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   List<TextEditingController> _answerCtrls = [];
   Timer? _timer;
   int _secondsRemaining = 0;
-  int _totalSeconds = 0;
   DateTime? _startTime;
   int _timeTaken = 0;
 
@@ -106,7 +102,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       (_) => TextEditingController(),
     );
     _secondsRemaining = widget.quiz.duration * 60;
-    _totalSeconds = _secondsRemaining;
+    _secondsRemaining = widget.quiz.duration * 60;
     _quizProgressStream = DatabaseService.instance.quizProgressStream(widget.user);
     _confettiController = ConfettiController(duration: const Duration(seconds: 5));
     _checkSubscription();
@@ -114,40 +110,37 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
 
   Future<void> _fetchUserData() async {
     final data = await DatabaseService.instance.getUserData(widget.user.uid);
-    if (mounted) {
-      setState(() {
-        _userData = data;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _userData = data;
+    });
   }
 
   Future<void> _checkSubscription() async {
     final role = await RoleService.instance.getRole(widget.user.uid);
+    if (!mounted) return;
     if (role == UserRole.admin || role == UserRole.superadmin) {
-      if (mounted) {
-        setState(() {
-          _isSubscribed = true;
-          _isAdminOrSuperAdmin = true;
-          _checkingSubscription = false;
-        });
-      }
+      setState(() {
+        _isSubscribed = true;
+        _isAdminOrSuperAdmin = true;
+        _checkingSubscription = false;
+      });
       return;
     }
 
     if (!widget.quiz.isMembersOnly || widget.quiz.createdByUid == widget.user.uid) {
-      if (mounted) setState(() => _checkingSubscription = false);
+      setState(() => _checkingSubscription = false);
       return;
     }
     final isSub = await DatabaseService.instance.isSubscribed(
       widget.quiz.createdByUid!,
       widget.user.uid,
     );
-    if (mounted) {
-      setState(() {
-        _isSubscribed = isSub;
-        _checkingSubscription = false;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _isSubscribed = isSub;
+      _checkingSubscription = false;
+    });
   }
 
   @override
@@ -253,34 +246,33 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         lessonId: lesson?.id,
       );
 
-      if (mounted) {
-        setState(() {
-          _submitting = false;
-          _isCorrect = isCorrect;
-          _lastScore = score;
-          _completedLocal = true;
-          _confettiController.play();
-        });
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _isCorrect = isCorrect;
+        _lastScore = score;
+        _completedLocal = true;
+        _confettiController.play();
+      });
 
-        DatabaseService.instance.checkAndAwardAchievement(widget.user.uid, 'first_quiz').then((awarded) {
-          if (awarded) {
-            NotificationService.instance.sendAchievementNotification(
-              uid: widget.user.uid,
-              title: 'Quiz Mastery!',
-              message: 'Congratulations on completing your first quiz on Grammatica!',
-            );
-          }
-        });
+      DatabaseService.instance.checkAndAwardAchievement(widget.user.uid, 'first_quiz').then((awarded) {
+        if (awarded) {
+          NotificationService.instance.sendAchievementNotification(
+            uid: widget.user.uid,
+            title: 'Quiz Mastery!',
+            message: 'Congratulations on completing your first quiz on Grammatica!',
+          );
+        }
+      });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isPassed ? 'Quiz Mastery Achieved!' : 'Quiz submitted. Needs 90% to pass.',
-            ),
-            backgroundColor: isPassed ? AppColors.primary : AppColors.secondary,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isPassed ? 'Quiz Mastery Achieved!' : 'Quiz submitted. Needs 90% to pass.',
           ),
-        );
-      }
+          backgroundColor: isPassed ? AppColors.primary : AppColors.secondary,
+        ),
+      );
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
@@ -383,11 +375,11 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: Colors.black.withOpacity(0.6)),
+                                  Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: Colors.black.withValues(alpha: 0.6)),
                                   const SizedBox(width: 8),
                                   Text(
                                     'Back to Lessons',
-                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.black.withOpacity(0.7)),
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.black.withValues(alpha: 0.7)),
                                   ),
                                 ],
                               ),
@@ -402,7 +394,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                               borderRadius: BorderRadius.circular(constraints.maxWidth < 600 ? 16 : 32),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
+                                  color: Colors.black.withValues(alpha: 0.05),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
@@ -536,9 +528,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.only(bottom: 32),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
             ),
             child: const Row(
               children: [
@@ -560,7 +552,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             border: Border.all(color: const Color(0xFF88B342), width: 2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -732,20 +724,12 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     );
   }
 
-  Widget _buildQuickInfo(IconData icon, String label) {
-    return Column(
-      children: [
-        Icon(icon, color: AppColors.primary, size: 24),
-        const SizedBox(height: 8),
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textSecondary)),
-      ],
-    );
-  }
+
 
   Widget _buildLockMessage() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: AppColors.secondary.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: AppColors.secondary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
       child: const Column(
         children: [
           Icon(Icons.lock_rounded, color: AppColors.secondary, size: 32),
@@ -761,7 +745,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   Widget _buildNoAttemptsMessage() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: AppColors.error.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
       child: const Column(
         children: [
           Icon(Icons.block_rounded, color: AppColors.error, size: 32),
@@ -796,7 +780,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                 child: LinearProgressIndicator(
                   value: (_currentQuestionIndex + 1) / _shuffledQuestions.length,
                   minHeight: 12,
-                  backgroundColor: AppColors.divider.withOpacity(0.2),
+                  backgroundColor: AppColors.divider.withValues(alpha: 0.2),
                   valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                 ),
               ),
@@ -820,10 +804,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1.5),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.05),
+                        color: AppColors.primary.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -836,7 +820,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.08),
+                          color: AppColors.primary.withValues(alpha: 0.08),
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
                         ),
                         child: const Row(
@@ -908,16 +892,11 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                     final isSelected = currentVal == normalizedOpt;
                     final isCorrectAnswer = normalizedOpt == question.answer.trim();
 
-                    Color borderColor = AppColors.divider;
-                    Color bgColor = AppColors.surface;
-                    if (isSelected) borderColor = AppColors.primary;
-                    if (_isReviewing) {
-                      if (isCorrectAnswer) {
-                        borderColor = AppColors.primary;
-                        bgColor = AppColors.primary.withOpacity(0.1);
-                      } else if (isSelected) {
-                        borderColor = AppColors.error;
-                        bgColor = AppColors.error.withOpacity(0.1);
+                    if (isSelected) {
+                      if (_isReviewing) {
+                        if (isCorrectAnswer) {
+                          // Already handled by check icon below if needed
+                        }
                       }
                     }
 
@@ -935,7 +914,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: isSelected ? AppColors.primary : Colors.black12, width: isSelected ? 2 : 1),
-                            boxShadow: isSelected ? [BoxShadow(color: AppColors.primary.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))] : [],
+                            boxShadow: isSelected ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))] : [],
                           ),
                           child: Row(
                             children: [
@@ -968,9 +947,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.05),
+                      color: AppColors.primary.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
                     ),
                     child: SelectableText(
                       question.question,
@@ -1012,7 +991,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                         Container(
                           margin: const EdgeInsets.only(top: 24),
                           padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(12)),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -1111,9 +1090,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: (isLow ? AppColors.error : AppColors.primary).withOpacity(0.1),
+        color: (isLow ? AppColors.error : AppColors.primary).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: (isLow ? AppColors.error : AppColors.primary).withOpacity(0.2)),
+        border: Border.all(color: (isLow ? AppColors.error : AppColors.primary).withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1134,7 +1113,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withOpacity(0.12), width: 1.5),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.12), width: 1.5),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: Column(
@@ -1266,7 +1245,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             _buildResultPill(
               label: 'Duration',
               value: timeStr,
-              color: const Color(0xFFCEDA72).withOpacity(0.5),
+              color: const Color(0xFFCEDA72).withValues(alpha: 0.5),
               textColor: const Color(0xFF88B342),
             ),
           ],
@@ -1278,7 +1257,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black.withOpacity(0.08)),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
           ),
           alignment: Alignment.center,
           child: Text(
@@ -1296,7 +1275,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   _quizStarted = true;
                   _completedLocal = false;
                   _currentQuestionIndex = 0;
-                  for (var ctrl in _answerCtrls) ctrl.clear();
+                  for (var ctrl in _answerCtrls) {
+                    ctrl.clear();
+                  }
                   _secondsRemaining = widget.quiz.duration * 60;
                   _startTime = DateTime.now();
                 });
@@ -1326,7 +1307,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal, color: textColor.withOpacity(0.8)),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.normal, color: textColor.withValues(alpha: 0.8)),
           ),
           const SizedBox(height: 4),
           Text(
@@ -1338,13 +1319,5 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(label.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1.5)),
-        const SizedBox(height: 8),
-        Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
-      ],
-    );
-  }
+
 }

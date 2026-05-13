@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/database_service.dart';
 import 'educator_profile_page.dart';
 
-import '../theme/app_colors.dart';
+
 
 class BrowseEducatorsTab extends StatefulWidget {
   const BrowseEducatorsTab({super.key, required this.user});
@@ -39,7 +39,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 )
@@ -144,7 +144,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                           border: isDark ? Border.all(color: Colors.white12) : null,
                           boxShadow: isDark ? [] : [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
+                              color: Colors.black.withValues(alpha: 0.04),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             )

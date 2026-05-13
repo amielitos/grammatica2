@@ -9,12 +9,12 @@ import 'package:mailer/smtp_server.dart';
 Future<void> main() async {
   final port = 8081;
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
-  print('========================================================================');
-  print('GRAMMATICA LOCAL EMAIL RELAY ACTIVE!');
-  print('Listening on http://localhost:$port');
-  print('Now your Flutter Web app can send emails perfectly via HTTP to this app.');
-  print('Keep this terminal running while testing on Chrome!');
-  print('========================================================================');
+  stdout.writeln('========================================================================');
+  stdout.writeln('GRAMMATICA LOCAL EMAIL RELAY ACTIVE!');
+  stdout.writeln('Listening on http://localhost:$port');
+  stdout.writeln('Now your Flutter Web app can send emails perfectly via HTTP to this app.');
+  stdout.writeln('Keep this terminal running while testing on Chrome!');
+  stdout.writeln('========================================================================');
 
   await for (HttpRequest request in server) {
     // Add CORS headers to allow Chrome Web App to connect
@@ -45,11 +45,11 @@ Future<void> main() async {
         if (request.uri.path == '/send-generic') {
           message.subject = data['subject'];
           message.html = data['body'];
-          print('[GENERIC] Sending email to $recipientEmail with subject: ${message.subject}');
+          stdout.writeln('[GENERIC] Sending email to $recipientEmail with subject: ${message.subject}');
         } else {
           final String recipientName = data['recipientName'] ?? 'Learner';
           final String otpCode = data['otpCode'];
-          print('[OTP] Sending OTP $otpCode to $recipientEmail...');
+          stdout.writeln('[OTP] Sending OTP $otpCode to $recipientEmail...');
           
           String htmlTemplate = """
             <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f7f6; padding: 20px; border-radius: 12px;">
@@ -77,12 +77,12 @@ Future<void> main() async {
         }
 
         final sendReport = await send(message, smtpServer);
-        print('[SUCCESS] Successfully sent to $recipientEmail: ${sendReport.toString()}');
+        stdout.writeln('[SUCCESS] Successfully sent to $recipientEmail: ${sendReport.toString()}');
 
         request.response.statusCode = HttpStatus.ok;
         request.response.write('{"status":"success"}');
       } catch (e) {
-        print('[ERROR] $e');
+        stdout.writeln('[ERROR] $e');
         request.response.statusCode = HttpStatus.internalServerError;
         request.response.write('{"error":"${e.toString()}"}');
       }

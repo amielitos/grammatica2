@@ -89,12 +89,12 @@ class MarkdownGuideDialog extends StatelessWidget {
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [primaryColor.withOpacity(0.1), primaryColor.withOpacity(0.05)],
+          colors: [primaryColor.withValues(alpha: 0.1), primaryColor.withValues(alpha: 0.05)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: primaryColor.withOpacity(0.2)),
+        border: Border.all(color: primaryColor.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,10 +166,10 @@ class MarkdownGuideDialog extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF2C2C2C) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.08)),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -193,7 +193,7 @@ class MarkdownGuideDialog extends StatelessWidget {
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.all(24),
-                    color: isDark ? Colors.black.withOpacity(0.15) : Colors.grey[50],
+                    color: isDark ? Colors.black.withValues(alpha: 0.15) : Colors.grey[50],
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -213,7 +213,7 @@ class MarkdownGuideDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                Container(width: 1, color: isDark ? Colors.white10 : Colors.black.withOpacity(0.08)),
+                Container(width: 1, color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.08)),
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.all(24),
@@ -242,7 +242,7 @@ class MarkdownGuideDialog extends StatelessWidget {
                             ),
                             blockquotePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             blockquoteDecoration: BoxDecoration(
-                              color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+                              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[100],
                               borderRadius: BorderRadius.circular(8),
                               border: const Border(left: BorderSide(color: Color(0xFF81B655), width: 4)),
                             ),
@@ -264,7 +264,7 @@ class MarkdownGuideDialog extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[200],
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[200],
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(

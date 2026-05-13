@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/database_service.dart';
@@ -7,10 +7,10 @@ import '../theme/app_colors.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/author_name_widget.dart';
 import '../pages/lesson_page.dart';
-import '../services/database_service.dart';
+
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
-import '../main.dart';
+
 
 class LessonFolderPage extends StatefulWidget {
   final User user;
@@ -38,9 +38,9 @@ class LessonFolderPage extends StatefulWidget {
 
 class _LessonFolderPageState extends State<LessonFolderPage> {
   String _searchQuery = '';
-  String _selectedFilter = 'Name'; // Default
+  final String _selectedFilter = 'Name'; // Default
 
-  final List<String> _filterOptions = ['Name', 'Create Date'];
+
 
   final _searchController = TextEditingController();
   late Stream<Map<String, Map<String, dynamic>>> _progressStream;
@@ -186,7 +186,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.1),
+                                  color: AppColors.primary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: const Icon(
@@ -226,7 +226,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary.withOpacity(0.1),
+                                  color: AppColors.secondary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: const Text(
@@ -589,7 +589,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                   child: LinearProgressIndicator(
                     value: percent,
                     minHeight: 12,
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       AppColors.primary,
                     ),

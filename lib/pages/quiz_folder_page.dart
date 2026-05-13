@@ -7,7 +7,6 @@ import '../widgets/app_search_bar.dart';
 import '../widgets/author_name_widget.dart';
 import '../pages/quiz_detail_page.dart';
 import '../theme/app_colors.dart';
-import '../main.dart';
 
 class QuizFolderPage extends StatefulWidget {
   final User user;
@@ -187,7 +186,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.1),
+                                  color: AppColors.primary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: const Icon(
@@ -227,7 +226,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.secondary.withOpacity(0.1),
+                                  color: AppColors.secondary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: const Text(
@@ -402,7 +401,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                       Container(
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
-                                          color: AppColors.primary.withOpacity(0.1),
+                                          color: AppColors.primary.withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(16),
                                         ),
                                         child: const Icon(
@@ -451,7 +450,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                       else
                                         Icon(
                                           Icons.chevron_right_rounded,
-                                          color: AppColors.textSecondary.withOpacity(0.3),
+                                          color: AppColors.textSecondary.withValues(alpha: 0.3),
                                         ),
                                     ],
                                   ),
@@ -562,7 +561,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                   child: LinearProgressIndicator(
                     value: percent,
                     minHeight: 12,
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       AppColors.primary,
                     ),

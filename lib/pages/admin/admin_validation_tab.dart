@@ -4,11 +4,11 @@ import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/author_name_widget.dart';
 import '../quiz_detail_page.dart';
-import '../../widgets/custom_app_bar.dart';
+
 import '../../widgets/application_preview_widgets.dart';
-import 'admin_users_tab.dart';
+
 import '../lesson_page.dart';
-import 'package:url_launcher/url_launcher.dart';
+
 import '../../services/role_service.dart';
 import '../../services/notification_service.dart';
 
@@ -164,7 +164,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
@@ -216,7 +216,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF81B655).withOpacity(0.1),
+                                  color: const Color(0xFF81B655).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(50),
                                 ),
                                 child: const Row(
@@ -235,7 +235,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent.withOpacity(0.1),
+                                  color: Colors.redAccent.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(50),
                                 ),
                                 child: const Row(
@@ -305,7 +305,7 @@ class _EducatorApplicationsList extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))
         ],
         border: Border.all(color: Colors.grey.shade100),
       ),
@@ -370,18 +370,6 @@ class _EducatorApplicationsList extends StatelessWidget {
     );
   }
 
-  Future<void> _launchURL(String url) async {
-    final uri = Uri.parse(url);
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw 'Could not launch $url';
-      }
-    } catch (e) {
-      debugPrint('Error launching URL: $e');
-    }
-  }
 
   Future<void> _approveApplication(
     BuildContext context,
@@ -740,7 +728,7 @@ class _ValidationList extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
                 ),
                 child: Row(
                   children: [

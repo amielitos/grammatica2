@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
+
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+
 import 'package:file_picker/file_picker.dart';
 import '../services/role_service.dart';
 import '../services/auth_service.dart';
@@ -45,9 +45,9 @@ class ProfilePageState extends State<ProfilePage> {
   final _phoneFocus = FocusNode();
   String? _info;
   String? _error;
-  bool _obscureCurrentPassword = true;
-  bool _obscureNewPassword = true;
-  bool _obscureConfirmPassword = true;
+  final bool _obscureCurrentPassword = true;
+  final bool _obscureNewPassword = true;
+  final bool _obscureConfirmPassword = true;
 
   // Local state for profile data
   bool _isEditing = false;
@@ -307,7 +307,7 @@ class ProfilePageState extends State<ProfilePage> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF333333) : Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 5))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 20, offset: const Offset(0, 5))],
       ),
       child: child,
     );
@@ -324,7 +324,7 @@ class ProfilePageState extends State<ProfilePage> {
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 5),
               ),
@@ -396,7 +396,7 @@ class ProfilePageState extends State<ProfilePage> {
                   label: const Text('Edit Profile', style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold)),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    backgroundColor: accentColor.withOpacity(0.1),
+                    backgroundColor: accentColor.withValues(alpha: 0.1),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
                 )
@@ -418,7 +418,7 @@ class ProfilePageState extends State<ProfilePage> {
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: accentColor.withOpacity(0.2), width: 4),
+                      border: Border.all(color: accentColor.withValues(alpha: 0.2), width: 4),
                     ),
                     child: CircleAvatar(
                       radius: 48,
@@ -430,7 +430,7 @@ class ProfilePageState extends State<ProfilePage> {
                                 width: 96,
                                 height: 96,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Icon(Icons.person, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                                errorBuilder: (_, _, _) => Icon(Icons.person, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
                               ),
                             )
                           : Icon(Icons.person, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
@@ -619,7 +619,7 @@ class ProfilePageState extends State<ProfilePage> {
       children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: const Color(0xFF81B655).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: const Color(0xFF81B655).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
           child: Icon(icon, size: 20, color: const Color(0xFF81B655)),
         ),
         const SizedBox(width: 16),
@@ -1094,7 +1094,7 @@ class _PhotoAdjustmentDialogState extends State<_PhotoAdjustmentDialog> {
                   onChanged: (val) {
                     setState(() {
                       _currentScale = val;
-                      _controller.value = Matrix4.identity()..scale(val);
+                      _controller.value = Matrix4.diagonal3Values(val, val, 1.0);
                     });
                   },
                 ),

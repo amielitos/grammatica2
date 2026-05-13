@@ -99,7 +99,7 @@ class _SettingsPageState extends State<SettingsPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
@@ -115,7 +115,7 @@ class _SettingsPageState extends State<SettingsPage> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.1),
+          color: AppColors.primary.withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
         child: Icon(isDark ? Icons.dark_mode : Icons.light_mode, color: AppColors.primary),
@@ -124,7 +124,7 @@ class _SettingsPageState extends State<SettingsPage> {
       subtitle: Text(isDark ? 'Turn on for better viewing at night' : 'Switch to dark theme'),
       trailing: Switch.adaptive(
         value: isDark,
-        activeColor: AppColors.primary,
+        activeTrackColor: AppColors.primary,
         onChanged: (val) {
           final newMode = val ? ThemeMode.dark : ThemeMode.light;
           themeNotifier.value = newMode;
@@ -148,14 +148,14 @@ class _SettingsPageState extends State<SettingsPage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.1), shape: BoxShape.circle),
         child: Icon(icon, color: Colors.blue),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text(subtitle),
       trailing: Switch.adaptive(
         value: value,
-        activeColor: AppColors.primary,
+        activeTrackColor: AppColors.primary,
         onChanged: onChanged,
       ),
     );
@@ -172,7 +172,7 @@ class _SettingsPageState extends State<SettingsPage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.1), shape: BoxShape.circle),
         child: Icon(icon, color: Colors.orange),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -191,12 +191,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildLinkTile(IconData icon, String title, {String? trailing}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), shape: BoxShape.circle),
         child: Icon(icon, color: Colors.grey),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),

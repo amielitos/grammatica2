@@ -106,7 +106,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                         return ListTile(
                           leading: CircleAvatar(
                             radius: 14,
-                            backgroundColor: const Color(0xFF8CB31D).withOpacity(0.2),
+                            backgroundColor: const Color(0xFF8CB31D).withValues(alpha: 0.2),
                             child: Text(
                               name.isNotEmpty ? name[0].toUpperCase() : 'U',
                               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF8CB31D)),
@@ -161,7 +161,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
           const Spacer(),
           Container(
             decoration: BoxDecoration(
-              color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+              color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(8),
             ),
             padding: const EdgeInsets.all(4),
@@ -198,7 +198,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
         decoration: BoxDecoration(
           color: active ? (isDark ? Colors.white24 : Colors.white) : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
-          boxShadow: active && !isDark ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)] : null,
+          boxShadow: active && !isDark ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)] : null,
         ),
         child: Text(
           label,
@@ -266,7 +266,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
               return Container(
                 height: 80,
                 decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05))),
+                  border: Border(bottom: BorderSide(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05))),
                 ),
                 child: Row(
                   children: [
@@ -282,7 +282,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                     ...List.generate(7, (i) => Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          border: Border(left: BorderSide(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05))),
+                          border: Border(left: BorderSide(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05))),
                         ),
                       ),
                     )),
@@ -361,7 +361,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.event_busy, size: 64, color: Colors.grey.withOpacity(0.5)),
+                Icon(Icons.event_busy, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
                 const SizedBox(height: 16),
                 const Text('No upcoming mentorship sessions', style: TextStyle(color: Colors.grey, fontSize: 16)),
               ],
@@ -402,12 +402,12 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
                 ],
-                border: Border.all(color: color.withOpacity(0.3), width: 1),
+                border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
               ),
               child: Material(
                 color: Colors.transparent,
@@ -424,7 +424,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                           width: 100,
                           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.1),
+                            color: color.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Column(
@@ -461,7 +461,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: color.withOpacity(0.1),
+                                      color: color.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
@@ -524,7 +524,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         border: Border.all(color: color, width: 2),
         borderRadius: BorderRadius.circular(4),
       ),
@@ -549,7 +549,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                 timeString,
                 style: TextStyle(
                   fontSize: 9,
-                  color: color.withOpacity(0.8),
+                  color: color.withValues(alpha: 0.8),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -715,7 +715,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                       onChanged: null,
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: Colors.grey.withOpacity(0.05),
+                        fillColor: Colors.grey.withValues(alpha: 0.05),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                       ),
                       items: const [],
@@ -727,11 +727,11 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                   final String? currentValue = subs.any((s) => s['uid']?.toString() == _sid) ? _sid : null;
 
                   return DropdownButtonFormField<String>(
-                    value: currentValue,
+                    initialValue: currentValue,
                     isExpanded: true,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey.withOpacity(0.05),
+                      fillColor: Colors.grey.withValues(alpha: 0.05),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                     ),
                     items: subs.map((s) {
@@ -797,10 +797,10 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
               const Text('Duration', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
-                value: _duration,
+                initialValue: _duration,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Colors.grey.withOpacity(0.05),
+                  fillColor: Colors.grey.withValues(alpha: 0.05),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                 ),
                 items: [30, 45, 60, 90, 120].map((m) => DropdownMenuItem(value: m, child: Text('$m mins'))).toList(),
@@ -814,7 +814,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                 decoration: InputDecoration(
                   hintText: 'https://zoom.us/j/...',
                   filled: true,
-                  fillColor: Colors.grey.withOpacity(0.05),
+                  fillColor: Colors.grey.withValues(alpha: 0.05),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                 ),
               ),

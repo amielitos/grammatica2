@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../widgets/google_sign_in_button.dart';
 import '../widgets/design_ornaments.dart';
-import '../theme/app_colors.dart';
+
 import '../widgets/top_nav_bar.dart';
 import '../widgets/tagline_hero_text.dart';
 import 'signup_page.dart';
@@ -117,7 +117,7 @@ class _LoginPageState extends State<LoginPage> {
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 24,
                     offset: const Offset(0, 12),
                   ),
@@ -247,7 +247,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF81B655).withOpacity(0.3),
+                                  color: const Color(0xFF81B655).withValues(alpha: 0.3),
                                   blurRadius: 8,
                                   offset: const Offset(0, 4),
                                 ),
@@ -375,14 +375,14 @@ class _LoginPageState extends State<LoginPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             spreadRadius: 2,
             offset: const Offset(0, 4),
           ),
         ],
         border: Border.all(
-          color: Colors.black.withOpacity(0.05),
+          color: Colors.black.withValues(alpha: 0.05),
           width: 1,
         ),
       ),

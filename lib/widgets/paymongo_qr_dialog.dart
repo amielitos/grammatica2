@@ -78,7 +78,7 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
                   border: Border.all(color: Colors.blue.shade100, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.blue.shade900.withOpacity(0.08),
+                      color: Colors.blue.shade900.withValues(alpha: 0.08),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     )

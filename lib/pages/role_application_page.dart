@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:typed_data';
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
+import 'dart:js_interop';
 import '../services/database_service.dart';
-import '../theme/app_colors.dart';
 import '../widgets/design_ornaments.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
 import '../widgets/universal_drawer.dart';
 import '../widgets/application_preview_widgets.dart';
-import '../main.dart';
 
 class RoleApplicationPage extends StatefulWidget {
   final User user;
@@ -29,12 +27,11 @@ class RoleApplicationPage extends StatefulWidget {
 class _RoleApplicationPageState extends State<RoleApplicationPage> {
   int _currentStep = 0;
   PlatformFile? _cvFile;
-  List<PlatformFile> _certificateFiles = [];
+  final List<PlatformFile> _certificateFiles = [];
   PlatformFile? _videoFile;
   PlatformFile? _syllabusFile;
 
   bool _isUploading = false;
-  double _uploadProgress = 0;
   String? _error;
   Map<String, dynamic>? _userData;
 
@@ -93,20 +90,20 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
   }
 
   void _showLocalFilePreview(PlatformFile file) {
-    final blob = html.Blob([file.bytes!]);
-    final blobUrl = html.Url.createObjectUrlFromBlob(blob);
+    final String type = file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+    final blob = web.Blob([file.bytes!.toJS].toJS, web.BlobPropertyBag(type: type));
+    final blobUrl = web.URL.createObjectURL(blob);
     showFilePreviewModal(context, blobUrl, file.name);
   }
 
   Future<void> _submit() async {
     setState(() {
       _isUploading = true;
-      _uploadProgress = 0;
       _error = null;
     });
 
     try {
-      setState(() => _uploadProgress = 0.1);
+      // Start upload process
       final cvUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
         fileBytes: _cvFile!.bytes!,
@@ -114,7 +111,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         contentType: _cvFile!.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
       );
 
-      setState(() => _uploadProgress = 0.3);
+      // Progress update
       List<String> certUrls = [];
       for (var file in _certificateFiles) {
         final url = await DatabaseService.instance.uploadApplicationFile(
@@ -126,7 +123,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         certUrls.add(url);
       }
 
-      setState(() => _uploadProgress = 0.5);
+      // Progress update
       final videoUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
         fileBytes: _videoFile!.bytes!,
@@ -134,7 +131,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         contentType: 'video/mp4',
       );
 
-      setState(() => _uploadProgress = 0.8);
+      // Progress update
       final syllabusUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
         fileBytes: _syllabusFile!.bytes!,
@@ -142,7 +139,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         contentType: _syllabusFile!.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
       );
 
-      setState(() => _uploadProgress = 0.9);
+      // Finalizing upload
       await DatabaseService.instance.submitEducatorApplication(
         uid: widget.user.uid,
         email: widget.user.email!,
@@ -154,7 +151,6 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
       );
 
       setState(() {
-        _uploadProgress = 1.0;
         _isUploading = false;
       });
 
@@ -332,7 +328,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10))
         ],
       ),
       child: Column(
@@ -453,7 +449,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 8))
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, 8))
         ],
       ),
       child: Column(
@@ -505,7 +501,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.picture_as_pdf, size: 64, color: Colors.redAccent.withOpacity(0.5)),
+                            Icon(Icons.picture_as_pdf, size: 64, color: Colors.redAccent.withValues(alpha: 0.5)),
                             const SizedBox(height: 12),
                             Text(file.name, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                             Text("${(file.size / 1024 / 1024).toStringAsFixed(2)} MB", style: const TextStyle(color: Colors.grey, fontSize: 12)),
@@ -520,7 +516,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
                       right: 0,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        color: Colors.black.withOpacity(0.6),
+                        color: Colors.black.withValues(alpha: 0.6),
                         child: Text(
                           file.name,
                           style: const TextStyle(color: Colors.white, fontSize: 12, overflow: TextOverflow.ellipsis),

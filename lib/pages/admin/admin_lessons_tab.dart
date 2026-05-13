@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/database_service.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../widgets/markdown_guide_button.dart';
-import '../../widgets/interactive_markdown.dart';
+
 import '../../services/ai_logic_service.dart';
 import 'dart:io';
 import '../../services/auth_service.dart';
@@ -56,7 +56,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   Lesson? _selectedLesson;
   bool _creatingLesson = false;
   bool _isGeneratingFromPdf = false;
-  String? _tempPdfText; // Store extracted text temporarily
+
   final AILogicService _aiLogicService = AILogicService();
   final _title = TextEditingController();
   final _prompt = TextEditingController();
@@ -141,14 +141,14 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                 alignment: Alignment.centerLeft,
                 child: Container(
                   height: 48,
-                  width: 320,
+                  width: 400,
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -164,15 +164,18 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                             decoration: BoxDecoration(
                               color: _tabIndex == 0 ? const Color(0xFF81B655) : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
-                              boxShadow: _tabIndex == 0 ? [BoxShadow(color: const Color(0xFF81B655).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))] : [],
+                              boxShadow: _tabIndex == 0 ? [BoxShadow(color: const Color(0xFF81B655).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))] : [],
                             ),
                             alignment: Alignment.center,
-                            child: Text(
-                              'Lessons',
-                              style: TextStyle(
-                                color: _tabIndex == 0 ? Colors.white : Colors.grey.shade600,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Lessons',
+                                style: TextStyle(
+                                  color: _tabIndex == 0 ? Colors.white : Colors.grey.shade600,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
                           ),
@@ -186,15 +189,18 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                             decoration: BoxDecoration(
                               color: _tabIndex == 1 ? const Color(0xFF81B655) : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
-                              boxShadow: _tabIndex == 1 ? [BoxShadow(color: const Color(0xFF81B655).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))] : [],
+                              boxShadow: _tabIndex == 1 ? [BoxShadow(color: const Color(0xFF81B655).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))] : [],
                             ),
                             alignment: Alignment.center,
-                            child: Text(
-                              'Quizzes',
-                              style: TextStyle(
-                                color: _tabIndex == 1 ? Colors.white : Colors.grey.shade600,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Quizzes',
+                                style: TextStyle(
+                                  color: _tabIndex == 1 ? Colors.white : Colors.grey.shade600,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
                           ),
@@ -211,12 +217,15 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                               boxShadow: _tabIndex == 2 ? [BoxShadow(color: const Color(0xFF81B655).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))] : [],
                             ),
                             alignment: Alignment.center,
-                            child: Text(
-                              'Assessments',
-                              style: TextStyle(
-                                color: _tabIndex == 2 ? Colors.white : Colors.grey.shade600,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Assessments',
+                                style: TextStyle(
+                                  color: _tabIndex == 2 ? Colors.white : Colors.grey.shade600,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
                           ),
@@ -458,11 +467,9 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           throw Exception('Could not read file data');
         }
 
-        final extractedText = await _aiLogicService.extractTextFromPdf(bytes);
 
-        setState(() {
-          _tempPdfText = extractedText;
-        });
+
+
 
         // Use MarkItDown (via backend) to convert original PDF bytes to markdown
         final generatedMarkdown = await _aiLogicService.convertToMarkdown(
@@ -565,67 +572,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     );
   }
 
-  Widget _buildPreviewArea() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Preview:',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          height: 300,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: _prompt.text.isEmpty
-                  ? [const Text('*Preview will appear here*')]
-                  : [_prompt.text].map((part) {
-                      final trimmed = part.trim();
-                      if (trimmed.isEmpty) return const SizedBox.shrink();
-                      return InteractiveMarkdown(data: trimmed);
-                    }).toList(),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            ElevatedButton.icon(
-              onPressed: _pickFiles,
-              icon: const Icon(Icons.attach_file),
-              label: const Text('Attach Files'),
-            ),
-            const SizedBox(width: 8),
-            Text('${_selectedFiles.length} files selected'),
-          ],
-        ),
-        if (_selectedFiles.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: _selectedFiles
-                .map(
-                  (f) => Chip(
-                    label: Text(f.name),
-                    onDeleted: () => setState(() => _selectedFiles.remove(f)),
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-      ],
-    );
-  }
 
   Future<void> _pickFiles() async {
     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
@@ -648,7 +594,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     _isVisible = true;
     _isMembersOnly = false;
     _isGrammaticaLesson = false;
-    _tempPdfText = null; // Clear the temporary PDF text
+
     _visibility = ContentVisibility.public;
     _visibleTo = [];
     _quizKey.currentState?.resetForm();

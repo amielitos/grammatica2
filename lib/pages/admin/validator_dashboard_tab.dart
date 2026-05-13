@@ -118,7 +118,7 @@ class ValidatorDashboardTab extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: color.withOpacity(0.2), width: 2)),
+        border: Border(bottom: BorderSide(color: color.withValues(alpha: 0.2), width: 2)),
       ),
       child: Row(
         children: [
@@ -139,7 +139,7 @@ class ValidatorDashboardTab extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -149,7 +149,7 @@ class ValidatorDashboardTab extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
             child: Icon(icon, color: color, size: 32),
           ),
           const SizedBox(height: 16),
@@ -198,7 +198,7 @@ class ValidatorDashboardTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withOpacity(0.05)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
@@ -217,7 +217,7 @@ class ValidatorDashboardTab extends StatelessWidget {
           ElevatedButton(
             onPressed: () => onReviewRequests?.call(0), // Lessons tab
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange.withOpacity(0.1),
+              backgroundColor: Colors.orange.withValues(alpha: 0.1),
               foregroundColor: Colors.orange,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -237,7 +237,7 @@ class ValidatorDashboardTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withOpacity(0.05)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
@@ -256,7 +256,7 @@ class ValidatorDashboardTab extends StatelessWidget {
           ElevatedButton(
             onPressed: () => onReviewRequests?.call(2), // Educators tab
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.withOpacity(0.1),
+              backgroundColor: Colors.blue.withValues(alpha: 0.1),
               foregroundColor: Colors.blue,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -276,7 +276,7 @@ class ValidatorDashboardTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withOpacity(0.05)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
       child: Column(
         children: [

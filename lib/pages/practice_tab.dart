@@ -4,9 +4,8 @@ import 'spelling_bee_page.dart';
 import 'pronunciation_quiz_page.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
-import '../theme/app_colors.dart';
+
 import 'quiz_folder_page.dart';
-import 'admin/admin_quizzes_tab.dart';
 import 'admin/admin_assessments_tab.dart';
 
 import '../widgets/design_ornaments.dart';
@@ -240,7 +239,7 @@ class _PracticeCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

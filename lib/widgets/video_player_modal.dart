@@ -19,7 +19,6 @@ class VideoPlayerModal extends StatefulWidget {
 class _VideoPlayerModalState extends State<VideoPlayerModal> {
   late VideoPlayerController _controller;
   bool _isError = false;
-  String? _errorMsg;
 
   @override
   void initState() {
@@ -30,7 +29,6 @@ class _VideoPlayerModalState extends State<VideoPlayerModal> {
   void _initController() {
     setState(() {
       _isError = false;
-      _errorMsg = null;
     });
     _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
       ..initialize().then((_) {
@@ -41,7 +39,6 @@ class _VideoPlayerModalState extends State<VideoPlayerModal> {
         if (!mounted) return;
         setState(() {
           _isError = true;
-          _errorMsg = e.toString();
         });
       });
   }

@@ -212,7 +212,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                               width: 200,
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFF88B342).withOpacity(0.1) : Colors.white,
+                                color: isSelected ? const Color(0xFF88B342).withValues(alpha: 0.1) : Colors.white,
                                 border: Border.all(
                                   color: isSelected ? const Color(0xFF88B342) : Colors.grey.shade300,
                                   width: isSelected ? 2 : 1,
@@ -556,7 +556,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: q.type,
+              initialValue: q.type,
               decoration: const InputDecoration(
                 labelText: 'Type',
                 border: OutlineInputBorder(),
@@ -584,49 +584,52 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               const SizedBox(height: 16),
               const Text('Options', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              ...List.generate(q.optionsCtrls.length, (optIdx) {
-                return Row(
-                  children: [
-                    Radio<int>(
-                      value: optIdx,
-                      groupValue: () {
-                        final correctText = q.answerCtrl.text;
-                        if (correctText.isEmpty) return -1;
-                        return q.optionsCtrls.indexWhere(
-                          (ctrl) => ctrl.text == correctText,
-                        );
-                      }(),
-                      onChanged: (int? val) {
-                        if (val != null) {
-                          setState(() {
-                            q.answerCtrl.text = q.optionsCtrls[val].text;
-                          });
-                        }
-                      },
-                    ),
-                    Expanded(
-                      child: TextField(
-                        controller: q.optionsCtrls[optIdx],
-                        decoration: InputDecoration(
-                          labelText: 'Option ${optIdx + 1}',
+              RadioGroup<int>(
+                groupValue: () {
+                  final correctText = q.answerCtrl.text;
+                  if (correctText.isEmpty) return -1;
+                  return q.optionsCtrls.indexWhere(
+                    (ctrl) => ctrl.text == correctText,
+                  );
+                }(),
+                onChanged: (int? val) {
+                  if (val != null) {
+                    setState(() {
+                      q.answerCtrl.text = q.optionsCtrls[val].text;
+                    });
+                  }
+                },
+                child: Column(
+                  children: List.generate(q.optionsCtrls.length, (optIdx) {
+                    return Row(
+                      children: [
+                        Radio<int>(
+                          value: optIdx,
                         ),
-                        onChanged: (val) {
-                          setState(() {});
-                        },
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
-                      onPressed: () {
-                        setState(() {
-                          q.optionsCtrls[optIdx].dispose();
-                          q.optionsCtrls.removeAt(optIdx);
-                        });
-                      },
-                    ),
-                  ],
-                );
-              }),
+                        Expanded(
+                          child: TextField(
+                            controller: q.optionsCtrls[optIdx],
+                            decoration: InputDecoration(
+                              labelText: 'Option ${optIdx + 1}',
+                            ),
+                            onChanged: (val) {
+                              setState(() {});
+                            },
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline),
+                          onPressed: () {
+                            setState(() {
+                              q.optionsCtrls.removeAt(optIdx);
+                            });
+                          },
+                        ),
+                      ],
+                    );
+                  }),
+                ),
+              ),
               TextButton.icon(
                 onPressed: () {
                   setState(() {

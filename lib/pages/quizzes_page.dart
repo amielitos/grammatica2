@@ -158,7 +158,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
+                    color: iconColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(Icons.quiz_rounded, size: 40, color: iconColor),
@@ -192,7 +192,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
+                    color: iconColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(

@@ -377,14 +377,14 @@ class NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      color: notification.isRead ? Colors.transparent : (isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF1F8E9)),
+      color: notification.isRead ? Colors.transparent : (isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF1F8E9)),
       child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: _getIconColor(notification.type).withOpacity(0.1),
+            color: _getIconColor(notification.type).withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(_getIcon(notification.type), size: 20, color: _getIconColor(notification.type)),

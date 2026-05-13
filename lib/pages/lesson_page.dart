@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/database_service.dart';
-import '../theme/app_colors.dart';
-import '../widgets/design_ornaments.dart';
+
 import '../widgets/interactive_markdown.dart';
 import '../widgets/notification_widgets.dart';
 import '../pages/quiz_detail_page.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
-import '../main.dart';
-import '../services/database_service.dart';
+
 
 class LessonPage extends StatefulWidget {
   final User user;
@@ -203,7 +201,7 @@ class _LessonPageState extends State<LessonPage> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -288,7 +286,7 @@ class _LessonPageState extends State<LessonPage> {
           .doc(_lesson.quizId)
           .get();
 
-      if (doc.exists && context.mounted) {
+      if (doc.exists && mounted) {
         final quiz = Quiz.fromDoc(doc);
         Navigator.pushReplacement(
           context,
@@ -327,7 +325,7 @@ class _LessonPageState extends State<LessonPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -338,7 +336,7 @@ class _LessonPageState extends State<LessonPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: (passed ? const Color(0xFF88B342) : Colors.red).withOpacity(0.1),
+              color: (passed ? const Color(0xFF88B342) : Colors.red).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(

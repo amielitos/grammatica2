@@ -3,7 +3,6 @@ import 'package:grammatica/services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:file_picker/file_picker.dart';
 import 'role_service.dart';
 import '../models/spelling_word.dart';
 
@@ -340,8 +339,6 @@ class DatabaseService {
   final Map<String, Stream<Map<String, Map<String, dynamic>>>>
   _lessonProgressCache = {};
   final Map<String, Stream<EducatorApplication?>> _userApplicationCache = {};
-  final Map<String, Stream<List<Map<String, dynamic>>>> _subscribersCache = {};
-  final Map<String, Stream<List<Map<String, dynamic>>>> _mentorshipCache = {};
 
   Future<void> _deleteFileFromUrl(String? url) async {
     if (url == null || url.isEmpty) return;
@@ -396,8 +393,11 @@ class DatabaseService {
       final ref = _storage.ref().child(path);
 
       String contentType = 'image/jpeg';
-      if (ext == 'png') contentType = 'image/png';
-      else if (ext == 'webp') contentType = 'image/webp';
+      if (ext == 'png') {
+        contentType = 'image/png';
+      } else if (ext == 'webp') {
+        contentType = 'image/webp';
+      }
 
       final metadata = SettableMetadata(contentType: contentType);
       final snapshot = await ref.putData(bytes, metadata);

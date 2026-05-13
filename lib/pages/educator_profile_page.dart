@@ -5,11 +5,11 @@ import '../services/database_service.dart';
 import '../pages/lesson_page.dart';
 import '../widgets/subscription_tier_dialog.dart';
 import '../widgets/paymongo_qr_dialog.dart';
-import '../theme/app_colors.dart';
+
 import '../widgets/design_ornaments.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
-import '../main.dart';
+
 
 class EducatorProfilePage extends StatefulWidget {
   final Map<String, dynamic> educator;
@@ -78,7 +78,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                             color: Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 5))
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 20, offset: const Offset(0, 5))
                             ],
                             border: Border.all(color: Colors.black87, width: 1.0),
                           ),
@@ -173,6 +173,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                                                       : (pricingData['premium']?.toDouble() ?? 7.0);
                                                   double amountInPhp = amountInUSD * 56.0; // Conversion for QR PH demo
                                                 
+                                                  if (!context.mounted) return;
                                                   final success = await showDialog<bool>(
                                                     context: context,
                                                     barrierDismissible: false,
@@ -443,7 +444,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.grey.withOpacity(0.05),
+            color: Colors.grey.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.black12),
           ),
