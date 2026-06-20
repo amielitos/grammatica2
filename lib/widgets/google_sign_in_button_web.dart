@@ -28,14 +28,17 @@ Widget buildWebButton({bool enabled = true, VoidCallback? onDisabledPress}) {
             children: [
               Opacity(
                 opacity: enabled ? 1.0 : 0.5,
-                child: platform.renderButton(
-                  configuration: web.GSIButtonConfiguration(
-                    type: web.GSIButtonType.standard,
-                    theme: web.GSIButtonTheme.outline,
-                    size: web.GSIButtonSize.large,
-                    text: web.GSIButtonText.continueWith,
-                    shape: web.GSIButtonShape.rectangular,
-                    logoAlignment: web.GSIButtonLogoAlignment.left,
+                child: Center(
+                  child: platform.renderButton(
+                    configuration: web.GSIButtonConfiguration(
+                      type: web.GSIButtonType.standard,
+                      theme: web.GSIButtonTheme.outline,
+                      size: web.GSIButtonSize.large,
+                      text: web.GSIButtonText.continueWith,
+                      shape: web.GSIButtonShape.pill, // Curve the button to match 'Next'
+                      logoAlignment: web.GSIButtonLogoAlignment.center, // Center contents
+                      minimumWidth: 320, // Make it wider to match form fields
+                    ),
                   ),
                 ),
               ),

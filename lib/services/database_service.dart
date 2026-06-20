@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:grammatica/services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -49,18 +50,24 @@ class EducatorApplication {
   final String id;
   final String applicantUid;
   final String applicantEmail;
+  final String cvUrl;
+  final List<String> certificateUrls;
   final String videoUrl;
   final String syllabusUrl;
   final String status; // 'pending', 'approved', 'rejected'
+  final String applicationType; // 'educator', 'validator'
   final Timestamp? appliedAt;
 
   EducatorApplication({
     required this.id,
     required this.applicantUid,
     required this.applicantEmail,
+    required this.cvUrl,
+    required this.certificateUrls,
     required this.videoUrl,
     required this.syllabusUrl,
     required this.status,
+    required this.applicationType,
     required this.appliedAt,
   });
 
@@ -72,9 +79,15 @@ class EducatorApplication {
       id: doc.id,
       applicantUid: data['applicantUid'] ?? '',
       applicantEmail: data['applicantEmail'] ?? '',
+      cvUrl: data['cvUrl'] ?? '',
+      certificateUrls: (data['certificateUrls'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? 
+                       (data['certificateUrl'] != null && data['certificateUrl'].toString().isNotEmpty 
+                           ? [data['certificateUrl'].toString()] 
+                           : <String>[]),
       videoUrl: data['videoUrl'] ?? '',
       syllabusUrl: data['syllabusUrl'] ?? '',
       status: data['status'] ?? 'pending',
+      applicationType: data['applicationType'] ?? 'educator',
       appliedAt: data['appliedAt'] as Timestamp?,
     );
   }
@@ -83,9 +96,12 @@ class EducatorApplication {
     return {
       'applicantUid': applicantUid,
       'applicantEmail': applicantEmail,
+      'cvUrl': cvUrl,
+      'certificateUrls': certificateUrls,
       'videoUrl': videoUrl,
       'syllabusUrl': syllabusUrl,
       'status': status,
+      'applicationType': applicationType,
       'appliedAt': appliedAt ?? FieldValue.serverTimestamp(),
     };
   }
@@ -106,6 +122,7 @@ class Lesson {
   final List<String> visibleTo;
   final bool isMembersOnly;
   final bool isGrammaticaLesson;
+  final String? quizId;
 
   Lesson({
     required this.id,
@@ -122,6 +139,7 @@ class Lesson {
     this.visibleTo = const [],
     this.isMembersOnly = false,
     this.isGrammaticaLesson = false,
+    this.quizId,
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -145,6 +163,7 @@ class Lesson {
       visibleTo: List<String>.from(data['visibleTo'] ?? []),
       isMembersOnly: data['isMembersOnly'] ?? false,
       isGrammaticaLesson: data['isGrammaticaLesson'] ?? false,
+      quizId: (data['quizId'] ?? '') == '' ? null : (data['quizId'] as String?),
     );
   }
 }
@@ -152,14 +171,16 @@ class Lesson {
 class QuizQuestion {
   final String question;
   final String answer;
-  final String type; // 'text', 'multiple_choice'
+  final String type; // 'text', 'multiple_choice', 'passage'
   final List<String>? options;
+  final List<QuizQuestion>? nestedQuestions;
 
   QuizQuestion({
     required this.question,
     required this.answer,
     this.type = 'text',
     this.options,
+    this.nestedQuestions,
   });
 
   factory QuizQuestion.fromMap(Map<String, dynamic> map) {
@@ -170,6 +191,11 @@ class QuizQuestion {
       options: map['options'] != null
           ? List<String>.from(map['options'])
           : null,
+      nestedQuestions: map['nestedQuestions'] != null
+          ? (map['nestedQuestions'] as List)
+              .map((q) => QuizQuestion.fromMap(Map<String, dynamic>.from(q)))
+              .toList()
+          : null,
     );
   }
 
@@ -179,6 +205,7 @@ class QuizQuestion {
       'answer': answer,
       'type': type,
       'options': options,
+      'nestedQuestions': nestedQuestions?.map((q) => q.toMap()).toList(),
     };
   }
 }
@@ -253,6 +280,46 @@ class Quiz {
   }
 }
 
+class Review {
+  final String id;
+  final String reviewerUid;
+  final String reviewerName;
+  final double rating;
+  final String comment;
+  final Timestamp? createdAt;
+
+  Review({
+    required this.id,
+    required this.reviewerUid,
+    required this.reviewerName,
+    required this.rating,
+    required this.comment,
+    this.createdAt,
+  });
+
+  factory Review.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? {};
+    return Review(
+      id: doc.id,
+      reviewerUid: data['reviewerUid'] ?? '',
+      reviewerName: data['reviewerName'] ?? '',
+      rating: (data['rating'] ?? 0.0).toDouble(),
+      comment: data['comment'] ?? '',
+      createdAt: data['createdAt'] as Timestamp?,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'reviewerUid': reviewerUid,
+      'reviewerName': reviewerName,
+      'rating': rating,
+      'comment': comment,
+      'createdAt': createdAt ?? FieldValue.serverTimestamp(),
+    };
+  }
+}
+
 class DatabaseService {
   DatabaseService._();
   static final instance = DatabaseService._();
@@ -260,8 +327,29 @@ class DatabaseService {
   final _firestore = FirebaseFirestore.instance;
   final _storage = FirebaseStorage.instance;
 
+  Future<Map<String, dynamic>?> getUserDoc(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    if (!doc.exists) return null;
+    return {...doc.data()!, 'uid': doc.id};
+  }
+
+  // Caching for streams to avoid rapid recreation issues on web
+  final Map<String, Stream<Map<String, Map<String, dynamic>>>>
+  _quizProgressCache = {};
+  final Map<String, Stream<Map<String, Map<String, dynamic>>>>
+  _lessonProgressCache = {};
+  final Map<String, Stream<EducatorApplication?>> _userApplicationCache = {};
+
   Future<void> _deleteFileFromUrl(String? url) async {
     if (url == null || url.isEmpty) return;
+    
+    // Safety check: Only attempt to delete if it's a Firebase Storage URL.
+    // External URLs (like Google Photo URLs: lh3.googleusercontent.com) will crash refFromURL.
+    if (!url.contains('firebasestorage.googleapis.com')) {
+      debugPrint('Skipping deletion for non-Firebase Storage URL: $url');
+      return;
+    }
+
     try {
       final ref = _storage.refFromURL(url);
       await ref.delete();
@@ -285,38 +373,96 @@ class DatabaseService {
   CollectionReference<Map<String, dynamic>> get _educatorApplications =>
       _firestore.collection('educator_applications');
 
+  Future<Map<String, dynamic>?> getUserData(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    return doc.data();
+  }
+
   Future<void> updateUserField(String uid, String field, dynamic value) async {
     await _firestore.collection('users').doc(uid).update({field: value});
+  }
+
+  Future<String?> uploadProfilePhotoWithBytes(User user, Uint8List bytes, String originalName) async {
+    try {
+      if (bytes.lengthInBytes > 5 * 1024 * 1024) {
+        throw Exception('Image exceeds 5MB limit');
+      }
+
+      final ext = originalName.toLowerCase().split('.').last;
+      final path = 'users/${user.uid}/profile_pic.$ext';
+      final ref = _storage.ref().child(path);
+
+      String contentType = 'image/jpeg';
+      if (ext == 'png') {
+        contentType = 'image/png';
+      } else if (ext == 'webp') {
+        contentType = 'image/webp';
+      }
+
+      final metadata = SettableMetadata(contentType: contentType);
+      final snapshot = await ref.putData(bytes, metadata);
+      final url = await snapshot.ref.getDownloadURL();
+
+      await user.updatePhotoURL(url);
+      await _firestore.collection('users').doc(user.uid).set(
+        {'photoUrl': url},
+        SetOptions(merge: true),
+      );
+
+      return url;
+    } catch (e) {
+      debugPrint('Error uploading profile photo bytes: $e');
+      rethrow;
+    }
   }
 
   Future<void> submitEducatorApplication({
     required String uid,
     required String email,
+    required String cvUrl,
+    required List<String> certificateUrls,
     required String videoUrl,
     required String syllabusUrl,
+    required String applicationType,
   }) async {
     await _educatorApplications.add({
       'applicantUid': uid,
       'applicantEmail': email,
+      'cvUrl': cvUrl,
+      'certificateUrls': certificateUrls,
       'videoUrl': videoUrl,
       'syllabusUrl': syllabusUrl,
       'status': 'pending',
+      'applicationType': applicationType,
       'appliedAt': FieldValue.serverTimestamp(),
     });
   }
 
-  Stream<List<EducatorApplication>> streamEducatorApplications() {
-    return _educatorApplications
-        .where('status', isEqualTo: 'pending')
-        .orderBy('appliedAt', descending: false)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map(EducatorApplication.fromDoc).toList(),
-        );
+  Stream<List<EducatorApplication>> streamEducatorApplications({String? type}) {
+    // Basic query on status first
+    Query<Map<String, dynamic>> query = _educatorApplications;
+    
+    // We filter status in Dart if needed, or keep it minimal in query
+    return query.snapshots().map((snapshot) {
+      var apps = snapshot.docs.map(EducatorApplication.fromDoc).toList();
+      
+      // Filter for pending status
+      apps = apps.where((a) => a.status == 'pending').toList();
+      
+      // Filter by type if provided
+      if (type != null) {
+        apps = apps.where((a) => a.applicationType == type).toList();
+      }
+      
+      return apps;
+    });
   }
 
   Stream<EducatorApplication?> streamUserApplication(String uid) {
-    return _educatorApplications
+    if (_userApplicationCache.containsKey(uid)) {
+      return _userApplicationCache[uid]!;
+    }
+    final stream = _educatorApplications
         .where('applicantUid', isEqualTo: uid)
         .orderBy('appliedAt', descending: true)
         .limit(1)
@@ -324,12 +470,61 @@ class DatabaseService {
         .map((snapshot) {
           if (snapshot.docs.isEmpty) return null;
           return EducatorApplication.fromDoc(snapshot.docs.first);
-        });
+        })
+        .asBroadcastStream();
+    _userApplicationCache[uid] = stream;
+    return stream;
   }
 
   Future<void> updateApplicationStatus(String id, String status) async {
     await _educatorApplications.doc(id).update({'status': status});
   }
+
+  Future<void> createMentorshipSession({
+    required String educatorId,
+    required String studentId,
+    required String studentName,
+    required DateTime startTime,
+    required DateTime endTime,
+    required String meetingLink,
+  }) async {
+    await _firestore.collection('mentorship_sessions').add({
+      'educatorId': educatorId,
+      'studentId': studentId,
+      'studentName': studentName,
+      'startTime': Timestamp.fromDate(startTime),
+      'endTime': Timestamp.fromDate(endTime),
+      'meetingLink': meetingLink,
+      'status': 'scheduled',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> cancelMentorshipSession(String sessionId) async {
+    await _firestore.collection('mentorship_sessions').doc(sessionId).delete();
+  }
+
+  Stream<List<Map<String, dynamic>>> streamEducatorMentorshipSessions(String educatorId) {
+    return _firestore.collection('mentorship_sessions')
+        .where('educatorId', isEqualTo: educatorId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => {
+          ...doc.data(),
+          'id': doc.id,
+        }).toList());
+  }
+
+  Stream<List<Map<String, dynamic>>> streamStudentMentorshipSessions(String studentId) {
+    return _firestore.collection('mentorship_sessions')
+        .where('studentId', isEqualTo: studentId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => {
+          ...doc.data(),
+          'id': doc.id,
+        }).toList());
+  }
+
+
 
   Future<void> rejectEducatorApplication(
     EducatorApplication app, {
@@ -337,6 +532,14 @@ class DatabaseService {
     String? description,
   }) async {
     // Delete files from storage
+    if (app.cvUrl.isNotEmpty) {
+      await _deleteFileFromUrl(app.cvUrl);
+    }
+    for (String url in app.certificateUrls) {
+      if (url.isNotEmpty) {
+        await _deleteFileFromUrl(url);
+      }
+    }
     if (app.videoUrl.isNotEmpty) {
       await _deleteFileFromUrl(app.videoUrl);
     }
@@ -346,6 +549,8 @@ class DatabaseService {
     // Update status and clear URLs in Firestore
     await _educatorApplications.doc(app.id).update({
       'status': 'rejected',
+      'cvUrl': '',
+      'certificateUrls': [],
       'videoUrl': '', // Clear URLs to indicate files are gone
       'syllabusUrl': '',
       'rejectionReason': reason,
@@ -388,14 +593,15 @@ class DatabaseService {
     List<String> visibleTo = const [],
     bool isMembersOnly = false,
     bool isGrammaticaLesson = false,
+    String? quizId,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
-    String status = 'approved';
+    String status = 'approved'; 
     if (user != null) {
       final doc = await _firestore.collection('users').doc(user.uid).get();
       final role = doc.data()?['role'];
-      if (role == 'EDUCATOR') {
+      if (role == 'EDUCATOR' || role == 'VALIDATOR') {
         status = 'awaiting_approval';
       }
     }
@@ -414,6 +620,7 @@ class DatabaseService {
       'visibleTo': visibleTo,
       'isMembersOnly': isMembersOnly,
       'isGrammaticaLesson': isGrammaticaLesson,
+      'quizId': quizId,
     });
     return doc.id;
   }
@@ -429,6 +636,7 @@ class DatabaseService {
     List<String>? visibleTo,
     bool? isMembersOnly,
     bool? isGrammaticaLesson,
+    String? quizId,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -442,6 +650,7 @@ class DatabaseService {
     if (isGrammaticaLesson != null) {
       data['isGrammaticaLesson'] = isGrammaticaLesson;
     }
+    data['quizId'] = quizId;
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
     }
@@ -532,7 +741,10 @@ class DatabaseService {
   }
 
   Stream<Map<String, Map<String, dynamic>>> progressStream(User user) {
-    return _userProgress(user.uid).snapshots().map((q) {
+    if (_lessonProgressCache.containsKey(user.uid)) {
+      return _lessonProgressCache[user.uid]!;
+    }
+    final stream = _userProgress(user.uid).snapshots().map((q) {
       final map = <String, Map<String, dynamic>>{};
       for (final d in q.docs) {
         final data = d.data();
@@ -542,17 +754,30 @@ class DatabaseService {
         };
       }
       return map;
-    });
+    }).asBroadcastStream();
+    _lessonProgressCache[user.uid] = stream;
+    return stream;
   }
 
   Future<void> markLessonCompleted({
     required User user,
     required String lessonId,
+    bool completed = true,
   }) async {
     await _userProgress(user.uid).doc(lessonId).set({
-      'completed': true,
-      'completedAt': FieldValue.serverTimestamp(),
-    });
+      'completed': completed,
+      'completedAt': completed ? FieldValue.serverTimestamp() : null,
+    }, SetOptions(merge: true));
+  }
+
+  Future<Lesson?> getLessonByQuizId(String quizId) async {
+    final snap = await _firestore
+        .collection('lessons')
+        .where('quizId', isEqualTo: quizId)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return Lesson.fromDoc(snap.docs.first);
   }
 
   Future<String> createQuiz({
@@ -568,15 +793,20 @@ class DatabaseService {
     bool isMembersOnly = false,
     bool isGrammaticaQuiz = false,
     bool isAssessment = false,
+    String? validationStatus,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-    // Determine initial status based on role
-    String status = 'approved';
-    if (user != null) {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      final role = doc.data()?['role'];
-      if (role == 'EDUCATOR') {
+    // Determine initial status based on role if not explicitly provided
+    String status = validationStatus ?? 'approved';
+    if (validationStatus == null) {
+      if (isAssessment) {
         status = 'awaiting_approval';
+      } else if (user != null) {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        final role = doc.data()?['role'];
+        if (role == 'EDUCATOR' || role == 'VALIDATOR') {
+          status = 'awaiting_approval';
+        }
       }
     }
 
@@ -615,6 +845,7 @@ class DatabaseService {
     bool? isMembersOnly,
     bool? isGrammaticaQuiz,
     bool? isAssessment,
+    String? validationStatus,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -631,6 +862,16 @@ class DatabaseService {
     if (isMembersOnly != null) data['isMembersOnly'] = isMembersOnly;
     if (isGrammaticaQuiz != null) data['isGrammaticaQuiz'] = isGrammaticaQuiz;
     if (isAssessment != null) data['isAssessment'] = isAssessment;
+    if (validationStatus != null) {
+      data['validationStatus'] = validationStatus;
+    } else if (isAssessment == true) {
+      data['validationStatus'] = 'awaiting_approval';
+    } else {
+      // If we don't know if it's an assessment from the call, we might want to check the current doc
+      // but that would require an extra read. For now, since AdminAssessmentsTab passes isAssessment: true,
+      // it will work for new/existing assessments being edited through that tab.
+    }
+
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
     }
@@ -645,6 +886,18 @@ class DatabaseService {
     await _quizzes.doc(id).delete();
   }
 
+  Future<Quiz?> getQuiz(String id) async {
+    final doc = await _quizzes.doc(id).get();
+    if (!doc.exists) return null;
+    return Quiz.fromDoc(doc);
+  }
+
+  Future<Lesson?> getLesson(String id) async {
+    final doc = await _lessons.doc(id).get();
+    if (!doc.exists) return null;
+    return Lesson.fromDoc(doc);
+  }
+
   Future<List<Quiz>> fetchQuizzes() async {
     final snap = await _quizzes.orderBy('createdAt', descending: false).get();
     return snap.docs.map(Quiz.fromDoc).toList();
@@ -654,13 +907,18 @@ class DatabaseService {
     bool approvedOnly = true,
     UserRole? userRole,
     String? userId,
+    bool? isAssessment,
   }) {
     // To avoid composite index requirements and support legacy content,
     // we filter out awaiting_approval docs in Dart.
     return _quizzes.orderBy('createdAt', descending: false).snapshots().map((
       snapshot,
     ) {
-      final quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
+      var quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
+
+      if (isAssessment != null) {
+        quizzes = quizzes.where((q) => q.isAssessment == isAssessment).toList();
+      }
 
       // Admins and Superadmins see all items
       if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
@@ -697,7 +955,19 @@ class DatabaseService {
         .map(
           (snapshot) => snapshot.docs
               .map(Quiz.fromDoc)
-              .where((q) => q.validationStatus == 'awaiting_approval')
+              .where((q) => q.validationStatus == 'awaiting_approval' && !q.isAssessment)
+              .toList(),
+        );
+  }
+
+  Stream<List<Quiz>> streamAwaitingApprovalAssessments() {
+    return _quizzes
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(Quiz.fromDoc)
+              .where((q) => q.validationStatus == 'awaiting_approval' && q.isAssessment)
               .toList(),
         );
   }
@@ -738,7 +1008,7 @@ class DatabaseService {
   Future<void> markQuizCompleted({
     required User user,
     required String quizId,
-    required bool isCorrect,
+    required bool passed,
     int? score,
     int? totalQuestions,
     List<String>? answers,
@@ -753,10 +1023,10 @@ class DatabaseService {
       'totalQuestions': totalQuestions,
       'timeTaken': timeTaken,
       'lastAttemptAt': FieldValue.serverTimestamp(),
-      'isCorrect': isCorrect,
+      'passed': passed,
     };
 
-    if (isCorrect) {
+    if (passed) {
       updateData['completed'] = true;
       updateData['completedAt'] = FieldValue.serverTimestamp();
     }
@@ -764,22 +1034,73 @@ class DatabaseService {
     await docRef.set(updateData, SetOptions(merge: true));
   }
 
+  Future<void> completeQuizAndLesson({
+    required User user,
+    required String quizId,
+    required bool passed,
+    required bool isCorrect,
+    int? score,
+    int? totalQuestions,
+    List<String>? answers,
+    int? timeTaken,
+    String? lessonId,
+  }) async {
+    final batch = _firestore.batch();
+
+    // Quiz Progress
+    final quizRef = _userQuizProgress(user.uid).doc(quizId);
+    final quizData = <String, dynamic>{
+      'attemptsUsed': FieldValue.increment(1),
+      'lastAnswers': answers,
+      'score': score,
+      'totalQuestions': totalQuestions,
+      'timeTaken': timeTaken,
+      'lastAttemptAt': FieldValue.serverTimestamp(),
+      'passed': passed,
+      'isCorrect': isCorrect,
+    };
+    if (passed) {
+      quizData['completed'] = true;
+      quizData['completedAt'] = FieldValue.serverTimestamp();
+    }
+    batch.set(quizRef, quizData, SetOptions(merge: true));
+
+    // Lesson Progress if applicable
+    if (lessonId != null) {
+      final lessonRef = _userProgress(user.uid).doc(lessonId);
+      batch.set(lessonRef, {
+        'completed': passed,
+        'completedAt': passed ? FieldValue.serverTimestamp() : null,
+      }, SetOptions(merge: true));
+    }
+
+    await batch.commit();
+  }
+
   Stream<Map<String, Map<String, dynamic>>> quizProgressStream(User user) {
-    return _userQuizProgress(user.uid).snapshots().map((q) {
+    if (_quizProgressCache.containsKey(user.uid)) {
+      return _quizProgressCache[user.uid]!;
+    }
+    final stream = _userQuizProgress(user.uid).snapshots().map((q) {
       final map = <String, Map<String, dynamic>>{};
       for (final d in q.docs) {
         final data = d.data();
         map[d.id] = {
           'completed': data['completed'] == true,
+          'passed': data['passed'] == true,
           'isCorrect': data['isCorrect'] == true,
           'attemptsUsed': data['attemptsUsed'] ?? 0,
           'completedAt': data['completedAt'],
           'score': data['score'],
           'totalQuestions': data['totalQuestions'],
+          'timeTaken': data['timeTaken'],
+          'lastAttemptAt': data['lastAttemptAt'],
         };
       }
       return map;
-    });
+    }).asBroadcastStream();
+    _quizProgressCache[user.uid] = stream;
+    return stream;
   }
 
   CollectionReference<Map<String, dynamic>> get _images =>
@@ -911,9 +1232,15 @@ class DatabaseService {
         });
   }
 
-  Future<void> updateSubscriptionFee(String uid, int amount) async {
+  Future<void> updateSubscriptionPricing(
+    String uid, {
+    required int standard,
+    required int premium,
+  }) async {
     await _firestore.collection('users').doc(uid).update({
-      'subscription_fee': amount,
+      'subscription_pricing': {'standard': standard, 'premium': premium},
+      // Keep legacy for compatibility if needed, but we'll prefer the map
+      'subscription_fee': standard,
     });
   }
 
@@ -942,7 +1269,7 @@ class DatabaseService {
     return true;
   }
 
-  Future<void> subscribeToEducator(String educatorUid) async {
+  Future<void> subscribeToEducator(String educatorUid, String tier) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final batch = _firestore.batch();
@@ -954,7 +1281,7 @@ class DatabaseService {
           .doc(educatorUid)
           .collection('subscribers')
           .doc(user.uid),
-      {'subscribedAt': FieldValue.serverTimestamp()},
+      {'subscribedAt': FieldValue.serverTimestamp(), 'tier': tier},
     );
 
     // Learner's view: list of their subscriptions
@@ -967,6 +1294,7 @@ class DatabaseService {
       {
         'educatorUid': educatorUid,
         'status': 'active',
+        'tier': tier,
         'billingCycle': 'monthly',
         'subscribedAt': FieldValue.serverTimestamp(),
         'cancelledAt': null,
@@ -975,6 +1303,32 @@ class DatabaseService {
     );
 
     await batch.commit();
+
+    // Send notifications
+    try {
+      final learnerDoc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final educatorDoc = await _firestore
+          .collection('users')
+          .doc(educatorUid)
+          .get();
+
+      final learnerName =
+          learnerDoc.data()?['username'] ?? user.displayName ?? 'User';
+      final educatorName = educatorDoc.data()?['username'] ?? 'Educator';
+
+      await NotificationService.instance.sendSubscriptionNotification(
+        learnerUid: user.uid,
+        educatorUid: educatorUid,
+        learnerName: learnerName,
+        educatorName: educatorName,
+        tier: tier,
+      );
+    } catch (e) {
+      debugPrint('Error sending subscription notifications: $e');
+    }
   }
 
   Future<void> unsubscribeFromEducator(String educatorUid) async {
@@ -1002,6 +1356,32 @@ class DatabaseService {
     );
 
     await batch.commit();
+  }
+
+  Stream<Map<String, int>> getTieredSubscriberCounts(String educatorUid) {
+    return _firestore
+        .collection('users')
+        .doc(educatorUid)
+        .collection('subscribers')
+        .snapshots()
+        .map((snapshot) {
+          int basic = 0;
+          int standard = 0;
+          int premium = 0;
+
+          for (var doc in snapshot.docs) {
+            final tier = doc.data()['tier'] as String?;
+            if (tier == 'Premium') {
+              premium++;
+            } else if (tier == 'Standard') {
+              standard++;
+            } else {
+              basic++;
+            }
+          }
+
+          return {'Basic': basic, 'Standard': standard, 'Premium': premium};
+        });
   }
 
   Future<void> updateSubscriptionBillingCycle(
@@ -1208,19 +1588,20 @@ class DatabaseService {
         .doc(educatorUid)
         .collection('subscribers')
         .snapshots()
-        .asyncMap((snapshot) async {
-          final List<Map<String, dynamic>> subscribers = [];
-          for (final doc in snapshot.docs) {
-            final userDoc = await _firestore
-                .collection('users')
-                .doc(doc.id)
-                .get();
-            if (userDoc.exists) {
-              subscribers.add({'uid': doc.id, ...userDoc.data()!});
-            }
-          }
-          return subscribers;
-        });
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => {
+        'uid': doc.id,
+        ...doc.data(),
+      }).toList();
+    });
+  }
+
+  // New helper for fetching user details without blocking the subscriber stream
+  Stream<Map<String, dynamic>> streamUserDetails(String uid) {
+    return _firestore.collection('users').doc(uid).snapshots().map((doc) => {
+      ...doc.data() ?? {},
+      'uid': doc.id,
+    });
   }
 
   Future<void> deleteUserAccount(String uid) async {
@@ -1321,5 +1702,90 @@ class DatabaseService {
     } catch (e) {
       throw Exception('Failed to delete user account: $e');
     }
+  }
+
+  // --- Rating and Review System ---
+
+  Future<void> addReview(String educatorUid, Review review) async {
+    final batch = _firestore.batch();
+    // Use doc() for multiple reviews per user, or use reviewerUid for one review per user.
+    // User requested "reviews disappearing" which happens when overwriting the same reviewerUid.
+    // Switching to doc() to allow multiple reviews.
+    final reviewRef = _firestore
+        .collection('users')
+        .doc(educatorUid)
+        .collection('reviews')
+        .doc(); 
+
+    final educatorRef = _firestore.collection('users').doc(educatorUid);
+
+    // Get current rating data
+    final educatorDoc = await educatorRef.get();
+    final data = educatorDoc.data() ?? {};
+    final double currentTotalRating = (data['totalRating'] ?? 0.0).toDouble();
+    final int currentReviewCount = (data['reviewCount'] ?? 0);
+
+    final newTotalRating = currentTotalRating + review.rating;
+    final newReviewCount = currentReviewCount + 1;
+
+    batch.set(reviewRef, {
+      ...review.toMap(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    
+    batch.update(educatorRef, {
+      'totalRating': newTotalRating,
+      'reviewCount': newReviewCount,
+      'averageRating': newTotalRating / newReviewCount,
+    });
+
+    await batch.commit();
+  }
+
+  Stream<List<Review>> streamReviews(String educatorUid) {
+    return _firestore
+        .collection('users')
+        .doc(educatorUid)
+        .collection('reviews')
+        .snapshots()
+        .map((snapshot) {
+      final reviews = snapshot.docs.map((doc) => Review.fromDoc(doc)).toList();
+      // Client-side sorting to handle documents with missing createdAt fields gracefully
+      // and to avoid the need for composite indexes.
+      reviews.sort((a, b) {
+        // First sort by rating (highest first)
+        int ratingCompare = b.rating.compareTo(a.rating);
+        if (ratingCompare != 0) return ratingCompare;
+
+        // Then sort by date (newest first)
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1; // Put nulls at the end
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+      return reviews;
+    });
+  }
+
+  Future<void> clearAllLessons() async {
+    final snapshot = await _lessons.get();
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      await _deleteFileFromUrl(data['attachmentUrl']);
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  Future<void> clearAllQuizzes() async {
+    final snapshot = await _quizzes.get();
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      await _deleteFileFromUrl(data['attachmentUrl']);
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
   }
 }

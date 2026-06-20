@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-enum UserRole { learner, educator, admin, superadmin }
+enum UserRole { learner, educator, admin, superadmin, validator }
 
 UserRole roleFromString(String? value) {
   switch (value) {
@@ -11,6 +11,8 @@ UserRole roleFromString(String? value) {
       return UserRole.educator;
     case 'SUPERADMIN':
       return UserRole.superadmin;
+    case 'VALIDATOR':
+      return UserRole.validator;
     case 'LEARNER':
     default:
       return UserRole.learner;
@@ -25,6 +27,8 @@ String roleToString(UserRole role) {
       return 'EDUCATOR';
     case UserRole.superadmin:
       return 'SUPERADMIN';
+    case UserRole.validator:
+      return 'VALIDATOR';
     case UserRole.learner:
       return 'LEARNER';
   }
@@ -80,7 +84,20 @@ class RoleService {
     required String uid,
     required UserRole role,
   }) async {
-    await _users.doc(uid).update({'role': roleToString(role)});
+    final docRef = _users.doc(uid);
+    final doc = await docRef.get();
+    final currentRole = doc.data()?['role'];
+    
+    final updates = <String, dynamic>{'role': roleToString(role)};
+    
+    if (role == UserRole.educator && currentRole != 'EDUCATOR') {
+      updates['educatorStartDate'] = FieldValue.serverTimestamp();
+      updates['educatorEndDate'] = null;
+    } else if (currentRole == 'EDUCATOR' && role != UserRole.educator) {
+      updates['educatorEndDate'] = FieldValue.serverTimestamp();
+    }
+    
+    await docRef.update(updates);
   }
 
   Future<void> updateUsername({

@@ -1,43 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
-import '../../services/database_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import '../../widgets/markdown_guide_button.dart';
-import '../../theme/app_colors.dart';
-import '../../widgets/glass_card.dart';
+import 'dart:io';
+
+import '../../services/database_service.dart';
+import '../../services/ai_logic_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
-import '../lesson_page.dart';
-import '../../widgets/app_search_bar.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/markdown_guide_button.dart';
 import '../../widgets/user_visibility_selector.dart';
-import '../../widgets/author_name_widget.dart';
 import '../../models/content_visibility.dart';
 
-class AdminLessonsTab extends StatefulWidget {
-  const AdminLessonsTab({super.key});
+import 'admin_quizzes_tab.dart'; 
+import 'admin_assessments_tab.dart';
+
+class AdminLessonsTab extends StatelessWidget {
+  final Lesson? initialLesson;
+  final VoidCallback? onReset;
+  final int initialTabIndex;
+
+  const AdminLessonsTab({
+    super.key,
+    this.initialLesson,
+    this.onReset,
+    this.initialTabIndex = 0,
+  });
+
   @override
-  State<AdminLessonsTab> createState() => _AdminLessonsTabState();
+  Widget build(BuildContext context) {
+    return _ManageLessonsView(
+      initialLesson: initialLesson,
+      onReset: onReset,
+      initialTabIndex: initialTabIndex,
+    );
+  }
 }
 
-class _AdminLessonsTabState extends State<AdminLessonsTab> {
-  String _formatTs(dynamic ts) {
-    if (ts == null) return 'N/A';
-    DateTime d;
-    if (ts is Timestamp) {
-      d = ts.toDate().toLocal();
-    } else if (ts is DateTime) {
-      d = ts.toLocal();
-    } else {
-      return 'N/A';
-    }
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-  }
+class _ManageLessonsView extends StatefulWidget {
+  final Lesson? initialLesson;
+  final VoidCallback? onReset;
+  final int initialTabIndex;
 
+  const _ManageLessonsView({
+    this.initialLesson,
+    this.onReset,
+    this.initialTabIndex = 0,
+  });
+
+  @override
+  State<_ManageLessonsView> createState() => _ManageLessonsViewState();
+}
+
+class _ManageLessonsViewState extends State<_ManageLessonsView> {
   String? _selectedLessonId;
   Lesson? _selectedLesson;
   bool _creatingLesson = false;
+  bool _isGeneratingFromPdf = false;
+
+  final AILogicService _aiLogicService = AILogicService();
   final _title = TextEditingController();
   final _prompt = TextEditingController();
   List<PlatformFile> _selectedFiles = [];
@@ -45,522 +67,151 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
   bool _isMembersOnly = false;
   bool _isGrammaticaLesson = false;
   List<String> _visibleTo = [];
-  String _searchQuery = '';
-  String _selectedFilter = 'Status'; // Default
-
-  final List<String> _filterOptions = ['Name', 'Status', 'Create Date'];
+  final _quizKey = GlobalKey<AdminQuizzesTabState>();
+  String? _selectedQuizId;
 
   ContentVisibility _visibility = ContentVisibility.public;
+  int _tabIndex = 0; 
+
+  @override
+  void initState() {
+    super.initState();
+    _tabIndex = widget.initialTabIndex;
+    if (widget.initialLesson != null) {
+      _loadInitialLesson();
+    }
+  }
+
+  @override
+  void didUpdateWidget(_ManageLessonsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTabIndex != oldWidget.initialTabIndex) {
+      setState(() => _tabIndex = widget.initialTabIndex);
+    }
+    if (widget.initialLesson != oldWidget.initialLesson) {
+      if (widget.initialLesson != null) {
+        _loadInitialLesson();
+      } else {
+        _resetForm(callOnReset: false);
+      }
+    }
+  }
+
+  void _loadInitialLesson() {
+    final l = widget.initialLesson!;
+    _selectedLessonId = l.id;
+    _selectedLesson = l;
+    _title.text = l.title;
+    _prompt.text = l.prompt;
+    _isVisible = l.isVisible;
+    _isMembersOnly = l.isMembersOnly;
+    _isGrammaticaLesson = l.isGrammaticaLesson;
+    _visibleTo = l.visibleTo;
+    _selectedQuizId = l.quizId;
+
+    if (l.isMembersOnly) {
+      _visibility = ContentVisibility.membersOnly;
+    } else if (!l.isVisible && l.visibleTo.isNotEmpty) {
+      _visibility = ContentVisibility.certainUsers;
+    } else {
+      _visibility = ContentVisibility.public;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (l.quizId != null) {
+        _quizKey.currentState?.loadQuiz(l.quizId!);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = AuthService.instance.currentUser;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return StreamBuilder<UserRole>(
       stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
       builder: (context, roleSnap) {
-        final role = roleSnap.data ?? UserRole.learner;
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(32, 40, 32, 60),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Editor Section
-              GlassCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      LayoutBuilder(
-                        builder: (context, c) {
-                          final wide = c.maxWidth >= 900;
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Wrap(
-                                spacing: 16,
-                                runSpacing: 12,
-                                alignment: WrapAlignment.spaceBetween,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Text(
-                                    'Manage Lessons',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleLarge,
-                                  ),
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: [
-                                      FilledButton.icon(
-                                        onPressed:
-                                            (_creatingLesson ||
-                                                _title.text.trim().isEmpty)
-                                            ? null
-                                            : _saveLesson,
-                                        icon: _creatingLesson
-                                            ? const SizedBox(
-                                                width: 16,
-                                                height: 16,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.white,
-                                                    ),
-                                              )
-                                            : const Icon(
-                                                CupertinoIcons.floppy_disk,
-                                              ),
-                                        label: Text(
-                                          _selectedLessonId == null
-                                              ? 'Create'
-                                              : 'Update',
-                                        ),
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor:
-                                              AppColors.primaryGreen,
-                                        ),
-                                      ),
-                                      if (_selectedLessonId != null)
-                                        OutlinedButton(
-                                          onPressed: () =>
-                                              setState(() => _resetForm()),
-                                          child: const Text('Cancel'),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              if (wide)
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(child: _buildInputFields()),
-                                    const SizedBox(width: 16),
-                                    Expanded(child: _buildPreviewArea()),
-                                  ],
-                                )
-                              else ...[
-                                _buildInputFields(),
-                                const SizedBox(height: 24),
-                                const Divider(),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Preview',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                ),
-                                const SizedBox(height: 8),
-                                _buildPreviewArea(),
-                              ],
-                            ],
-                          );
-                        },
+              // Header
+              Text(
+                'Manage Content',
+                style: GoogleFonts.outfit(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : AppColors.textPrimary,
+                  letterSpacing: -1.0,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Create or edit your lessons, quizzes, and assessments.',
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Custom Segmented Toggle
+              Center(
+                child: Container(
+                  height: 52,
+                  width: 500,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
                       ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      _buildTabBtn('Lessons', 0),
+                      _buildTabBtn('Quizzes', 1),
+                      _buildTabBtn('Assessments', 2),
                     ],
                   ),
                 ),
               ),
+              const SizedBox(height: 32),
 
-              const SizedBox(height: 24),
-
-              // List of Lessons
-              StreamBuilder<List<Lesson>>(
-                stream: DatabaseService.instance.streamLessons(
-                  approvedOnly: false,
-                  userRole: role,
-                  userId: user?.uid,
+              // Main Card Content
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    )
+                  ],
                 ),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primaryGreen,
-                      ),
-                    );
-                  }
-                  var lessons = snapshot.data!.toList();
-                  if (_searchQuery.isNotEmpty) {
-                    final query = _searchQuery.toLowerCase();
-                    lessons = lessons.where((l) {
-                      final title = l.title.toLowerCase();
-                      final author = (l.createdByEmail ?? 'Unknown')
-                          .toLowerCase();
-                      return title.contains(query) || author.contains(query);
-                    }).toList();
-                  }
-
-                  // Apply sorting based on filter
-                  lessons.sort((a, b) {
-                    int cmp = 0;
-                    if (_selectedFilter == 'Name') {
-                      cmp = a.title.toLowerCase().compareTo(
-                        b.title.toLowerCase(),
-                      );
-                    } else if (_selectedFilter == 'Status') {
-                      // Prioritize awaiting_approval
-                      if (a.validationStatus == 'awaiting_approval' &&
-                          b.validationStatus != 'awaiting_approval') {
-                        cmp = -1;
-                      } else if (a.validationStatus != 'awaiting_approval' &&
-                          b.validationStatus == 'awaiting_approval') {
-                        cmp = 1;
-                      } else {
-                        cmp = 0;
-                      }
-                    } else if (_selectedFilter == 'Create Date') {
-                      final tsA = a.createdAt;
-                      final tsB = b.createdAt;
-                      if (tsA == null && tsB == null) {
-                        cmp = 0;
-                      } else if (tsA == null) {
-                        cmp = 1;
-                      } else if (tsB == null) {
-                        cmp = -1;
-                      } else {
-                        cmp = tsB.compareTo(tsA); // Newest first
-                      }
-                    }
-
-                    if (cmp == 0) {
-                      // Secondary sort by Name A-Z
-                      return a.title.toLowerCase().compareTo(
-                        b.title.toLowerCase(),
-                      );
-                    }
-                    return cmp;
-                  });
-
-                  return Column(
-                    children: [
-                      AppSearchBar(
-                        hintText: 'Search lessons by title or author...',
-                        onSearch: (value) {
-                          setState(() {
-                            _searchQuery = value;
-                          });
-                        },
-                        onFilterPressed: () {
-                          showCupertinoModalPopup(
-                            context: context,
-                            builder: (context) => CupertinoActionSheet(
-                              title: const Text('Filter Lessons By'),
-                              actions: _filterOptions.map((option) {
-                                return CupertinoActionSheetAction(
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedFilter = option;
-                                    });
-                                    Navigator.pop(context);
-                                  },
-                                  child: Text(
-                                    option,
-                                    style: TextStyle(
-                                      color: _selectedFilter == option
-                                          ? AppColors.primaryGreen
-                                          : null,
-                                      fontWeight: _selectedFilter == option
-                                          ? FontWeight.bold
-                                          : null,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              cancelButton: CupertinoActionSheetAction(
-                                onPressed: () => Navigator.pop(context),
-                                isDestructiveAction: true,
-                                child: const Text('Cancel'),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      if (lessons.isEmpty)
-                        const Center(child: Text('No lessons found'))
-                      else
-                        ListView.separated(
-                          physics: const NeverScrollableScrollPhysics(),
-                          shrinkWrap: true,
-                          itemCount: lessons.length,
-                          separatorBuilder: (c, i) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final l = lessons[index];
-                            final currentUser =
-                                AuthService.instance.currentUser;
-                            final isSelected = _selectedLessonId == l.id;
-                            final color = AppColors.primaryGreen;
-
-                            final isOwner = l.createdByUid == currentUser?.uid;
-                            final isPending =
-                                l.validationStatus == 'awaiting_approval';
-
-                            return FutureBuilder<bool>(
-                              future: _checkEditPermission(
-                                l,
-                                currentUser?.uid,
-                                role,
-                              ),
-                              initialData: isOwner,
-                              builder: (context, editSnap) {
-                                final canEdit = editSnap.data ?? false;
-
-                                return GlassCard(
-                                  onTap: () {
-                                    if (!canEdit) {
-                                      // Enable preview for non-editable content
-                                      if (currentUser != null) {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) => LessonPage(
-                                              user: currentUser,
-                                              lesson: l,
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                      return;
-                                    }
-                                    setState(() {
-                                      if (isSelected) {
-                                        _resetForm();
-                                      } else {
-                                        _selectedLessonId = l.id;
-                                        _selectedLesson = l;
-                                        _title.text = l.title;
-                                        _prompt.text = l.prompt;
-                                        _selectedFiles = [];
-                                        _isVisible = l.isVisible;
-                                        _isMembersOnly = l.isMembersOnly;
-                                        _visibleTo = List<String>.from(
-                                          l.visibleTo,
-                                        );
-
-                                        if (l.isMembersOnly) {
-                                          _visibility =
-                                              ContentVisibility.membersOnly;
-                                        } else if (!l.isVisible) {
-                                          _visibility =
-                                              ContentVisibility.certainUsers;
-                                        } else {
-                                          _visibility =
-                                              ContentVisibility.public;
-                                        }
-                                        _isGrammaticaLesson =
-                                            l.isGrammaticaLesson;
-                                      }
-                                    });
-                                  },
-                                  backgroundColor: isSelected
-                                      ? color
-                                      : (!canEdit
-                                            ? AppColors.getCardColor(
-                                                context,
-                                              ).withValues(alpha: 0.5)
-                                            : AppColors.getCardColor(context)),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 4,
-                                        height: 60,
-                                        decoration: BoxDecoration(
-                                          color: isPending
-                                              ? Colors.teal
-                                              : color,
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    l.title,
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 16,
-                                                      color: !canEdit
-                                                          ? AppColors.getTextColor(
-                                                              context,
-                                                            ).withValues(
-                                                              alpha: 0.5,
-                                                            )
-                                                          : AppColors.getTextColor(
-                                                              context,
-                                                            ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              l.prompt,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: !canEdit
-                                                    ? AppColors.getTextColor(
-                                                        context,
-                                                      ).withValues(alpha: 0.5)
-                                                    : AppColors.getTextColor(
-                                                        context,
-                                                      ),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Wrap(
-                                              spacing: 12,
-                                              children: [
-                                                if (l.attachmentName != null &&
-                                                    l
-                                                        .attachmentName!
-                                                        .isNotEmpty)
-                                                  Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      const Icon(
-                                                        CupertinoIcons
-                                                            .paperclip,
-                                                        size: 14,
-                                                      ),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        l.attachmentName!,
-                                                        style: Theme.of(
-                                                          context,
-                                                        ).textTheme.bodySmall,
-                                                      ),
-                                                    ],
-                                                  ),
-                                                Text(
-                                                  'Created: ${_formatTs(l.createdAt ?? Timestamp.now())} • ',
-                                                  style: Theme.of(
-                                                    context,
-                                                  ).textTheme.bodySmall,
-                                                ),
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 2,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color:
-                                                        (l.isMembersOnly
-                                                                ? Colors.amber
-                                                                : Colors.blue)
-                                                            .withValues(
-                                                              alpha: 0.1,
-                                                            ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                    border: Border.all(
-                                                      color:
-                                                          (l.isMembersOnly
-                                                                  ? Colors.amber
-                                                                  : Colors.blue)
-                                                              .withValues(
-                                                                alpha: 0.5,
-                                                              ),
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    l.isMembersOnly
-                                                        ? 'Members Only'
-                                                        : 'Public',
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: l.isMembersOnly
-                                                          ? Colors.amber
-                                                          : Colors.blue,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                AuthorName(
-                                                  uid: l.createdByUid,
-                                                  fallbackEmail:
-                                                      l.createdByEmail,
-                                                  style: Theme.of(
-                                                    context,
-                                                  ).textTheme.bodySmall,
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (isPending) ...[
-                                        const SizedBox(width: 8),
-                                        Flexible(
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.teal.withValues(
-                                                alpha: 0.1,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                              border: Border.all(
-                                                color: Colors.teal.withValues(
-                                                  alpha: 0.5,
-                                                ),
-                                              ),
-                                            ),
-                                            child: const Text(
-                                              'Waiting for approval',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.teal,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                      if (canEdit)
-                                        IconButton(
-                                          icon: const Icon(
-                                            CupertinoIcons.trash,
-                                          ),
-                                          color: Colors.red[300],
-                                          onPressed: () => _deleteLesson(l),
-                                        ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                    ],
-                  );
-                },
+                child: IndexedStack(
+                  index: _tabIndex,
+                  children: [
+                    _buildLessonForm(roleSnap.data, isDark),
+                    AdminQuizzesTab(
+                      key: _quizKey,
+                      initialQuizId: _selectedQuizId,
+                    ),
+                    AdminAssessmentsTab(
+                      isEmbedded: true,
+                      initialQuizId: _tabIndex == 2 ? _selectedQuizId : null,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -569,326 +220,543 @@ class _AdminLessonsTabState extends State<AdminLessonsTab> {
     );
   }
 
-  Widget _buildInputFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: _title,
-          decoration: const InputDecoration(labelText: 'Title'),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _prompt,
-          minLines: 6,
-          maxLines: 15,
-          decoration: const InputDecoration(
-            labelText: 'Content (Markdown)',
-            alignLabelWithHint: true,
-            border: OutlineInputBorder(),
+  Widget _buildTabBtn(String label, int index) {
+    final selected = _tabIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _tabIndex = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
           ),
-          onChanged: (_) => setState(() {}),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              color: selected ? Colors.white : AppColors.textSecondary,
+              fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
         ),
-        const SizedBox(height: 16),
-        const SizedBox(height: 16),
-        const Text(
-          'Who can see this content?',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        SegmentedButton<ContentVisibility>(
-          segments: const [
-            ButtonSegment(
-              value: ContentVisibility.public,
-              label: Text('Public'),
-              icon: Icon(Icons.public),
-            ),
-            ButtonSegment(
-              value: ContentVisibility.certainUsers,
-              label: Text('Private'),
-              icon: Icon(Icons.people_outline),
-            ),
-            ButtonSegment(
-              value: ContentVisibility.membersOnly,
-              label: Text('Members'),
-              icon: Icon(Icons.star),
-            ),
-          ],
-          selected: {_visibility},
-          onSelectionChanged: (Set<ContentVisibility> newSelection) {
-            setState(() {
-              _visibility = newSelection.first;
-              // Map visibility to database flags
-              if (_visibility == ContentVisibility.public) {
-                _isVisible = true;
-                _isMembersOnly = false;
-              } else if (_visibility == ContentVisibility.certainUsers) {
-                _isVisible = false;
-                _isMembersOnly = false;
-              } else if (_visibility == ContentVisibility.membersOnly) {
-                _isVisible = true;
-                _isMembersOnly = true;
+      ),
+    );
+  }
+
+  Widget _buildLessonForm(UserRole? role, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 800;
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: _buildLessonLeftCol(role, isDark)),
+                    const SizedBox(width: 48),
+                    Expanded(flex: 2, child: _buildPdfAttachZone(isDark)),
+                  ],
+                );
+              } else {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildLessonLeftCol(role, isDark),
+                    const SizedBox(height: 32),
+                    _buildPdfAttachZone(isDark),
+                  ],
+                );
               }
-            });
-          },
-        ),
-        if (_visibility == ContentVisibility.certainUsers) ...[
-          const SizedBox(height: 16),
-          UserVisibilitySelector(
-            selectedUserIds: _visibleTo,
-            onChanged: (users) {
-              setState(() => _visibleTo = users);
             },
           ),
-        ],
-        const SizedBox(height: 16),
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: MarkdownGuideButton(),
         ),
-        const SizedBox(height: 16),
-        StreamBuilder<UserRole>(
-          stream: RoleService.instance.roleStream(
-            AuthService.instance.currentUser?.uid ?? '',
-          ),
-          builder: (context, snapshot) {
-            final role = snapshot.data;
-            if (role == UserRole.admin || role == UserRole.superadmin) {
-              return CheckboxListTile(
-                title: const Text('Upload as Grammatica Lesson'),
-                subtitle: const Text(
-                  'This will appear in the official "Grammatica Lessons" folder',
+        Divider(height: 1, color: isDark ? Colors.white12 : Colors.black12),
+        Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => _resetForm(),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 ),
-                value: _isGrammaticaLesson,
-                onChanged: (val) =>
-                    setState(() => _isGrammaticaLesson = val ?? false),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-              );
-            }
-            return const SizedBox.shrink();
-          },
+                child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 16),
+              ElevatedButton.icon(
+                onPressed: (_creatingLesson || _title.text.trim().isEmpty) ? null : _saveIntegratedLesson,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+                icon: _creatingLesson
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Icon(Icons.check_circle_rounded, size: 20),
+                label: Text('Save Content', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildPreviewArea() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildLessonLeftCol(UserRole? role, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF333333) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Lesson Details',
+            style: GoogleFonts.outfit(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF2A2A2A),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _buildStyledTextField(
+            controller: _title,
+            label: 'Lesson Title',
+            hint: 'e.g. Introduction to Nouns',
+            icon: Icons.menu_book_rounded,
+            isDark: isDark,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Lesson Content',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : AppColors.textSecondary,
+                ),
+              ),
+              const MarkdownGuideButton(),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildStyledTextField(
+            controller: _prompt,
+            label: 'Write your lesson content using markdown...',
+            hint: 'Write your lesson content using markdown...',
+            icon: Icons.text_snippet_rounded,
+            maxLines: 12,
+            isDark: isDark,
+          ),
+          const SizedBox(height: 32),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(child: _buildVisibilitySettings(role, isDark)),
+              const SizedBox(width: 24),
+              ElevatedButton.icon(
+                onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? Colors.white12 : const Color(0xFF88B342).withValues(alpha: 0.1),
+                  foregroundColor: isDark ? Colors.white : const Color(0xFF88B342),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                icon: _isGeneratingFromPdf
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.auto_awesome_rounded, size: 18),
+                label: Text('AI Generate', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStyledTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    int maxLines = 1,
+    required bool isDark,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: GoogleFonts.inter(fontSize: 16, color: isDark ? Colors.white : Colors.black87),
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+        labelText: maxLines == 1 ? label : null,
+        hintText: hint,
+        labelStyle: GoogleFonts.inter(color: isDark ? Colors.white60 : Colors.grey.shade600),
+        hintStyle: GoogleFonts.inter(color: isDark ? Colors.white30 : Colors.grey.shade400),
+        prefixIcon: maxLines == 1 ? Icon(icon, color: const Color(0xFF88B342)) : null,
+        filled: true,
+        fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF88B342), width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        color: AppColors.textSecondary,
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(bool isDark, {required String hint}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: GoogleFonts.inter(color: isDark ? Colors.white30 : Colors.black26),
+      filled: true,
+      fillColor: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      contentPadding: const EdgeInsets.all(20),
+    );
+  }
+
+  Widget _buildPdfAttachZone(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildUploadUI(),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(16),
-          constraints: const BoxConstraints(minHeight: 200),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.05)
-                  : Colors.grey.withValues(alpha: 0.1),
+        _label('Reference Material (Optional)'),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _pickFiles,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            height: 240,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? Colors.white12 : Colors.black12,
+                style: BorderStyle.solid,
+                width: 2,
+              ),
             ),
-            borderRadius: BorderRadius.circular(12),
-            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-          ),
-          child: MarkdownBody(
-            data: _prompt.text.isEmpty ? '_Nothing to preview_' : _prompt.text,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.picture_as_pdf_rounded, size: 40, color: AppColors.primary),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  _selectedFiles.isNotEmpty ? _selectedFiles.first.name : 'No PDF uploaded',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _selectedFiles.isNotEmpty ? 'Click to change file' : 'Click to browse files',
+                  style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13),
+                ),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildUploadUI() {
+  Widget _buildVisibilitySettings(UserRole? userRole, bool isDark) {
+    final isEducator = userRole == UserRole.educator;
+    final isAdminOrSuperAdmin = userRole == UserRole.admin || userRole == UserRole.superadmin;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        OutlinedButton.icon(
-          onPressed: () async {
-            final result = await FilePicker.platform.pickFiles(
-              type: FileType.custom,
-              allowMultiple: false,
-              allowedExtensions: ['pdf'],
-              withData: true,
-            );
-            if (!mounted) return;
-            if (result != null) {
-              setState(() => _selectedFiles = result.files);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Selected: ${result.files.first.name}')),
-              );
-            }
-          },
-          icon: const Icon(CupertinoIcons.arrow_up_doc),
-          label: const Text('Upload PDF Attachment'),
-        ),
-        if (_selectedFiles.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Chip(
-              label: Text(_selectedFiles.first.name),
-              onDeleted: () => setState(() => _selectedFiles = []),
+        _label('Visibility Options'),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            ChoiceChip(
+              label: Text('Public', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              avatar: const Icon(Icons.public_rounded, size: 18),
+              selected: _visibility == ContentVisibility.public,
+              selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
+              backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
+              checkmarkColor: const Color(0xFF88B342),
+              labelStyle: TextStyle(color: _visibility == ContentVisibility.public ? const Color(0xFF88B342) : (isDark ? Colors.white : Colors.black87)),
+              side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+              onSelected: (val) {
+                if (val) {
+                  setState(() {
+                    _visibility = ContentVisibility.public;
+                    _isVisible = true;
+                    _isMembersOnly = false;
+                  });
+                }
+              },
             ),
-          )
-        else if (_selectedLesson?.attachmentName != null &&
-            _selectedLesson!.attachmentName!.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Chip(
-              avatar: const Icon(CupertinoIcons.paperclip, size: 16),
-              label: Text('Current: ${_selectedLesson!.attachmentName}'),
+            ChoiceChip(
+              label: Text('Standard', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              avatar: const Icon(Icons.people_alt_rounded, size: 18),
+              selected: _visibility == ContentVisibility.membersOnly,
+              selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
+              backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
+              checkmarkColor: const Color(0xFF88B342),
+              labelStyle: TextStyle(color: _visibility == ContentVisibility.membersOnly ? const Color(0xFF88B342) : (isDark ? Colors.white : Colors.black87)),
+              side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+              onSelected: (val) {
+                if (val) {
+                  setState(() {
+                    _visibility = ContentVisibility.membersOnly;
+                    _isVisible = true;
+                    _isMembersOnly = true;
+                  });
+                }
+              },
+            ),
+            ChoiceChip(
+              label: Text('Premium', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              avatar: const Icon(Icons.star_rounded, size: 18),
+              selected: _visibility == ContentVisibility.certainUsers,
+              selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
+              backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
+              checkmarkColor: const Color(0xFF88B342),
+              labelStyle: TextStyle(color: _visibility == ContentVisibility.certainUsers ? const Color(0xFF88B342) : (isDark ? Colors.white : Colors.black87)),
+              side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
+              onSelected: (val) {
+                if (val) {
+                  setState(() {
+                    _visibility = ContentVisibility.certainUsers;
+                    _isVisible = false;
+                    _isMembersOnly = false;
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+        if (_visibility == ContentVisibility.certainUsers) ...[
+          const SizedBox(height: 20),
+          UserVisibilitySelector(
+            selectedUserIds: _visibleTo,
+            educatorUid: isEducator ? AuthService.instance.currentUser?.uid : null,
+            onChanged: (users) => setState(() => _visibleTo = users),
+          ),
+        ],
+        if (isAdminOrSuperAdmin) ...[
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFF88B342).withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFF88B342).withValues(alpha: 0.3)),
+            ),
+            child: CheckboxListTile(
+              title: Text('Upload as Grammatica Lesson', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : const Color(0xFF2A2A2A))),
+              subtitle: Text('Shows in the global learning section for all users', style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54)),
+              value: _isGrammaticaLesson,
+              activeColor: const Color(0xFF88B342),
+              onChanged: (value) => setState(() => _isGrammaticaLesson = value ?? false),
+              contentPadding: EdgeInsets.zero,
             ),
           ),
+        ],
       ],
     );
   }
 
-  void _resetForm() {
+  Future<void> _generateFromPdf() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        withData: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        setState(() => _isGeneratingFromPdf = true);
+
+        final platformFile = result.files.single;
+        List<int> bytes;
+        if (platformFile.bytes != null) {
+          bytes = platformFile.bytes!;
+        } else if (platformFile.path != null) {
+          bytes = await File(platformFile.path!).readAsBytes();
+        } else {
+          throw Exception('Could not read file data');
+        }
+
+        final generatedMarkdown = await _aiLogicService.convertToMarkdown(bytes);
+
+        setState(() {
+          _prompt.text = generatedMarkdown;
+          _isGeneratingFromPdf = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Successfully generated lesson from PDF!')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGeneratingFromPdf = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating from PDF: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result != null && mounted) {
+      setState(() => _selectedFiles = result.files);
+    }
+  }
+
+  void _resetForm({bool callOnReset = true}) {
     _selectedLessonId = null;
     _selectedLesson = null;
+    _selectedQuizId = null;
     _title.clear();
     _prompt.clear();
     _selectedFiles = [];
-    _isVisible = true;
     _isVisible = true;
     _isMembersOnly = false;
     _isGrammaticaLesson = false;
     _visibility = ContentVisibility.public;
     _visibleTo = [];
-    setState(() {});
+    _quizKey.currentState?.resetForm();
+    if (callOnReset && widget.onReset != null) widget.onReset!();
   }
 
-  Future<void> _saveLesson() async {
+  Future<void> _saveIntegratedLesson() async {
     setState(() => _creatingLesson = true);
     try {
-      String? attachmentUrl;
-      String? attachmentName;
+      String? finalQuizId = _selectedQuizId;
 
-      if (_selectedFiles.isNotEmpty) {
-        final file = _selectedFiles.first;
-        if (file.size > 2 * 1024 * 1024) {
-          throw Exception('File size must be less than 2MB');
+      if (_quizKey.currentState != null) {
+        final savedQuizId = await _quizKey.currentState!.saveForLesson();
+        if (savedQuizId != null) {
+          finalQuizId = savedQuizId;
         }
-        if (file.bytes != null) {
-          attachmentUrl = await DatabaseService.instance.uploadDocument(
-            fileBytes: file.bytes!,
-            fileName: file.name,
-            folder: 'lessons',
-          );
-          attachmentName = file.name;
-        }
-      } else if (_selectedLesson != null) {
-        attachmentUrl = _selectedLesson!.attachmentUrl;
-        attachmentName = _selectedLesson!.attachmentName;
       }
+
+      final lessonData = Lesson(
+        id: _selectedLessonId ?? '',
+        title: _title.text.trim(),
+        prompt: _prompt.text.trim(),
+        answer: '',
+        createdByUid: AuthService.instance.currentUser?.uid ?? '',
+        isVisible: _isVisible,
+        visibleTo: _visibleTo,
+        isMembersOnly: _isMembersOnly,
+        isGrammaticaLesson: _isGrammaticaLesson,
+        quizId: finalQuizId, 
+        createdAt: _selectedLesson?.createdAt ?? Timestamp.now(),
+      );
 
       if (_selectedLessonId == null) {
         await DatabaseService.instance.createLesson(
-          title: _title.text.trim(),
-          prompt: _prompt.text.trim(),
-          answer: '',
-          attachmentUrl: attachmentUrl,
-          attachmentName: attachmentName,
-          isVisible: _isVisible,
-          visibleTo: _visibleTo,
-          isMembersOnly: _isMembersOnly,
-          isGrammaticaLesson: _isGrammaticaLesson,
+          title: lessonData.title,
+          prompt: lessonData.prompt,
+          answer: lessonData.answer,
+          isVisible: lessonData.isVisible,
+          visibleTo: lessonData.visibleTo,
+          isMembersOnly: lessonData.isMembersOnly,
+          isGrammaticaLesson: lessonData.isGrammaticaLesson,
+          quizId: lessonData.quizId,
         );
         if (mounted) {
-          final role = await RoleService.instance.getRole(
-            AuthService.instance.currentUser?.uid ?? '',
-          );
-          if (!mounted) return;
-          final isEducator = role == UserRole.educator;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                isEducator ? 'Lesson submitted for approval' : 'Lesson created',
-              ),
-            ),
+            const SnackBar(content: Text('Lesson & Quiz created successfully!')),
           );
         }
       } else {
         await DatabaseService.instance.updateLesson(
           id: _selectedLessonId!,
-          title: _title.text.trim(),
-          prompt: _prompt.text.trim(),
-          answer: '',
-          attachmentUrl: attachmentUrl,
-          attachmentName: attachmentName,
-          isVisible: _isVisible,
-          visibleTo: _visibleTo,
-          isMembersOnly: _isMembersOnly,
-          isGrammaticaLesson: _isGrammaticaLesson,
+          title: lessonData.title,
+          prompt: lessonData.prompt,
+          answer: lessonData.answer,
+          isVisible: lessonData.isVisible,
+          visibleTo: lessonData.visibleTo,
+          isMembersOnly: lessonData.isMembersOnly,
+          isGrammaticaLesson: lessonData.isGrammaticaLesson,
+          quizId: lessonData.quizId,
         );
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Lesson updated')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Lesson & Quiz updated successfully!')),
+          );
         }
       }
-      if (mounted) _resetForm();
+      _resetForm();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving lesson: $e')),
+        );
       }
     } finally {
       if (mounted) setState(() => _creatingLesson = false);
     }
   }
 
-  Future<void> _deleteLesson(Lesson l) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete'),
-        content: Text('Delete "${l.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-    try {
-      await DatabaseService.instance.deleteLesson(l.id);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Lesson deleted')));
-        if (_selectedLessonId == l.id) _resetForm();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
-      }
-    }
-  }
-
-  Future<bool> _checkEditPermission(
-    Lesson l,
-    String? currentUid,
-    UserRole currentRole,
-  ) async {
-    if (l.createdByUid == currentUid) return true;
-    if (currentRole != UserRole.admin && currentRole != UserRole.superadmin) {
-      return false;
-    }
-    if (l.createdByUid == null) return false;
-    // Check creator role
-    final r = await RoleService.instance.getRole(l.createdByUid!);
-    return r == UserRole.admin || r == UserRole.superadmin;
+  @override
+  void dispose() {
+    _title.dispose();
+    _prompt.dispose();
+    super.dispose();
   }
 }
-

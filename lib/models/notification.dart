@@ -6,6 +6,7 @@ enum NotificationType {
   appApproved,
   achievement,
   profileReminder,
+  subscription,
   general,
 }
 
@@ -58,7 +59,7 @@ class NotificationModel {
       'title': title,
       'message': message,
       'type': type.toString().split('.').last,
-      'createdAt': FieldValue.serverTimestamp(),
+      'createdAt': createdAt,
       'isRead': isRead,
       'isArchived': isArchived,
       'rejectionReason': rejectionReason,
@@ -78,6 +79,8 @@ class NotificationModel {
         return NotificationType.achievement;
       case 'profileReminder':
         return NotificationType.profileReminder;
+      case 'subscription':
+        return NotificationType.subscription;
       default:
         return NotificationType.general;
     }

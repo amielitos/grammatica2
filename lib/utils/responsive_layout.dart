@@ -228,7 +228,7 @@ class ResponsiveScaffold extends StatelessWidget {
             appBar: appBar,
             body: Row(
               children: [
-                if (drawer != null) drawer!,
+                ?drawer,
                 if (body != null) Expanded(child: body!),
               ],
             ),

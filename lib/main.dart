@@ -11,6 +11,7 @@ import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 
 // Pages
+import 'pages/landing_page.dart';
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
 import 'pages/admin_dashboard.dart';
@@ -23,8 +24,6 @@ void main() async {
 
   if (kIsWeb) {
     try {
-      // Clear any corrupted persistence state on web to fix b815 assertion
-      await FirebaseFirestore.instance.clearPersistence();
       FirebaseFirestore.instance.settings = const Settings(
         persistenceEnabled: false,
         webExperimentalForceLongPolling: true,
@@ -49,6 +48,7 @@ class GrammaticaApp extends StatelessWidget {
       valueListenable: themeNotifier,
       builder: (context, currentMode, _) {
         return MaterialApp(
+          scaffoldMessengerKey: AuthService.messengerKey,
           title: 'Grammatica',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
@@ -56,38 +56,23 @@ class GrammaticaApp extends StatelessWidget {
           themeMode: currentMode,
           builder: (context, child) {
             final mediaQueryData = MediaQuery.of(context);
-            // Calculate a scale factor based on screen width.
-            // On very small screens (< 360), we scale down slightly.
-            // On large screens, we might scale up or keep 1.0.
             final screenWidth = mediaQueryData.size.width;
             double scale = 1.0;
             if (screenWidth < 360) {
               scale = (screenWidth / 360).clamp(0.85, 1.0);
             } else if (screenWidth > 1200) {
-              scale = 1.05; // Less aggressive scaling for large screens
+              scale = 1.05;
             }
 
-            return Overlay(
-              initialEntries: [
-                OverlayEntry(
-                  builder: (context) => MediaQuery(
-                    data: mediaQueryData.copyWith(
-                      textScaler: TextScaler.linear(scale),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: AppColors.getMainGradient(context),
-                      ),
-                      child: child!,
-                    ),
-                  ),
-                ),
-              ],
+            return MediaQuery(
+              data: mediaQueryData.copyWith(
+                textScaler: TextScaler.linear(scale),
+              ),
+              child: child!,
             );
           },
-          initialRoute: '/',
+          home: _AuthWrapper(),
           routes: {
-            '/': (context) => _AuthWrapper(),
             '/login': (context) => const LoginPage(),
             '/register': (context) => const SignupPage(),
           },
@@ -106,13 +91,13 @@ class _AuthWrapper extends StatelessWidget {
         if (authSnap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(
-              child: CircularProgressIndicator(color: AppColors.primaryGreen),
+              child: CircularProgressIndicator(color: AppColors.primary),
             ),
           );
         }
         final user = authSnap.data;
         if (user == null) {
-          return Theme(data: AppTheme.lightTheme, child: const LoginPage());
+          return Theme(data: AppTheme.lightTheme, child: const LandingPage());
         }
 
         // Single Firestore listener for the user's document
@@ -120,14 +105,24 @@ class _AuthWrapper extends StatelessWidget {
           stream: FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
-              .snapshots(),
+              .snapshots()
+              .distinct((prev, curr) {
+                final p = prev.data();
+                final c = curr.data();
+                return p?['role'] == c?['role'] &&
+                    p?['has_completed_onboarding'] ==
+                        c?['has_completed_onboarding'] &&
+                    p?['phone_number'] == c?['phone_number'] &&
+                    p?['date_of_birth'] == c?['date_of_birth'] &&
+                    p?['photoUrl'] == c?['photoUrl'] &&
+                    p?['username'] == c?['username'] &&
+                    p?['status'] == c?['status'];
+              }),
           builder: (context, userDocSnap) {
             if (userDocSnap.connectionState == ConnectionState.waiting) {
               return const Scaffold(
                 body: Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primaryGreen,
-                  ),
+                  child: CircularProgressIndicator(color: AppColors.primary),
                 ),
               );
             }
@@ -137,7 +132,7 @@ class _AuthWrapper extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(color: AppColors.primaryGreen),
+                      CircularProgressIndicator(color: AppColors.primary),
                       SizedBox(height: 16),
                       Text("Setting up your account..."),
                     ],
@@ -147,6 +142,21 @@ class _AuthWrapper extends StatelessWidget {
             }
 
             final data = userDocSnap.data?.data() ?? {};
+
+            // Security Check: Deactivated Status
+            final status = (data['status'] as String?)?.toUpperCase();
+            if (status == 'DEACTIVATED') {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                AuthService.instance.signOut();
+                AuthService.showSnackBar(
+                  'Your account has been deactivated. Please contact support.',
+                );
+              });
+              return Theme(
+                data: AppTheme.lightTheme,
+                child: const LandingPage(),
+              );
+            }
 
             // Sync theme preference
             final themePref = data['theme_preference'] as String?;
@@ -173,7 +183,10 @@ class _AuthWrapper extends StatelessWidget {
             final hasCompletedOnboarding =
                 data['has_completed_onboarding'] ?? true;
 
-            if (role == UserRole.admin || role == UserRole.educator) {
+            if (role == UserRole.admin ||
+                role == UserRole.educator ||
+                role == UserRole.validator ||
+                role == UserRole.superadmin) {
               return AdminDashboard(
                 user: user,
                 role: role,

@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../models/notification.dart';
 import '../services/notification_service.dart';
-import 'glass_card.dart';
 import 'package:intl/intl.dart';
-import '../theme/app_colors.dart';
 
-class NotificationIconButton extends StatelessWidget {
+class NotificationIconButton extends StatefulWidget {
   final String userId;
   final VoidCallback onTap;
 
@@ -17,30 +15,51 @@ class NotificationIconButton extends StatelessWidget {
   });
 
   @override
+  State<NotificationIconButton> createState() => _NotificationIconButtonState();
+}
+
+class _NotificationIconButtonState extends State<NotificationIconButton> {
+  late Stream<List<NotificationModel>> _notificationStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationStream = NotificationService.instance.streamNotifications(widget.userId);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<NotificationModel>>(
-      stream: NotificationService.instance.streamNotifications(userId),
+      stream: _notificationStream,
       builder: (context, snapshot) {
-        final unreadCount = snapshot.hasData
-            ? snapshot.data!.where((n) => !n.isRead).length
-            : 0;
+        final notifications = snapshot.data ?? [];
+        final unreadCount = notifications.where((n) => !n.isRead).length;
 
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Stack(
+          clipBehavior: Clip.none,
           children: [
-            IconButton(icon: const Icon(CupertinoIcons.bell), onPressed: onTap),
+            IconButton(
+              icon: Icon(CupertinoIcons.bell, color: isDark ? Colors.white : Colors.black87),
+              onPressed: widget.onTap,
+            ),
             if (unreadCount > 0)
               Positioned(
-                right: 8,
-                top: 8,
+                right: 4,
+                top: 4,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.yellow,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDE372A),
                     shape: BoxShape.circle,
+                    border: Border.all(color: isDark ? const Color(0xFF333333) : Colors.white, width: 2),
                   ),
-                  constraints: const BoxConstraints(
-                    minWidth: 12,
-                    minHeight: 12,
+                  constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                  child: Center(
+                    child: Text(
+                      unreadCount > 9 ? '9+' : '$unreadCount',
+                      style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ),
@@ -67,12 +86,33 @@ class NotificationOverlay extends StatefulWidget {
 
 class _NotificationOverlayState extends State<NotificationOverlay> {
   bool _showArchived = false;
+  late Stream<List<NotificationModel>> _notificationStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateStream();
+  }
+
+  void _updateStream() {
+    _notificationStream = NotificationService.instance.streamNotifications(
+      widget.userId,
+      archived: _showArchived,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      child: GlassCard(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Column(
           children: [
             Padding(
@@ -98,6 +138,7 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
                         onPressed: () {
                           setState(() {
                             _showArchived = !_showArchived;
+                            _updateStream();
                           });
                         },
                         tooltip: _showArchived ? 'Show Active' : 'Show Archive',
@@ -114,17 +155,10 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
             const Divider(height: 1),
             Expanded(
               child: StreamBuilder<List<NotificationModel>>(
-                stream: NotificationService.instance.streamNotifications(
-                  widget.userId,
-                  archived: _showArchived,
-                ),
+                stream: _notificationStream,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primaryGreen,
-                      ),
-                    );
+                    return const Center(child: CircularProgressIndicator());
                   }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Center(
@@ -180,6 +214,20 @@ class NotificationsDialog extends StatefulWidget {
 
 class _NotificationsDialogState extends State<NotificationsDialog> {
   bool _showArchived = false;
+  late Stream<List<NotificationModel>> _notificationStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateStream();
+  }
+
+  void _updateStream() {
+    _notificationStream = NotificationService.instance.streamNotifications(
+      widget.userId,
+      archived: _showArchived,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +242,14 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
       ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
-        child: GlassCard(
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Column(
             children: [
               Padding(
@@ -211,15 +266,24 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                     ),
                     Row(
                       children: [
+                        if (!_showArchived)
+                          TextButton(
+                            onPressed: () {
+                              NotificationService.instance.markAllAsRead(widget.userId);
+                            },
+                            child: const Text('Mark all as read', style: TextStyle(fontSize: 12)),
+                          ),
                         IconButton(
                           icon: Icon(
                             _showArchived
                                 ? CupertinoIcons.list_bullet
                                 : CupertinoIcons.archivebox,
+                            size: 20,
                           ),
                           onPressed: () {
                             setState(() {
                               _showArchived = !_showArchived;
+                              _updateStream();
                             });
                           },
                           tooltip: _showArchived
@@ -227,7 +291,7 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                               : 'Show Archive',
                         ),
                         IconButton(
-                          icon: const Icon(CupertinoIcons.xmark),
+                          icon: const Icon(CupertinoIcons.xmark, size: 20),
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
@@ -238,25 +302,30 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
               const Divider(height: 1),
               Expanded(
                 child: StreamBuilder<List<NotificationModel>>(
-                  stream: NotificationService.instance.streamNotifications(
-                    widget.userId,
-                    archived: _showArchived,
-                  ),
+                  stream: _notificationStream,
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primaryGreen,
-                        ),
-                      );
+                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                      return const Center(child: CupertinoActivityIndicator());
                     }
+                    
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return Center(
-                        child: Text(
-                          _showArchived
-                              ? 'No archived notifications'
-                              : 'No notifications yet',
-                          style: const TextStyle(color: Colors.grey),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _showArchived ? CupertinoIcons.archivebox : CupertinoIcons.bell_slash,
+                              size: 48,
+                              color: Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _showArchived
+                                  ? 'No archived notifications'
+                                  : 'No notifications yet',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                          ],
                         ),
                       );
                     }
@@ -306,44 +375,68 @@ class NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      leading: CircleAvatar(
-        backgroundColor: _getBgColor(notification.type),
-        child: Icon(_getIcon(notification.type), color: Colors.white, size: 20),
-      ),
-      title: Text(
-        notification.title,
-        style: TextStyle(
-          fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      color: notification.isRead ? Colors.transparent : (isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF1F8E9)),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: _getIconColor(notification.type).withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(_getIcon(notification.type), size: 20, color: _getIconColor(notification.type)),
         ),
-      ),
-      subtitle: Text(
-        notification.message,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Text(
-        DateFormat('MMM d').format(notification.createdAt),
-        style: const TextStyle(fontSize: 12, color: Colors.grey),
+        title: Text(
+          notification.title,
+          style: TextStyle(
+            fontWeight: notification.isRead ? FontWeight.w500 : FontWeight.w800,
+            fontSize: 14,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4.0),
+          child: Text(
+            notification.message,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.white54 : Colors.black54,
+            ),
+          ),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              DateFormat('MMM d').format(notification.createdAt),
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+            if (!notification.isRead)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(color: Color(0xFF81B655), shape: BoxShape.circle),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  Color _getBgColor(NotificationType type) {
+  Color _getIconColor(NotificationType type) {
     switch (type) {
-      case NotificationType.welcome:
-        return Colors.green;
-      case NotificationType.appRejected:
-        return Colors.red;
-      case NotificationType.appApproved:
-        return Colors.green;
-      case NotificationType.achievement:
-        return Colors.teal;
-      case NotificationType.profileReminder:
-        return Colors.blue;
-      default:
-        return Colors.grey;
+      case NotificationType.appApproved: return const Color(0xFF81B655);
+      case NotificationType.appRejected: return Colors.red;
+      case NotificationType.achievement: return Colors.orange;
+      case NotificationType.subscription: return Colors.blue;
+      default: return Colors.grey;
     }
   }
 
@@ -420,7 +513,7 @@ class NotificationDetailDialog extends StatelessWidget {
             NotificationService.instance.deleteNotification(notification.id);
             Navigator.pop(context);
           },
-          child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          child: const Text('Delete'),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context),
@@ -430,4 +523,3 @@ class NotificationDetailDialog extends StatelessWidget {
     );
   }
 }
-

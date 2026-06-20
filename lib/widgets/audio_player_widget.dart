@@ -119,72 +119,21 @@ class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: widget.activeColor.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: widget.activeColor.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildControlButton(
-            icon: _isPlaying ? Icons.pause : Icons.play_arrow,
-            onPressed: _isPlaying ? _pause : _play,
-            size: 32,
-          ),
-          const SizedBox(width: 4),
-          _buildControlButton(
-            icon: Icons.replay,
-            onPressed: _playerState == PlayerState.stopped ? null : _stop,
-            size: 32,
-          ),
-          const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Text(
-              _formatDuration(
-                _position == Duration.zero ? _duration : _position,
-              ),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: widget.activeColor,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildControlButton({
-    required IconData icon,
-    VoidCallback? onPressed,
-    double size = 40,
-  }) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: widget.activeColor.withValues(
-          alpha: onPressed == null ? 0.05 : 0.1,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
+          onPressed: _isPlaying ? _pause : _play,
         ),
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        icon: Icon(
-          icon,
-          color: widget.activeColor.withValues(
-            alpha: onPressed == null ? 0.3 : 1.0,
-          ),
-          size: size * 0.6,
+        IconButton(
+          icon: const Icon(Icons.replay),
+          onPressed: _playerState == PlayerState.stopped ? null : _stop,
         ),
-        onPressed: onPressed,
-        padding: EdgeInsets.zero,
-        constraints: BoxConstraints(minWidth: size, minHeight: size),
-      ),
+        Text(
+          _formatDuration(_position == Duration.zero ? _duration : _position),
+        ),
+      ],
     );
   }
 

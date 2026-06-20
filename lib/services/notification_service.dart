@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification.dart';
 
@@ -14,15 +15,17 @@ class NotificationService {
     String uid, {
     bool archived = false,
   }) {
+    // Removed orderBy to fix potential missing index issues in Firestore
     return _notifications
         .where('uid', isEqualTo: uid)
         .where('isArchived', isEqualTo: archived)
-        .orderBy('createdAt', descending: true)
+        .limit(50)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
               .map((doc) => NotificationModel.fromDoc(doc))
-              .toList(),
+              .toList()
+                ..sort((a, b) => b.createdAt.compareTo(a.createdAt)), // Manual sort
         );
   }
 
@@ -34,21 +37,42 @@ class NotificationService {
     String? rejectionReason,
     String? rejectionDescription,
   }) async {
-    final notification = NotificationModel(
-      id: '',
-      uid: uid,
-      title: title,
-      message: message,
-      type: type,
-      createdAt: DateTime.now(),
-      rejectionReason: rejectionReason,
-      rejectionDescription: rejectionDescription,
-    );
-    await _notifications.add(notification.toMap());
+    try {
+      final notification = NotificationModel(
+        id: '',
+        uid: uid,
+        title: title,
+        message: message,
+        type: type,
+        createdAt: DateTime.now(),
+        rejectionReason: rejectionReason,
+        rejectionDescription: rejectionDescription,
+      );
+      await _notifications.add(notification.toMap());
+    } catch (e) {
+      debugPrint('NOTIFICATION ERROR: $e');
+    }
   }
 
   Future<void> markAsRead(String id) async {
-    await _notifications.doc(id).update({'isRead': true});
+    try {
+      await _notifications.doc(id).update({'isRead': true});
+    } catch (e) {
+      debugPrint('Error marking as read: $e');
+    }
+  }
+
+  Future<void> markAllAsRead(String uid) async {
+    final unread = await _notifications
+        .where('uid', isEqualTo: uid)
+        .where('isRead', isEqualTo: false)
+        .get();
+    
+    final batch = _firestore.batch();
+    for (var doc in unread.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
+    await batch.commit();
   }
 
   Future<void> archiveNotification(String id, {bool archive = true}) async {
@@ -57,6 +81,49 @@ class NotificationService {
 
   Future<void> deleteNotification(String id) async {
     await _notifications.doc(id).delete();
+  }
+
+  Future<void> sendDailyLessonReminders(String educatorUid) async {
+    final now = DateTime.now();
+    if (now.weekday < 1 || now.weekday > 5) return;
+
+    try {
+      final today = DateTime(now.year, now.month, now.day);
+      // Simplify query to avoid index errors, filter in Dart instead
+      final snapshots = await _notifications
+          .where('uid', isEqualTo: educatorUid)
+          .get();
+
+      final existingReminders = snapshots.docs.where((doc) {
+        final data = doc.data();
+        final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+        return data['type'] == 'general' &&
+               data['title'] == 'Mandatory Lesson Upload Reminder' &&
+               createdAt != null &&
+               createdAt.isAfter(today);
+      });
+
+      if (existingReminders.isNotEmpty) return;
+
+      final subscribers = await _firestore
+          .collection('users')
+          .doc(educatorUid)
+          .collection('subscribers')
+          .where('tier', isEqualTo: 'Premium')
+          .get();
+
+      if (subscribers.docs.isNotEmpty) {
+        await sendNotification(
+          uid: educatorUid,
+          title: 'Mandatory Lesson Upload Reminder',
+          message:
+              'You have active premium learners. Please remember to upload a lesson for them today.',
+          type: NotificationType.general,
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to send daily lesson reminder: $e');
+    }
   }
 
   Future<void> sendWelcomeNotification(String uid) async {
@@ -94,6 +161,22 @@ class NotificationService {
     );
   }
 
+  Future<void> sendContentValidationNotification({
+    required String uid,
+    required String title,
+    required bool approved,
+    String? reason,
+  }) async {
+    await sendNotification(
+      uid: uid,
+      title: approved ? 'Content Approved!' : 'Content Rejected',
+      message: approved 
+          ? 'Your content "$title" has been approved and is now live!'
+          : 'Your content "$title" was not approved. ${reason ?? ""}',
+      type: approved ? NotificationType.general : NotificationType.appRejected,
+    );
+  }
+
   Future<void> sendAchievementNotification({
     required String uid,
     required String title,
@@ -114,6 +197,29 @@ class NotificationService {
       message:
           'Please finish setting up your profile by adding your phone number and birthdate to get the most out of Grammatica.',
       type: NotificationType.profileReminder,
+    );
+  }
+
+  Future<void> sendSubscriptionNotification({
+    required String learnerUid,
+    required String educatorUid,
+    required String learnerName,
+    required String educatorName,
+    required String tier,
+  }) async {
+    await sendNotification(
+      uid: learnerUid,
+      title: 'Subscription Successful!',
+      message:
+          'You have successfully subscribed to $educatorName ($tier tier).',
+      type: NotificationType.subscription,
+    );
+
+    await sendNotification(
+      uid: educatorUid,
+      title: 'New Subscriber!',
+      message: '$learnerName has subscribed to you as a $tier.',
+      type: NotificationType.subscription,
     );
   }
 }

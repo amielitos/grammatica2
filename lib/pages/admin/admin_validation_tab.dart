@@ -1,19 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
 import '../../services/database_service.dart';
-import '../../widgets/glass_card.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/author_name_widget.dart';
 import '../quiz_detail_page.dart';
+
+import '../../widgets/application_preview_widgets.dart';
+
 import '../lesson_page.dart';
-import 'package:url_launcher/url_launcher.dart';
+
 import '../../services/role_service.dart';
 import '../../services/notification_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/design_ornaments.dart';
 
 class AdminValidationTab extends StatefulWidget {
-  const AdminValidationTab({super.key});
+  final UserRole role;
+  final int initialTabIndex;
+  const AdminValidationTab({
+    super.key,
+    required this.role,
+    this.initialTabIndex = 0,
+  });
 
   @override
   State<AdminValidationTab> createState() => _AdminValidationTabState();
@@ -35,22 +44,41 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isSuperAdmin = widget.role == UserRole.superadmin;
+
+    if (isSuperAdmin) {
+      return _EducatorApplicationsList(
+        formatDate: _formatTs,
+        type: 'validator',
+      );
+    }
+
     return DefaultTabController(
-      length: 3,
-      child: Column(
-        children: [
-          TabBar(
-            labelColor: AppColors.primaryGreen,
-            unselectedLabelColor: AppColors.getTextColor(
-              context,
-            ).withValues(alpha: 0.6),
-            indicatorColor: AppColors.primaryGreen,
-            tabs: const [
-              Tab(text: 'Lessons'),
-              Tab(text: 'Quizzes'),
-              Tab(text: 'Educators'),
-            ],
-          ),
+      length: 4,
+      initialIndex: widget.initialTabIndex,
+      child: BackgroundWrapper(
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 16),
+              child: TabBar(
+                isScrollable: true,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: AppColors.textSecondary,
+                indicatorColor: AppColors.primary,
+                indicatorWeight: 4,
+                indicatorSize: TabBarIndicatorSize.label,
+                dividerColor: Colors.transparent,
+                labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+                unselectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w500, fontSize: 16),
+                tabs: const [
+                  Tab(text: 'Lessons'),
+                  Tab(text: 'Quizzes'),
+                  Tab(text: 'Assessments'),
+                  Tab(text: 'Educators'),
+                ],
+              ),
+            ),
           Expanded(
             child: TabBarView(
               children: [
@@ -66,25 +94,36 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
                   collection: 'quizzes',
                   formatDate: _formatTs,
                 ),
-                _EducatorApplicationsList(formatDate: _formatTs),
+                _ValidationList(
+                  stream: DatabaseService.instance
+                      .streamAwaitingApprovalAssessments(),
+                  collection: 'quizzes',
+                  formatDate: _formatTs,
+                ),
+                _EducatorApplicationsList(
+                  formatDate: _formatTs,
+                  type: 'educator',
+                ),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _EducatorApplicationsList extends StatelessWidget {
   final String Function(dynamic) formatDate;
+  final String? type;
 
-  const _EducatorApplicationsList({required this.formatDate});
+  const _EducatorApplicationsList({required this.formatDate, this.type});
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<EducatorApplication>>(
-      stream: DatabaseService.instance.streamEducatorApplications(),
+      stream: DatabaseService.instance.streamEducatorApplications(type: type),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -107,12 +146,15 @@ class _EducatorApplicationsList extends StatelessWidget {
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
-            child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
           );
         }
         final items = snapshot.data ?? [];
         if (items.isEmpty) {
-          return const Center(child: Text('No educator applications pending.'));
+          final typeStr = type == 'validator' ? 'validator' : 'educator';
+          return Center(child: Text('No $typeStr applications pending.'));
         }
 
         return ListView.separated(
@@ -126,101 +168,134 @@ class _EducatorApplicationsList extends StatelessWidget {
                 ? formatDate(app.appliedAt!)
                 : 'N/A';
 
-            return GlassCard(
-              backgroundColor: AppColors.getCardColor(context),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 12,
-                      runSpacing: 8,
+            return Container(
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+                border: Border.all(color: Colors.grey.shade100),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Header section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              CupertinoIcons.person_crop_circle_fill,
-                              size: 40,
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundColor: Colors.grey.shade200,
+                              child: const Icon(Icons.person, color: Colors.grey, size: 28),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 16),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   email,
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 18,
+                                    color: Color(0xFF2C3E50),
                                   ),
                                 ),
+                                const SizedBox(height: 4),
                                 Text(
                                   'Applied: $appliedAtStr',
-                                  style: Theme.of(context).textTheme.bodySmall,
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                                 ),
                               ],
                             ),
                           ],
                         ),
                         Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              icon: const Icon(
-                                CupertinoIcons.checkmark_circle,
-                                color: Colors.green,
+                            InkWell(
+                              onTap: () => _approveApplication(context, app),
+                              borderRadius: BorderRadius.circular(50),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF81B655).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.check_circle_outline, color: Color(0xFF81B655), size: 20),
+                                    SizedBox(width: 8),
+                                    Text("Approve", style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
                               ),
-                              onPressed: () =>
-                                  _approveApplication(context, app),
                             ),
-                            IconButton(
-                              icon: const Icon(
-                                CupertinoIcons.xmark_circle,
-                                color: Colors.red,
+                            const SizedBox(width: 12),
+                            InkWell(
+                              onTap: () => _rejectApplication(context, app),
+                              borderRadius: BorderRadius.circular(50),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.highlight_off, color: Colors.redAccent, size: 20),
+                                    SizedBox(width: 8),
+                                    Text("Reject", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
                               ),
-                              onPressed: () => _rejectApplication(context, app),
                             ),
                           ],
                         ),
                       ],
                     ),
-                    const Divider(height: 24),
-                    const Text(
-                      'Credentials:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
+                  ),
+                  Divider(height: 1, color: Colors.grey.shade200),
+                  // Credentials section
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        FilledButton.icon(
-                          onPressed: () => _launchURL(app.videoUrl),
-                          icon: const Icon(CupertinoIcons.play_circle),
-                          label: const Text('View Video Demo'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.blue.withValues(alpha: 0.1),
-                            foregroundColor: Colors.blue,
-                          ),
+                        const Text(
+                          'Credentials Review:',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2C3E50)),
                         ),
-                        FilledButton.icon(
-                          onPressed: () => _launchURL(app.syllabusUrl),
-                          icon: const Icon(CupertinoIcons.doc_text),
-                          label: const Text('View Syllabus'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.teal.withValues(
-                              alpha: 0.1,
+                        const SizedBox(height: 16),
+                        // Professional Grid for Review
+                        GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: MediaQuery.of(context).size.width > 1200 ? 4 : 2,
+                          mainAxisSpacing: 20,
+                          crossAxisSpacing: 20,
+                          childAspectRatio: 1.2,
+                          children: [
+                            _buildAdminReviewCard(context, "Curriculum Vitae", app.cvUrl, Icons.description, "cv.pdf"),
+                            ...app.certificateUrls.asMap().entries.map(
+                                  (e) => _buildAdminReviewCard(context, "Certificate ${e.key + 1}", e.value, Icons.verified, "certificate_${e.key + 1}.pdf")
                             ),
-                            foregroundColor: Colors.teal,
-                          ),
+                            _buildAdminReviewCard(context, "Teaching Demo", app.videoUrl, Icons.videocam, "demo.mp4"),
+                            _buildAdminReviewCard(context, "Syllabus", app.syllabusUrl, Icons.book, "syllabus.pdf"),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },
@@ -229,18 +304,83 @@ class _EducatorApplicationsList extends StatelessWidget {
     );
   }
 
-  Future<void> _launchURL(String url) async {
-    final uri = Uri.parse(url);
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        throw 'Could not launch $url';
-      }
-    } catch (e) {
-      debugPrint('Error launching URL: $e');
-    }
+  Widget _buildAdminReviewCard(BuildContext context, String title, String url, IconData icon, String fileName) {
+    if (url.isEmpty) return const SizedBox();
+    
+    // Extract extension from Firebase Storage URL (ignoring tokens)
+    final bool isImage = ['jpg', 'jpeg', 'png'].contains(url.toLowerCase().split('?').first.split('.').last);
+    final bool isVideo = ['mp4', 'mov', 'avi', 'webm', 'm4v'].contains(url.toLowerCase().split('?').first.split('.').last);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))
+        ],
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+            ),
+            child: Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF2C3E50)),
+            ),
+          ),
+          Expanded(
+            child: InkWell(
+              onTap: () => showFilePreviewModal(context, url, fileName),
+              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
+              child: Container(
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (isImage)
+                      Image.network(url, fit: BoxFit.cover)
+                    else if (isVideo)
+                      const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.play_circle_fill, size: 48, color: Color(0xFF81B655)),
+                            SizedBox(height: 8),
+                            Text("Review Video", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 13)),
+                          ],
+                        ),
+                      )
+                    else
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(icon, size: 48, color: Colors.grey.shade400),
+                            const SizedBox(height: 8),
+                            const Text("Review PDF", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
+
 
   Future<void> _approveApplication(
     BuildContext context,
@@ -249,9 +389,13 @@ class _EducatorApplicationsList extends StatelessWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Approve Educator'),
+        title: Text(
+          app.applicationType == 'validator'
+              ? 'Approve Validator'
+              : 'Approve Educator',
+        ),
         content: Text(
-          'Are you sure you want to approve ${app.applicantEmail} as an educator?',
+          'Are you sure you want to approve ${app.applicantEmail} as a ${app.applicationType}?',
         ),
         actions: [
           TextButton(
@@ -271,7 +415,9 @@ class _EducatorApplicationsList extends StatelessWidget {
         // Update user role
         await RoleService.instance.setUserRole(
           uid: app.applicantUid,
-          role: UserRole.educator,
+          role: app.applicationType == 'validator'
+              ? UserRole.validator
+              : UserRole.educator,
         );
         // Update application status
         await DatabaseService.instance.updateApplicationStatus(
@@ -286,13 +432,17 @@ class _EducatorApplicationsList extends StatelessWidget {
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Educator approved successfully')),
+            SnackBar(
+              content: Text('${app.applicationType} approved successfully'),
+            ),
           );
         }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error approving educator: $e')),
+            SnackBar(
+              content: Text('Error approving ${app.applicationType}: $e'),
+            ),
           );
         }
       }
@@ -317,7 +467,7 @@ class _EducatorApplicationsList extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Please provide a reason for rejecting this educator application.',
+                'Please provide a reason for rejecting this application.',
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -430,7 +580,9 @@ class _ValidationList extends StatelessWidget {
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
-            child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
           );
         }
         final items = snapshot.data ?? [];
@@ -449,161 +601,117 @@ class _ValidationList extends StatelessWidget {
                 ? formatDate(item.createdAt!)
                 : 'N/A';
 
-            return GlassCard(
-              backgroundColor: AppColors.getCardColor(context),
-              onTap: () {
-                final user = AuthService.instance.currentUser;
-                if (user == null) return;
+            return Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: InkWell(
+                onTap: () {
+                  final user = AuthService.instance.currentUser;
+                  if (user == null) return;
 
-                if (collection == 'lessons') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => LessonPage(
-                        user: user,
-                        lesson: item as Lesson,
-                        previewMode: true,
+                  if (collection == 'lessons') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => LessonPage(
+                          user: user,
+                          lesson: item as Lesson,
+                          previewMode: true,
+                        ),
                       ),
-                    ),
-                  );
-                } else {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => QuizDetailPage(
-                        user: user,
-                        quiz: item as Quiz,
-                        previewMode: true,
+                    );
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => QuizDetailPage(
+                          user: user,
+                          quiz: item as Quiz,
+                          previewMode: true,
+                        ),
                       ),
-                    ),
-                  );
-                }
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: MediaQuery.of(context).size.width - 200,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                    );
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width - 200,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          AuthorName(
-                            uid: item.createdByUid,
-                            fallbackEmail: item.createdByEmail,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color:
-                                      (item.isMembersOnly
-                                              ? Colors.amber
-                                              : Colors.blue)
-                                          .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color:
-                                        (item.isMembersOnly
-                                                ? Colors.amber
-                                                : Colors.blue)
-                                            .withValues(alpha: 0.5),
-                                  ),
-                                ),
-                                child: Text(
+                            const SizedBox(height: 4),
+                            AuthorName(
+                              uid: item.createdByUid,
+                              fallbackEmail: item.createdByEmail,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(
                                   item.isMembersOnly
                                       ? 'Members Only'
                                       : 'Public',
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: item.isMembersOnly
-                                        ? Colors.amber
-                                        : Colors.blue,
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Submitted: $createdAtStr',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.visibility,
+                              color: Colors.blue,
+                            ),
+                            tooltip: 'Review Content',
+                            onPressed: () => _showReviewModal(context, item, collection),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Submitted: $createdAtStr',
-                            style: Theme.of(context).textTheme.bodySmall,
+                          IconButton(
+                            icon: const Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.green,
+                            ),
+                            onPressed: () => _approve(context, item),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.highlight_off,
+                              color: Colors.red,
+                            ),
+                            onPressed: () => _reject(context, item),
                           ),
                         ],
                       ),
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.eye,
-                            color: Colors.blue,
-                          ),
-                          tooltip: 'Preview',
-                          onPressed: () {
-                            final user = AuthService.instance.currentUser;
-                            if (user == null) return;
-
-                            if (collection == 'lessons') {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => LessonPage(
-                                    user: user,
-                                    lesson: item as Lesson,
-                                    previewMode: true,
-                                  ),
-                                ),
-                              );
-                            } else {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => QuizDetailPage(
-                                    user: user,
-                                    quiz: item as Quiz,
-                                    previewMode: true,
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.checkmark_circle,
-                            color: Colors.green,
-                          ),
-                          onPressed: () => _approve(context, item.id),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.xmark_circle,
-                            color: Colors.red,
-                          ),
-                          onPressed: () => _reject(context, item.id),
-                        ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -613,34 +721,126 @@ class _ValidationList extends StatelessWidget {
     );
   }
 
-  Future<void> _approve(BuildContext context, String id) async {
+  Future<void> _showReviewModal(BuildContext context, dynamic item, String collection) async {
+    final user = AuthService.instance.currentUser;
+    if (user == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog.fullscreen(
+        child: Stack(
+          children: [
+            Scaffold(
+              body: collection == 'lessons'
+                  ? LessonPage(user: user, lesson: item as Lesson, previewMode: true)
+                  : QuizDetailPage(user: user, quiz: item as Quiz, previewMode: true),
+              bottomNavigationBar: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _reject(context, item);
+                        },
+                        icon: const Icon(Icons.close),
+                        label: const Text('Deny Content'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _approve(context, item);
+                        },
+                        icon: const Icon(Icons.check),
+                        label: const Text('Approve Content'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _approve(BuildContext context, dynamic item) async {
     try {
       await DatabaseService.instance.updateContentStatus(
         collection,
-        id,
+        item.id,
         'approved',
       );
+      
+      // Notify the creator
+      if (item.createdByUid != null && item.createdByUid!.isNotEmpty) {
+        await NotificationService.instance.sendContentValidationNotification(
+          uid: item.createdByUid!,
+          title: item.title,
+          approved: true,
+        );
+      } else {
+        debugPrint('CANNOT NOTIFY: createdByUid is null for item ${item.id}');
+      }
+
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Approved')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Approved! Notification sent to creator (ID: ${item.createdByUid})'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error approving/notifying: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
 
-  Future<void> _reject(BuildContext context, String id) async {
+  Future<void> _reject(BuildContext context, dynamic item) async {
+    final reasonController = TextEditingController();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reject Content'),
-        content: const Text(
-          'Are you sure you want to reject (delete) this content?',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Are you sure you want to reject (delete) this content?'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Reason for rejection',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -649,7 +849,8 @@ class _ValidationList extends StatelessWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Deny & Notify Educator'),
           ),
         ],
       ),
@@ -657,24 +858,42 @@ class _ValidationList extends StatelessWidget {
 
     if (confirm == true) {
       try {
-        if (collection == 'lessons') {
-          await DatabaseService.instance.deleteLesson(id);
+        // Notify before deleting (so we still have item data)
+        if (item.createdByUid != null && item.createdByUid!.isNotEmpty) {
+          await NotificationService.instance.sendContentValidationNotification(
+            uid: item.createdByUid!,
+            title: item.title,
+            approved: false,
+            reason: reasonController.text,
+          );
         } else {
-          await DatabaseService.instance.deleteQuiz(id);
+          debugPrint('CANNOT NOTIFY: createdByUid is null for item ${item.id}');
         }
+
+        if (collection == 'lessons') {
+          await DatabaseService.instance.deleteLesson(item.id);
+        } else {
+          await DatabaseService.instance.deleteQuiz(item.id);
+        }
+        
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Rejected and Deleted')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Rejected! Notification sent to creator (ID: ${item.createdByUid})'),
+              backgroundColor: Colors.orange,
+            ),
+          );
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error rejecting/notifying: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       }
     }
   }
 }
-

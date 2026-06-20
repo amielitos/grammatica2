@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../services/role_service.dart';
-import '../theme/app_colors.dart';
-import 'glass_card.dart';
+import '../services/database_service.dart';
 
 class UserVisibilitySelector extends StatefulWidget {
   final List<String> selectedUserIds;
   final Function(List<String>) onChanged;
+  final String? educatorUid;
 
   const UserVisibilitySelector({
     super.key,
     required this.selectedUserIds,
     required this.onChanged,
+    this.educatorUid,
   });
 
   @override
@@ -37,15 +38,19 @@ class _UserVisibilitySelectorState extends State<UserVisibilitySelector> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Specific User Visibility',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        Text(
+          widget.educatorUid != null
+              ? 'Premium Members Visibility'
+              : 'Specific Users Visibility',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: _controller,
           decoration: InputDecoration(
-            hintText: 'Search users to grant access...',
+            hintText: widget.educatorUid != null
+                ? 'Search premium members...'
+                : 'Search users to grant specific access...',
             prefixIcon: const Icon(CupertinoIcons.search, size: 20),
             suffixIcon: _searchQuery.isNotEmpty
                 ? IconButton(
@@ -61,15 +66,7 @@ class _UserVisibilitySelectorState extends State<UserVisibilitySelector> {
                     },
                   )
                 : null,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
-            ),
+            border: const OutlineInputBorder(),
           ),
           onChanged: (value) {
             setState(() {
@@ -80,19 +77,24 @@ class _UserVisibilitySelectorState extends State<UserVisibilitySelector> {
         if (_searchQuery.isNotEmpty) ...[
           const SizedBox(height: 8),
           StreamBuilder<List<Map<String, dynamic>>>(
-            stream: RoleService.instance.allUsersStream(),
+            stream: widget.educatorUid != null
+                ? DatabaseService.instance
+                      .streamEducatorSubscribers(widget.educatorUid!)
+                      .map(
+                        (subscribers) => subscribers
+                            .where((s) => s['tier'] == 'Premium')
+                            .toList(),
+                      )
+                : RoleService.instance.allUsersStream(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const SizedBox.shrink();
 
-              final users = snapshot.data!
-                  .where((u) {
-                    final query = _searchQuery.toLowerCase();
-                    final name = (u['username'] as String? ?? '').toLowerCase();
-                    final email = (u['email'] as String? ?? '').toLowerCase();
-                    return name.contains(query) || email.contains(query);
-                  })
-                  .take(5)
-                  .toList();
+              final users = snapshot.data!.where((u) {
+                final query = _searchQuery.toLowerCase();
+                final name = (u['username'] as String? ?? '').toLowerCase();
+                final email = (u['email'] as String? ?? '').toLowerCase();
+                return name.contains(query) || email.contains(query);
+              }).toList();
 
               if (users.isEmpty) {
                 return const Padding(
@@ -104,7 +106,13 @@ class _UserVisibilitySelectorState extends State<UserVisibilitySelector> {
                 );
               }
 
-              return GlassCard(
+              return Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Column(
                   children: users.map((u) {
                     final uid = u['uid'] as String;
@@ -117,7 +125,9 @@ class _UserVisibilitySelectorState extends State<UserVisibilitySelector> {
                         isSelected
                             ? CupertinoIcons.checkmark_circle_fill
                             : CupertinoIcons.add_circled,
-                        color: isSelected ? AppColors.primaryGreen : null,
+                        color: isSelected
+                            ? Theme.of(context).primaryColor
+                            : null,
                       ),
                       onTap: () => _toggleUser(uid),
                     );
@@ -135,7 +145,11 @@ class _UserVisibilitySelectorState extends State<UserVisibilitySelector> {
           ),
           const SizedBox(height: 4),
           StreamBuilder<List<Map<String, dynamic>>>(
-            stream: RoleService.instance.allUsersStream(),
+            stream: widget.educatorUid != null
+                ? DatabaseService.instance.streamEducatorSubscribers(
+                    widget.educatorUid!,
+                  )
+                : RoleService.instance.allUsersStream(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const SizedBox.shrink();
 
