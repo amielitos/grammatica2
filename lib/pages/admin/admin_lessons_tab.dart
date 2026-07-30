@@ -446,20 +446,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     );
   }
 
-  InputDecoration _inputDecoration(bool isDark, {required String hint}) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: GoogleFonts.inter(color: isDark ? Colors.white30 : Colors.black26),
-      filled: true,
-      fillColor: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      contentPadding: const EdgeInsets.all(20),
-    );
-  }
-
   Widget _buildPdfAttachZone(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

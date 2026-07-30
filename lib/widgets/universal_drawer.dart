@@ -65,6 +65,11 @@ class UniversalDrawer extends StatelessWidget {
            navItems.add(const ModernNavItem(icon: Icons.assignment, label: 'English Assessment'));
         }
 
+        // AI Studio (Admin + Educator)
+        if (isAdminOrSuperAdmin || isEducator) {
+          navItems.add(const ModernNavItem(icon: Icons.psychology, label: 'AI Studio'));
+        }
+
         if (!isEducator) {
           navItems.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
         }

@@ -510,7 +510,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
     }
 
     return DropdownButtonFormField<String>(
-      value: currentVal,
+      initialValue: currentVal,
       style: GoogleFonts.inter(fontSize: 16, color: Colors.black87),
       decoration: InputDecoration(
         labelText: 'Duration',
