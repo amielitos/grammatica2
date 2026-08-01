@@ -1192,6 +1192,25 @@ class DatabaseService {
     }
   }
 
+  Future<String> uploadGeneratedImage(Uint8List bytes, String fileName) async {
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('generated_images')
+          .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
+
+      final uploadTask = storageRef.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+
+      final snapshot = await uploadTask.whenComplete(() => null);
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      throw Exception('Failed to upload generated image: $e');
+    }
+  }
+
   Stream<List<Map<String, dynamic>>> streamEducators() {
     return _firestore
         .collection('users')

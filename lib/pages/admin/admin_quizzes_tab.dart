@@ -44,6 +44,21 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
         loadQuiz(widget.initialQuizId!);
       });
     }
+    _loadLessons();
+  }
+
+  Future<void> _loadLessons() async {
+    try {
+      final lessons = await DatabaseService.instance.fetchLessons();
+      if (mounted) {
+        setState(() {
+          _availableLessons = lessons;
+          if (lessons.isNotEmpty) _aiSelectedLessonId = lessons.first.id;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading lessons: $e');
+    }
   }
 
   List<_QuestionState> _questions = [_QuestionState()];
@@ -55,11 +70,15 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   ContentVisibility _visibility = ContentVisibility.public;
 
   // AI Configuration state
+  String _aiSourceMode = 'pdf'; // 'pdf', 'text', 'lesson'
+  final _aiPasteTextCtrl = TextEditingController();
+  List<Lesson> _availableLessons = [];
+  String? _aiSelectedLessonId;
   String _aiDifficulty = 'medium';
   int _aiNumQuestions = 10;
   final _aiCustomInstructionsCtrl = TextEditingController();
   bool _aiIncludeHints = true;
-  final List<String> _aiQuestionTypes = ['multiple_choice', 'true_false'];
+  List<String> _aiQuestionTypes = ['multiple_choice'];
 
   @override
   void dispose() {
@@ -666,23 +685,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Questions', style: Theme.of(context).textTheme.titleMedium),
-            ElevatedButton.icon(
-              onPressed: _isGeneratingFromPdf ? null : _generateQuestionsWithAi,
-              icon: _isGeneratingFromPdf
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_awesome),
-              label: const Text('AI Generate'),
-            ),
-          ],
-        ),
+        Text('Questions', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 16),
         ...List.generate(_questions.length, (index) {
           return _buildQuestionItem(_questions[index], index, _questions);
@@ -984,6 +987,60 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           ),
           const SizedBox(height: 16),
 
+          // Question Types Checkboxes
+          Text('Question Types', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          const SizedBox(height: 8),
+          Material(
+            color: Colors.transparent,
+            child: Column(
+              children: [
+                CheckboxListTile(
+                  title: Text('Multiple Choice', style: GoogleFonts.inter(fontSize: 13)),
+                  value: _aiQuestionTypes.contains('multiple_choice'),
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) _aiQuestionTypes.add('multiple_choice');
+                      else _aiQuestionTypes.remove('multiple_choice');
+                    });
+                  },
+                  activeColor: const Color(0xFF88B342),
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                CheckboxListTile(
+                  title: Text('Fill in the Blanks / Textfield', style: GoogleFonts.inter(fontSize: 13)),
+                  value: _aiQuestionTypes.contains('fill_in_the_blank'),
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) _aiQuestionTypes.add('fill_in_the_blank');
+                      else _aiQuestionTypes.remove('fill_in_the_blank');
+                    });
+                  },
+                  activeColor: const Color(0xFF88B342),
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                CheckboxListTile(
+                  title: Text('Passage / Reading', style: GoogleFonts.inter(fontSize: 13)),
+                  value: _aiQuestionTypes.contains('passage'),
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) _aiQuestionTypes.add('passage');
+                      else _aiQuestionTypes.remove('passage');
+                    });
+                  },
+                  activeColor: const Color(0xFF88B342),
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // Difficulty
           Text('Difficulty', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
           const SizedBox(height: 8),
@@ -1021,12 +1078,15 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           const SizedBox(height: 16),
 
           // Include hints
-          SwitchListTile(
-            title: Text('Include Hints', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
-            value: _aiIncludeHints,
-            onChanged: (val) => setState(() => _aiIncludeHints = val),
-            activeColor: const Color(0xFF88B342),
-            contentPadding: EdgeInsets.zero,
+          Material(
+            color: Colors.transparent,
+            child: SwitchListTile(
+              title: Text('Include Hints', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+              value: _aiIncludeHints,
+              onChanged: (val) => setState(() => _aiIncludeHints = val),
+              activeColor: const Color(0xFF88B342),
+              contentPadding: EdgeInsets.zero,
+            ),
           ),
           const SizedBox(height: 8),
 
@@ -1038,7 +1098,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             maxLines: 3,
             style: GoogleFonts.inter(fontSize: 14),
             decoration: InputDecoration(
-              hintText: 'e.g. "1-5 multiple choice, 6-10 fill in the blank"',
+              hintText: 'e.g. "Generate matching questions"',
               hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade400),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               enabledBorder: OutlineInputBorder(
@@ -1051,6 +1111,122 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               ),
             ),
           ),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 16),
+
+          // Source Material Selection
+          Text('Generate from Source', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A))),
+          const SizedBox(height: 12),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'pdf', label: Text('PDF File')),
+              ButtonSegment(value: 'text', label: Text('Paste Text')),
+              ButtonSegment(value: 'lesson', label: Text('Existing Lesson')),
+            ],
+            selected: {_aiSourceMode},
+            onSelectionChanged: (val) => setState(() => _aiSourceMode = val.first),
+            style: ButtonStyle(visualDensity: VisualDensity.compact),
+          ),
+          const SizedBox(height: 16),
+
+          // Dynamic Source Input & Generate Button
+          if (_aiSourceMode == 'pdf')
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _isGeneratingFromPdf ? null : _generateQuestionsWithAi,
+                icon: _isGeneratingFromPdf 
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.picture_as_pdf_rounded),
+                label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Select PDF & Generate'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF88B342),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            )
+          else if (_aiSourceMode == 'text')
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _aiPasteTextCtrl,
+                  maxLines: 4,
+                  style: GoogleFonts.inter(fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Paste raw text here...',
+                    hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade400),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF88B342), width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _isGeneratingFromPdf ? null : _generateQuestionsWithAi,
+                  icon: _isGeneratingFromPdf 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.auto_awesome),
+                  label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Generate from Text'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF88B342),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            )
+          else if (_aiSourceMode == 'lesson')
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _aiSelectedLessonId,
+                      hint: const Text('Select a lesson'),
+                      items: _availableLessons.map((l) {
+                        return DropdownMenuItem(
+                          value: l.id,
+                          child: Text(l.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setState(() => _aiSelectedLessonId = val);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _isGeneratingFromPdf ? null : _generateQuestionsWithAi,
+                  icon: _isGeneratingFromPdf 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.auto_awesome),
+                  label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Generate from Lesson'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF88B342),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -1058,75 +1234,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
   /// AI-powered question generation — replaces old PDF-only flow.
   Future<void> _generateQuestionsWithAi() async {
-    // Show a dialog to choose: upload PDF or paste text
-    final pasteCtrl = TextEditingController();
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.auto_awesome, color: Color(0xFF88B342)),
-            SizedBox(width: 12),
-            Text('AI Generate Questions'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Choose how to provide the source material:'),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(ctx, 'pdf'),
-                icon: const Icon(Icons.picture_as_pdf_rounded),
-                label: const Text('Upload PDF'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF88B342),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text('— or —', style: TextStyle(color: Colors.grey)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: pasteCtrl,
-              maxLines: 5,
-              decoration: InputDecoration(
-                hintText: 'Paste lesson text here...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.pop(ctx, 'text'),
-                icon: const Icon(Icons.text_snippet_rounded),
-                label: const Text('Generate from Text'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (choice == null) return;
-
     setState(() => _isGeneratingFromPdf = true);
 
     try {
-      String extractedText;
+      String extractedText = '';
 
-      if (choice == 'pdf') {
+      if (_aiSourceMode == 'pdf') {
         final result = await FilePicker.platform.pickFiles(
           type: FileType.custom,
           allowedExtensions: ['pdf'],
@@ -1149,12 +1262,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
         }
 
         extractedText = await _aiLogicService.extractTextFromPdf(bytes);
-      } else {
-        extractedText = pasteCtrl.text.trim();
+      } else if (_aiSourceMode == 'text') {
+        extractedText = _aiPasteTextCtrl.text.trim();
         if (extractedText.isEmpty) {
-          setState(() => _isGeneratingFromPdf = false);
-          return;
+          throw Exception('Please paste some text first.');
         }
+      } else if (_aiSourceMode == 'lesson') {
+        if (_aiSelectedLessonId == null) {
+          throw Exception('Please select a lesson first.');
+        }
+        final lesson = await DatabaseService.instance.getLessonById(_aiSelectedLessonId!);
+        if (lesson == null) {
+          throw Exception('Could not load the selected lesson.');
+        }
+        extractedText = '${lesson.title}\n\n${lesson.prompt}\n\n${lesson.answer}';
       }
 
       final config = QuizGenerationConfig(
@@ -1172,6 +1293,13 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
       // Map AI response to native _QuestionState objects
       setState(() {
+        if (aiResponse.title != null && aiResponse.title!.isNotEmpty) {
+          _title.text = aiResponse.title!;
+        }
+        if (aiResponse.description != null && aiResponse.description!.isNotEmpty) {
+          _description.text = aiResponse.description!;
+        }
+
         // Clear default first empty question if it's the only one and empty
         if (_questions.length == 1 && _questions[0].questionCtrl.text.isEmpty) {
           _questions[0].dispose();
@@ -1187,10 +1315,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           _questions.add(_QuestionState(
             questionCtrl: TextEditingController(text: questionText),
             answerCtrl: TextEditingController(text: q.correctAnswer),
-            type: q.options.isNotEmpty ? 'multiple_choice' : 'text',
+            type: q.questionType.toJsonString(),
             optionsCtrls: q.options
                 .map((opt) => TextEditingController(text: opt))
                 .toList(),
+            hintCtrl: q.hint != null ? TextEditingController(text: q.hint) : null,
+            explanationCtrl: q.explanation != null ? TextEditingController(text: q.explanation) : null,
           ));
         }
 
@@ -1383,6 +1513,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               .where((nq) => nq.question.isNotEmpty)
               .toList()
           : null,
+      hint: q.hintCtrl?.text.trim().isNotEmpty == true ? q.hintCtrl!.text.trim() : null,
+      explanation: q.explanationCtrl?.text.trim().isNotEmpty == true ? q.explanationCtrl!.text.trim() : null,
     );
   }
 
@@ -1397,6 +1529,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       nestedQuestions: (q.nestedQuestions ?? [])
           .map((nq) => _loadQuestionState(nq))
           .toList(),
+      hintCtrl: q.hint != null ? TextEditingController(text: q.hint) : null,
+      explanationCtrl: q.explanation != null ? TextEditingController(text: q.explanation) : null,
     );
   }
 }
@@ -1407,6 +1541,8 @@ class _QuestionState {
   String type;
   List<TextEditingController> optionsCtrls;
   List<_QuestionState> nestedQuestions;
+  TextEditingController? hintCtrl;
+  TextEditingController? explanationCtrl;
 
   _QuestionState({
     TextEditingController? questionCtrl,
@@ -1414,6 +1550,8 @@ class _QuestionState {
     this.type = 'text',
     List<TextEditingController>? optionsCtrls,
     List<_QuestionState>? nestedQuestions,
+    this.hintCtrl,
+    this.explanationCtrl,
   })  : questionCtrl = questionCtrl ?? TextEditingController(),
         answerCtrl = answerCtrl ?? TextEditingController(),
         optionsCtrls = optionsCtrls ?? [],
@@ -1422,6 +1560,8 @@ class _QuestionState {
   void dispose() {
     questionCtrl.dispose();
     answerCtrl.dispose();
+    hintCtrl?.dispose();
+    explanationCtrl?.dispose();
     for (var ctrl in optionsCtrls) {
       ctrl.dispose();
     }

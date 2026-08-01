@@ -402,6 +402,9 @@ Generate a General English assessment. Include:
         case QuizQuestionType.matching:
           nativeType = 'text';
           break;
+        case QuizQuestionType.passage:
+          nativeType = 'passage';
+          break;
       }
 
       return QuizQuestion(

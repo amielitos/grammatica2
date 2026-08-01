@@ -373,27 +373,48 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             isDark: isDark,
           ),
           const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(child: _buildVisibilitySettings(role, isDark)),
-              const SizedBox(width: 24),
-              ElevatedButton.icon(
-                onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isDark ? Colors.white12 : const Color(0xFF88B342).withValues(alpha: 0.1),
-                  foregroundColor: isDark ? Colors.white : const Color(0xFF88B342),
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          _buildVisibilitySettings(role, isDark),
+          const SizedBox(height: 32),
+          
+          // AI Generation Config
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AI Generation Config',
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF2A2A2A),
+                  ),
                 ),
-                icon: _isGeneratingFromPdf
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.auto_awesome_rounded, size: 18),
-                label: Text('AI Generate', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Text('Generate from Source', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF2A2A2A))),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
+                    icon: _isGeneratingFromPdf 
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.picture_as_pdf_rounded),
+                    label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Select PDF & Generate Lesson'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF88B342),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -660,13 +681,16 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: isDark ? Colors.white12 : const Color(0xFF88B342).withValues(alpha: 0.3)),
             ),
-            child: CheckboxListTile(
-              title: Text('Upload as Grammatica Lesson', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : const Color(0xFF2A2A2A))),
-              subtitle: Text('Shows in the global learning section for all users', style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54)),
-              value: _isGrammaticaLesson,
-              activeColor: const Color(0xFF88B342),
-              onChanged: (value) => setState(() => _isGrammaticaLesson = value ?? false),
-              contentPadding: EdgeInsets.zero,
+            child: Material(
+              color: Colors.transparent,
+              child: CheckboxListTile(
+                title: Text('Upload as Grammatica Lesson', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : const Color(0xFF2A2A2A))),
+                subtitle: Text('Shows in the global learning section for all users', style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54)),
+                value: _isGrammaticaLesson,
+                activeColor: const Color(0xFF88B342),
+                onChanged: (value) => setState(() => _isGrammaticaLesson = value ?? false),
+                contentPadding: EdgeInsets.zero,
+              ),
             ),
           ),
         ],
@@ -675,105 +699,33 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Future<void> _generateFromPdf() async {
-    // Show a dialog to choose: upload PDF or paste text
-    final pasteCtrl = TextEditingController();
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.auto_awesome_rounded, color: AppColors.primary),
-            const SizedBox(width: 12),
-            Text('AI Generate Lesson', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Choose how to provide the source material:', style: GoogleFonts.inter(fontSize: 14)),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.pop(ctx, 'pdf'),
-                icon: const Icon(Icons.picture_as_pdf_rounded),
-                label: const Text('Upload PDF'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text('— or —', style: TextStyle(color: Colors.grey)),
-            const SizedBox(height: 12),
-            TextField(
-              controller: pasteCtrl,
-              maxLines: 5,
-              decoration: InputDecoration(
-                hintText: 'Paste raw text here...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.pop(ctx, 'text'),
-                icon: const Icon(Icons.text_snippet_rounded),
-                label: const Text('Generate from Text'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (choice == null) return;
-
     setState(() => _isGeneratingFromPdf = true);
 
     try {
       late final dynamic lessonResponse;
 
-      if (choice == 'pdf') {
-        final result = await FilePicker.platform.pickFiles(
-          type: FileType.custom,
-          allowedExtensions: ['pdf'],
-          withData: true,
-        );
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        withData: true,
+      );
 
-        if (result == null || result.files.isEmpty) {
-          setState(() => _isGeneratingFromPdf = false);
-          return;
-        }
-
-        final platformFile = result.files.single;
-        List<int> bytes;
-        if (platformFile.bytes != null) {
-          bytes = platformFile.bytes!;
-        } else if (platformFile.path != null) {
-          bytes = await File(platformFile.path!).readAsBytes();
-        } else {
-          throw Exception('Could not read file data');
-        }
-
-        lessonResponse = await _aiLogicService.generateLessonFromPdf(bytes);
-      } else {
-        final text = pasteCtrl.text.trim();
-        if (text.isEmpty) {
-          setState(() => _isGeneratingFromPdf = false);
-          return;
-        }
-        lessonResponse = await _aiLogicService.generateLesson(text);
+      if (result == null || result.files.isEmpty) {
+        setState(() => _isGeneratingFromPdf = false);
+        return;
       }
+
+      final platformFile = result.files.single;
+      List<int> bytes;
+      if (platformFile.bytes != null) {
+        bytes = platformFile.bytes!;
+      } else if (platformFile.path != null) {
+        bytes = await File(platformFile.path!).readAsBytes();
+      } else {
+        throw Exception('Could not read file data');
+      }
+
+      lessonResponse = await _aiLogicService.generateLessonFromPdf(bytes);
 
       // Populate blocks from AI response
       for (final ctrl in _contentBlockCtrls) {
@@ -810,7 +762,21 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             }
             break;
           case 'image':
-            blockText = '[Image: ${block.data}]';
+            try {
+              final prompt = block.data.toString();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Generating AI image for lesson...'), duration: Duration(seconds: 2)),
+                );
+              }
+              final imageBytes = await _aiLogicService.generateImageFromPrompt(prompt);
+              final fileName = 'ai_lesson_img_${DateTime.now().millisecondsSinceEpoch}.jpg';
+              final url = await DatabaseService.instance.uploadGeneratedImage(imageBytes, fileName);
+              blockText = '![Generated Image]($url)';
+            } catch (e) {
+              debugPrint('Error generating image block: $e');
+              blockText = '[Image: ${block.data}]';
+            }
             break;
           default:
             blockText = block.data.toString();

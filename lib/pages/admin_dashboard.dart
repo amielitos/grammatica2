@@ -12,7 +12,6 @@ import 'admin/educator_groups_tab.dart';
 import 'practice_tab.dart';
 import '../widgets/notification_widgets.dart';
 
-
 import '../services/database_service.dart';
 
 import '../services/notification_service.dart';
@@ -21,10 +20,8 @@ import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import 'admin/validator_dashboard_tab.dart';
 import 'admin/educator_dashboard_tab.dart';
-import '../services/ai_logic_service.dart';
 
 import 'dart:async';
-
 
 class AdminDashboard extends StatefulWidget {
   final User user;
@@ -71,15 +68,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _notifSubscription = NotificationService.instance
         .streamNotifications(widget.user.uid)
         .listen((notifs) {
-      if (!mounted) return;
-      final unread = notifs.where((n) => !n.isRead).toList();
-      for (var n in unread) {
-        if (!_notifiedIds.contains(n.id)) {
-          _notifiedIds.add(n.id);
-          // SnackBars removed as per user preference (prefers relying on red dot icon)
-        }
-      }
-    });
+          if (!mounted) return;
+          final unread = notifs.where((n) => !n.isRead).toList();
+          for (var n in unread) {
+            if (!_notifiedIds.contains(n.id)) {
+              _notifiedIds.add(n.id);
+              // SnackBars removed as per user preference (prefers relying on red dot icon)
+            }
+          }
+        });
   }
 
   @override
@@ -124,57 +121,71 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final List<ModernNavItem> navItems = [];
 
     if (isValidator) {
-      tabs.add(ValidatorDashboardTab(
-        onReviewRequests: (subIndex) => setState(() {
-          _index = 1;
-          _initialValidationTabIndex = subIndex;
-        }),
-      ));
-      navItems.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
+      tabs.add(
+        ValidatorDashboardTab(
+          onReviewRequests: (subIndex) => setState(() {
+            _index = 1;
+            _initialValidationTabIndex = subIndex;
+          }),
+        ),
+      );
+      navItems.add(
+        const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'),
+      );
 
-      tabs.add(AdminValidationTab(
-        key: ValueKey('validation_$_initialValidationTabIndex'),
-        role: widget.role,
-        initialTabIndex: _initialValidationTabIndex,
-      ));
+      tabs.add(
+        AdminValidationTab(
+          key: ValueKey('validation_$_initialValidationTabIndex'),
+          role: widget.role,
+          initialTabIndex: _initialValidationTabIndex,
+        ),
+      );
       navItems.add(
         const ModernNavItem(icon: Icons.verified_user, label: 'Validation'),
       );
     } else {
       // 0: Dashboard (Educator)
       if (isEducator) {
-        tabs.add(EducatorDashboardTab(
-          userData: widget.userData,
-          onTabChange: (i) {
-            setState(() {
-              if (i == 4) {
-                // English Assessment index
-                _initialPracticeSubTab = 2; // Assessment sub-tab
-                _initialPracticeShowEditor = true; // Go to editor directly
-              } else {
-                _initialPracticeSubTab = null;
-                _initialPracticeShowEditor = false;
-              }
-              _index = i;
-            });
-          },
-        ));
-        navItems.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
+        tabs.add(
+          EducatorDashboardTab(
+            userData: widget.userData,
+            onTabChange: (i) {
+              setState(() {
+                if (i == 4) {
+                  // English Assessment index
+                  _initialPracticeSubTab = 2; // Assessment sub-tab
+                  _initialPracticeShowEditor = true; // Go to editor directly
+                } else {
+                  _initialPracticeSubTab = null;
+                  _initialPracticeShowEditor = false;
+                }
+                _index = i;
+              });
+            },
+          ),
+        );
+        navItems.add(
+          const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'),
+        );
       }
 
       // 0: Users (Admin only)
       if (isAdmin) {
         tabs.add(const AdminUsersTab());
-        navItems.add(const ModernNavItem(icon: Icons.people, label: 'User Management'));
+        navItems.add(
+          const ModernNavItem(icon: Icons.people, label: 'User Management'),
+        );
       }
 
       // Validation (Super Admin only - Validators handled above)
       if (widget.role == UserRole.superadmin) {
-        tabs.add(AdminValidationTab(
-          key: ValueKey('validation_$_initialValidationTabIndex'),
-          role: widget.role,
-          initialTabIndex: _initialValidationTabIndex,
-        ));
+        tabs.add(
+          AdminValidationTab(
+            key: ValueKey('validation_$_initialValidationTabIndex'),
+            role: widget.role,
+            initialTabIndex: _initialValidationTabIndex,
+          ),
+        );
         navItems.add(
           const ModernNavItem(icon: Icons.verified_user, label: 'Validation'),
         );
@@ -195,10 +206,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         );
         navItems.add(
-          const ModernNavItem(
-            icon: Icons.edit_document,
-            label: 'Contents',
-          ),
+          const ModernNavItem(icon: Icons.edit_document, label: 'Contents'),
         );
       }
 
@@ -246,13 +254,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
           const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
         );
       } else if (isEducator) {
-        tabs.add(PracticeTab(
-          key: ValueKey('practice_${_initialPracticeSubTab}_$_initialPracticeShowEditor'),
-          initialSubTab: _initialPracticeSubTab,
-          initialShowEditor: _initialPracticeShowEditor,
-        ));
+        tabs.add(
+          PracticeTab(
+            key: ValueKey(
+              'practice_${_initialPracticeSubTab}_$_initialPracticeShowEditor',
+            ),
+            initialSubTab: _initialPracticeSubTab,
+            initialShowEditor: _initialPracticeShowEditor,
+          ),
+        );
         navItems.add(
-          const ModernNavItem(icon: Icons.assignment, label: 'English Assessment'),
+          const ModernNavItem(
+            icon: Icons.assignment,
+            label: 'English Assessment',
+          ),
         );
       }
 
@@ -295,7 +310,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
           });
         },
         onProfileTap: () {
-          final profileTabIndex = navItems.indexWhere((item) => item.icon == Icons.person);
+          final profileTabIndex = navItems.indexWhere(
+            (item) => item.icon == Icons.person,
+          );
           if (profileTabIndex != -1) {
             setState(() {
               _index = profileTabIndex;
@@ -324,10 +341,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           });
         },
       ),
-      body: IndexedStack(
-        index: _index,
-        children: tabs,
-      ),
+      body: IndexedStack(index: _index, children: tabs),
     );
   }
 }

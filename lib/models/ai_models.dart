@@ -94,7 +94,8 @@ enum QuizQuestionType {
   trueFalse,
   shortAnswer,
   fillInTheBlank,
-  matching;
+  matching,
+  passage;
 
   factory QuizQuestionType.fromString(String value) {
     switch (value) {
@@ -108,6 +109,8 @@ enum QuizQuestionType {
         return QuizQuestionType.fillInTheBlank;
       case 'matching':
         return QuizQuestionType.matching;
+      case 'passage':
+        return QuizQuestionType.passage;
       default:
         return QuizQuestionType.multipleChoice;
     }
@@ -125,6 +128,8 @@ enum QuizQuestionType {
         return 'fill_in_the_blank';
       case QuizQuestionType.matching:
         return 'matching';
+      case QuizQuestionType.passage:
+        return 'passage';
     }
   }
 }
@@ -188,19 +193,27 @@ class AIQuizQuestion {
 }
 
 class AIQuizResponse {
+  final String? title;
+  final String? description;
   final List<AIQuizQuestion> questions;
 
-  const AIQuizResponse({required this.questions});
+  const AIQuizResponse({this.title, this.description, required this.questions});
 
   factory AIQuizResponse.fromJson(Map<String, dynamic> json) {
     final qs = (json['questions'] as List<dynamic>?)
             ?.map((q) => AIQuizQuestion.fromJson(Map<String, dynamic>.from(q)))
             .toList() ??
         [];
-    return AIQuizResponse(questions: qs);
+    return AIQuizResponse(
+      title: json['title'] as String?,
+      description: json['description'] as String?,
+      questions: qs,
+    );
   }
 
   Map<String, dynamic> toJson() => {
+        if (title != null) 'title': title,
+        if (description != null) 'description': description,
         'questions': questions.map((q) => q.toJson()).toList(),
       };
 }

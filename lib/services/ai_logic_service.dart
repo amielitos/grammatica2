@@ -74,7 +74,7 @@ Output ONLY the markdown text, nothing else.
   static String _buildQuizSystemPrompt(QuizGenerationConfig config) {
     final questionTypesStr = config.questionTypes.isNotEmpty
         ? config.questionTypes.map((t) => '"$t"').join(', ')
-        : '"multiple_choice", "true_false", "short_answer", "fill_in_the_blank", "matching"';
+        : '"multiple_choice", "fill_in_the_blank", "passage"';
 
     final difficultyInstruction = switch (config.difficulty) {
       'easy' =>
@@ -104,13 +104,15 @@ $difficultyInstruction
 Rules:
 1. The JSON must follow this exact structure:
    {
+     "title": "<A catchy title for the quiz>",
+     "description": "<A short description of the quiz>",
      "questions": [<array of question objects>]
    }
 2. Each question object MUST have these exact fields:
    - "questionType": one of $questionTypesStr
-   - "question": a string containing the question text
-   - "options": array of strings (required for multiple_choice and true_false; use empty array [] for short_answer and fill_in_the_blank)
-   - "correctAnswer": string with the correct answer
+   - "question": a string containing the question text or the passage text if type is passage.
+   - "options": array of strings (required for multiple_choice; use empty array [] for fill_in_the_blank or passage)
+   - "correctAnswer": string with the correct answer (use empty string "" for passage)
 $hintLine
 $explanationLine
 3. Only use the question types listed above. Distribute questions across the allowed types.
@@ -621,6 +623,28 @@ $explanationLine
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  /// Generates an image using the free Pollinations AI API.
+  Future<Uint8List> generateImageFromPrompt(String prompt) async {
+    try {
+      final encodedPrompt = Uri.encodeComponent(prompt);
+      final uri = Uri.parse('https://image.pollinations.ai/prompt/$encodedPrompt?nologo=true');
+      
+      final response = await http.get(
+        uri,
+        headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Image API error ${response.statusCode}: ${response.body}');
+      }
+      
+      return response.bodyBytes;
+    } catch (e) {
+      debugPrint('generateImageFromPrompt error: $e');
+      rethrow;
+    }
+  }
 
   /// Extracts the text payload from a Gemini REST API response.
   String _extractGeminiText(Map<String, dynamic> json) {
