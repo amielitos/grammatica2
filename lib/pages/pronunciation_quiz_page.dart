@@ -217,7 +217,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
               _recognizedText = result.recognizedWords;
             });
             if (result.finalResult) {
-              _autoSubmit();
+              _stopRecording();
             }
           }
         },
@@ -240,7 +240,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
             onResult: (transcript, isFinal) {
               if (mounted && !_isTransitioning) {
                 setState(() => _recognizedText = transcript);
-                if (isFinal) _autoSubmit();
+                if (isFinal) _stopRecording();
               }
             },
             onError: (e) => _stopRecording(),
@@ -325,22 +325,11 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 
     if (mounted) {
       setState(() {
-        _isLastCorrect = isCorrect;
-        _isTransitioning = true;
+        _isLastCorrect = null;
         if (isCorrect) _score++;
+        _recognizedText = "";
       });
-
-      // Delay to show feedback before next word
-      Future.delayed(const Duration(milliseconds: 2000), () {
-        if (mounted) {
-          setState(() {
-            _isLastCorrect = null;
-            _isTransitioning = false;
-            _recognizedText = "";
-          });
-          _nextWord();
-        }
-      });
+      _nextWord();
     }
   }
 

@@ -312,9 +312,9 @@ class _QuickActionsGrid extends StatelessWidget {
         onTap: () => onTabChange?.call(3),
       ),
       _ActionItem(
-        label: 'Assessment',
-        description: 'Create English assessments',
-        icon: Icons.assignment_turned_in_rounded,
+        label: 'Practice',
+        description: 'Practice tools',
+        icon: Icons.auto_awesome,
         color: const Color(0xFFF5A623),
         onTap: () => onTabChange?.call(4),
       ),

@@ -2,19 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'spelling_bee_page.dart';
 import 'pronunciation_quiz_page.dart';
-import '../services/database_service.dart';
-import '../services/role_service.dart';
 
-import 'quiz_folder_page.dart';
-import 'admin/admin_assessments_tab.dart';
+
 import 'ai_assessment_generator_page.dart';
 
 import '../widgets/design_ornaments.dart';
 
 class PracticeTab extends StatefulWidget {
   final int? initialSubTab;
-  final bool initialShowEditor;
-  const PracticeTab({super.key, this.initialSubTab, this.initialShowEditor = false});
+  const PracticeTab({super.key, this.initialSubTab});
 
   @override
   State<PracticeTab> createState() => _PracticeTabState();
@@ -22,13 +18,11 @@ class PracticeTab extends StatefulWidget {
 
 class _PracticeTabState extends State<PracticeTab> {
   late int? _selectedSubTab; // null = Selection, 0 = Bee, 1 = Voice, 2 = Assessment
-  bool _showAssessmentEditor = false;
   
   @override
   void initState() {
     super.initState();
     _selectedSubTab = widget.initialSubTab;
-    _showAssessmentEditor = widget.initialShowEditor;
   }
 
   @override
@@ -36,205 +30,108 @@ class _PracticeTabState extends State<PracticeTab> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const Center(child: Text("Please login first"));
 
-    return StreamBuilder<UserRole>(
-      stream: RoleService.instance.roleStream(user.uid),
-      builder: (context, roleSnap) {
-        final role = roleSnap.data;
-        final isAdmin = role == UserRole.admin || role == UserRole.superadmin || role == UserRole.educator;
+    if (_selectedSubTab == 0) {
+      return SpellingBeePage(
+        user: user,
+        onBack: () => setState(() => _selectedSubTab = null),
+      );
+    }
+    if (_selectedSubTab == 1) {
+      return PronunciationQuizPage(
+        user: user,
+        onBack: () => setState(() => _selectedSubTab = null),
+      );
+    }
+    // AI Assessment Generator sub-tab
+    if (_selectedSubTab == 2) {
+      return AiAssessmentGeneratorPage(
+        user: user,
+        onBack: () => setState(() => _selectedSubTab = null),
+      );
+    }
 
-        if (_selectedSubTab == 0) {
-          return SpellingBeePage(
-            user: user,
-            onBack: () => setState(() => _selectedSubTab = null),
-          );
-        }
-        if (_selectedSubTab == 1) {
-          return PronunciationQuizPage(
-            user: user,
-            onBack: () => setState(() => _selectedSubTab = null),
-          );
-        }
-        // AI Assessment Generator sub-tab
-        if (_selectedSubTab == 3) {
-          return AiAssessmentGeneratorPage(
-            user: user,
-            onBack: () => setState(() => _selectedSubTab = 2),
-          );
-        }
-        if (_selectedSubTab == 2) {
-          return Column(
-            children: [
-              // Top toolbar with AI Assessment button + optional Manage toggle
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () => setState(() => _selectedSubTab = 3),
-                      icon: const Icon(Icons.psychology_rounded, size: 18),
-                      label: const Text('AI Assessment'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E5090),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    if (isAdmin)
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.center,
-                        child: SegmentedButton<bool>(
-                          segments: const [
-                            ButtonSegment(
-                              value: false,
-                              label: Text('View'),
-                              icon: Icon(Icons.visibility),
-                            ),
-                            ButtonSegment(
-                              value: true,
-                              label: Text('Manage'),
-                              icon: Icon(Icons.edit),
-                            ),
-                          ],
-                          selected: {_showAssessmentEditor},
-                          onSelectionChanged: (val) {
-                            setState(() => _showAssessmentEditor = val.first);
-                          },
-                        ),
-                      ),
-                  ],
-                ),
+    return BackgroundWrapper(
+      imageAssetPath: 'assets/practicebg.png',
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+        child: Column(
+          children: [
+            const Text(
+              'Practice Tools',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
-              Expanded(
-                child: _showAssessmentEditor
-                    ? Scaffold(
-                        appBar: AppBar(
-                          leading: IconButton(
-                            icon: const Icon(Icons.arrow_back),
-                            onPressed: () => setState(() {
-                              _showAssessmentEditor = false;
-                              _selectedSubTab = null;
-                            }),
-                          ),
-                          title: const Text('Assessment Editor'),
-                        ),
-                        body: const AdminAssessmentsTab(isEmbedded: false),
-                      )
-                    : StreamBuilder<List<Quiz>>(
-                        stream: DatabaseService.instance.streamQuizzes(
-                          userRole: role,
-                          userId: user.uid,
-                          isAssessment: true,
-                        ),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-                          final assessments = snapshot.data ?? [];
-
-                          return QuizFolderPage(
-                            user: user,
-                            title: 'English Assessment',
-                            pillLabel: 'Assessment',
-                            quizzes: assessments,
-                            onBack: () => setState(() => _selectedSubTab = null),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          );
-        }
-
-        return BackgroundWrapper(
-          imageAssetPath: 'assets/practicebg.png',
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-            child: Column(
-              children: [
-                const Text(
-                  'Practice Tools',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 64),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1000),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      if (constraints.maxWidth < 700) {
-                        return Column(
-                          children: [
-                            _PracticeCard(
-                              title: 'Spelling Bee',
-                              icon: Icons.emoji_nature_outlined,
-                              themeColor: const Color(0xFFF6BC00),
-                              onTap: () => setState(() => _selectedSubTab = 0),
-                            ),
-                            const SizedBox(height: 32),
-                            _PracticeCard(
-                              title: 'Pronunciation',
-                              icon: Icons.record_voice_over_rounded,
-                              themeColor: const Color(0xFF75A94B),
-                              onTap: () => setState(() => _selectedSubTab = 1),
-                            ),
-                            const SizedBox(height: 32),
-                            _PracticeCard(
-                              title: 'English Assessment',
-                              icon: Icons.fact_check_outlined,
-                              themeColor: const Color(0xFFDF3F32),
-                              onTap: () => setState(() => _selectedSubTab = 2),
-                            ),
-                          ],
-                        );
-                      }
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: _PracticeCard(
-                              title: 'Spelling Bee',
-                              icon: Icons.emoji_nature_outlined,
-                              themeColor: const Color(0xFFF6BC00),
-                              onTap: () => setState(() => _selectedSubTab = 0),
-                            ),
-                          ),
-                          const SizedBox(width: 32),
-                          Expanded(
-                            child: _PracticeCard(
-                              title: 'Pronunciation',
-                              icon: Icons.record_voice_over_rounded,
-                              themeColor: const Color(0xFF75A94B),
-                              onTap: () => setState(() => _selectedSubTab = 1),
-                            ),
-                          ),
-                          const SizedBox(width: 32),
-                          Expanded(
-                            child: _PracticeCard(
-                              title: 'English Assessment',
-                              icon: Icons.fact_check_outlined,
-                              themeColor: const Color(0xFFDF3F32),
-                              onTap: () => setState(() => _selectedSubTab = 2),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ],
+              textAlign: TextAlign.center,
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 64),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1000),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < 700) {
+                    return Column(
+                      children: [
+                        _PracticeCard(
+                          title: 'Spelling Bee',
+                          icon: Icons.emoji_nature_outlined,
+                          themeColor: const Color(0xFFF6BC00),
+                          onTap: () => setState(() => _selectedSubTab = 0),
+                        ),
+                        const SizedBox(height: 32),
+                        _PracticeCard(
+                          title: 'Pronunciation',
+                          icon: Icons.record_voice_over_rounded,
+                          themeColor: const Color(0xFF75A94B),
+                          onTap: () => setState(() => _selectedSubTab = 1),
+                        ),
+                        const SizedBox(height: 32),
+                        _PracticeCard(
+                          title: 'English Assessment',
+                          icon: Icons.fact_check_outlined,
+                          themeColor: const Color(0xFFDF3F32),
+                          onTap: () => setState(() => _selectedSubTab = 2),
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _PracticeCard(
+                          title: 'Spelling Bee',
+                          icon: Icons.emoji_nature_outlined,
+                          themeColor: const Color(0xFFF6BC00),
+                          onTap: () => setState(() => _selectedSubTab = 0),
+                        ),
+                      ),
+                      const SizedBox(width: 32),
+                      Expanded(
+                        child: _PracticeCard(
+                          title: 'Pronunciation',
+                          icon: Icons.record_voice_over_rounded,
+                          themeColor: const Color(0xFF75A94B),
+                          onTap: () => setState(() => _selectedSubTab = 1),
+                        ),
+                      ),
+                      const SizedBox(width: 32),
+                      Expanded(
+                        child: _PracticeCard(
+                          title: 'English Assessment',
+                          icon: Icons.fact_check_outlined,
+                          themeColor: const Color(0xFFDF3F32),
+                          onTap: () => setState(() => _selectedSubTab = 2),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../theme/app_colors.dart';
 import '../../services/ai_logic_service.dart';
+import '../../services/database_service.dart';
 import '../../models/ai_models.dart';
 
 /// AI Lesson Generator tab — upload PDF or paste text, generate structured
@@ -119,18 +118,26 @@ class _AiLessonGeneratorTabState extends State<AiLessonGeneratorTab>
     setState(() => _isPublishing = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      final lessonData = {
-        'title': _generatedLesson!.title,
-        'content': _generatedLesson!.content.map((b) => b.toJson()).toList(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'createdBy': user?.uid ?? 'ai_studio',
-        'isVisible': true,
-        'isGrammaticaLesson': false,
-        'source': 'ai_studio',
-      };
+      // Convert ContentBlock objects to serializable maps
+      final blocks = _generatedLesson!.content
+          .map((b) => b.toJson())
+          .toList();
 
-      await FirebaseFirestore.instance.collection('lessons').add(lessonData);
+      // Build a plain-text fallback from all text blocks for the 'prompt' field
+      final promptFallback = _generatedLesson!.content
+          .where((b) => b.type == ContentBlockType.text)
+          .map((b) => b.data.toString())
+          .join('\n\n');
+
+      await DatabaseService.instance.createLesson(
+        title: _generatedLesson!.title,
+        prompt: promptFallback,
+        answer: '',
+        isVisible: true,
+        isGrammaticaLesson: false,
+        validationStatus: 'approved',
+        contentBlocks: blocks,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -45,7 +45,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   late int _index;
   int _initialValidationTabIndex = 0;
   int? _initialPracticeSubTab;
-  bool _initialPracticeShowEditor = false;
   Lesson? _editingLesson;
   int _editingLessonTabIndex = 0;
   StreamSubscription? _notifSubscription;
@@ -152,12 +151,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
             onTabChange: (i) {
               setState(() {
                 if (i == 4) {
-                  // English Assessment index
-                  _initialPracticeSubTab = 2; // Assessment sub-tab
-                  _initialPracticeShowEditor = true; // Go to editor directly
-                } else {
+                  // Practice tab index
                   _initialPracticeSubTab = null;
-                  _initialPracticeShowEditor = false;
                 }
                 _index = i;
               });
@@ -257,16 +252,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
         tabs.add(
           PracticeTab(
             key: ValueKey(
-              'practice_${_initialPracticeSubTab}_$_initialPracticeShowEditor',
+              'practice_$_initialPracticeSubTab',
             ),
             initialSubTab: _initialPracticeSubTab,
-            initialShowEditor: _initialPracticeShowEditor,
           ),
         );
         navItems.add(
           const ModernNavItem(
-            icon: Icons.assignment,
-            label: 'English Assessment',
+            icon: Icons.auto_awesome,
+            label: 'Practice',
           ),
         );
       }
@@ -326,15 +320,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         currentIndex: _index,
         onTap: (i) {
           setState(() {
-            // For educators, tab index 4 = English Assessment.
-            // Set the sub-tab so PracticeTab reinitialises directly
-            // on the assessment view (skips the Practice Tools screen).
             if (isEducator && i == 4) {
               _initialPracticeSubTab = 2;
-              _initialPracticeShowEditor = false;
             } else {
               _initialPracticeSubTab = null;
-              _initialPracticeShowEditor = false;
             }
             _index = i;
             _persistedIndex = i;

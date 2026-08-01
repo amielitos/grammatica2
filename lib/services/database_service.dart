@@ -123,6 +123,9 @@ class Lesson {
   final bool isMembersOnly;
   final bool isGrammaticaLesson;
   final String? quizId;
+  /// Structured content blocks from AI generation.
+  /// Each map has 'type' (text/list/table/image) and 'data'.
+  final List<Map<String, dynamic>> contentBlocks;
 
   Lesson({
     required this.id,
@@ -140,10 +143,21 @@ class Lesson {
     this.isMembersOnly = false,
     this.isGrammaticaLesson = false,
     this.quizId,
+    this.contentBlocks = const [],
   });
+
+  /// Whether this lesson has structured AI content blocks.
+  bool get hasContentBlocks => contentBlocks.isNotEmpty;
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
+    // Parse contentBlocks if present
+    List<Map<String, dynamic>> blocks = [];
+    if (data['contentBlocks'] is List) {
+      blocks = (data['contentBlocks'] as List)
+          .map((b) => Map<String, dynamic>.from(b as Map))
+          .toList();
+    }
     return Lesson(
       id: doc.id,
       title: (data['title'] ?? '').toString(),
@@ -164,6 +178,7 @@ class Lesson {
       isMembersOnly: data['isMembersOnly'] ?? false,
       isGrammaticaLesson: data['isGrammaticaLesson'] ?? false,
       quizId: (data['quizId'] ?? '') == '' ? null : (data['quizId'] as String?),
+      contentBlocks: blocks,
     );
   }
 }
@@ -602,11 +617,13 @@ class DatabaseService {
     bool isMembersOnly = false,
     bool isGrammaticaLesson = false,
     String? quizId,
+    String? validationStatus,
+    List<Map<String, dynamic>>? contentBlocks,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
-    String status = 'approved'; 
-    if (user != null) {
+    String status = validationStatus ?? 'approved'; 
+    if (validationStatus == null && user != null) {
       final doc = await _firestore.collection('users').doc(user.uid).get();
       final role = doc.data()?['role'];
       if (role == 'EDUCATOR' || role == 'VALIDATOR') {
@@ -614,7 +631,7 @@ class DatabaseService {
       }
     }
 
-    final doc = await _lessons.add({
+    final docData = <String, dynamic>{
       'title': title,
       'prompt': prompt,
       'answer': answer,
@@ -629,7 +646,12 @@ class DatabaseService {
       'isMembersOnly': isMembersOnly,
       'isGrammaticaLesson': isGrammaticaLesson,
       'quizId': quizId,
-    });
+    };
+    if (contentBlocks != null && contentBlocks.isNotEmpty) {
+      docData['contentBlocks'] = contentBlocks;
+    }
+
+    final doc = await _lessons.add(docData);
     return doc.id;
   }
 
@@ -645,22 +667,25 @@ class DatabaseService {
     bool? isMembersOnly,
     bool? isGrammaticaLesson,
     String? quizId,
+    String? validationStatus,
+    List<Map<String, dynamic>>? contentBlocks,
   }) async {
-    final data = <String, dynamic>{};
-    if (title != null) data['title'] = title;
-    if (prompt != null) data['prompt'] = prompt;
-    if (answer != null) data['answer'] = answer;
-    if (attachmentUrl != null) data['attachmentUrl'] = attachmentUrl;
-    if (attachmentName != null) data['attachmentName'] = attachmentName;
-    if (isVisible != null) data['isVisible'] = isVisible;
-    if (visibleTo != null) data['visibleTo'] = visibleTo;
-    if (isMembersOnly != null) data['isMembersOnly'] = isMembersOnly;
-    if (isGrammaticaLesson != null) {
-      data['isGrammaticaLesson'] = isGrammaticaLesson;
-    }
-    data['quizId'] = quizId;
-    if (data.isNotEmpty) {
-      await _lessons.doc(id).update(data);
+    final updates = <String, dynamic>{};
+    if (title != null) updates['title'] = title;
+    if (prompt != null) updates['prompt'] = prompt;
+    if (answer != null) updates['answer'] = answer;
+    if (attachmentUrl != null) updates['attachmentUrl'] = attachmentUrl;
+    if (attachmentName != null) updates['attachmentName'] = attachmentName;
+    if (isVisible != null) updates['isVisible'] = isVisible;
+    if (visibleTo != null) updates['visibleTo'] = visibleTo;
+    if (isMembersOnly != null) updates['isMembersOnly'] = isMembersOnly;
+    if (isGrammaticaLesson != null) updates['isGrammaticaLesson'] = isGrammaticaLesson;
+    if (quizId != null) updates['quizId'] = quizId;
+    if (validationStatus != null) updates['validationStatus'] = validationStatus;
+    if (contentBlocks != null) updates['contentBlocks'] = contentBlocks;
+
+    if (updates.isNotEmpty) {
+      await _lessons.doc(id).update(updates);
     }
   }
 
@@ -1194,9 +1219,12 @@ class DatabaseService {
 
   Future<String> uploadGeneratedImage(Uint8List bytes, String fileName) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final userId = user?.uid ?? 'public';
       final storageRef = FirebaseStorage.instance
           .ref()
-          .child('generated_images')
+          .child('user_images')
+          .child(userId)
           .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
 
       final uploadTask = storageRef.putData(
@@ -1207,7 +1235,7 @@ class DatabaseService {
       final snapshot = await uploadTask.whenComplete(() => null);
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      throw Exception('Failed to upload generated image: $e');
+      throw Exception('Failed to upload image: $e');
     }
   }
 

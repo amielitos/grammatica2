@@ -3,18 +3,36 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'dart:typed_data';
 
 import '../../services/database_service.dart';
 import '../../services/ai_logic_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../../theme/app_colors.dart';
-import '../../widgets/markdown_guide_button.dart';
 import '../../widgets/user_visibility_selector.dart';
 import '../../models/content_visibility.dart';
+import '../../models/ai_models.dart';
 
 import 'admin_quizzes_tab.dart'; 
-import 'admin_assessments_tab.dart';
+import '../../pages/lesson_page.dart';
+
+class AdminContentBlockState {
+  String type; // 'text' or 'image'
+  final TextEditingController textCtrl;
+  String? imageUrl;
+  bool isUploading = false;
+
+  AdminContentBlockState({
+    required this.type,
+    String text = '',
+    this.imageUrl,
+  }) : textCtrl = TextEditingController(text: text);
+
+  void dispose() {
+    textCtrl.dispose();
+  }
+}
 
 class AdminLessonsTab extends StatelessWidget {
   final Lesson? initialLesson;
@@ -58,10 +76,12 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   Lesson? _selectedLesson;
   bool _creatingLesson = false;
   bool _isGeneratingFromPdf = false;
+  bool _isGeneratingFromPrompt = false;
 
   final AILogicService _aiLogicService = AILogicService();
   final _title = TextEditingController();
   final _prompt = TextEditingController();
+  final _aiPromptCtrl = TextEditingController();
   bool _isVisible = true;
   bool _isMembersOnly = false;
   bool _isGrammaticaLesson = false;
@@ -69,8 +89,8 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   final _quizKey = GlobalKey<AdminQuizzesTabState>();
   String? _selectedQuizId;
 
-  // AI-generated content blocks (each block is an editable string)
-  List<TextEditingController> _contentBlockCtrls = [];
+  // Structured content blocks (Text and Image)
+  List<AdminContentBlockState> _contentBlocks = [];
 
   ContentVisibility _visibility = ContentVisibility.public;
   int _tabIndex = 0; 
@@ -111,6 +131,26 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     _visibleTo = l.visibleTo;
     _selectedQuizId = l.quizId;
 
+    for (final block in _contentBlocks) {
+      block.dispose();
+    }
+    _contentBlocks = [];
+
+    if (l.hasContentBlocks) {
+      _contentBlocks = l.contentBlocks.map((b) {
+        final type = (b['type'] ?? 'text').toString();
+        return AdminContentBlockState(
+          type: type,
+          text: type == 'image' ? (b['caption'] ?? '').toString() : (b['data'] ?? '').toString(),
+          imageUrl: type == 'image' ? (b['data'] as String?) : null,
+        );
+      }).toList();
+    } else if (l.prompt.isNotEmpty) {
+      _contentBlocks = [
+        AdminContentBlockState(type: 'text', text: l.prompt),
+      ];
+    }
+
     if (l.isMembersOnly) {
       _visibility = ContentVisibility.membersOnly;
     } else if (!l.isVisible && l.visibleTo.isNotEmpty) {
@@ -118,12 +158,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     } else {
       _visibility = ContentVisibility.public;
     }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (l.quizId != null) {
-        _quizKey.currentState?.loadQuiz(l.quizId!);
-      }
-    });
   }
 
   @override
@@ -151,7 +185,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Create or edit your lessons, quizzes, and assessments.',
+                'Create or edit your lessons and quizzes.',
                 style: GoogleFonts.inter(
                   fontSize: 15,
                   color: AppColors.textSecondary,
@@ -180,7 +214,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                     children: [
                       _buildTabBtn('Lessons', 0),
                       _buildTabBtn('Quizzes', 1),
-                      _buildTabBtn('Assessments', 2),
                     ],
                   ),
                 ),
@@ -207,10 +240,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                     AdminQuizzesTab(
                       key: _quizKey,
                       initialQuizId: _selectedQuizId,
-                    ),
-                    AdminAssessmentsTab(
-                      isEmbedded: true,
-                      initialQuizId: _tabIndex == 2 ? _selectedQuizId : null,
                     ),
                   ],
                 ),
@@ -293,8 +322,22 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                 child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 16),
+              OutlinedButton.icon(
+                onPressed: _title.text.trim().isEmpty && _contentBlocks.isEmpty
+                    ? null
+                    : _previewLesson,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                icon: const Icon(Icons.visibility_rounded, size: 20),
+                label: Text('Preview', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+              const SizedBox(width: 16),
               ElevatedButton.icon(
-                onPressed: (_creatingLesson || _title.text.trim().isEmpty) ? null : _saveIntegratedLesson,
+                onPressed: (_creatingLesson || _title.text.trim().isEmpty) ? null : _saveLesson,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -349,30 +392,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             isDark: isDark,
           ),
           const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Lesson Content',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white70 : AppColors.textSecondary,
-                ),
-              ),
-              const MarkdownGuideButton(),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _buildStyledTextField(
-            controller: _prompt,
-            label: 'Write your lesson content using markdown...',
-            hint: 'Write your lesson content using markdown...',
-            icon: Icons.text_snippet_rounded,
-            maxLines: 12,
-            isDark: isDark,
-          ),
-          const SizedBox(height: 32),
           _buildVisibilitySettings(role, isDark),
           const SizedBox(height: 32),
           
@@ -396,18 +415,46 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('Generate from Source', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF2A2A2A))),
+                Text('Generate from Prompt', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF2A2A2A))),
+                const SizedBox(height: 8),
+                _buildStyledTextField(
+                  controller: _aiPromptCtrl,
+                  label: 'Lesson Topic / Prompt',
+                  hint: 'e.g. Write a lesson about English past perfect tense with examples and a summary table',
+                  icon: Icons.psychology_rounded,
+                  maxLines: 3,
+                  isDark: isDark,
+                ),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
-                    icon: _isGeneratingFromPdf 
+                    onPressed: _isGeneratingFromPrompt ? null : _generateFromPrompt,
+                    icon: _isGeneratingFromPrompt
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.picture_as_pdf_rounded),
-                    label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Select PDF & Generate Lesson'),
+                        : const Icon(Icons.auto_awesome_rounded),
+                    label: Text(_isGeneratingFromPrompt ? 'Generating Lesson...' : 'Generate via Prompt'),
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF88B342),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 16),
+                Text('Generate from Source Document', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF2A2A2A))),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
+                    icon: _isGeneratingFromPdf 
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.picture_as_pdf_rounded),
+                    label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Select PDF & Generate Lesson'),
+                    style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -469,43 +516,50 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     );
   }
 
-  Widget _buildContentBlocks(bool isDark) {
-    if (_contentBlockCtrls.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.auto_awesome_rounded, size: 40, color: AppColors.primary),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'AI Content Blocks',
-              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : AppColors.textPrimary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Use the "AI Generate" button to upload a PDF or paste text. The AI will produce separate editable content blocks here.',
-              style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+  Future<void> _pickAndUploadImageForBlock(AdminContentBlockState block) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+        withData: true,
       );
-    }
 
+      if (result == null || result.files.isEmpty) return;
+
+      setState(() => block.isUploading = true);
+
+      final platformFile = result.files.single;
+      List<int> bytes;
+      if (platformFile.bytes != null) {
+        bytes = platformFile.bytes!;
+      } else if (platformFile.path != null) {
+        bytes = await File(platformFile.path!).readAsBytes();
+      } else {
+        throw Exception('Could not read image file bytes');
+      }
+
+      final fileName = 'lesson_img_${DateTime.now().millisecondsSinceEpoch}_${platformFile.name}';
+
+      final url = await DatabaseService.instance.uploadGeneratedImage(
+        Uint8List.fromList(bytes),
+        fileName,
+      );
+
+      setState(() {
+        block.imageUrl = url;
+        block.isUploading = false;
+      });
+    } catch (e) {
+      setState(() => block.isUploading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload image: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildContentBlocks(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -513,81 +567,233 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Content Blocks (${_contentBlockCtrls.length})',
+              'Content Blocks (${_contentBlocks.length})',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
                 color: isDark ? Colors.white70 : AppColors.textSecondary,
               ),
             ),
-            TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  _contentBlockCtrls.add(TextEditingController());
-                });
-              },
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add Block'),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _contentBlocks.add(AdminContentBlockState(type: 'text'));
+                    });
+                  },
+                  icon: const Icon(Icons.title_rounded, size: 16),
+                  label: const Text('Add Text'),
+                ),
+                const SizedBox(width: 4),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _contentBlocks.add(AdminContentBlockState(type: 'image'));
+                    });
+                  },
+                  icon: const Icon(Icons.image_outlined, size: 16),
+                  label: const Text('Add Image'),
+                ),
+              ],
             ),
           ],
         ),
         const SizedBox(height: 8),
-        ...List.generate(_contentBlockCtrls.length, (index) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF333333) : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 12, top: 8),
-                        child: Text(
-                          'Block ${index + 1}',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        onPressed: () {
-                          setState(() {
-                            _contentBlockCtrls[index].dispose();
-                            _contentBlockCtrls.removeAt(index);
-                          });
-                        },
-                      ),
-                    ],
+        if (_contentBlocks.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: TextField(
-                      controller: _contentBlockCtrls[index],
-                      maxLines: 6,
-                      minLines: 2,
-                      style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
-                      decoration: InputDecoration(
-                        hintText: 'Edit this content block...',
-                        hintStyle: GoogleFonts.inter(color: isDark ? Colors.white30 : Colors.grey.shade400),
-                        border: InputBorder.none,
-                        isDense: true,
+                  child: Icon(Icons.auto_awesome_rounded, size: 36, color: AppColors.primary),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No Content Blocks Yet',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? Colors.white : AppColors.textPrimary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Click "Add Text" or "Add Image" above, or use the "AI Generation" section to generate structured content blocks.',
+                  style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          ...List.generate(_contentBlocks.length, (index) {
+            final block = _contentBlocks[index];
+            final isImage = block.type == 'image';
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF333333) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isImage
+                        ? Colors.blueAccent.withValues(alpha: 0.4)
+                        : (isDark ? Colors.white12 : Colors.grey.shade300),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Bar
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isImage
+                            ? Colors.blueAccent.withValues(alpha: 0.08)
+                            : (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade100),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isImage ? Icons.image_rounded : Icons.text_snippet_rounded,
+                            size: 16,
+                            color: isImage ? Colors.blueAccent : AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Block ${index + 1} • ${isImage ? "IMAGE BLOCK" : "TEXT BLOCK"}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                              color: isImage ? Colors.blueAccent : AppColors.primary,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 16),
+                            onPressed: () {
+                              setState(() {
+                                _contentBlocks[index].dispose();
+                                _contentBlocks.removeAt(index);
+                              });
+                            },
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+
+                    // Body
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: isImage
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Dedicated Image Widget Container
+                                if (block.imageUrl != null && block.imageUrl!.isNotEmpty) ...[
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(
+                                      block.imageUrl!,
+                                      height: 200,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        height: 120,
+                                        color: Colors.grey.shade200,
+                                        child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      OutlinedButton.icon(
+                                        onPressed: block.isUploading ? null : () => _pickAndUploadImageForBlock(block),
+                                        icon: const Icon(Icons.upload_file, size: 16),
+                                        label: const Text('Change Image'),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      TextButton.icon(
+                                        onPressed: () => setState(() => block.imageUrl = null),
+                                        icon: const Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
+                                        label: const Text('Remove Image', style: TextStyle(color: Colors.redAccent)),
+                                      ),
+                                    ],
+                                  ),
+                                ] else ...[
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(24),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300, style: BorderStyle.solid),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Icon(Icons.cloud_upload_outlined, size: 36, color: Colors.blueAccent.withValues(alpha: 0.7)),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          'No Image Uploaded',
+                                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        block.isUploading
+                                            ? const CircularProgressIndicator()
+                                            : FilledButton.icon(
+                                                onPressed: () => _pickAndUploadImageForBlock(block),
+                                                icon: const Icon(Icons.upload_file_rounded, size: 18),
+                                                label: const Text('Upload Image File'),
+                                                style: FilledButton.styleFrom(backgroundColor: Colors.blueAccent),
+                                              ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 16),
+                                TextField(
+                                  controller: block.textCtrl,
+                                  style: GoogleFonts.inter(fontSize: 14),
+                                  decoration: InputDecoration(
+                                    labelText: 'Image Caption (optional)',
+                                    hintText: 'e.g. Diagram explaining English syntax',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    isDense: true,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : TextField(
+                              controller: block.textCtrl,
+                              maxLines: 6,
+                              minLines: 3,
+                              style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+                              decoration: InputDecoration(
+                                hintText: 'Enter text block paragraph...',
+                                hintStyle: GoogleFonts.inter(color: isDark ? Colors.white30 : Colors.grey.shade400),
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
       ],
     );
   }
@@ -728,25 +934,30 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
       lessonResponse = await _aiLogicService.generateLessonFromPdf(bytes);
 
       // Populate blocks from AI response
-      for (final ctrl in _contentBlockCtrls) {
-        ctrl.dispose();
+      for (final b in _contentBlocks) {
+        b.dispose();
       }
 
-      final blocks = <TextEditingController>[];
+      final blocks = <AdminContentBlockState>[];
       if (_title.text.trim().isEmpty) {
         _title.text = lessonResponse.title;
       }
 
       for (final block in lessonResponse.content) {
-        String blockText;
-        switch (block.type.name) {
-          case 'text':
-            blockText = block.data.toString();
+        switch (block.type) {
+          case ContentBlockType.text:
+            final text = block.data.toString();
+            if (text.isNotEmpty) {
+              blocks.add(AdminContentBlockState(type: 'text', text: text));
+            }
             break;
-          case 'list':
-            blockText = (block.data as List).map((item) => '• $item').join('\n');
+          case ContentBlockType.list:
+            final text = (block.data as List).map((item) => '• $item').join('\n');
+            if (text.isNotEmpty) {
+              blocks.add(AdminContentBlockState(type: 'text', text: text));
+            }
             break;
-          case 'table':
+          case ContentBlockType.table:
             final rows = block.data as List;
             if (rows.isNotEmpty) {
               final headers = (rows.first as Map<String, dynamic>).keys.toList();
@@ -756,12 +967,10 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                 final r = row as Map<String, dynamic>;
                 buffer.writeln('| ${headers.map((h) => r[h]?.toString() ?? '').join(' | ')} |');
               }
-              blockText = buffer.toString();
-            } else {
-              blockText = '';
+              blocks.add(AdminContentBlockState(type: 'text', text: buffer.toString()));
             }
             break;
-          case 'image':
+          case ContentBlockType.image:
             try {
               final prompt = block.data.toString();
               if (mounted) {
@@ -772,25 +981,19 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               final imageBytes = await _aiLogicService.generateImageFromPrompt(prompt);
               final fileName = 'ai_lesson_img_${DateTime.now().millisecondsSinceEpoch}.jpg';
               final url = await DatabaseService.instance.uploadGeneratedImage(imageBytes, fileName);
-              blockText = '![Generated Image]($url)';
+              blocks.add(AdminContentBlockState(type: 'image', imageUrl: url, text: ''));
             } catch (e) {
               debugPrint('Error generating image block: $e');
-              blockText = '[Image: ${block.data}]';
+              blocks.add(AdminContentBlockState(type: 'image', imageUrl: null, text: block.data.toString()));
             }
             break;
-          default:
-            blockText = block.data.toString();
-        }
-        if (blockText.isNotEmpty) {
-          blocks.add(TextEditingController(text: blockText));
         }
       }
 
-      // Also put the combined text into _prompt for backward compatibility
-      _prompt.text = blocks.map((c) => c.text).join('\n\n');
+      _prompt.text = blocks.where((b) => b.type == 'text').map((c) => c.textCtrl.text).join('\n\n');
 
       setState(() {
-        _contentBlockCtrls = blocks;
+        _contentBlocks = blocks;
         _isGeneratingFromPdf = false;
       });
 
@@ -809,16 +1012,108 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     }
   }
 
+  Future<void> _generateFromPrompt() async {
+    final promptText = _aiPromptCtrl.text.trim();
+    if (promptText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a prompt first.')),
+      );
+      return;
+    }
+
+    setState(() => _isGeneratingFromPrompt = true);
+
+    try {
+      final lessonResponse = await _aiLogicService.generateLesson(promptText);
+
+      for (final b in _contentBlocks) {
+        b.dispose();
+      }
+
+      final blocks = <AdminContentBlockState>[];
+      if (_title.text.trim().isEmpty) {
+        _title.text = lessonResponse.title;
+      }
+
+      for (final block in lessonResponse.content) {
+        switch (block.type) {
+          case ContentBlockType.text:
+            final text = block.data.toString();
+            if (text.isNotEmpty) {
+              blocks.add(AdminContentBlockState(type: 'text', text: text));
+            }
+            break;
+          case ContentBlockType.list:
+            final text = (block.data as List).map((item) => '• $item').join('\n');
+            if (text.isNotEmpty) {
+              blocks.add(AdminContentBlockState(type: 'text', text: text));
+            }
+            break;
+          case ContentBlockType.table:
+            final rows = block.data as List;
+            if (rows.isNotEmpty) {
+              final headers = (rows.first as Map<String, dynamic>).keys.toList();
+              final buffer = StringBuffer('| ${headers.join(' | ')} |\n');
+              buffer.writeln('| ${headers.map((_) => '---').join(' | ')} |');
+              for (final row in rows) {
+                final r = row as Map<String, dynamic>;
+                buffer.writeln('| ${headers.map((h) => r[h]?.toString() ?? '').join(' | ')} |');
+              }
+              blocks.add(AdminContentBlockState(type: 'text', text: buffer.toString()));
+            }
+            break;
+          case ContentBlockType.image:
+            try {
+              final prompt = block.data.toString();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Generating AI image for lesson...'), duration: Duration(seconds: 2)),
+                );
+              }
+              final imageBytes = await _aiLogicService.generateImageFromPrompt(prompt);
+              final fileName = 'ai_lesson_img_${DateTime.now().millisecondsSinceEpoch}.jpg';
+              final url = await DatabaseService.instance.uploadGeneratedImage(imageBytes, fileName);
+              blocks.add(AdminContentBlockState(type: 'image', imageUrl: url, text: ''));
+            } catch (e) {
+              debugPrint('Error generating image block: $e');
+              blocks.add(AdminContentBlockState(type: 'image', imageUrl: null, text: block.data.toString()));
+            }
+            break;
+        }
+      }
+
+      _prompt.text = blocks.where((b) => b.type == 'text').map((c) => c.textCtrl.text).join('\n\n');
+
+      setState(() {
+        _contentBlocks = blocks;
+        _isGeneratingFromPrompt = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Generated ${blocks.length} content blocks from prompt!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGeneratingFromPrompt = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating from prompt: $e')),
+        );
+      }
+    }
+  }
+
   void _resetForm({bool callOnReset = true}) {
     _selectedLessonId = null;
     _selectedLesson = null;
     _selectedQuizId = null;
     _title.clear();
     _prompt.clear();
-    for (final ctrl in _contentBlockCtrls) {
-      ctrl.dispose();
+    for (final block in _contentBlocks) {
+      block.dispose();
     }
-    _contentBlockCtrls = [];
+    _contentBlocks = [];
     _isVisible = true;
     _isMembersOnly = false;
     _isGrammaticaLesson = false;
@@ -828,34 +1123,43 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     if (callOnReset && widget.onReset != null) widget.onReset!();
   }
 
-  Future<void> _saveIntegratedLesson() async {
+  Future<void> _saveLesson() async {
     setState(() => _creatingLesson = true);
     try {
-      String? finalQuizId = _selectedQuizId;
-
-      if (_quizKey.currentState != null) {
-        final savedQuizId = await _quizKey.currentState!.saveForLesson();
-        if (savedQuizId != null) {
-          finalQuizId = savedQuizId;
+      final contentBlocksData = _contentBlocks.map((b) {
+        if (b.type == 'image') {
+          return {
+            'type': 'image',
+            'data': b.imageUrl ?? '',
+            'caption': b.textCtrl.text.trim(),
+          };
+        } else {
+          return {
+            'type': 'text',
+            'data': b.textCtrl.text.trim(),
+          };
         }
-      }
+      }).where((b) => (b['data'] ?? '').toString().isNotEmpty || (b['caption'] ?? '').toString().isNotEmpty).toList();
 
-      final lessonPrompt = _contentBlockCtrls.isNotEmpty
-          ? _contentBlockCtrls.map((c) => c.text).join('\n\n')
-          : _prompt.text.trim();
+      final textSummary = _contentBlocks
+          .where((b) => b.type == 'text')
+          .map((b) => b.textCtrl.text.trim())
+          .where((t) => t.isNotEmpty)
+          .join('\n\n');
 
       final lessonData = Lesson(
         id: _selectedLessonId ?? '',
         title: _title.text.trim(),
-        prompt: lessonPrompt,
+        prompt: textSummary.isNotEmpty ? textSummary : _prompt.text.trim(),
         answer: '',
         createdByUid: AuthService.instance.currentUser?.uid ?? '',
         isVisible: _isVisible,
         visibleTo: _visibleTo,
         isMembersOnly: _isMembersOnly,
         isGrammaticaLesson: _isGrammaticaLesson,
-        quizId: finalQuizId, 
+        quizId: _selectedQuizId, 
         createdAt: _selectedLesson?.createdAt ?? Timestamp.now(),
+        contentBlocks: contentBlocksData,
       );
 
       if (_selectedLessonId == null) {
@@ -868,10 +1172,12 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           isMembersOnly: lessonData.isMembersOnly,
           isGrammaticaLesson: lessonData.isGrammaticaLesson,
           quizId: lessonData.quizId,
+          validationStatus: 'approved',
+          contentBlocks: contentBlocksData,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lesson & Quiz created successfully!')),
+            const SnackBar(content: Text('Lesson saved successfully!')),
           );
         }
       } else {
@@ -885,10 +1191,12 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           isMembersOnly: lessonData.isMembersOnly,
           isGrammaticaLesson: lessonData.isGrammaticaLesson,
           quizId: lessonData.quizId,
+          validationStatus: 'approved',
+          contentBlocks: contentBlocksData,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lesson & Quiz updated successfully!')),
+            const SnackBar(content: Text('Lesson updated successfully!')),
           );
         }
       }
@@ -908,9 +1216,59 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   void dispose() {
     _title.dispose();
     _prompt.dispose();
-    for (final ctrl in _contentBlockCtrls) {
-      ctrl.dispose();
+    _aiPromptCtrl.dispose();
+    for (final block in _contentBlocks) {
+      block.dispose();
     }
     super.dispose();
+  }
+
+  void _previewLesson() {
+    // Build content blocks data for preview
+    final contentBlocksData = _contentBlocks.map((b) {
+      if (b.type == 'image') {
+        return {
+          'type': 'image',
+          'data': b.imageUrl ?? '',
+          'caption': b.textCtrl.text.trim(),
+        };
+      } else {
+        return {
+          'type': 'text',
+          'data': b.textCtrl.text.trim(),
+        };
+      }
+    }).toList();
+
+    final textSummary = _contentBlocks
+        .where((b) => b.type == 'text')
+        .map((b) => b.textCtrl.text.trim())
+        .where((t) => t.isNotEmpty)
+        .join('\n\n');
+
+    final previewLesson = Lesson(
+      id: 'preview',
+      title: _title.text.trim().isNotEmpty ? _title.text.trim() : 'Untitled Lesson',
+      prompt: textSummary,
+      answer: '',
+      createdByUid: AuthService.instance.currentUser?.uid ?? '',
+      isVisible: _isVisible,
+      visibleTo: _visibleTo,
+      isMembersOnly: _isMembersOnly,
+      isGrammaticaLesson: _isGrammaticaLesson,
+      createdAt: Timestamp.now(),
+      contentBlocks: contentBlocksData,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LessonPage(
+          user: AuthService.instance.currentUser!,
+          lesson: previewLesson,
+          previewMode: true,
+        ),
+      ),
+    );
   }
 }

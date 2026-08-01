@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
 import '../services/database_service.dart';
 import '../theme/app_colors.dart';
-import '../widgets/interactive_markdown.dart';
 import '../widgets/notification_widgets.dart';
 import '../pages/quiz_detail_page.dart';
 import '../widgets/custom_app_bar.dart';
@@ -252,10 +253,245 @@ class _LessonPageState extends State<LessonPage> {
           // ── Body Content ──
           Padding(
             padding: EdgeInsets.all(isWide ? 48 : 32),
-            child: InteractiveMarkdown(data: _lesson.prompt.trim()),
+            child: _lesson.hasContentBlocks
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _lesson.contentBlocks
+                        .map((b) => _buildContentBlock(b, isDark))
+                        .toList(),
+                  )
+                : _buildContentBlock({'type': 'text', 'data': _lesson.prompt}, isDark),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildContentBlock(Map<String, dynamic> blockMap, bool isDark) {
+    final typeStr = (blockMap['type'] ?? 'text').toString();
+    final data = blockMap['data'];
+    final caption = (blockMap['caption'] ?? '').toString();
+
+    if (typeStr == 'image') {
+      final url = (data ?? '').toString();
+      if (!url.startsWith('http')) return const SizedBox.shrink();
+
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            GestureDetector(
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => Dialog(
+                    backgroundColor: Colors.transparent,
+                    insetPadding: const EdgeInsets.all(16),
+                    child: Stack(
+                      alignment: Alignment.topRight,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.network(url, fit: BoxFit.contain),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.network(
+                    url,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      height: 160,
+                      color: isDark ? const Color(0xFF333333) : Colors.grey.shade200,
+                      child: const Center(child: Icon(Icons.broken_image_rounded, size: 40, color: Colors.grey)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (caption.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                caption,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: isDark ? Colors.white60 : AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // Default: Text Block — render with Markdown for rich formatting
+    final textStr = (data ?? '').toString();
+    if (textStr.trim().isEmpty) return const SizedBox.shrink();
+
+    final textColor = isDark ? Colors.white.withValues(alpha: 0.9) : AppColors.textPrimary;
+    final codeBlockBg = isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F2EB);
+    final tableBorderColor = isDark ? Colors.white24 : const Color(0xFFD4D4D4);
+    final tableHeaderBg = isDark ? const Color(0xFF2D4A1A) : const Color(0xFFF0F7E8);
+    final tableRowBg = isDark ? const Color(0xFF333333) : Colors.white;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24.0),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF333333) : const Color(0xFFFAFAFA),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+        ),
+        child: MarkdownBody(
+          data: textStr.trim(),
+          selectable: true,
+          extensionSet: md.ExtensionSet(
+            md.ExtensionSet.gitHubFlavored.blockSyntaxes,
+            [md.EmojiSyntax(), ...md.ExtensionSet.gitHubFlavored.inlineSyntaxes],
+          ),
+          styleSheet: MarkdownStyleSheet(
+          // Regular text
+          p: GoogleFonts.inter(
+            fontSize: 16,
+            height: 1.7,
+            color: textColor,
+          ),
+          // Bold text — darker green
+          strong: GoogleFonts.inter(
+            fontSize: 16,
+            height: 1.7,
+            fontWeight: FontWeight.w800,
+            color: isDark ? const Color(0xFFA8D870) : const Color(0xFF4A7C23),
+          ),
+          // Italic text — slate blue
+          em: GoogleFonts.inter(
+            fontSize: 16,
+            height: 1.7,
+            fontStyle: FontStyle.italic,
+            color: isDark ? const Color(0xFF9BB8D3) : const Color(0xFF546E7A),
+          ),
+          // Headings
+          h1: GoogleFonts.outfit(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF1E1E1E),
+            height: 1.3,
+          ),
+          h2: GoogleFonts.outfit(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : const Color(0xFF2A2A2A),
+            height: 1.3,
+          ),
+          h3: GoogleFonts.outfit(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF333333),
+            height: 1.4,
+          ),
+          // Bullet lists
+          listBullet: GoogleFonts.inter(
+            fontSize: 16,
+            height: 1.7,
+            color: AppColors.primary,
+          ),
+          // Inline code
+          code: GoogleFonts.firaCode(
+            fontSize: 14,
+            color: isDark ? const Color(0xFFCE9178) : const Color(0xFFC7254E),
+            backgroundColor: codeBlockBg,
+          ),
+          // Code blocks
+          codeblockDecoration: BoxDecoration(
+            color: codeBlockBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE0E0E0)),
+          ),
+          codeblockPadding: const EdgeInsets.all(16),
+          // Blockquotes
+          blockquoteDecoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2A3A1E) : const Color(0xFFF8FAF5),
+            border: Border(
+              left: BorderSide(
+                color: AppColors.primary,
+                width: 4,
+              ),
+            ),
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(8),
+              bottomRight: Radius.circular(8),
+            ),
+          ),
+          blockquotePadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          // Table styling
+          tableHead: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : const Color(0xFF2A2A2A),
+          ),
+          tableBody: GoogleFonts.inter(
+            fontSize: 14,
+            height: 1.5,
+            color: textColor,
+          ),
+          tableBorder: TableBorder.all(
+            color: tableBorderColor,
+            width: 1,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          tableHeadAlign: TextAlign.left,
+          tableCellsPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          tableColumnWidth: const IntrinsicColumnWidth(),
+          // Horizontal rules
+          horizontalRuleDecoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
+                width: 1,
+              ),
+            ),
+          ),
+          // Spacing
+          h1Padding: const EdgeInsets.only(top: 24, bottom: 12),
+          h2Padding: const EdgeInsets.only(top: 20, bottom: 10),
+          h3Padding: const EdgeInsets.only(top: 16, bottom: 8),
+          pPadding: const EdgeInsets.only(bottom: 8),
+          listIndent: 24,
+          blockSpacing: 12,
+        ),
+        builders: {
+          'table': _StyledTableBuilder(
+            headerBg: tableHeaderBg,
+            rowBg: tableRowBg,
+            isDark: isDark,
+          ),
+        },
+      ),
+    ),
     );
   }
 
@@ -553,5 +789,26 @@ class _LessonPageState extends State<LessonPage> {
         ),
       ],
     );
+  }
+}
+
+/// Custom builder for markdown tables to add header and row background styling.
+class _StyledTableBuilder extends MarkdownElementBuilder {
+  final Color headerBg;
+  final Color rowBg;
+  final bool isDark;
+
+  _StyledTableBuilder({
+    required this.headerBg,
+    required this.rowBg,
+    required this.isDark,
+  });
+
+  @override
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+    // We don't override table rendering here — styling is handled via
+    // MarkdownStyleSheet's table properties. This builder is a hook
+    // for future per-cell customizations.
+    return null;
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../theme/app_colors.dart';
@@ -181,8 +180,6 @@ class _AiQuizGeneratorTabState extends State<AiQuizGeneratorTab>
     setState(() => _isPublishing = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-
       // Map AIQuizQuestion → native QuizQuestion format
       final nativeQuestions = _generatedQuiz!.questions.map((q) {
         final questionText = q.content
@@ -206,6 +203,9 @@ class _AiQuizGeneratorTabState extends State<AiQuizGeneratorTab>
           case QuizQuestionType.matching:
             nativeType = 'text';
             break;
+          case QuizQuestionType.passage:
+            nativeType = 'text';
+            break;
         }
 
         return QuizQuestion(
@@ -215,33 +215,25 @@ class _AiQuizGeneratorTabState extends State<AiQuizGeneratorTab>
           options: q.options.isNotEmpty ? q.options : null,
           hint: q.hint,
           explanation: q.explanation,
-        ).toMap();
+        );
       }).toList();
 
-      final quizData = {
-        'title': _selectedLessonTitle != null
+      await DatabaseService.instance.createQuiz(
+        title: _selectedLessonTitle != null
             ? 'AI Quiz: $_selectedLessonTitle'
             : 'AI Generated Quiz',
-        'description':
+        description:
             'Auto-generated quiz with ${_generatedQuiz!.questions.length} questions '
                 '($_difficulty difficulty)',
-        'questions': nativeQuestions,
-        'duration': 0,
-        'maxAttempts': 1,
-        'createdAt': FieldValue.serverTimestamp(),
-        'createdByUid': user?.uid ?? 'ai_studio',
-        'createdByEmail': user?.email ?? 'ai_studio',
-        'validationStatus': 'approved',
-        'isVisible': true,
-        'visibleTo': <String>[],
-        'isMembersOnly': false,
-        'isGrammaticaQuiz': false,
-        'isAssessment': false,
-        'source': 'ai_studio',
-        if (_selectedLessonId != null) 'linkedLessonId': _selectedLessonId,
-      };
-
-      await FirebaseFirestore.instance.collection('quizzes').add(quizData);
+        questions: nativeQuestions,
+        duration: 0,
+        maxAttempts: 1,
+        isVisible: true,
+        isMembersOnly: false,
+        isGrammaticaQuiz: false,
+        isAssessment: false,
+        validationStatus: 'approved',
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -856,6 +848,10 @@ class _AiQuizGeneratorTabState extends State<AiQuizGeneratorTab>
       case QuizQuestionType.matching:
         typeBadgeColor = Colors.indigo;
         typeLabel = 'Matching';
+        break;
+      case QuizQuestionType.passage:
+        typeBadgeColor = Colors.deepPurple;
+        typeLabel = 'Passage';
         break;
     }
 

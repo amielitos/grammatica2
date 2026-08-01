@@ -37,6 +37,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
   bool _isLoading = false;
   String? _errorMessage;
   String? _selectedMode; // 'general' or 'ielts'
+  double _numQuestions = 50;
 
   // Cache keys
   static const _cacheKeyGeneral = 'cached_assessment_general';
@@ -104,6 +105,67 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     color: isDark ? Colors.white54 : AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Number of Questions Slider
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Number of Questions',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : AppColors.textPrimary,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              _numQuestions.toInt().toString(),
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Slider(
+                        value: _numQuestions,
+                        min: 50,
+                        max: 100,
+                        divisions: 10, // 50, 55, 60... or 50, 60, 70 (if divisions = 5) Wait, max-min = 50. 50/10 = 5 divisions gives intervals of 10. 10 divisions gives intervals of 5.
+                        activeColor: AppColors.primary,
+                        inactiveColor: isDark ? Colors.white24 : Colors.grey.shade300,
+                        label: _numQuestions.toInt().toString(),
+                        onChanged: (val) {
+                          setState(() => _numQuestions = val);
+                        },
+                      ),
+                      Text(
+                        'Select between 50 and 100 questions',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isDark ? Colors.white54 : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 40),
@@ -309,7 +371,7 @@ Generate a General English assessment. Include:
 
       final aiResponse = await _aiService.generateQuiz(
         contextText,
-        numQuestions: 10,
+        numQuestions: _numQuestions.toInt(),
         config: config,
       );
 
@@ -444,7 +506,7 @@ Generate a General English assessment. Include:
         builder: (_) => QuizDetailPage(
           user: widget.user,
           quiz: quiz,
-          previewMode: true,
+          previewMode: false,
         ),
       ),
     );
