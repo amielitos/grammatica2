@@ -7,6 +7,7 @@ import '../services/role_service.dart';
 
 import 'quiz_folder_page.dart';
 import 'admin/admin_assessments_tab.dart';
+import 'ai_assessment_generator_page.dart';
 
 import '../widgets/design_ornaments.dart';
 
@@ -53,38 +54,60 @@ class _PracticeTabState extends State<PracticeTab> {
             onBack: () => setState(() => _selectedSubTab = null),
           );
         }
+        // AI Assessment Generator sub-tab
+        if (_selectedSubTab == 3) {
+          return AiAssessmentGeneratorPage(
+            user: user,
+            onBack: () => setState(() => _selectedSubTab = 2),
+          );
+        }
         if (_selectedSubTab == 2) {
           return Column(
             children: [
-              if (isAdmin)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.center,
-                    child: SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment(
-                          value: false,
-                          label: Text('View'),
-                          icon: Icon(Icons.visibility),
+              // Top toolbar with AI Assessment button + optional Manage toggle
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => setState(() => _selectedSubTab = 3),
+                      icon: const Icon(Icons.psychology_rounded, size: 18),
+                      label: const Text('AI Assessment'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2E5090),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        ButtonSegment(
-                          value: true,
-                          label: Text('Manage'),
-                          icon: Icon(Icons.edit),
-                        ),
-                      ],
-                      selected: {_showAssessmentEditor},
-                      onSelectionChanged: (val) {
-                        setState(() => _showAssessmentEditor = val.first);
-                      },
+                      ),
                     ),
-                  ),
+                    const Spacer(),
+                    if (isAdmin)
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.center,
+                        child: SegmentedButton<bool>(
+                          segments: const [
+                            ButtonSegment(
+                              value: false,
+                              label: Text('View'),
+                              icon: Icon(Icons.visibility),
+                            ),
+                            ButtonSegment(
+                              value: true,
+                              label: Text('Manage'),
+                              icon: Icon(Icons.edit),
+                            ),
+                          ],
+                          selected: {_showAssessmentEditor},
+                          onSelectionChanged: (val) {
+                            setState(() => _showAssessmentEditor = val.first);
+                          },
+                        ),
+                      ),
+                  ],
                 ),
+              ),
               Expanded(
                 child: _showAssessmentEditor
                     ? Scaffold(

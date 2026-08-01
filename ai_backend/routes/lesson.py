@@ -72,3 +72,34 @@ async def extract_lesson(request: Request, file: UploadFile = File(...)):
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
+from pydantic import BaseModel
+
+class GenerateLessonRequest(BaseModel):
+    rawText: str
+
+@router.post("/generate-lesson", dependencies=[Depends(verify_api_key)])
+async def generate_lesson_from_text(request_data: GenerateLessonRequest, request: Request):
+    """
+    Generate a lesson directly from raw text.
+    """
+    try:
+        # Generate lesson via Gemini
+        lesson_data = await generate_lesson(request_data.rawText)
+
+        # Process image content blocks — generate placeholder images
+        base_url = str(request.base_url).rstrip("/")
+        for block in lesson_data.get("content", []):
+            if block.get("type") == "image" and isinstance(block.get("data"), str):
+                prompt = block["data"]
+                image_url = generate_placeholder_image(prompt, base_url)
+                block["data"] = image_url
+
+        return lesson_data
+    except ValueError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI generated an invalid response. Please try again. Error: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

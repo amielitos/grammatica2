@@ -100,8 +100,10 @@ class _AiHubPageState extends State<AiHubPage>
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded,
-                      color: Colors.white),
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                   tooltip: 'Back',
                 ),
@@ -111,18 +113,19 @@ class _AiHubPageState extends State<AiHubPage>
                   tween: Tween(begin: 0.0, end: 1.0),
                   duration: const Duration(milliseconds: 800),
                   curve: Curves.elasticOut,
-                  builder: (context, value, child) => Transform.scale(
-                    scale: value,
-                    child: child,
-                  ),
+                  builder: (context, value, child) =>
+                      Transform.scale(scale: value, child: child),
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child:
-                        const Icon(Icons.psychology, color: Colors.white, size: 28),
+                    child: const Icon(
+                      Icons.psychology,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -136,14 +139,6 @@ class _AiHubPageState extends State<AiHubPage>
                           fontSize: isWide ? 28 : 22,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Powered by Gemini',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: Colors.white70,
                         ),
                       ),
                     ],
@@ -187,9 +182,7 @@ class _AiHubPageState extends State<AiHubPage>
       decoration: BoxDecoration(
         color: badgeColor.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: badgeColor.withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: badgeColor.withValues(alpha: 0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -221,22 +214,16 @@ class _AiHubPageState extends State<AiHubPage>
         isScrollable: true,
         tabAlignment: TabAlignment.start,
         labelColor: AppColors.primary,
-        unselectedLabelColor:
-            isDark ? Colors.white54 : AppColors.textSecondary,
+        unselectedLabelColor: isDark ? Colors.white54 : AppColors.textSecondary,
         indicatorColor: AppColors.primary,
         indicatorWeight: 3,
         labelStyle: GoogleFonts.outfit(
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: GoogleFonts.inter(
-          fontSize: 14,
-        ),
+        unselectedLabelStyle: GoogleFonts.inter(fontSize: 14),
         tabs: _tabs
-            .map((t) => Tab(
-                  icon: Icon(t.icon, size: 20),
-                  text: t.label,
-                ))
+            .map((t) => Tab(icon: Icon(t.icon, size: 20), text: t.label))
             .toList(),
       ),
     );

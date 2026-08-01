@@ -15,6 +15,7 @@ import uvicorn
 from config import settings
 from routes.lesson import router as lesson_router
 from routes.quiz import router as quiz_router
+from routes.convert import router as convert_router
 
 
 @asynccontextmanager
@@ -60,6 +61,7 @@ app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
 # ── Routes ───────────────────────────────────────────────────────────────────
 app.include_router(lesson_router)
 app.include_router(quiz_router)
+app.include_router(convert_router)
 
 
 @app.get("/health")

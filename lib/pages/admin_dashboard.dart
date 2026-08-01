@@ -21,7 +21,7 @@ import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import 'admin/validator_dashboard_tab.dart';
 import 'admin/educator_dashboard_tab.dart';
-import 'ai_hub/ai_hub_page.dart';
+import '../services/ai_logic_service.dart';
 
 import 'dart:async';
 
@@ -256,13 +256,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
       }
 
-      // AI Studio (Admin + Educator)
-      if (isAdmin || isEducator) {
-        tabs.add(const AiHubPage());
-        navItems.add(
-          const ModernNavItem(icon: Icons.psychology, label: 'AI Studio'),
-        );
-      }
+      // AI Studio has been migrated to Content and Practice tabs
+      // AI Studio (Removed)
 
       if (!isEducator) {
         tabs.add(BrowseEducatorsTab(user: widget.user));

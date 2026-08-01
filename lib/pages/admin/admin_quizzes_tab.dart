@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/database_service.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../models/content_visibility.dart';
+import '../../models/ai_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../../widgets/user_visibility_selector.dart';
@@ -53,9 +54,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
   ContentVisibility _visibility = ContentVisibility.public;
 
-  List<PlatformFile> _selectedFiles = [];
-  String? _currentAttachmentName;
-  String? _currentAttachmentUrl;
+  // AI Configuration state
+  String _aiDifficulty = 'medium';
+  int _aiNumQuestions = 10;
+  final _aiCustomInstructionsCtrl = TextEditingController();
+  bool _aiIncludeHints = true;
+  final List<String> _aiQuestionTypes = ['multiple_choice', 'true_false'];
 
   @override
   void dispose() {
@@ -63,6 +67,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _description.dispose();
     _durationCtrl.dispose();
     _maxAttemptsCtrl.dispose();
+    _aiCustomInstructionsCtrl.dispose();
     for (final q in _questions) {
       q.dispose();
     }
@@ -75,7 +80,6 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (!widget.isEmbedded) _buildQuizzesList(),
           Padding(
             padding: const EdgeInsets.all(24.0),
             child: LayoutBuilder(
@@ -87,7 +91,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     children: [
                       Expanded(flex: 2, child: _buildInputFields()),
                       const SizedBox(width: 32),
-                      Expanded(flex: 1, child: _buildUploadUI()),
+                      Expanded(flex: 1, child: _buildAiConfigPanel()),
                     ],
                   );
                 } else {
@@ -96,7 +100,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     children: [
                       _buildInputFields(),
                       const SizedBox(height: 24),
-                      _buildUploadUI(),
+                      _buildAiConfigPanel(),
                     ],
                   );
                 }
@@ -667,7 +671,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           children: [
             Text('Questions', style: Theme.of(context).textTheme.titleMedium),
             ElevatedButton.icon(
-              onPressed: _isGeneratingFromPdf ? null : _generateQuestionsFromPdf,
+              onPressed: _isGeneratingFromPdf ? null : _generateQuestionsWithAi,
               icon: _isGeneratingFromPdf
                   ? const SizedBox(
                       width: 16,
@@ -675,7 +679,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.auto_awesome),
-              label: const Text('Generate from PDF'),
+              label: const Text('AI Generate'),
             ),
           ],
         ),
@@ -958,54 +962,254 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     }
   }
 
-  Widget _buildUploadUI() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Attach PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: () async {
-            final result = await FilePicker.platform.pickFiles(
-              type: FileType.custom,
-              allowMultiple: false,
-              allowedExtensions: ['pdf'],
-              withData: true,
-            );
-            if (!mounted) return;
-            if (result != null) {
-              setState(() => _selectedFiles = result.files);
-            }
-          },
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            height: 200,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.upload_file, size: 48, color: Colors.grey.shade500),
-                const SizedBox(height: 16),
-                Text(
-                  _selectedFiles.isNotEmpty ? _selectedFiles.first.name : (_currentAttachmentName ?? 'No PDF uploaded yet'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  (_selectedFiles.isNotEmpty || _currentAttachmentName != null) ? 'Click to change file' : 'Upload PDF to attach to this quiz.',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-              ],
+  /// AI Config panel — replaces old PDF attachment panel.
+  Widget _buildAiConfigPanel() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'AI Generation Config',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF2A2A2A),
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+
+          // Difficulty
+          Text('Difficulty', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'easy', label: Text('Easy')),
+              ButtonSegment(value: 'medium', label: Text('Medium')),
+              ButtonSegment(value: 'hard', label: Text('Hard')),
+            ],
+            selected: {_aiDifficulty},
+            onSelectionChanged: (val) => setState(() => _aiDifficulty = val.first),
+            style: ButtonStyle(visualDensity: VisualDensity.compact),
+          ),
+          const SizedBox(height: 16),
+
+          // Number of questions
+          Text('Number of Questions', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              IconButton(
+                onPressed: _aiNumQuestions > 1 ? () => setState(() => _aiNumQuestions--) : null,
+                icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+              ),
+              Text(
+                '$_aiNumQuestions',
+                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF88B342)),
+              ),
+              IconButton(
+                onPressed: _aiNumQuestions < 30 ? () => setState(() => _aiNumQuestions++) : null,
+                icon: const Icon(Icons.add_circle_outline, color: Color(0xFF88B342)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Include hints
+          SwitchListTile(
+            title: Text('Include Hints', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+            value: _aiIncludeHints,
+            onChanged: (val) => setState(() => _aiIncludeHints = val),
+            activeColor: const Color(0xFF88B342),
+            contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 8),
+
+          // Custom instructions
+          Text('Custom Instructions (Optional)', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _aiCustomInstructionsCtrl,
+            maxLines: 3,
+            style: GoogleFonts.inter(fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'e.g. "1-5 multiple choice, 6-10 fill in the blank"',
+              hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade400),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF88B342), width: 2),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  /// AI-powered question generation — replaces old PDF-only flow.
+  Future<void> _generateQuestionsWithAi() async {
+    // Show a dialog to choose: upload PDF or paste text
+    final pasteCtrl = TextEditingController();
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome, color: Color(0xFF88B342)),
+            SizedBox(width: 12),
+            Text('AI Generate Questions'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Choose how to provide the source material:'),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.pop(ctx, 'pdf'),
+                icon: const Icon(Icons.picture_as_pdf_rounded),
+                label: const Text('Upload PDF'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF88B342),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text('— or —', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: pasteCtrl,
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: 'Paste lesson text here...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pop(ctx, 'text'),
+                icon: const Icon(Icons.text_snippet_rounded),
+                label: const Text('Generate from Text'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == null) return;
+
+    setState(() => _isGeneratingFromPdf = true);
+
+    try {
+      String extractedText;
+
+      if (choice == 'pdf') {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['pdf'],
+          withData: true,
+        );
+
+        if (result == null || result.files.isEmpty) {
+          setState(() => _isGeneratingFromPdf = false);
+          return;
+        }
+
+        final platformFile = result.files.single;
+        List<int> bytes;
+        if (platformFile.bytes != null) {
+          bytes = platformFile.bytes!;
+        } else if (platformFile.path != null) {
+          bytes = await File(platformFile.path!).readAsBytes();
+        } else {
+          throw Exception('Could not read file data');
+        }
+
+        extractedText = await _aiLogicService.extractTextFromPdf(bytes);
+      } else {
+        extractedText = pasteCtrl.text.trim();
+        if (extractedText.isEmpty) {
+          setState(() => _isGeneratingFromPdf = false);
+          return;
+        }
+      }
+
+      final config = QuizGenerationConfig(
+        questionTypes: _aiQuestionTypes,
+        difficulty: _aiDifficulty,
+        customInstructions: _aiCustomInstructionsCtrl.text.trim(),
+        includeHints: _aiIncludeHints,
+      );
+
+      final aiResponse = await _aiLogicService.generateQuiz(
+        extractedText,
+        numQuestions: _aiNumQuestions,
+        config: config,
+      );
+
+      // Map AI response to native _QuestionState objects
+      setState(() {
+        // Clear default first empty question if it's the only one and empty
+        if (_questions.length == 1 && _questions[0].questionCtrl.text.isEmpty) {
+          _questions[0].dispose();
+          _questions.clear();
+        }
+
+        for (final q in aiResponse.questions) {
+          final questionText = q.content
+              .where((b) => b.type == ContentBlockType.text)
+              .map((b) => b.data.toString())
+              .join('\n');
+
+          _questions.add(_QuestionState(
+            questionCtrl: TextEditingController(text: questionText),
+            answerCtrl: TextEditingController(text: q.correctAnswer),
+            type: q.options.isNotEmpty ? 'multiple_choice' : 'text',
+            optionsCtrls: q.options
+                .map((opt) => TextEditingController(text: opt))
+                .toList(),
+          ));
+        }
+
+        _isGeneratingFromPdf = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Generated ${aiResponse.questions.length} questions!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGeneratingFromPdf = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating questions: $e')),
+        );
+      }
+    }
   }
 
   void resetForm() {
@@ -1014,9 +1218,6 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _description.clear();
     _durationCtrl.text = '0';
     _maxAttemptsCtrl.text = '1';
-    _selectedFiles = [];
-    _currentAttachmentName = null;
-    _currentAttachmentUrl = null;
     for (final q in _questions) {
       q.dispose();
     }
@@ -1026,6 +1227,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _isGrammaticaQuiz = false;
     _visibility = ContentVisibility.public;
     _visibleTo = [];
+    _aiCustomInstructionsCtrl.clear();
     setState(() {});
   }
 
@@ -1035,21 +1237,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       String? attachmentUrl;
       String? attachmentName;
 
-      if (_selectedFiles.isNotEmpty) {
-        final file = _selectedFiles.first;
-        if (file.size > 2 * 1024 * 1024) throw Exception('File size > 2MB');
-        if (file.bytes != null) {
-          attachmentUrl = await DatabaseService.instance.uploadDocument(
-            fileBytes: file.bytes!,
-            fileName: file.name,
-            folder: 'quizzes',
-          );
-          attachmentName = file.name;
-        }
-      } else if (_selectedQuizId != null) {
-        attachmentUrl = _currentAttachmentUrl;
-        attachmentName = _currentAttachmentName;
-      }
+      // No more file upload — attachment fields left null
 
       final durationSegments = _durationCtrl.text.split(':');
       int durationInMinutes = 0;
@@ -1167,8 +1355,6 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           _isMembersOnly = quiz.isMembersOnly;
           _isGrammaticaQuiz = quiz.isGrammaticaQuiz;
           _visibleTo = quiz.visibleTo;
-          _currentAttachmentName = quiz.attachmentName;
-          _currentAttachmentUrl = quiz.attachmentUrl;
           for (final q in _questions) {
             q.dispose();
           }

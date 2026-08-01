@@ -6,3 +6,4 @@ python-multipart
 google-genai
 pymupdf
 Pillow
+markitdown

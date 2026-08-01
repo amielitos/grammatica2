@@ -64,6 +64,12 @@ Rules:
 7. Output ONLY the JSON object, nothing else.
 ''';
 
+  static const String _markdownSystemPrompt = '''
+You are an expert document formatter. Your task is to convert raw extracted text into clean, well-structured Markdown format. 
+Use appropriate headings, lists, and emphasis where suitable. Preserve all key information and structure.
+Output ONLY the markdown text, nothing else.
+''';
+
   /// Builds a dynamic quiz system prompt based on the provided configuration.
   static String _buildQuizSystemPrompt(QuizGenerationConfig config) {
     final questionTypesStr = config.questionTypes.isNotEmpty
@@ -221,10 +227,10 @@ $explanationLine
 
   Future<AILessonResponse> _generateLessonBackend(String rawText) async {
     // The `/api/v1/extract-lesson` endpoint only accepts PDFs via multipart.
-    // For text-only generation we fall back to the old `/generate/lesson`
+    // For text-only generation we fall back to the old `/api/v1/generate-lesson`
     // route which accepts a JSON body.
     final response = await http.post(
-      Uri.parse('${AIConfig.pythonBackendUrl}/generate/lesson'),
+      Uri.parse('${AIConfig.pythonBackendUrl}/api/v1/generate-lesson'),
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': AIConfig.pythonApiKey,
@@ -413,12 +419,80 @@ $explanationLine
   }
 
   // ---------------------------------------------------------------------------
-  // Markdown conversion (delegates to Python backend only)
+  // Markdown conversion
   // ---------------------------------------------------------------------------
 
-  /// Calls the Python API to convert PDF bytes to Markdown using MarkItDown.
-  /// Only available when the Python backend is reachable.
+  /// Converts PDF bytes to formatted Markdown.
   Future<String> convertToMarkdown(List<int> bytes) async {
+    if (AIConfig.mode == AIExecutionMode.pythonBackend) {
+      return _convertToMarkdownBackend(bytes);
+    }
+    
+    // Client-side: extract text locally, then call Gemini to format as markdown.
+    final rawText = await extractTextFromPdf(bytes);
+    
+    switch (AIConfig.mode) {
+      case AIExecutionMode.firebaseAI:
+        return _convertMarkdownFirebase(rawText);
+      case AIExecutionMode.directClientSide:
+        return _convertMarkdownDirect(rawText);
+      case AIExecutionMode.pythonBackend:
+        // Handled above
+        throw UnimplementedError();
+    }
+  }
+
+  Future<String> _convertMarkdownFirebase(String rawText) async {
+    final model = FirebaseAI.googleAI().generativeModel(
+      model: AIConfig.firebaseAIModel,
+      systemInstruction: Content.system(_markdownSystemPrompt),
+      generationConfig: GenerationConfig(
+        temperature: 0.2,
+      ),
+    );
+
+    final response = await model.generateContent([
+      Content.text('Format the following text into Markdown:\n\n$rawText'),
+    ]);
+
+    return response.text ?? '';
+  }
+
+  Future<String> _convertMarkdownDirect(String rawText) async {
+    final body = jsonEncode({
+      'system_instruction': {
+        'parts': [
+          {'text': _markdownSystemPrompt}
+        ]
+      },
+      'contents': [
+        {
+          'parts': [
+            {'text': 'Format the following text into Markdown:\n\n$rawText'}
+          ]
+        }
+      ],
+      'generationConfig': {
+        'temperature': 0.2,
+      },
+    });
+
+    final uri = Uri.parse(
+        'https://generativelanguage.googleapis.com/v1beta/models/${AIConfig.geminiModel}:generateContent?key=${AIConfig.geminiApiKey}');
+
+    final response = await http.post(uri,
+        headers: {'Content-Type': 'application/json'}, body: body);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Gemini API error ${response.statusCode}: ${response.body}');
+    }
+
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return _extractGeminiText(json);
+  }
+
+  Future<String> _convertToMarkdownBackend(List<int> bytes) async {
     final baseUrl = AIConfig.pythonBackendUrl;
     try {
       final request = http.MultipartRequest(
@@ -531,6 +605,9 @@ $explanationLine
   /// Pings the Python backend `/health` endpoint.
   /// Returns `true` if the service is healthy.
   Future<bool> checkBackendHealth() async {
+    if (AIConfig.mode != AIExecutionMode.pythonBackend) {
+      return true; // We don't use the python backend in client-side modes.
+    }
     try {
       final response = await http
           .get(Uri.parse('${AIConfig.pythonBackendUrl}/health'))
