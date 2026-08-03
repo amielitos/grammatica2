@@ -229,9 +229,9 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                   color: AppColors.secondary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: const Text(
-                                  'Public',
-                                  style: TextStyle(
+                                child: Text(
+                                  '${lessons.length} Lesson${lessons.length == 1 ? "" : "s"}',
+                                  style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
                                     color: AppColors.secondary,

@@ -97,7 +97,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
                             context,
                             title: 'Grammatica',
                             description: 'Official quizzes',
-                            pillLabel: 'Grammatica',
+                            pillLabel: '${grammaticaQuizzes.length} Quiz${grammaticaQuizzes.length == 1 ? "" : "zes"}',
                             iconColor: Theme.of(context).colorScheme.primary,
                             onTap: () => setState(() {
                               _activeFolder = {
@@ -111,7 +111,7 @@ class _QuizzesPageState extends State<QuizzesPage> {
                             context,
                             title: 'Public',
                             description: 'Community & Educators',
-                            pillLabel: 'Public',
+                            pillLabel: '${publicQuizzes.length} Quiz${publicQuizzes.length == 1 ? "" : "zes"}',
                             iconColor: Theme.of(context).colorScheme.secondary,
                             onTap: () => setState(() {
                               _activeFolder = {

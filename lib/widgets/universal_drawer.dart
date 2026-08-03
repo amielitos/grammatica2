@@ -91,7 +91,7 @@ class UniversalDrawer extends StatelessWidget {
       final navItems = [
         const ModernNavItem(icon: Icons.book, label: 'Lessons'),
         const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
-        if (role != UserRole.learner) const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
+        const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
         const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
         ModernNavItem(icon: Icons.person, label: username),
       ];

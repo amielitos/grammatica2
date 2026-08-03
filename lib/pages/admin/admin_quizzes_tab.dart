@@ -1373,6 +1373,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
         if (aiResponse.title != null && aiResponse.title!.isNotEmpty) {
           _title.text = aiResponse.title!;
         }
+
+        // If generated from a lesson, ensure the lesson title is appended/indicated
+        if (_aiSourceMode == 'lesson' && _aiSelectedLessonId != null) {
+          DatabaseService.instance.getLessonById(_aiSelectedLessonId!).then((lesson) {
+            if (lesson != null && lesson.title.isNotEmpty && mounted) {
+              if (!_title.text.toLowerCase().contains(lesson.title.toLowerCase())) {
+                setState(() {
+                  _title.text = '${lesson.title} - Quiz';
+                });
+              }
+            }
+          });
+        }
+
         if (aiResponse.description != null && aiResponse.description!.isNotEmpty) {
           _description.text = aiResponse.description!;
         }
@@ -1441,6 +1455,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   Future<String?> _saveQuiz() async {
     setState(() => _creatingOrUpdating = true);
     try {
+      final role = await RoleService.instance.getRole(
+        AuthService.instance.currentUser?.uid ?? '',
+      );
+      final isEducator = role == UserRole.educator;
+      final status = isEducator ? 'awaiting_approval' : 'approved';
+
       String? attachmentUrl;
       String? attachmentName;
 
@@ -1488,7 +1508,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
           isGrammaticaQuiz: _isGrammaticaQuiz,
-          validationStatus: 'approved',
+          validationStatus: status,
         );
         if (mounted && !widget.isEmbedded) {
           final role = await RoleService.instance.getRole(
@@ -1519,12 +1539,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
           isGrammaticaQuiz: _isGrammaticaQuiz,
-          validationStatus: 'approved',
+          validationStatus: status,
         );
         if (mounted && !widget.isEmbedded) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('Quiz updated')));
+          ).showSnackBar(SnackBar(content: Text(isEducator ? 'Quiz submitted for approval' : 'Quiz updated')));
         }
       }
       if (mounted && !widget.isEmbedded) resetForm();

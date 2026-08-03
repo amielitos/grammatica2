@@ -39,7 +39,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   String _recognizedText = "";
   bool? _isLastCorrect;
   bool _isTransitioning = false;
-  bool _useAiWords = false;
+
 
   // Speech to Text
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -135,23 +135,17 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   Future<void> _startSession(SpellingDifficulty difficulty) async {
     List<SpellingWord> allWords;
 
-    if (_useAiWords) {
-      try {
-        allWords = await AIService.instance.generateWords(
-          count: 10,
-          difficulty: difficulty,
-        );
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AI generation failed: $e')),
-        );
-        return;
-      }
-    } else {
-      allWords = await DatabaseService.instance.fetchSpellingWords(
+    try {
+      allWords = await AIService.instance.generateWords(
+        count: 10,
         difficulty: difficulty,
       );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('AI generation failed: $e')),
+      );
+      return;
     }
 
     if (!mounted) return;
@@ -557,57 +551,6 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
             style: TextStyle(
               fontSize: 16,
               color: AppColors.textSecondary,
-            ),
-          ),
-          SizedBox(height: 48),
-          // AI toggle
-          Container(
-            constraints: const BoxConstraints(maxWidth: 400),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _useAiWords ? Icons.psychology_rounded : Icons.storage_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Word Source:',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Database')),
-                    ButtonSegment(value: true, label: Text('AI Generated')),
-                  ],
-                  selected: {_useAiWords},
-                  onSelectionChanged: (val) {
-                    setState(() => _useAiWords = val.first);
-                  },
-                  style: ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              ],
             ),
           ),
           SizedBox(height: 32),

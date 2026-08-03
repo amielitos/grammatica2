@@ -91,6 +91,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
 
   // Structured content blocks (Text and Image)
   List<AdminContentBlockState> _contentBlocks = [];
+  List<Map<String, dynamic>>? _cachedAiBlocks;
 
   ContentVisibility _visibility = ContentVisibility.public;
   int _tabIndex = 0; 
@@ -576,6 +577,30 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             ),
             Row(
               children: [
+                if (_cachedAiBlocks != null && _cachedAiBlocks!.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        for (final b in _contentBlocks) {
+                          b.dispose();
+                        }
+                        _contentBlocks = _cachedAiBlocks!.map((b) {
+                          final type = (b['type'] ?? 'text').toString();
+                          return AdminContentBlockState(
+                            type: type,
+                            text: type == 'image' ? (b['caption'] ?? '').toString() : (b['data'] ?? '').toString(),
+                            imageUrl: type == 'image' ? (b['data'] as String?) : null,
+                          );
+                        }).toList();
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Reverted content blocks to AI generated layout!')),
+                      );
+                    },
+                    icon: const Icon(Icons.restore_rounded, size: 16),
+                    label: const Text('Revert to AI Layout'),
+                  ),
+                if (_cachedAiBlocks != null && _cachedAiBlocks!.isNotEmpty) const SizedBox(width: 4),
                 TextButton.icon(
                   onPressed: () {
                     setState(() {
@@ -681,6 +706,28 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                             ),
                           ),
                           const Spacer(),
+                          if (index > 0)
+                            IconButton(
+                              icon: const Icon(Icons.arrow_upward_rounded, size: 16),
+                              tooltip: 'Move Up',
+                              onPressed: () {
+                                setState(() {
+                                  final item = _contentBlocks.removeAt(index);
+                                  _contentBlocks.insert(index - 1, item);
+                                });
+                              },
+                            ),
+                          if (index < _contentBlocks.length - 1)
+                            IconButton(
+                              icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+                              tooltip: 'Move Down',
+                              onPressed: () {
+                                setState(() {
+                                  final item = _contentBlocks.removeAt(index);
+                                  _contentBlocks.insert(index + 1, item);
+                                });
+                              },
+                            ),
                           IconButton(
                             icon: const Icon(Icons.close, size: 16),
                             onPressed: () {
@@ -692,6 +739,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                           ),
                         ],
                       ),
+
                     ),
 
                     // Body
@@ -992,8 +1040,15 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
 
       _prompt.text = blocks.where((b) => b.type == 'text').map((c) => c.textCtrl.text).join('\n\n');
 
+      final cachedData = blocks.map((b) => {
+        'type': b.type,
+        'data': b.type == 'image' ? (b.imageUrl ?? '') : b.textCtrl.text,
+        'caption': b.textCtrl.text,
+      }).toList();
+
       setState(() {
         _contentBlocks = blocks;
+        _cachedAiBlocks = cachedData;
         _isGeneratingFromPdf = false;
       });
 
@@ -1084,8 +1139,15 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
 
       _prompt.text = blocks.where((b) => b.type == 'text').map((c) => c.textCtrl.text).join('\n\n');
 
+      final cachedData = blocks.map((b) => {
+        'type': b.type,
+        'data': b.type == 'image' ? (b.imageUrl ?? '') : b.textCtrl.text,
+        'caption': b.textCtrl.text,
+      }).toList();
+
       setState(() {
         _contentBlocks = blocks;
+        _cachedAiBlocks = cachedData;
         _isGeneratingFromPrompt = false;
       });
 
@@ -1114,6 +1176,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
       block.dispose();
     }
     _contentBlocks = [];
+    _cachedAiBlocks = null;
     _isVisible = true;
     _isMembersOnly = false;
     _isGrammaticaLesson = false;
@@ -1126,6 +1189,10 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   Future<void> _saveLesson() async {
     setState(() => _creatingLesson = true);
     try {
+      final userRole = await RoleService.instance.getRole(AuthService.instance.currentUser?.uid ?? '');
+      final isEducator = userRole == UserRole.educator;
+      final status = isEducator ? 'awaiting_approval' : 'approved';
+
       final contentBlocksData = _contentBlocks.map((b) {
         if (b.type == 'image') {
           return {
@@ -1172,12 +1239,12 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           isMembersOnly: lessonData.isMembersOnly,
           isGrammaticaLesson: lessonData.isGrammaticaLesson,
           quizId: lessonData.quizId,
-          validationStatus: 'approved',
+          validationStatus: status,
           contentBlocks: contentBlocksData,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lesson saved successfully!')),
+            SnackBar(content: Text(isEducator ? 'Lesson submitted for approval!' : 'Lesson saved successfully!')),
           );
         }
       } else {
@@ -1191,15 +1258,17 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           isMembersOnly: lessonData.isMembersOnly,
           isGrammaticaLesson: lessonData.isGrammaticaLesson,
           quizId: lessonData.quizId,
-          validationStatus: 'approved',
+          validationStatus: status,
           contentBlocks: contentBlocksData,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lesson updated successfully!')),
+            SnackBar(content: Text(isEducator ? 'Lesson updated and submitted for approval!' : 'Lesson updated successfully!')),
           );
         }
       }
+      _resetForm();
+
       _resetForm();
     } catch (e) {
       if (mounted) {

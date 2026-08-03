@@ -80,22 +80,29 @@ class ValidatorDashboardTab extends StatelessWidget {
                       stream: FirebaseFirestore.instance.collection('lessons').where('validationStatus', isEqualTo: 'awaiting_approval').snapshots(),
                       builder: (context, lessonSnap) {
                         final lessonCount = lessonSnap.data?.docs.length ?? 0;
-                        return StreamBuilder<List<EducatorApplication>>(
-                          stream: DatabaseService.instance.streamEducatorApplications(),
-                          builder: (context, appSnap) {
-                            final appCount = appSnap.data?.length ?? 0;
-                            
-                            return LayoutBuilder(
-                              builder: (context, constraints) {
-                                return Wrap(
-                                  spacing: 24,
-                                  runSpacing: 24,
-                                  alignment: WrapAlignment.center,
-                                  children: [
-                                    _buildStatCard('Pending Lessons', lessonCount.toString(), Icons.pending_actions, AppColors.secondary),
-                                    _buildStatCard('Pending Applicants', appCount.toString(), Icons.person_add, const Color(0xFF4A90E2)),
-                                    _buildStatCard('Active Educators', educCount.toString(), Icons.school, AppColors.primary),
-                                  ],
+                        return StreamBuilder<List<Quiz>>(
+                          stream: DatabaseService.instance.streamAwaitingApprovalQuizzes(),
+                          builder: (context, quizSnap) {
+                            final quizCount = quizSnap.data?.length ?? 0;
+                            return StreamBuilder<List<EducatorApplication>>(
+                              stream: DatabaseService.instance.streamEducatorApplications(),
+                              builder: (context, appSnap) {
+                                final appCount = appSnap.data?.length ?? 0;
+                                
+                                return LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    return Wrap(
+                                      spacing: 24,
+                                      runSpacing: 24,
+                                      alignment: WrapAlignment.center,
+                                      children: [
+                                        _buildStatCard('Pending Lessons', lessonCount.toString(), Icons.pending_actions, AppColors.secondary),
+                                        _buildStatCard('Pending Quizzes', quizCount.toString(), Icons.quiz_rounded, Colors.orangeAccent),
+                                        _buildStatCard('Pending Applicants', appCount.toString(), Icons.person_add, const Color(0xFF4A90E2)),
+                                        _buildStatCard('Active Educators', educCount.toString(), Icons.school, AppColors.primary),
+                                      ],
+                                    );
+                                  },
                                 );
                               },
                             );
@@ -233,34 +240,111 @@ class ValidatorDashboardTab extends StatelessWidget {
   }
 
   Widget _buildLessonsList(BuildContext context) {
-    return StreamBuilder<List<Lesson>>(
-      stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final lessons = snapshot.data ?? [];
-        if (lessons.isEmpty) {
-          return _buildEmptyState('No new lessons to validate', Icons.done_all_rounded);
-        }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Lessons',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 12),
+        StreamBuilder<List<Lesson>>(
+          stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final lessons = snapshot.data ?? [];
+            if (lessons.isEmpty) {
+              return _buildEmptyState('No new lessons to validate', Icons.done_all_rounded);
+            }
 
-        return Column(
-          children: lessons.map((l) => _buildReviewCard(
-            context,
-            title: l.title,
-            subtitle: AuthorName(
-              uid: l.createdByUid,
-              fallbackEmail: l.createdByEmail,
-              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
-            ),
-            icon: Icons.description_rounded,
-            iconColor: AppColors.secondary,
-            onTap: () => onReviewRequests?.call(0),
-          )).toList(),
-        );
-      },
+            return Column(
+              children: lessons.map((l) => _buildReviewCard(
+                context,
+                title: l.title,
+                subtitle: AuthorName(
+                  uid: l.createdByUid,
+                  fallbackEmail: l.createdByEmail,
+                  style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+                ),
+                icon: Icons.description_rounded,
+                iconColor: AppColors.secondary,
+                onTap: () => onReviewRequests?.call(0),
+              )).toList(),
+            );
+          },
+        ),
+        const SizedBox(height: 32),
+        Text(
+          'Quizzes',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 12),
+        StreamBuilder<List<Quiz>>(
+          stream: DatabaseService.instance.streamAwaitingApprovalQuizzes(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final quizzes = snapshot.data ?? [];
+            if (quizzes.isEmpty) {
+              return _buildEmptyState('No new quizzes to validate', Icons.quiz_outlined);
+            }
+
+            return Column(
+              children: quizzes.map((q) => _buildReviewCard(
+                context,
+                title: q.title,
+                subtitle: AuthorName(
+                  uid: q.createdByUid ?? '',
+                  fallbackEmail: q.createdByEmail,
+                  style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+                ),
+                icon: Icons.quiz_rounded,
+                iconColor: Colors.orangeAccent,
+                onTap: () => onReviewRequests?.call(1),
+              )).toList(),
+            );
+          },
+        ),
+        const SizedBox(height: 32),
+        Text(
+          'Assessments',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 12),
+        StreamBuilder<List<Quiz>>(
+          stream: DatabaseService.instance.streamAwaitingApprovalAssessments(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final assessments = snapshot.data ?? [];
+            if (assessments.isEmpty) {
+              return _buildEmptyState('No new assessments to validate', Icons.assignment_turned_in_outlined);
+            }
+
+            return Column(
+              children: assessments.map((q) => _buildReviewCard(
+                context,
+                title: q.title,
+                subtitle: AuthorName(
+                  uid: q.createdByUid ?? '',
+                  fallbackEmail: q.createdByEmail,
+                  style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+                ),
+                icon: Icons.assignment_rounded,
+                iconColor: Colors.purpleAccent,
+                onTap: () => onReviewRequests?.call(2),
+              )).toList(),
+            );
+          },
+        ),
+      ],
     );
   }
+
 
   Widget _buildApplicationsList(BuildContext context) {
     return StreamBuilder<List<EducatorApplication>>(
@@ -284,7 +368,7 @@ class ValidatorDashboardTab extends StatelessWidget {
             ),
             icon: Icons.badge_rounded,
             iconColor: const Color(0xFF4A90E2),
-            onTap: () => onReviewRequests?.call(2),
+            onTap: () => onReviewRequests?.call(3),
           )).toList(),
         );
       },

@@ -229,9 +229,9 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                   color: AppColors.secondary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: const Text(
-                                  'Public',
-                                  style: TextStyle(
+                                child: Text(
+                                  '${quizzes.length} Quiz${quizzes.length == 1 ? "" : "zes"}',
+                                  style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
                                     color: AppColors.secondary,

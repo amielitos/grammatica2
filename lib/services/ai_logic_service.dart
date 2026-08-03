@@ -112,7 +112,7 @@ Rules:
    - "questionType": one of $questionTypesStr
    - "question": a string containing the question text or the passage text if type is passage.
    - "options": array of strings (required for multiple_choice; use empty array [] for fill_in_the_blank or passage)
-   - "correctAnswer": string with the correct answer (use empty string "" for passage)
+   - "correctAnswer": string with the correct answer (MUST be provided for fill_in_the_blank and multiple_choice; use empty string "" for passage)
 $hintLine
 $explanationLine
 3. Only use the question types listed above. Distribute questions across the allowed types.

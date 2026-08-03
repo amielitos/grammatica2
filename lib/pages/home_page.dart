@@ -100,8 +100,7 @@ class _HomePageState extends State<HomePage> {
     final items = [
       const ModernNavItem(icon: Icons.book, label: 'Lessons'),
       const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
-      if (widget.role != UserRole.learner)
-        const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
+      const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
       const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
       ModernNavItem(
         icon: Icons.person,
@@ -128,7 +127,7 @@ class _HomePageState extends State<HomePage> {
             },
           ),
           const PracticeTab(),
-          if (widget.role != UserRole.learner) QuizzesPage(user: user),
+          QuizzesPage(user: user),
           BrowseEducatorsTab(user: user),
           ProfilePage(key: _profileKey, user: user),
         ],

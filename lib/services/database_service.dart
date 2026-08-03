@@ -1217,14 +1217,13 @@ class DatabaseService {
     }
   }
 
-  Future<String> uploadGeneratedImage(Uint8List bytes, String fileName) async {
+  Future<String> uploadGeneratedImage(Uint8List bytes, String fileName, {String? lessonId}) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      final userId = user?.uid ?? 'public';
+      final folder = lessonId ?? 'lesson_${DateTime.now().millisecondsSinceEpoch}';
       final storageRef = FirebaseStorage.instance
           .ref()
-          .child('user_images')
-          .child(userId)
+          .child('lesson_images')
+          .child(folder)
           .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
 
       final uploadTask = storageRef.putData(
@@ -1238,6 +1237,7 @@ class DatabaseService {
       throw Exception('Failed to upload image: $e');
     }
   }
+
 
   Stream<List<Map<String, dynamic>>> streamEducators() {
     return _firestore
