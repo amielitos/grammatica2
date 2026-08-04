@@ -78,7 +78,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
   int _aiNumQuestions = 10;
   final _aiCustomInstructionsCtrl = TextEditingController();
   bool _aiIncludeHints = true;
-  List<String> _aiQuestionTypes = ['multiple_choice'];
+  final List<String> _aiQuestionTypes = ['multiple_choice'];
 
   @override
   void dispose() {
@@ -934,8 +934,11 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                   value: _aiQuestionTypes.contains('multiple_choice'),
                   onChanged: (val) {
                     setState(() {
-                      if (val == true) _aiQuestionTypes.add('multiple_choice');
-                      else _aiQuestionTypes.remove('multiple_choice');
+                      if (val == true) {
+                        _aiQuestionTypes.add('multiple_choice');
+                      } else {
+                        _aiQuestionTypes.remove('multiple_choice');
+                      }
                     });
                   },
                   activeColor: const Color(0xFF88B342),
@@ -948,8 +951,11 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                   value: _aiQuestionTypes.contains('fill_in_the_blank'),
                   onChanged: (val) {
                     setState(() {
-                      if (val == true) _aiQuestionTypes.add('fill_in_the_blank');
-                      else _aiQuestionTypes.remove('fill_in_the_blank');
+                      if (val == true) {
+                        _aiQuestionTypes.add('fill_in_the_blank');
+                      } else {
+                        _aiQuestionTypes.remove('fill_in_the_blank');
+                      }
                     });
                   },
                   activeColor: const Color(0xFF88B342),
@@ -962,8 +968,11 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                   value: _aiQuestionTypes.contains('passage'),
                   onChanged: (val) {
                     setState(() {
-                      if (val == true) _aiQuestionTypes.add('passage');
-                      else _aiQuestionTypes.remove('passage');
+                      if (val == true) {
+                        _aiQuestionTypes.add('passage');
+                      } else {
+                        _aiQuestionTypes.remove('passage');
+                      }
                     });
                   },
                   activeColor: const Color(0xFF88B342),
@@ -1019,7 +1028,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
               title: Text('Include Hints', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
               value: _aiIncludeHints,
               onChanged: (val) => setState(() => _aiIncludeHints = val),
-              activeColor: const Color(0xFF88B342),
+              activeThumbColor: const Color(0xFF88B342),
               contentPadding: EdgeInsets.zero,
             ),
           ),
