@@ -127,6 +127,19 @@ class _AuthWrapper extends StatelessWidget {
               );
             }
             if (!userDocSnap.hasData || !(userDocSnap.data?.exists ?? false)) {
+              // Auto-create missing user document in Firestore to prevent infinite loading
+              FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+                'uid': user.uid,
+                'email': user.email ?? '',
+                'createdAt': FieldValue.serverTimestamp(),
+                'role': 'LEARNER',
+                'status': 'ACTIVE',
+                'subscription_status': 'NONE',
+                'username': user.displayName ?? ((user.email != null && user.email!.contains('@')) ? user.email!.split('@')[0] : 'Grammatica Learner'),
+                'photoUrl': user.photoURL ?? '',
+                'has_completed_onboarding': false,
+              }, SetOptions(merge: true));
+
               return const Scaffold(
                 body: Center(
                   child: Column(

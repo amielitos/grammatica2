@@ -13,6 +13,9 @@ class EmailSenderService {
     required String recipientName,
     required String otpCode,
   }) async {
+    debugPrint('==============================================');
+    debugPrint('🔑 VERIFICATION OTP FOR $recipientEmail: $otpCode');
+    debugPrint('==============================================');
     return await sendEmail(
       toEmail: recipientEmail,
       subject: 'Your Grammatica Verification Code: $otpCode',
@@ -47,6 +50,9 @@ class EmailSenderService {
     required String recipientName,
     required String otpCode,
   }) async {
+    debugPrint('==============================================');
+    debugPrint('🔑 PASSWORD RESET OTP FOR $recipientEmail: $otpCode');
+    debugPrint('==============================================');
     return await sendEmail(
       toEmail: recipientEmail,
       subject: 'Grammatica Password Reset Code: $otpCode',

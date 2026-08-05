@@ -1244,15 +1244,15 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     final scorableCount = _shuffledQuestions.where((q) => !(q.question.type == 'passage' && q.parentPassage == null)).length;
     final double percentage = scorableCount > 0 ? (_lastScore ?? 0) / scorableCount : 1.0;
     
-    String feedbackMessage = 'Keep practicing to achieve mastery! ✨';
+    String feedbackMessage = 'Keep practicing to achieve mastery.';
     if (percentage >= 1.0) {
-      feedbackMessage = 'Perfect Score! You are a true Grammatica expert! 🏆';
+      feedbackMessage = 'Perfect Score! You are a true Grammatica expert.';
     } else if (percentage >= 0.9) {
-      feedbackMessage = 'Stellar performance! You have mastered this content. 🌟';
+      feedbackMessage = 'Stellar performance! You have mastered this content.';
     } else if (percentage >= 0.7) {
-      feedbackMessage = "Great job! You're very close to mastery. 💪";
+      feedbackMessage = "Great job! You're very close to mastery.";
     } else if (percentage >= 0.5) {
-      feedbackMessage = "Good effort! A bit more review and you'll get there. 📚";
+      feedbackMessage = "Good effort! A bit more review and you'll get there.";
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
