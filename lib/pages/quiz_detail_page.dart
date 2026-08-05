@@ -1027,6 +1027,37 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                       ),
                   ],
                 ),
+                
+              if (_isReviewing && (question.hint != null || question.explanation != null))
+                Container(
+                  margin: const EdgeInsets.only(top: 24),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.lightbulb_outline_rounded, size: 18, color: Colors.amber),
+                          const SizedBox(width: 8),
+                          Text('EXPLANATION & HINT', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber.shade700, letterSpacing: 1)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (question.hint != null && question.hint!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Text('Hint: ${question.hint}', style: GoogleFonts.inter(fontSize: 15, color: isDark ? Colors.white70 : Colors.black87)),
+                        ),
+                      if (question.explanation != null && question.explanation!.isNotEmpty)
+                        Text(question.explanation!, style: GoogleFonts.inter(fontSize: 15, color: isDark ? Colors.white70 : Colors.black87)),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),

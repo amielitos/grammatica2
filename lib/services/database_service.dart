@@ -174,6 +174,8 @@ class QuizQuestion {
   final String type; // 'text', 'multiple_choice', 'passage'
   final List<String>? options;
   final List<QuizQuestion>? nestedQuestions;
+  final String? hint;
+  final String? explanation;
 
   QuizQuestion({
     required this.question,
@@ -181,6 +183,8 @@ class QuizQuestion {
     this.type = 'text',
     this.options,
     this.nestedQuestions,
+    this.hint,
+    this.explanation,
   });
 
   factory QuizQuestion.fromMap(Map<String, dynamic> map) {
@@ -196,6 +200,8 @@ class QuizQuestion {
               .map((q) => QuizQuestion.fromMap(Map<String, dynamic>.from(q)))
               .toList()
           : null,
+      hint: map['hint'] as String?,
+      explanation: map['explanation'] as String?,
     );
   }
 
@@ -206,6 +212,8 @@ class QuizQuestion {
       'type': type,
       'options': options,
       'nestedQuestions': nestedQuestions?.map((q) => q.toMap()).toList(),
+      if (hint != null) 'hint': hint,
+      if (explanation != null) 'explanation': explanation,
     };
   }
 }
@@ -1181,6 +1189,25 @@ class DatabaseService {
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
       throw Exception('Failed to upload document: $e');
+    }
+  }
+
+  Future<String> uploadGeneratedImage(Uint8List bytes, String fileName) async {
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('generated_images')
+          .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
+
+      final uploadTask = storageRef.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+
+      final snapshot = await uploadTask.whenComplete(() => null);
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      throw Exception('Failed to upload generated image: $e');
     }
   }
 

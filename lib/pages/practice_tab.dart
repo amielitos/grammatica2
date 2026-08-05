@@ -7,11 +7,16 @@ import '../services/database_service.dart';
 import '../services/role_service.dart';
 import 'quiz_folder_page.dart';
 import 'admin/admin_assessments_tab.dart';
+import 'ai_assessment_generator_page.dart';
 
 class PracticeTab extends StatefulWidget {
   final int? initialSubTab;
   final bool initialShowEditor;
-  const PracticeTab({super.key, this.initialSubTab, this.initialShowEditor = false});
+  const PracticeTab({
+    super.key,
+    this.initialSubTab,
+    this.initialShowEditor = false,
+  });
 
   @override
   State<PracticeTab> createState() => _PracticeTabState();
@@ -37,7 +42,8 @@ class _PracticeTabState extends State<PracticeTab> {
       stream: RoleService.instance.roleStream(user.uid),
       builder: (context, roleSnap) {
         final role = roleSnap.data;
-        final isAdmin = role == UserRole.admin ||
+        final isAdmin =
+            role == UserRole.admin ||
             role == UserRole.superadmin ||
             role == UserRole.educator;
 
@@ -53,25 +59,65 @@ class _PracticeTabState extends State<PracticeTab> {
             onBack: () => setState(() => _selectedSubTab = null),
           );
         }
+        // AI Assessment Generator sub-tab
+        if (_selectedSubTab == 3) {
+          return AiAssessmentGeneratorPage(
+            user: user,
+            onBack: () => setState(() => _selectedSubTab = 2),
+          );
+        }
+
+        // English Assessment sub-tab
         if (_selectedSubTab == 2) {
           return Column(
             children: [
-              if (isAdmin)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.center,
-                    child: SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment(value: false, label: Text('View'), icon: Icon(Icons.visibility)),
-                        ButtonSegment(value: true, label: Text('Manage'), icon: Icon(Icons.edit)),
-                      ],
-                      selected: {_showAssessmentEditor},
-                      onSelectionChanged: (val) => setState(() => _showAssessmentEditor = val.first),
-                    ),
-                  ),
+              // Top toolbar with AI Assessment button + optional Manage toggle
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
+                child: Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => setState(() => _selectedSubTab = 3),
+                      icon: const Icon(Icons.psychology_rounded, size: 18),
+                      label: const Text('AI Assessment'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2E5090),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    if (isAdmin)
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.center,
+                        child: SegmentedButton<bool>(
+                          segments: const [
+                            ButtonSegment(
+                              value: false,
+                              label: Text('View'),
+                              icon: Icon(Icons.visibility),
+                            ),
+                            ButtonSegment(
+                              value: true,
+                              label: Text('Manage'),
+                              icon: Icon(Icons.edit),
+                            ),
+                          ],
+                          selected: {_showAssessmentEditor},
+                          onSelectionChanged: (val) {
+                            setState(() => _showAssessmentEditor = val.first);
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
               Expanded(
                 child: _showAssessmentEditor
                     ? Scaffold(
@@ -94,8 +140,11 @@ class _PracticeTabState extends State<PracticeTab> {
                           isAssessment: true,
                         ),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
                           }
                           final assessments = snapshot.data ?? [];
                           return QuizFolderPage(
@@ -103,7 +152,8 @@ class _PracticeTabState extends State<PracticeTab> {
                             title: 'English Assessment',
                             pillLabel: 'Assessment',
                             quizzes: assessments,
-                            onBack: () => setState(() => _selectedSubTab = null),
+                            onBack: () =>
+                                setState(() => _selectedSubTab = null),
                           );
                         },
                       ),
@@ -146,7 +196,10 @@ class _PracticeToolsHome extends StatelessWidget {
               children: [
                 // Minimalist Pill Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF81B655).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(30),
@@ -219,7 +272,8 @@ class _PracticeToolsHome extends StatelessWidget {
                             Expanded(
                               child: _PracticeCard(
                                 title: 'Spelling Bee',
-                                subtitle: 'Interactive spelling challenges with audio prompts across difficulty levels.',
+                                subtitle:
+                                    'Interactive spelling challenges with audio prompts across difficulty levels.',
                                 tag: 'VOCABULARY',
                                 icon: Icons.emoji_nature_rounded,
                                 themeColor: const Color(0xFFF59E0B),
@@ -230,7 +284,8 @@ class _PracticeToolsHome extends StatelessWidget {
                             Expanded(
                               child: _PracticeCard(
                                 title: 'Pronunciation',
-                                subtitle: 'Practice speaking with real-time speech recognition & accuracy scoring.',
+                                subtitle:
+                                    'Practice speaking with real-time speech recognition & accuracy scoring.',
                                 tag: 'SPEAKING',
                                 icon: Icons.graphic_eq_rounded,
                                 themeColor: const Color(0xFF81B655),
@@ -241,7 +296,8 @@ class _PracticeToolsHome extends StatelessWidget {
                             Expanded(
                               child: _PracticeCard(
                                 title: 'English Assessment',
-                                subtitle: 'Comprehensive grammar tests with instant evaluation & certificates.',
+                                subtitle:
+                                    'Comprehensive grammar tests with instant evaluation & certificates.',
                                 tag: 'EVALUATION',
                                 icon: Icons.verified_rounded,
                                 themeColor: const Color(0xFFEF4444),
@@ -254,7 +310,8 @@ class _PracticeToolsHome extends StatelessWidget {
                           children: [
                             _PracticeCard(
                               title: 'Spelling Bee',
-                              subtitle: 'Interactive spelling challenges with audio prompts across difficulty levels.',
+                              subtitle:
+                                  'Interactive spelling challenges with audio prompts across difficulty levels.',
                               tag: 'VOCABULARY',
                               icon: Icons.emoji_nature_rounded,
                               themeColor: const Color(0xFFF59E0B),
@@ -263,7 +320,8 @@ class _PracticeToolsHome extends StatelessWidget {
                             const SizedBox(height: 20),
                             _PracticeCard(
                               title: 'Pronunciation',
-                              subtitle: 'Practice speaking with real-time speech recognition & accuracy scoring.',
+                              subtitle:
+                                  'Practice speaking with real-time speech recognition & accuracy scoring.',
                               tag: 'SPEAKING',
                               icon: Icons.graphic_eq_rounded,
                               themeColor: const Color(0xFF81B655),
@@ -272,7 +330,8 @@ class _PracticeToolsHome extends StatelessWidget {
                             const SizedBox(height: 20),
                             _PracticeCard(
                               title: 'English Assessment',
-                              subtitle: 'Comprehensive grammar tests with instant evaluation & certificates.',
+                              subtitle:
+                                  'Comprehensive grammar tests with instant evaluation & certificates.',
                               tag: 'EVALUATION',
                               icon: Icons.verified_rounded,
                               themeColor: const Color(0xFFEF4444),
@@ -327,9 +386,10 @@ class _PracticeCardState extends State<_PracticeCard>
       vsync: this,
       duration: const Duration(milliseconds: 180),
     );
-    _scale = Tween<double>(begin: 1.0, end: 1.025).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
-    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 1.025,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
   }
 
   @override
@@ -354,10 +414,8 @@ class _PracticeCardState extends State<_PracticeCard>
         onTap: widget.onTap,
         child: AnimatedBuilder(
           animation: _scale,
-          builder: (context, child) => Transform.scale(
-            scale: _scale.value,
-            child: child,
-          ),
+          builder: (context, child) =>
+              Transform.scale(scale: _scale.value, child: child),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(32),
@@ -386,7 +444,10 @@ class _PracticeCardState extends State<_PracticeCard>
               children: [
                 // Top Tag Chip
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: widget.themeColor.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(8),
@@ -473,7 +534,9 @@ class _PracticeCardState extends State<_PracticeCard>
                             style: GoogleFonts.outfit(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: _hovered ? Colors.white : widget.themeColor,
+                              color: _hovered
+                                  ? Colors.white
+                                  : widget.themeColor,
                             ),
                           ),
                           const SizedBox(width: 6),

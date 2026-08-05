@@ -62,13 +62,15 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   final AILogicService _aiLogicService = AILogicService();
   final _title = TextEditingController();
   final _prompt = TextEditingController();
-  List<PlatformFile> _selectedFiles = [];
   bool _isVisible = true;
   bool _isMembersOnly = false;
   bool _isGrammaticaLesson = false;
   List<String> _visibleTo = [];
   final _quizKey = GlobalKey<AdminQuizzesTabState>();
   String? _selectedQuizId;
+
+  // AI-generated content blocks (each block is an editable string)
+  List<TextEditingController> _contentBlockCtrls = [];
 
   ContentVisibility _visibility = ContentVisibility.public;
   int _tabIndex = 0; 
@@ -260,7 +262,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                   children: [
                     Expanded(flex: 3, child: _buildLessonLeftCol(role, isDark)),
                     const SizedBox(width: 48),
-                    Expanded(flex: 2, child: _buildPdfAttachZone(isDark)),
+                    Expanded(flex: 2, child: _buildContentBlocks(isDark)),
                   ],
                 );
               } else {
@@ -269,7 +271,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                   children: [
                     _buildLessonLeftCol(role, isDark),
                     const SizedBox(height: 32),
-                    _buildPdfAttachZone(isDark),
+                    _buildContentBlocks(isDark),
                   ],
                 );
               }
@@ -371,27 +373,48 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             isDark: isDark,
           ),
           const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(child: _buildVisibilitySettings(role, isDark)),
-              const SizedBox(width: 24),
-              ElevatedButton.icon(
-                onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isDark ? Colors.white12 : const Color(0xFF88B342).withValues(alpha: 0.1),
-                  foregroundColor: isDark ? Colors.white : const Color(0xFF88B342),
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          _buildVisibilitySettings(role, isDark),
+          const SizedBox(height: 32),
+          
+          // AI Generation Config
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AI Generation Config',
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF2A2A2A),
+                  ),
                 ),
-                icon: _isGeneratingFromPdf
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.auto_awesome_rounded, size: 18),
-                label: Text('AI Generate', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Text('Generate from Source', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF2A2A2A))),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
+                    icon: _isGeneratingFromPdf 
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.picture_as_pdf_rounded),
+                    label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Select PDF & Generate Lesson'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF88B342),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -446,67 +469,125 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     );
   }
 
-  InputDecoration _inputDecoration(bool isDark, {required String hint}) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: GoogleFonts.inter(color: isDark ? Colors.white30 : Colors.black26),
-      filled: true,
-      fillColor: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      contentPadding: const EdgeInsets.all(20),
-    );
-  }
+  Widget _buildContentBlocks(bool isDark) {
+    if (_contentBlockCtrls.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.auto_awesome_rounded, size: 40, color: AppColors.primary),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'AI Content Blocks',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : AppColors.textPrimary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Use the "AI Generate" button to upload a PDF or paste text. The AI will produce separate editable content blocks here.',
+              style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
 
-  Widget _buildPdfAttachZone(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _label('Reference Material (Optional)'),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: _pickFiles,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            height: 240,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isDark ? Colors.white12 : Colors.black12,
-                style: BorderStyle.solid,
-                width: 2,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Content Blocks (${_contentBlockCtrls.length})',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: isDark ? Colors.white70 : AppColors.textSecondary,
               ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.picture_as_pdf_rounded, size: 40, color: AppColors.primary),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  _selectedFiles.isNotEmpty ? _selectedFiles.first.name : 'No PDF uploaded',
-                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _selectedFiles.isNotEmpty ? 'Click to change file' : 'Click to browse files',
-                  style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13),
-                ),
-              ],
+            TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _contentBlockCtrls.add(TextEditingController());
+                });
+              },
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Add Block'),
             ),
-          ),
+          ],
         ),
+        const SizedBox(height: 8),
+        ...List.generate(_contentBlockCtrls.length, (index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF333333) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12, top: 8),
+                        child: Text(
+                          'Block ${index + 1}',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 16),
+                        onPressed: () {
+                          setState(() {
+                            _contentBlockCtrls[index].dispose();
+                            _contentBlockCtrls.removeAt(index);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: TextField(
+                      controller: _contentBlockCtrls[index],
+                      maxLines: 6,
+                      minLines: 2,
+                      style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+                      decoration: InputDecoration(
+                        hintText: 'Edit this content block...',
+                        hintStyle: GoogleFonts.inter(color: isDark ? Colors.white30 : Colors.grey.shade400),
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
       ],
     );
   }
@@ -600,13 +681,16 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: isDark ? Colors.white12 : const Color(0xFF88B342).withValues(alpha: 0.3)),
             ),
-            child: CheckboxListTile(
-              title: Text('Upload as Grammatica Lesson', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : const Color(0xFF2A2A2A))),
-              subtitle: Text('Shows in the global learning section for all users', style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54)),
-              value: _isGrammaticaLesson,
-              activeColor: const Color(0xFF88B342),
-              onChanged: (value) => setState(() => _isGrammaticaLesson = value ?? false),
-              contentPadding: EdgeInsets.zero,
+            child: Material(
+              color: Colors.transparent,
+              child: CheckboxListTile(
+                title: Text('Upload as Grammatica Lesson', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : const Color(0xFF2A2A2A))),
+                subtitle: Text('Shows in the global learning section for all users', style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54)),
+                value: _isGrammaticaLesson,
+                activeColor: const Color(0xFF88B342),
+                onChanged: (value) => setState(() => _isGrammaticaLesson = value ?? false),
+                contentPadding: EdgeInsets.zero,
+              ),
             ),
           ),
         ],
@@ -615,53 +699,113 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Future<void> _generateFromPdf() async {
+    setState(() => _isGeneratingFromPdf = true);
+
     try {
+      late final dynamic lessonResponse;
+
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
         withData: true,
       );
 
-      if (result != null && result.files.isNotEmpty) {
-        setState(() => _isGeneratingFromPdf = true);
+      if (result == null || result.files.isEmpty) {
+        setState(() => _isGeneratingFromPdf = false);
+        return;
+      }
 
-        final platformFile = result.files.single;
-        List<int> bytes;
-        if (platformFile.bytes != null) {
-          bytes = platformFile.bytes!;
-        } else if (platformFile.path != null) {
-          bytes = await File(platformFile.path!).readAsBytes();
-        } else {
-          throw Exception('Could not read file data');
+      final platformFile = result.files.single;
+      List<int> bytes;
+      if (platformFile.bytes != null) {
+        bytes = platformFile.bytes!;
+      } else if (platformFile.path != null) {
+        bytes = await File(platformFile.path!).readAsBytes();
+      } else {
+        throw Exception('Could not read file data');
+      }
+
+      lessonResponse = await _aiLogicService.generateLessonFromPdf(bytes);
+
+      // Populate blocks from AI response
+      for (final ctrl in _contentBlockCtrls) {
+        ctrl.dispose();
+      }
+
+      final blocks = <TextEditingController>[];
+      if (_title.text.trim().isEmpty) {
+        _title.text = lessonResponse.title;
+      }
+
+      for (final block in lessonResponse.content) {
+        String blockText;
+        switch (block.type.name) {
+          case 'text':
+            blockText = block.data.toString();
+            break;
+          case 'list':
+            blockText = (block.data as List).map((item) => '• $item').join('\n');
+            break;
+          case 'table':
+            final rows = block.data as List;
+            if (rows.isNotEmpty) {
+              final headers = (rows.first as Map<String, dynamic>).keys.toList();
+              final buffer = StringBuffer('| ${headers.join(' | ')} |\n');
+              buffer.writeln('| ${headers.map((_) => '---').join(' | ')} |');
+              for (final row in rows) {
+                final r = row as Map<String, dynamic>;
+                buffer.writeln('| ${headers.map((h) => r[h]?.toString() ?? '').join(' | ')} |');
+              }
+              blockText = buffer.toString();
+            } else {
+              blockText = '';
+            }
+            break;
+          case 'image':
+            try {
+              final prompt = block.data.toString();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Generating AI image for lesson...'), duration: Duration(seconds: 2)),
+                );
+              }
+              final imageBytes = await _aiLogicService.generateImageFromPrompt(prompt);
+              final fileName = 'ai_lesson_img_${DateTime.now().millisecondsSinceEpoch}.jpg';
+              final url = await DatabaseService.instance.uploadGeneratedImage(imageBytes, fileName);
+              blockText = '![Generated Image]($url)';
+            } catch (e) {
+              debugPrint('Error generating image block: $e');
+              blockText = '[Image: ${block.data}]';
+            }
+            break;
+          default:
+            blockText = block.data.toString();
         }
-
-        final generatedMarkdown = await _aiLogicService.convertToMarkdown(bytes);
-
-        setState(() {
-          _prompt.text = generatedMarkdown;
-          _isGeneratingFromPdf = false;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Successfully generated lesson from PDF!')),
-          );
+        if (blockText.isNotEmpty) {
+          blocks.add(TextEditingController(text: blockText));
         }
+      }
+
+      // Also put the combined text into _prompt for backward compatibility
+      _prompt.text = blocks.map((c) => c.text).join('\n\n');
+
+      setState(() {
+        _contentBlockCtrls = blocks;
+        _isGeneratingFromPdf = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Generated ${blocks.length} content blocks!')),
+        );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isGeneratingFromPdf = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating from PDF: $e')),
+          SnackBar(content: Text('Error generating from source: $e')),
         );
       }
-    }
-  }
-
-  Future<void> _pickFiles() async {
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if (result != null && mounted) {
-      setState(() => _selectedFiles = result.files);
     }
   }
 
@@ -671,7 +815,10 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     _selectedQuizId = null;
     _title.clear();
     _prompt.clear();
-    _selectedFiles = [];
+    for (final ctrl in _contentBlockCtrls) {
+      ctrl.dispose();
+    }
+    _contentBlockCtrls = [];
     _isVisible = true;
     _isMembersOnly = false;
     _isGrammaticaLesson = false;
@@ -693,10 +840,14 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         }
       }
 
+      final lessonPrompt = _contentBlockCtrls.isNotEmpty
+          ? _contentBlockCtrls.map((c) => c.text).join('\n\n')
+          : _prompt.text.trim();
+
       final lessonData = Lesson(
         id: _selectedLessonId ?? '',
         title: _title.text.trim(),
-        prompt: _prompt.text.trim(),
+        prompt: lessonPrompt,
         answer: '',
         createdByUid: AuthService.instance.currentUser?.uid ?? '',
         isVisible: _isVisible,
@@ -757,6 +908,9 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   void dispose() {
     _title.dispose();
     _prompt.dispose();
+    for (final ctrl in _contentBlockCtrls) {
+      ctrl.dispose();
+    }
     super.dispose();
   }
 }

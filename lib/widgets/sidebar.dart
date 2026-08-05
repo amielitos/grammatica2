@@ -20,11 +20,10 @@ class Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: 250,
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF222222) : Colors.white,
-      ),
+    return Material(
+      color: isDark ? const Color(0xFF222222) : Colors.white,
+      child: SizedBox(
+        width: 250,
       child: SafeArea(
         child: Column(
           children: [
@@ -50,10 +49,8 @@ class Sidebar extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final item = items[index];
                   final isSelected = currentIndex == index;
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF7CB342) : Colors.transparent,
-                    ),
+                  return Material(
+                    color: isSelected ? const Color(0xFF7CB342) : Colors.transparent,
                     child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
                       leading: Icon(
@@ -84,6 +81,7 @@ class Sidebar extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

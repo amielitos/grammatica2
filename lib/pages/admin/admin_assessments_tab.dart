@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../../widgets/user_visibility_selector.dart';
 import '../../services/ai_logic_service.dart';
+import '../../models/ai_models.dart';
 import 'dart:io';
 
 class AdminAssessmentsTab extends StatefulWidget {
@@ -43,6 +44,21 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
         loadQuiz(widget.initialQuizId!);
       });
     }
+    _loadLessons();
+  }
+
+  Future<void> _loadLessons() async {
+    try {
+      final lessons = await DatabaseService.instance.fetchLessons();
+      if (mounted) {
+        setState(() {
+          _availableLessons = lessons;
+          if (lessons.isNotEmpty) _aiSelectedLessonId = lessons.first.id;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading lessons: $e');
+    }
   }
 
   List<_QuestionState> _questions = [_QuestionState()];
@@ -53,9 +69,16 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
 
   ContentVisibility _visibility = ContentVisibility.public;
 
-  List<PlatformFile> _selectedFiles = [];
-  String? _currentAttachmentName;
-  String? _currentAttachmentUrl;
+  // AI Configuration state
+  String _aiSourceMode = 'pdf'; // 'pdf', 'text', 'lesson'
+  final _aiPasteTextCtrl = TextEditingController();
+  List<Lesson> _availableLessons = [];
+  String? _aiSelectedLessonId;
+  String _aiDifficulty = 'medium';
+  int _aiNumQuestions = 10;
+  final _aiCustomInstructionsCtrl = TextEditingController();
+  bool _aiIncludeHints = true;
+  final List<String> _aiQuestionTypes = ['multiple_choice'];
 
   @override
   void dispose() {
@@ -63,6 +86,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
     _description.dispose();
     _durationCtrl.dispose();
     _maxAttemptsCtrl.dispose();
+    _aiCustomInstructionsCtrl.dispose();
     for (final q in _questions) {
       q.dispose();
     }
@@ -87,7 +111,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                     children: [
                       Expanded(flex: 2, child: _buildInputFields()),
                       const SizedBox(width: 32),
-                      Expanded(flex: 1, child: _buildUploadUI()),
+                      Expanded(flex: 1, child: _buildAiConfigPanel()),
                     ],
                   );
                 } else {
@@ -96,7 +120,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                     children: [
                       _buildInputFields(),
                       const SizedBox(height: 24),
-                      _buildUploadUI(),
+                      _buildAiConfigPanel(),
                     ],
                   );
                 }
@@ -510,7 +534,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
     }
 
     return DropdownButtonFormField<String>(
-      value: currentVal,
+      initialValue: currentVal,
       style: GoogleFonts.inter(fontSize: 16, color: Colors.black87),
       decoration: InputDecoration(
         labelText: 'Duration',
@@ -662,23 +686,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Questions', style: Theme.of(context).textTheme.titleMedium),
-            ElevatedButton.icon(
-              onPressed: _isGeneratingFromPdf ? null : _generateQuestionsFromPdf,
-              icon: _isGeneratingFromPdf
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_awesome),
-              label: const Text('Generate from PDF'),
-            ),
-          ],
-        ),
+        Text('Questions', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 16),
         ...List.generate(_questions.length, (index) {
           return _buildQuestionItem(_questions[index], index, _questions);
@@ -893,16 +901,299 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
     );
   }
 
-  Future<void> _generateQuestionsFromPdf() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-        withData: true,
-      );
+  Widget _buildAiConfigPanel() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'AI Generation Config',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF2A2A2A),
+            ),
+          ),
+          const SizedBox(height: 16),
 
-      if (result != null && result.files.isNotEmpty) {
-        setState(() => _isGeneratingFromPdf = true);
+          // Question Types Checkboxes
+          Text('Question Types', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          const SizedBox(height: 8),
+          Material(
+            color: Colors.transparent,
+            child: Column(
+              children: [
+                CheckboxListTile(
+                  title: Text('Multiple Choice', style: GoogleFonts.inter(fontSize: 13)),
+                  value: _aiQuestionTypes.contains('multiple_choice'),
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) {
+                        _aiQuestionTypes.add('multiple_choice');
+                      } else {
+                        _aiQuestionTypes.remove('multiple_choice');
+                      }
+                    });
+                  },
+                  activeColor: const Color(0xFF88B342),
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                CheckboxListTile(
+                  title: Text('Fill in the Blanks / Textfield', style: GoogleFonts.inter(fontSize: 13)),
+                  value: _aiQuestionTypes.contains('fill_in_the_blank'),
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) {
+                        _aiQuestionTypes.add('fill_in_the_blank');
+                      } else {
+                        _aiQuestionTypes.remove('fill_in_the_blank');
+                      }
+                    });
+                  },
+                  activeColor: const Color(0xFF88B342),
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                CheckboxListTile(
+                  title: Text('Passage / Reading', style: GoogleFonts.inter(fontSize: 13)),
+                  value: _aiQuestionTypes.contains('passage'),
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) {
+                        _aiQuestionTypes.add('passage');
+                      } else {
+                        _aiQuestionTypes.remove('passage');
+                      }
+                    });
+                  },
+                  activeColor: const Color(0xFF88B342),
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Difficulty
+          Text('Difficulty', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'easy', label: Text('Easy')),
+              ButtonSegment(value: 'medium', label: Text('Medium')),
+              ButtonSegment(value: 'hard', label: Text('Hard')),
+            ],
+            selected: {_aiDifficulty},
+            onSelectionChanged: (val) => setState(() => _aiDifficulty = val.first),
+            style: ButtonStyle(visualDensity: VisualDensity.compact),
+          ),
+          const SizedBox(height: 16),
+
+          // Number of questions
+          Text('Number of Questions', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              IconButton(
+                onPressed: _aiNumQuestions > 1 ? () => setState(() => _aiNumQuestions--) : null,
+                icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+              ),
+              Text(
+                '$_aiNumQuestions',
+                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF88B342)),
+              ),
+              IconButton(
+                onPressed: _aiNumQuestions < 30 ? () => setState(() => _aiNumQuestions++) : null,
+                icon: const Icon(Icons.add_circle_outline, color: Color(0xFF88B342)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Include hints
+          Material(
+            color: Colors.transparent,
+            child: SwitchListTile(
+              title: Text('Include Hints', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+              value: _aiIncludeHints,
+              onChanged: (val) => setState(() => _aiIncludeHints = val),
+              activeThumbColor: const Color(0xFF88B342),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Custom instructions
+          Text('Custom Instructions (Optional)', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _aiCustomInstructionsCtrl,
+            maxLines: 3,
+            style: GoogleFonts.inter(fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'e.g. "Generate matching questions"',
+              hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade400),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF88B342), width: 2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 16),
+
+          // Source Material Selection
+          Text('Generate from Source', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A))),
+          const SizedBox(height: 12),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'pdf', label: Text('PDF File')),
+              ButtonSegment(value: 'text', label: Text('Paste Text')),
+              ButtonSegment(value: 'lesson', label: Text('Existing Lesson')),
+            ],
+            selected: {_aiSourceMode},
+            onSelectionChanged: (val) => setState(() => _aiSourceMode = val.first),
+            style: ButtonStyle(visualDensity: VisualDensity.compact),
+          ),
+          const SizedBox(height: 16),
+
+          // Dynamic Source Input & Generate Button
+          if (_aiSourceMode == 'pdf')
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _isGeneratingFromPdf ? null : _generateQuestionsWithAi,
+                icon: _isGeneratingFromPdf 
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.picture_as_pdf_rounded),
+                label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Select PDF & Generate'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF88B342),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            )
+          else if (_aiSourceMode == 'text')
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _aiPasteTextCtrl,
+                  maxLines: 4,
+                  style: GoogleFonts.inter(fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Paste raw text here...',
+                    hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade400),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF88B342), width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _isGeneratingFromPdf ? null : _generateQuestionsWithAi,
+                  icon: _isGeneratingFromPdf 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.auto_awesome),
+                  label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Generate from Text'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF88B342),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            )
+          else if (_aiSourceMode == 'lesson')
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _aiSelectedLessonId,
+                      hint: const Text('Select a lesson'),
+                      items: _availableLessons.map((l) {
+                        return DropdownMenuItem(
+                          value: l.id,
+                          child: Text(l.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        setState(() => _aiSelectedLessonId = val);
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _isGeneratingFromPdf ? null : _generateQuestionsWithAi,
+                  icon: _isGeneratingFromPdf 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.auto_awesome),
+                  label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Generate from Lesson'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF88B342),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// AI-powered question generation — replaces old PDF-only flow.
+  Future<void> _generateQuestionsWithAi() async {
+    setState(() => _isGeneratingFromPdf = true);
+
+    try {
+      String extractedText = '';
+
+      if (_aiSourceMode == 'pdf') {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['pdf'],
+          withData: true,
+        );
+
+        if (result == null || result.files.isEmpty) {
+          setState(() => _isGeneratingFromPdf = false);
+          return;
+        }
 
         final platformFile = result.files.single;
         List<int> bytes;
@@ -914,110 +1205,93 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
           throw Exception('Could not read file data');
         }
 
-        final extractedText = await _aiLogicService.extractTextFromPdf(bytes);
-
-        final generatedQuestions = await _aiLogicService.generateQuizFromText(
-          extractedText,
-        );
-
-        setState(() {
-          // Clear default first empty question if it's the only one and empty
-          if (_questions.length == 1 && _questions[0].questionCtrl.text.isEmpty) {
-            _questions[0].dispose();
-            _questions.clear();
-          }
-
-          for (final q in generatedQuestions) {
-            _questions.add(_QuestionState(
-              questionCtrl: TextEditingController(text: q['question']),
-              answerCtrl: TextEditingController(text: q['correctAnswer']),
-              type: 'multiple_choice',
-              optionsCtrls: (q['options'] as List<String>)
-                  .map((opt) => TextEditingController(text: opt))
-                  .toList(),
-            ));
-          }
-
-          _isGeneratingFromPdf = false;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Successfully generated questions from PDF!'),
-            ),
-          );
+        extractedText = await _aiLogicService.extractTextFromPdf(bytes);
+      } else if (_aiSourceMode == 'text') {
+        extractedText = _aiPasteTextCtrl.text.trim();
+        if (extractedText.isEmpty) {
+          throw Exception('Please paste some text first.');
         }
+      } else if (_aiSourceMode == 'lesson') {
+        if (_aiSelectedLessonId == null) {
+          throw Exception('Please select a lesson first.');
+        }
+        final lesson = await DatabaseService.instance.getLessonById(_aiSelectedLessonId!);
+        if (lesson == null) {
+          throw Exception('Could not load the selected lesson.');
+        }
+        extractedText = '${lesson.title}\n\n${lesson.prompt}\n\n${lesson.answer}';
+      }
+
+      final config = QuizGenerationConfig(
+        questionTypes: _aiQuestionTypes,
+        difficulty: _aiDifficulty,
+        customInstructions: _aiCustomInstructionsCtrl.text.trim(),
+        includeHints: _aiIncludeHints,
+      );
+
+      final aiResponse = await _aiLogicService.generateQuiz(
+        extractedText,
+        numQuestions: _aiNumQuestions,
+        config: config,
+      );
+
+      // Map AI response to native _QuestionState objects
+      setState(() {
+        if (aiResponse.title != null && aiResponse.title!.isNotEmpty) {
+          _title.text = aiResponse.title!;
+        }
+        if (aiResponse.description != null && aiResponse.description!.isNotEmpty) {
+          _description.text = aiResponse.description!;
+        }
+
+        // Clear default first empty question if it's the only one and empty
+        if (_questions.length == 1 && _questions[0].questionCtrl.text.isEmpty) {
+          _questions[0].dispose();
+          _questions.clear();
+        }
+
+        for (final q in aiResponse.questions) {
+          final questionText = q.content
+              .where((b) => b.type == ContentBlockType.text)
+              .map((b) => b.data.toString())
+              .join('\n');
+
+          _questions.add(_QuestionState(
+            questionCtrl: TextEditingController(text: questionText),
+            answerCtrl: TextEditingController(text: q.correctAnswer),
+            type: q.questionType.toJsonString(),
+            optionsCtrls: q.options
+                .map((opt) => TextEditingController(text: opt))
+                .toList(),
+            hintCtrl: q.hint != null ? TextEditingController(text: q.hint) : null,
+            explanationCtrl: q.explanation != null ? TextEditingController(text: q.explanation) : null,
+          ));
+        }
+
+        _isGeneratingFromPdf = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Generated ${aiResponse.questions.length} questions!')),
+        );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isGeneratingFromPdf = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating from PDF: $e')),
+          SnackBar(content: Text('Error generating questions: $e')),
         );
       }
     }
-  }
-
-  Widget _buildUploadUI() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Attach PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: () async {
-            final result = await FilePicker.platform.pickFiles(
-              type: FileType.custom,
-              allowMultiple: false,
-              allowedExtensions: ['pdf'],
-              withData: true,
-            );
-            if (!mounted) return;
-            if (result != null) {
-              setState(() => _selectedFiles = result.files);
-            }
-          },
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            height: 200,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.upload_file, size: 48, color: Colors.grey.shade500),
-                const SizedBox(height: 16),
-                Text(
-                  _selectedFiles.isNotEmpty ? _selectedFiles.first.name : (_currentAttachmentName ?? 'No PDF uploaded yet'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  (_selectedFiles.isNotEmpty || _currentAttachmentName != null) ? 'Click to change file' : 'Upload PDF to attach to this quiz.',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   void resetForm() {
     _selectedQuizId = null;
     _title.clear();
     _description.clear();
-    _durationCtrl.text = '00:00:00';
+    _durationCtrl.text = '0';
     _maxAttemptsCtrl.text = '1';
-    _selectedFiles = [];
-    _currentAttachmentName = null;
-    _currentAttachmentUrl = null;
     for (final q in _questions) {
       q.dispose();
     }
@@ -1036,21 +1310,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
       String? attachmentUrl;
       String? attachmentName;
 
-      if (_selectedFiles.isNotEmpty) {
-        final file = _selectedFiles.first;
-        if (file.size > 2 * 1024 * 1024) throw Exception('File size > 2MB');
-        if (file.bytes != null) {
-          attachmentUrl = await DatabaseService.instance.uploadDocument(
-            fileBytes: file.bytes!,
-            fileName: file.name,
-            folder: 'quizzes',
-          );
-          attachmentName = file.name;
-        }
-      } else if (_selectedQuizId != null) {
-        attachmentUrl = _currentAttachmentUrl;
-        attachmentName = _currentAttachmentName;
-      }
+      // No more file upload — attachment fields left null
 
       final durationSegments = _durationCtrl.text.split(':');
       int durationInMinutes = 0;
@@ -1170,8 +1430,6 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
           _isMembersOnly = quiz.isMembersOnly;
           _isGrammaticaQuiz = quiz.isGrammaticaQuiz;
           _visibleTo = quiz.visibleTo;
-          _currentAttachmentName = quiz.attachmentName;
-          _currentAttachmentUrl = quiz.attachmentUrl;
 
           for (final q in _questions) {
             q.dispose();
@@ -1201,6 +1459,8 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
               .where((nq) => nq.question.isNotEmpty)
               .toList()
           : null,
+      hint: q.hintCtrl?.text.trim(),
+      explanation: q.explanationCtrl?.text.trim(),
     );
   }
 
@@ -1215,6 +1475,8 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
       nestedQuestions: (q.nestedQuestions ?? [])
           .map((nq) => _loadQuestionState(nq))
           .toList(),
+      hintCtrl: q.hint != null ? TextEditingController(text: q.hint) : null,
+      explanationCtrl: q.explanation != null ? TextEditingController(text: q.explanation) : null,
     );
   }
 }
@@ -1225,6 +1487,8 @@ class _QuestionState {
   String type;
   List<TextEditingController> optionsCtrls;
   List<_QuestionState> nestedQuestions;
+  final TextEditingController? hintCtrl;
+  final TextEditingController? explanationCtrl;
 
   _QuestionState({
     TextEditingController? questionCtrl,
@@ -1232,6 +1496,8 @@ class _QuestionState {
     this.type = 'text',
     List<TextEditingController>? optionsCtrls,
     List<_QuestionState>? nestedQuestions,
+    this.hintCtrl,
+    this.explanationCtrl,
   })  : questionCtrl = questionCtrl ?? TextEditingController(),
         answerCtrl = answerCtrl ?? TextEditingController(),
         optionsCtrls = optionsCtrls ?? [],
@@ -1240,6 +1506,8 @@ class _QuestionState {
   void dispose() {
     questionCtrl.dispose();
     answerCtrl.dispose();
+    hintCtrl?.dispose();
+    explanationCtrl?.dispose();
     for (var ctrl in optionsCtrls) {
       ctrl.dispose();
     }
