@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
 import '../services/notification_service.dart';
@@ -308,17 +309,20 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
           ),
         ],
       ),
-      body: BackgroundWrapper(
-        imageAssetPath: _selectedDifficulty == null 
-            ? 'assets/practicebg.png' 
-            : 'assets/spellingbeebg.png',
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: _buildBody(),
-          ),
-        ),
-      ),
+      body: _selectedDifficulty == null
+          ? Container(
+              color: const Color(0xFFFAFAFA),
+              child: _buildBody(),
+            )
+          : BackgroundWrapper(
+              imageAssetPath: 'assets/spellingbeebg.png',
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: _buildBody(),
+                ),
+              ),
+            ),
     );
   }
 
@@ -329,117 +333,220 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   }
 
   Widget _buildDifficultySelection() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 80),
-      child: Column(
-        children: [
-          Text(
-            'Choose your Difficulty',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+    final isDesktop = MediaQuery.of(context).size.width > 800;
+
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFAFAFA),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: isDesktop ? 48 : 20,
+            vertical: 48,
           ),
-          SizedBox(height: 12),
-          Text(
-            'Select a level for Spelling Bee',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          SizedBox(height: 48),
-          // AI toggle
-          Container(
-            constraints: const BoxConstraints(maxWidth: 400),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
+          child: Center(
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(
-                  _useAiWords ? Icons.psychology_rounded : Icons.storage_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
+
+
+                // Main Centered Header
                 Text(
-                  'Word Source:',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                  'Choose your Difficulty',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: isDesktop ? 44 : 32,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                    height: 1.15,
+                    letterSpacing: -1.0,
                   ),
                 ),
-                const SizedBox(width: 12),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Database')),
-                    ButtonSegment(value: true, label: Text('AI Generated')),
-                  ],
-                  selected: {_useAiWords},
-                  onSelectionChanged: (val) {
-                    setState(() => _useAiWords = val.first);
-                  },
-                  style: ButtonStyle(
-                    visualDensity: VisualDensity.compact,
+                const SizedBox(height: 10),
+
+                // Subtitle
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Text(
+                    'Select a challenge level below for Spelling Bee. Master spelling audio prompts across various difficulty tiers.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      color: const Color(0xFF64748B),
+                      height: 1.55,
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
                 ),
+                const SizedBox(height: 28),
+
+                // AI Word Source Toggle Container
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _useAiWords
+                              ? Icons.psychology_rounded
+                              : Icons.storage_rounded,
+                          color: const Color(0xFF2E5090),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Word Source:',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SegmentedButton<bool>(
+                          segments: const [
+                            ButtonSegment(
+                              value: false,
+                              label: Text('Database'),
+                              icon: Icon(Icons.storage_rounded, size: 15),
+                            ),
+                            ButtonSegment(
+                              value: true,
+                              label: Text('AI Generated'),
+                              icon: Icon(Icons.auto_awesome_rounded, size: 15),
+                            ),
+                          ],
+                          selected: {_useAiWords},
+                          onSelectionChanged: (val) {
+                            setState(() => _useAiWords = val.first);
+                          },
+                          style: const ButtonStyle(
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 44),
+
+                // Cards Row / Column
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: isDesktop
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: _DifficultyCard(
+                                title: 'Novice',
+                                subtitle:
+                                    '120s timer per word. Ideal for beginners building core spelling vocabulary.',
+                                tag: 'BEGINNER',
+                                icon: Icons.star_rounded,
+                                themeColor: const Color(0xFFF59E0B),
+                                rating: 2,
+                                onTap: () =>
+                                    _startSession(SpellingDifficulty.novice),
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: _DifficultyCard(
+                                title: 'Amateur',
+                                subtitle:
+                                    '60s timer per word. Balanced challenge for developing spellers.',
+                                tag: 'INTERMEDIATE',
+                                icon: Icons.show_chart_rounded,
+                                themeColor: const Color(0xFF81B655),
+                                rating: 3,
+                                onTap: () =>
+                                    _startSession(SpellingDifficulty.amateur),
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: _DifficultyCard(
+                                title: 'Professional',
+                                subtitle:
+                                    '30s timer per word. Fast-paced challenge with advanced vocabulary.',
+                                tag: 'ADVANCED',
+                                icon: Icons.local_fire_department_rounded,
+                                themeColor: const Color(0xFFEF4444),
+                                rating: 5,
+                                onTap: () => _startSession(
+                                    SpellingDifficulty.professional),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          children: [
+                            _DifficultyCard(
+                              title: 'Novice',
+                              subtitle:
+                                  '120s timer per word. Ideal for beginners building core spelling vocabulary.',
+                              tag: 'BEGINNER',
+                              icon: Icons.star_rounded,
+                              themeColor: const Color(0xFFF59E0B),
+                              rating: 2,
+                              onTap: () =>
+                                  _startSession(SpellingDifficulty.novice),
+                            ),
+                            const SizedBox(height: 20),
+                            _DifficultyCard(
+                              title: 'Amateur',
+                              subtitle:
+                                  '60s timer per word. Balanced challenge for developing spellers.',
+                              tag: 'INTERMEDIATE',
+                              icon: Icons.show_chart_rounded,
+                              themeColor: const Color(0xFF81B655),
+                              rating: 3,
+                              onTap: () =>
+                                  _startSession(SpellingDifficulty.amateur),
+                            ),
+                            const SizedBox(height: 20),
+                            _DifficultyCard(
+                              title: 'Professional',
+                              subtitle:
+                                  '30s timer per word. Fast-paced challenge with advanced vocabulary.',
+                              tag: 'ADVANCED',
+                              icon: Icons.local_fire_department_rounded,
+                              themeColor: const Color(0xFFEF4444),
+                              rating: 5,
+                              onTap: () => _startSession(
+                                  SpellingDifficulty.professional),
+                            ),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
-          SizedBox(height: 32),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _DifficultyCard(
-                    title: 'Novice',
-                    color: const Color(0xFFFCE267),
-                    icon: Icons.star_rounded,
-                    rating: 2,
-                    onTap: () => _startSession(SpellingDifficulty.novice),
-                  ),
-                ),
-                SizedBox(width: 32),
-                Expanded(
-                  child: _DifficultyCard(
-                    title: 'Amateur',
-                    color: const Color(0xFFA1CC73),
-                    icon: Icons.show_chart_rounded,
-                    rating: 3,
-                    onTap: () => _startSession(SpellingDifficulty.amateur),
-                  ),
-                ),
-                SizedBox(width: 32),
-                Expanded(
-                  child: _DifficultyCard(
-                    title: 'Professional',
-                    color: const Color(0xFFE6625B),
-                    icon: Icons.local_fire_department_rounded,
-                    rating: 4,
-                    onTap: () => _startSession(SpellingDifficulty.professional),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -767,114 +874,229 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   }
 }
 
-class _DifficultyCard extends StatelessWidget {
+class _DifficultyCard extends StatefulWidget {
   final String title;
-  final Color color;
+  final String subtitle;
+  final String tag;
   final IconData icon;
+  final Color themeColor;
   final int rating;
   final VoidCallback onTap;
 
   const _DifficultyCard({
     required this.title,
-    required this.color,
+    required this.subtitle,
+    required this.tag,
     required this.icon,
+    required this.themeColor,
     required this.rating,
     required this.onTap,
   });
 
   @override
+  State<_DifficultyCard> createState() => _DifficultyCardState();
+}
+
+class _DifficultyCardState extends State<_DifficultyCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+  bool _hovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 1.025,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      height: 480, // Taller card to match vertical orientation
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF333333) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => _hovered = true);
+        _ctrl.forward();
+      },
+      onExit: (_) {
+        setState(() => _hovered = false);
+        _ctrl.reverse();
+      },
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedBuilder(
+          animation: _scale,
+          builder: (context, child) =>
+              Transform.scale(scale: _scale.value, child: child),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: _hovered
+                    ? widget.themeColor.withValues(alpha: 0.5)
+                    : const Color(0xFFE2E8F0),
+                width: _hovered ? 1.8 : 1.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _hovered
+                      ? widget.themeColor.withValues(alpha: 0.12)
+                      : Colors.black.withValues(alpha: 0.03),
+                  blurRadius: _hovered ? 30 : 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                SizedBox(height: 12),
+                // Top Tag Chip
                 Container(
-                  width: 80,
-                  height: 80,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(20),
+                    color: widget.themeColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, color: Colors.white, size: 40),
+                  child: Text(
+                    widget.tag,
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: widget.themeColor,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
                 ),
-                SizedBox(height: 32),
+                const SizedBox(height: 24),
+
+                // Icon Box
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: _hovered
+                        ? widget.themeColor
+                        : widget.themeColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    widget.icon,
+                    color: _hovered ? Colors.white : widget.themeColor,
+                    size: 34,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Title
                 Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 24,
-                    color: isDark ? Colors.white : Colors.black,
+                  widget.title,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                    height: 1.2,
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 8),
+
+                // Subtitle / Description
                 Text(
-                  'Difficulty:',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: isDark ? Colors.white70 : Colors.black87,
+                  widget.subtitle,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 13.5,
+                    height: 1.5,
+                    color: const Color(0xFF64748B),
                   ),
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 16),
+
+                // Rating Stars Indicator
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(5, (index) {
+                    final filled = index < widget.rating;
                     return Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4.0),
-                      child: Container(
-                        padding: EdgeInsets.all(4),
+                      padding: const EdgeInsets.symmetric(horizontal: 3.0),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: index < rating ? const Color(0xFFF6A119) : (isDark ? Colors.grey[600] : Colors.grey[400]),
+                          color: filled
+                              ? widget.themeColor
+                              : const Color(0xFFE2E8F0),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.star_rounded,
-                          color: Colors.white,
-                          size: 16,
+                          color: filled ? Colors.white : const Color(0xFF94A3B8),
+                          size: 14,
                         ),
                       ),
                     );
                   }),
                 ),
-                SizedBox(height: 32),
+                const SizedBox(height: 28),
+
+                // Action Button
                 SizedBox(
                   width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: onTap,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: color,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                  height: 46,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    decoration: BoxDecoration(
+                      color: _hovered
+                          ? widget.themeColor
+                          : widget.themeColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _hovered
+                            ? Colors.transparent
+                            : widget.themeColor.withValues(alpha: 0.25),
                       ),
                     ),
-                    child: Text(
-                      'Start',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Start Practice',
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: _hovered
+                                  ? Colors.white
+                                  : widget.themeColor,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 16,
+                            color: _hovered ? Colors.white : widget.themeColor,
+                          ),
+                        ],
                       ),
                     ),
                   ),

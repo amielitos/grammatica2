@@ -201,9 +201,8 @@ class _AiQuizGeneratorTabState extends State<AiQuizGeneratorTab>
             break;
           case QuizQuestionType.shortAnswer:
           case QuizQuestionType.fillInTheBlank:
-            nativeType = 'text';
-            break;
           case QuizQuestionType.matching:
+          case QuizQuestionType.passage:
             nativeType = 'text';
             break;
         }
@@ -856,6 +855,10 @@ class _AiQuizGeneratorTabState extends State<AiQuizGeneratorTab>
       case QuizQuestionType.matching:
         typeBadgeColor = Colors.indigo;
         typeLabel = 'Matching';
+        break;
+      case QuizQuestionType.passage:
+        typeBadgeColor = Colors.deepPurple;
+        typeLabel = 'Passage';
         break;
     }
 

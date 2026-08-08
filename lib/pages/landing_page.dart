@@ -184,7 +184,7 @@ class _LandingPageState extends State<LandingPage>
                   ),
                   child: const Text('Log In'),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 ElevatedButton(
                   onPressed: () => Navigator.pushNamed(context, '/register'),
                   style: ElevatedButton.styleFrom(
