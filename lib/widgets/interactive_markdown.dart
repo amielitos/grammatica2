@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:google_fonts/google_fonts.dart';
 
 class InteractiveMarkdown extends StatelessWidget {
   final String data;
@@ -24,7 +25,13 @@ class InteractiveMarkdown extends StatelessWidget {
           selectable: true,
           extensionSet: md.ExtensionSet.gitHubFlavored,
           styleSheet: MarkdownStyleSheet(
-            p: Theme.of(context).textTheme.bodyLarge,
+            p: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.7),
+            h1: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: const Color(0xFF88B342)),
+            h2: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF6B8E23)),
+            h3: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF2E4057)),
+            strong: GoogleFonts.inter(fontWeight: FontWeight.w800, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF1A1A1A)),
+            em: GoogleFonts.inter(fontStyle: FontStyle.italic, color: const Color(0xFF2196F3), fontWeight: FontWeight.w500),
+            listBullet: GoogleFonts.inter(color: const Color(0xFF88B342), fontWeight: FontWeight.bold),
             tableBody: Theme.of(context).textTheme.bodyMedium,
             tableHead: Theme.of(
               context,
@@ -65,7 +72,13 @@ class InteractiveMarkdown extends StatelessWidget {
                 selectable: true,
                 extensionSet: md.ExtensionSet.gitHubFlavored,
                 styleSheet: MarkdownStyleSheet(
-                  p: Theme.of(context).textTheme.bodyLarge,
+                  p: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.7),
+                  h1: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: const Color(0xFF88B342)),
+                  h2: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF6B8E23)),
+                  h3: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF2E4057)),
+                  strong: GoogleFonts.inter(fontWeight: FontWeight.w800, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF1A1A1A)),
+                  em: GoogleFonts.inter(fontStyle: FontStyle.italic, color: const Color(0xFF2196F3), fontWeight: FontWeight.w500),
+                  listBullet: GoogleFonts.inter(color: const Color(0xFF88B342), fontWeight: FontWeight.bold),
                   tableBody: Theme.of(context).textTheme.bodyMedium,
                   tableHead: Theme.of(
                     context,
@@ -121,7 +134,13 @@ class InteractiveMarkdown extends StatelessWidget {
               selectable: true,
               extensionSet: md.ExtensionSet.gitHubFlavored,
               styleSheet: MarkdownStyleSheet(
-                p: Theme.of(context).textTheme.bodyLarge,
+                p: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.7),
+                h1: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: const Color(0xFF88B342)),
+                h2: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF6B8E23)),
+                h3: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF2E4057)),
+                strong: GoogleFonts.inter(fontWeight: FontWeight.w800, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF1A1A1A)),
+                em: GoogleFonts.inter(fontStyle: FontStyle.italic, color: const Color(0xFF2196F3), fontWeight: FontWeight.w500),
+                listBullet: GoogleFonts.inter(color: const Color(0xFF88B342), fontWeight: FontWeight.bold),
                 tableBody: Theme.of(context).textTheme.bodyMedium,
                 tableHead: Theme.of(
                   context,

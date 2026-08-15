@@ -3,18 +3,52 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'dart:typed_data';
 
 import '../../services/database_service.dart';
 import '../../services/ai_logic_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../../theme/app_colors.dart';
-import '../../widgets/markdown_guide_button.dart';
+import '../../widgets/interactive_markdown.dart';
 import '../../widgets/user_visibility_selector.dart';
 import '../../models/content_visibility.dart';
+import '../../models/ai_models.dart';
 
 import 'admin_quizzes_tab.dart'; 
 import 'admin_assessments_tab.dart';
+
+class EditableContentBlock {
+  final String id;
+  String type; // 'text', 'list', 'table', 'image'
+  final TextEditingController textCtrl;
+  String? imageUrl;
+  String? imageDescription;
+  Uint8List? pendingImageBytes;
+  String? pendingImageFileName;
+
+  EditableContentBlock({
+    required this.id,
+    required this.type,
+    required this.textCtrl,
+    this.imageUrl,
+    this.imageDescription,
+    this.pendingImageBytes,
+    this.pendingImageFileName,
+  });
+
+  EditableContentBlock copy() {
+    return EditableContentBlock(
+      id: id,
+      type: type,
+      textCtrl: TextEditingController(text: textCtrl.text),
+      imageUrl: imageUrl,
+      imageDescription: imageDescription,
+      pendingImageBytes: pendingImageBytes,
+      pendingImageFileName: pendingImageFileName,
+    );
+  }
+}
 
 class AdminLessonsTab extends StatelessWidget {
   final Lesson? initialLesson;
@@ -58,6 +92,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   Lesson? _selectedLesson;
   bool _creatingLesson = false;
   bool _isGeneratingFromPdf = false;
+  bool _isGeneratingFromPrompt = false;
 
   final AILogicService _aiLogicService = AILogicService();
   final _title = TextEditingController();
@@ -69,11 +104,13 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   final _quizKey = GlobalKey<AdminQuizzesTabState>();
   String? _selectedQuizId;
 
-  // AI-generated content blocks (each block is an editable string)
-  List<TextEditingController> _contentBlockCtrls = [];
+  // AI-generated & manual content blocks
+  List<EditableContentBlock> _contentBlocks = [];
+  List<EditableContentBlock> _cachedOriginalBlocks = [];
 
   ContentVisibility _visibility = ContentVisibility.public;
-  int _tabIndex = 0; 
+  int _tabIndex = 0;
+ 
 
   @override
   void initState() {
@@ -134,6 +171,11 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     return StreamBuilder<UserRole>(
       stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
       builder: (context, roleSnap) {
+        final isEducator = roleSnap.data == UserRole.educator;
+        if (isEducator && _tabIndex > 1) {
+          _tabIndex = 0;
+        }
+
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(32, 40, 32, 60),
           child: Column(
@@ -151,7 +193,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Create or edit your lessons, quizzes, and assessments.',
+                'Create or edit your lessons and quizzes.',
                 style: GoogleFonts.inter(
                   fontSize: 15,
                   color: AppColors.textSecondary,
@@ -163,7 +205,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               Center(
                 child: Container(
                   height: 52,
-                  width: 500,
+                  width: isEducator ? 340 : 500,
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
@@ -180,7 +222,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                     children: [
                       _buildTabBtn('Lessons', 0),
                       _buildTabBtn('Quizzes', 1),
-                      _buildTabBtn('Assessments', 2),
+                      if (!isEducator) _buildTabBtn('Assessments', 2),
                     ],
                   ),
                 ),
@@ -201,17 +243,18 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                   ],
                 ),
                 child: IndexedStack(
-                  index: _tabIndex,
+                  index: _tabIndex.clamp(0, isEducator ? 1 : 2),
                   children: [
                     _buildLessonForm(roleSnap.data, isDark),
                     AdminQuizzesTab(
                       key: _quizKey,
                       initialQuizId: _selectedQuizId,
                     ),
-                    AdminAssessmentsTab(
-                      isEmbedded: true,
-                      initialQuizId: _tabIndex == 2 ? _selectedQuizId : null,
-                    ),
+                    if (!isEducator)
+                      AdminAssessmentsTab(
+                        isEmbedded: true,
+                        initialQuizId: _tabIndex == 2 ? _selectedQuizId : null,
+                      ),
                   ],
                 ),
               ),
@@ -349,30 +392,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             isDark: isDark,
           ),
           const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Lesson Content',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white70 : AppColors.textSecondary,
-                ),
-              ),
-              const MarkdownGuideButton(),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _buildStyledTextField(
-            controller: _prompt,
-            label: 'Write your lesson content using markdown...',
-            hint: 'Write your lesson content using markdown...',
-            icon: Icons.text_snippet_rounded,
-            maxLines: 12,
-            isDark: isDark,
-          ),
-          const SizedBox(height: 32),
           _buildVisibilitySettings(role, isDark),
           const SizedBox(height: 32),
           
@@ -396,25 +415,50 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('Generate from Source', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF2A2A2A))),
+                Text('Generate from Prompt or PDF Source', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF2A2A2A))),
                 const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: _isGeneratingFromPdf ? null : _generateFromPdf,
-                    icon: _isGeneratingFromPdf 
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.picture_as_pdf_rounded),
-                    label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Select PDF & Generate Lesson'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF88B342),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: (_isGeneratingFromPrompt || _isGeneratingFromPdf || _prompt.text.trim().isEmpty) ? null : _generateFromTextPrompt,
+                      icon: _isGeneratingFromPrompt 
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.auto_awesome_rounded),
+                      label: Text(_isGeneratingFromPrompt ? 'Generating...' : 'Generate from Prompt'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF88B342),
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
-                  ),
+                    OutlinedButton.icon(
+                      onPressed: (_isGeneratingFromPrompt || _isGeneratingFromPdf) ? null : _generateFromPdf,
+                      icon: _isGeneratingFromPdf 
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+                          : const Icon(Icons.picture_as_pdf_rounded),
+                      label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Select PDF & Generate'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isDark ? Colors.white : const Color(0xFF2A2A2A),
+                        side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade400),
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 24),
+          _buildStyledTextField(
+            controller: _prompt,
+            label: 'Put Your Prompt Here',
+            hint: 'Put Your Prompt Here',
+            icon: Icons.lightbulb_rounded,
+            maxLines: 2,
+            isDark: isDark,
           ),
         ],
       ),
@@ -470,7 +514,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Widget _buildContentBlocks(bool isDark) {
-    if (_contentBlockCtrls.isEmpty) {
+    if (_contentBlocks.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
@@ -497,9 +541,34 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Use the "AI Generate" button to upload a PDF or paste text. The AI will produce separate editable content blocks here.',
+              'Use the AI Generation Config to generate content blocks, or add blocks manually.',
               style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 13),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            PopupMenuButton<String>(
+              onSelected: (type) => _addContentBlock(type),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'text', child: Text('Text Block')),
+                const PopupMenuItem(value: 'list', child: Text('List Block')),
+                const PopupMenuItem(value: 'table', child: Text('Table Block')),
+                const PopupMenuItem(value: 'image', child: Text('Image Block')),
+              ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.add, color: Colors.white, size: 18),
+                    const SizedBox(width: 6),
+                    Text('Add Manual Block', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -509,79 +578,258 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 16,
+          runSpacing: 8,
           children: [
             Text(
-              'Content Blocks (${_contentBlockCtrls.length})',
+              'Content Blocks (${_contentBlocks.length})',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
                 color: isDark ? Colors.white70 : AppColors.textSecondary,
               ),
             ),
-            TextButton.icon(
-              onPressed: () {
-                setState(() {
-                  _contentBlockCtrls.add(TextEditingController());
-                });
-              },
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add Block'),
+            Wrap(
+              spacing: 8,
+              children: [
+                if (_cachedOriginalBlocks.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: _revertToOriginalBlocks,
+                    icon: const Icon(Icons.restore_rounded, size: 16),
+                    label: const Text('Revert Layout'),
+                    style: TextButton.styleFrom(foregroundColor: Colors.orange.shade700),
+                  ),
+                TextButton.icon(
+                  onPressed: _showPreviewDialog,
+                  icon: const Icon(Icons.visibility_rounded, size: 16),
+                  label: const Text('Preview'),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (type) => _addContentBlock(type),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'text', child: Text('Text Block')),
+                    const PopupMenuItem(value: 'list', child: Text('List Block')),
+                    const PopupMenuItem(value: 'table', child: Text('Table Block')),
+                    const PopupMenuItem(value: 'image', child: Text('Image Block')),
+                  ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.add, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 4),
+                        Text('Add Block', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        ...List.generate(_contentBlockCtrls.length, (index) {
+        const SizedBox(height: 12),
+        ...List.generate(_contentBlocks.length, (index) {
+          final block = _contentBlocks[index];
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 16),
             child: Container(
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF333333) : Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 12, top: 8),
-                        child: Text(
-                          'Block ${index + 1}',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                  // Block Header Bar
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'Block ${index + 1} (${block.type.toUpperCase()})',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        onPressed: () {
-                          setState(() {
-                            _contentBlockCtrls[index].dispose();
-                            _contentBlockCtrls.removeAt(index);
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: TextField(
-                      controller: _contentBlockCtrls[index],
-                      maxLines: 6,
-                      minLines: 2,
-                      style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
-                      decoration: InputDecoration(
-                        hintText: 'Edit this content block...',
-                        hintStyle: GoogleFonts.inter(color: isDark ? Colors.white30 : Colors.grey.shade400),
-                        border: InputBorder.none,
-                        isDense: true,
-                      ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+                          onPressed: index > 0 ? () => _moveBlock(index, index - 1) : null,
+                          tooltip: 'Move Up',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+                          onPressed: index < _contentBlocks.length - 1 ? () => _moveBlock(index, index + 1) : null,
+                          tooltip: 'Move Down',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, size: 18, color: Colors.red),
+                          onPressed: () => _removeBlock(index),
+                          tooltip: 'Delete Block',
+                        ),
+                      ],
                     ),
+                  ),
+                  
+                  // Block Content Area
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: block.type == 'image'
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (block.imageDescription != null && block.imageDescription!.trim().isNotEmpty) ...[
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.info_outline_rounded, color: Colors.blue, size: 20),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'AI Recommendation: ${block.imageDescription}',
+                                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black87),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                              ],
+                              InkWell(
+                                onTap: () => _uploadImageForBlock(block),
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  width: double.infinity,
+                                  constraints: const BoxConstraints(minHeight: 160, maxHeight: 280),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF252525) : Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: block.imageUrl != null ? AppColors.primary : (isDark ? Colors.white24 : Colors.grey.shade400),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: (block.pendingImageBytes != null || (block.imageUrl != null && block.imageUrl!.isNotEmpty))
+                                      ? Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            Center(
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(12.0),
+                                                child: ClipRRect(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  child: block.pendingImageBytes != null
+                                                      ? Image.memory(
+                                                          block.pendingImageBytes!,
+                                                          fit: BoxFit.contain,
+                                                          height: 220,
+                                                        )
+                                                      : Image.network(
+                                                          block.imageUrl!,
+                                                          fit: BoxFit.contain,
+                                                          height: 220,
+                                                        ),
+                                                ),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 8,
+                                              right: 8,
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black.withValues(alpha: 0.7),
+                                                  borderRadius: BorderRadius.circular(20),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(Icons.edit_rounded, size: 14, color: Colors.white),
+                                                    const SizedBox(width: 4),
+                                                    Text('Change', style: GoogleFonts.inter(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(14),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.primary.withValues(alpha: 0.1),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.cloud_upload_outlined, size: 32, color: AppColors.primary),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              'Drop your image here',
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: isDark ? Colors.white : const Color(0xFF2A2A2A),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'or click to browse from device',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : TextField(
+                            controller: block.textCtrl,
+                            maxLines: 8,
+                            minLines: 3,
+                            style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+                            decoration: InputDecoration(
+                              hintText: 'Edit block content...',
+                              hintStyle: GoogleFonts.inter(color: isDark ? Colors.white30 : Colors.grey.shade400),
+                              border: InputBorder.none,
+                              isDense: true,
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -589,6 +837,179 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           );
         }),
       ],
+    );
+  }
+
+  void _addContentBlock(String type) {
+    setState(() {
+      _contentBlocks.add(EditableContentBlock(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        type: type,
+        textCtrl: TextEditingController(),
+        imageDescription: type == 'image' ? 'Upload an image relevant to this section.' : null,
+      ));
+    });
+  }
+
+  void _removeBlock(int index) {
+    setState(() {
+      _contentBlocks[index].textCtrl.dispose();
+      _contentBlocks.removeAt(index);
+    });
+  }
+
+  void _moveBlock(int oldIndex, int newIndex) {
+    setState(() {
+      final item = _contentBlocks.removeAt(oldIndex);
+      _contentBlocks.insert(newIndex, item);
+    });
+  }
+
+  void _revertToOriginalBlocks() {
+    setState(() {
+      for (final b in _contentBlocks) {
+        b.textCtrl.dispose();
+      }
+      _contentBlocks = _cachedOriginalBlocks.map((b) => b.copy()).toList();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Reverted to original AI block layout!')),
+    );
+  }
+
+  Future<void> _uploadImageForBlock(EditableContentBlock block) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final platformFile = result.files.single;
+      List<int> bytes;
+      if (platformFile.bytes != null) {
+        bytes = platformFile.bytes!;
+      } else if (platformFile.path != null) {
+        bytes = await File(platformFile.path!).readAsBytes();
+      } else {
+        throw Exception('Could not read image file data');
+      }
+
+      setState(() {
+        block.pendingImageBytes = Uint8List.fromList(bytes);
+        block.pendingImageFileName = platformFile.name;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image cached locally! It will be uploaded when you save the lesson.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error selecting image: $e')),
+        );
+      }
+    }
+  }
+
+  void _showPreviewDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : AppColors.backgroundBase,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 800, maxHeight: 700),
+            padding: const EdgeInsets.all(32),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Interactive Lesson Card Preview',
+                        style: GoogleFonts.outfit(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppColors.textPrimary,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _title.text.isEmpty ? 'Untitled Lesson' : _title.text,
+                    style: GoogleFonts.outfit(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  if (_contentBlocks.isEmpty)
+                    const Text('No content blocks available.')
+                  else
+                    ..._contentBlocks.map((b) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (b.type == 'image') ...[
+                              if (b.pendingImageBytes != null)
+                                Center(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Image.memory(b.pendingImageBytes!, fit: BoxFit.contain, height: 260),
+                                  ),
+                                )
+                              else if (b.imageUrl != null && b.imageUrl!.isNotEmpty)
+                                Center(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Image.network(b.imageUrl!, fit: BoxFit.contain, height: 260),
+                                  ),
+                                )
+                              else
+                                const SizedBox.shrink(),
+                            ] else ...[
+                              InteractiveMarkdown(data: b.textCtrl.text.trim()),
+                            ],
+                          ],
+                        ),
+                      );
+                    }),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -698,12 +1119,104 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     );
   }
 
+  Future<void> _processGeneratedLesson(AILessonResponse lessonResponse) async {
+    for (final b in _contentBlocks) {
+      b.textCtrl.dispose();
+    }
+
+    final newBlocks = <EditableContentBlock>[];
+    if (_title.text.trim().isEmpty) {
+      _title.text = lessonResponse.title;
+    }
+
+    int idx = 0;
+    for (final block in lessonResponse.content) {
+      idx++;
+      String blockText = '';
+      String blockType = 'text';
+      String? imgDesc;
+
+      switch (block.type) {
+        case ContentBlockType.text:
+          blockType = 'text';
+          blockText = block.data.toString();
+          break;
+        case ContentBlockType.list:
+          blockType = 'list';
+          blockText = (block.data as List).map((item) => '• $item').join('\n');
+          break;
+        case ContentBlockType.table:
+          blockType = 'table';
+          final rows = block.data as List;
+          if (rows.isNotEmpty) {
+            final headers = (rows.first as Map<String, dynamic>).keys.toList();
+            final buffer = StringBuffer('| ${headers.join(' | ')} |\n');
+            buffer.writeln('| ${headers.map((_) => '---').join(' | ')} |');
+            for (final row in rows) {
+              final r = row as Map<String, dynamic>;
+              buffer.writeln('| ${headers.map((h) => r[h]?.toString() ?? '').join(' | ')} |');
+            }
+            blockText = buffer.toString();
+          } else {
+            blockText = '';
+          }
+          break;
+        case ContentBlockType.image:
+          blockType = 'image';
+          imgDesc = block.data.toString();
+          blockText = '[Image Placeholder: $imgDesc]';
+          break;
+      }
+
+      newBlocks.add(EditableContentBlock(
+        id: '${DateTime.now().millisecondsSinceEpoch}_$idx',
+        type: blockType,
+        textCtrl: TextEditingController(text: blockText),
+        imageDescription: imgDesc,
+      ));
+    }
+
+    setState(() {
+      _contentBlocks = newBlocks;
+      _cachedOriginalBlocks = newBlocks.map((b) => b.copy()).toList();
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Generated ${newBlocks.length} content blocks! Placeholders created for images.')),
+      );
+    }
+  }
+
+  Future<void> _generateFromTextPrompt() async {
+    final promptText = _prompt.text.trim();
+    if (promptText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a lesson topic or prompt first in the "Put Your Prompt Here" field.')),
+      );
+      return;
+    }
+
+    setState(() => _isGeneratingFromPrompt = true);
+
+    try {
+      final lessonResponse = await _aiLogicService.generateLesson(promptText);
+      await _processGeneratedLesson(lessonResponse);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating lesson from prompt: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGeneratingFromPrompt = false);
+    }
+  }
+
   Future<void> _generateFromPdf() async {
     setState(() => _isGeneratingFromPdf = true);
 
     try {
-      late final dynamic lessonResponse;
-
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
@@ -725,87 +1238,16 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         throw Exception('Could not read file data');
       }
 
-      lessonResponse = await _aiLogicService.generateLessonFromPdf(bytes);
-
-      // Populate blocks from AI response
-      for (final ctrl in _contentBlockCtrls) {
-        ctrl.dispose();
-      }
-
-      final blocks = <TextEditingController>[];
-      if (_title.text.trim().isEmpty) {
-        _title.text = lessonResponse.title;
-      }
-
-      for (final block in lessonResponse.content) {
-        String blockText;
-        switch (block.type.name) {
-          case 'text':
-            blockText = block.data.toString();
-            break;
-          case 'list':
-            blockText = (block.data as List).map((item) => '• $item').join('\n');
-            break;
-          case 'table':
-            final rows = block.data as List;
-            if (rows.isNotEmpty) {
-              final headers = (rows.first as Map<String, dynamic>).keys.toList();
-              final buffer = StringBuffer('| ${headers.join(' | ')} |\n');
-              buffer.writeln('| ${headers.map((_) => '---').join(' | ')} |');
-              for (final row in rows) {
-                final r = row as Map<String, dynamic>;
-                buffer.writeln('| ${headers.map((h) => r[h]?.toString() ?? '').join(' | ')} |');
-              }
-              blockText = buffer.toString();
-            } else {
-              blockText = '';
-            }
-            break;
-          case 'image':
-            try {
-              final prompt = block.data.toString();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Generating AI image for lesson...'), duration: Duration(seconds: 2)),
-                );
-              }
-              final imageBytes = await _aiLogicService.generateImageFromPrompt(prompt);
-              final fileName = 'ai_lesson_img_${DateTime.now().millisecondsSinceEpoch}.jpg';
-              final url = await DatabaseService.instance.uploadGeneratedImage(imageBytes, fileName);
-              blockText = '![Generated Image]($url)';
-            } catch (e) {
-              debugPrint('Error generating image block: $e');
-              blockText = '[Image: ${block.data}]';
-            }
-            break;
-          default:
-            blockText = block.data.toString();
-        }
-        if (blockText.isNotEmpty) {
-          blocks.add(TextEditingController(text: blockText));
-        }
-      }
-
-      // Also put the combined text into _prompt for backward compatibility
-      _prompt.text = blocks.map((c) => c.text).join('\n\n');
-
-      setState(() {
-        _contentBlockCtrls = blocks;
-        _isGeneratingFromPdf = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Generated ${blocks.length} content blocks!')),
-        );
-      }
+      final lessonResponse = await _aiLogicService.generateLessonFromPdf(bytes);
+      await _processGeneratedLesson(lessonResponse);
     } catch (e) {
       if (mounted) {
-        setState(() => _isGeneratingFromPdf = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error generating from source: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isGeneratingFromPdf = false);
     }
   }
 
@@ -815,10 +1257,11 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     _selectedQuizId = null;
     _title.clear();
     _prompt.clear();
-    for (final ctrl in _contentBlockCtrls) {
-      ctrl.dispose();
+    for (final block in _contentBlocks) {
+      block.textCtrl.dispose();
     }
-    _contentBlockCtrls = [];
+    _contentBlocks = [];
+    _cachedOriginalBlocks = [];
     _isVisible = true;
     _isMembersOnly = false;
     _isGrammaticaLesson = false;
@@ -829,6 +1272,20 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Future<void> _saveIntegratedLesson() async {
+    if (_title.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lesson title is required')));
+      return;
+    }
+    // Early validation: check content isn't empty before starting uploads
+    final preUploadPrompt = _contentBlocks.isNotEmpty
+        ? _contentBlocks.map((c) => c.textCtrl.text).join('\n\n')
+        : _prompt.text.trim();
+
+    if (preUploadPrompt.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lesson content cannot be empty')));
+      return;
+    }
+
     setState(() => _creatingLesson = true);
     try {
       String? finalQuizId = _selectedQuizId;
@@ -840,8 +1297,35 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         }
       }
 
-      final lessonPrompt = _contentBlockCtrls.isNotEmpty
-          ? _contentBlockCtrls.map((c) => c.text).join('\n\n')
+      // Upload any cached pending images before saving
+      for (final block in _contentBlocks) {
+        if (block.type == 'image' && block.pendingImageBytes != null) {
+          try {
+            final fileName = block.pendingImageFileName ?? 'lesson_img_${DateTime.now().millisecondsSinceEpoch}.png';
+            final folder = 'lesson_images/lesson_${_selectedLessonId ?? DateTime.now().millisecondsSinceEpoch}';
+            final url = await DatabaseService.instance.uploadGeneratedImage(
+              block.pendingImageBytes!,
+              fileName,
+              folder: folder,
+            );
+            block.imageUrl = url;
+            block.textCtrl.text = '![Image]($url)';
+            block.pendingImageBytes = null;
+            block.pendingImageFileName = null;
+          } catch (e) {
+            debugPrint('Image upload error (non-fatal): $e');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Warning: Storage upload issue ($e). Saving lesson content.')),
+              );
+            }
+          }
+        }
+      }
+
+      // Compute lessonPrompt AFTER image uploads so image URLs are included
+      final lessonPrompt = _contentBlocks.isNotEmpty
+          ? _contentBlocks.map((c) => c.textCtrl.text).join('\n\n')
           : _prompt.text.trim();
 
       final lessonData = Lesson(
@@ -869,11 +1353,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           isGrammaticaLesson: lessonData.isGrammaticaLesson,
           quizId: lessonData.quizId,
         );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lesson & Quiz created successfully!')),
-          );
-        }
       } else {
         await DatabaseService.instance.updateLesson(
           id: _selectedLessonId!,
@@ -886,11 +1365,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           isGrammaticaLesson: lessonData.isGrammaticaLesson,
           quizId: lessonData.quizId,
         );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lesson & Quiz updated successfully!')),
-          );
-        }
       }
       _resetForm();
     } catch (e) {
@@ -908,9 +1382,10 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   void dispose() {
     _title.dispose();
     _prompt.dispose();
-    for (final ctrl in _contentBlockCtrls) {
-      ctrl.dispose();
+    for (final block in _contentBlocks) {
+      block.textCtrl.dispose();
     }
     super.dispose();
   }
 }
+

@@ -130,17 +130,12 @@ class _AiLessonGeneratorTabState extends State<AiLessonGeneratorTab>
         'source': 'ai_studio',
       };
 
-      await FirebaseFirestore.instance.collection('lessons').add(lessonData);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '✅ Lesson "${_generatedLesson!.title}" published to Firestore!'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
+      if (_errorMessage != null) {
+        setState(() => _isPublishing = false);
+        return;
       }
+      await FirebaseFirestore.instance.collection('lessons').add(lessonData);
+      // Removed confusing success toast that triggers even on errors.
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -409,7 +404,7 @@ class _AiLessonGeneratorTabState extends State<AiLessonGeneratorTab>
           ),
           const SizedBox(height: 6),
           Text(
-            'Gemini is analysing and structuring your content.',
+            'Grammatica AI model is analysing and structuring your content.',
             style: GoogleFonts.inter(
               fontSize: 13,
               color: isDark ? Colors.white54 : AppColors.textSecondary,

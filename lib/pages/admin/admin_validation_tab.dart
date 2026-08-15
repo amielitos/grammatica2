@@ -826,34 +826,43 @@ class _ValidationList extends StatelessWidget {
     final reasonController = TextEditingController();
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reject Content'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Are you sure you want to reject (delete) this content?'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              decoration: const InputDecoration(
-                labelText: 'Reason for rejection',
-                border: OutlineInputBorder(),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final isReasonEmpty = reasonController.text.trim().isEmpty;
+            return AlertDialog(
+              title: const Text('Reject Content'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Are you sure you want to reject (delete) this content?'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: reasonController,
+                    onChanged: (_) => setState(() {}),
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason for rejection (Required)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Deny & Notify Educator'),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: isReasonEmpty ? null : () => Navigator.pop(context, true),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                  child: const Text('Deny & Notify Educator'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
 
     if (confirm == true) {

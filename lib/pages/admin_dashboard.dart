@@ -151,14 +151,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
             userData: widget.userData,
             onTabChange: (i) {
               setState(() {
-                if (i == 4) {
-                  // English Assessment index
-                  _initialPracticeSubTab = 2; // Assessment sub-tab
-                  _initialPracticeShowEditor = true; // Go to editor directly
-                } else {
-                  _initialPracticeSubTab = null;
-                  _initialPracticeShowEditor = false;
-                }
+                _initialPracticeSubTab = null;
+                _initialPracticeShowEditor = false;
                 _index = i;
               });
             },
@@ -265,8 +259,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
         navItems.add(
           const ModernNavItem(
-            icon: Icons.assignment,
-            label: 'English Assessment',
+            icon: Icons.auto_awesome,
+            label: 'Practice',
           ),
         );
       }
@@ -326,16 +320,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         currentIndex: _index,
         onTap: (i) {
           setState(() {
-            // For educators, tab index 4 = English Assessment.
-            // Set the sub-tab so PracticeTab reinitialises directly
-            // on the assessment view (skips the Practice Tools screen).
-            if (isEducator && i == 4) {
-              _initialPracticeSubTab = 2;
-              _initialPracticeShowEditor = false;
-            } else {
-              _initialPracticeSubTab = null;
-              _initialPracticeShowEditor = false;
-            }
+            _initialPracticeSubTab = null;
+            _initialPracticeShowEditor = false;
             _index = i;
             _persistedIndex = i;
           });

@@ -59,10 +59,8 @@ class UniversalDrawer extends StatelessWidget {
           navItems.add(const ModernNavItem(icon: Icons.group, label: 'Premium Group'));
         }
         
-        if (isAdminOrSuperAdmin) {
+        if (isAdminOrSuperAdmin || isEducator) {
           navItems.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
-        } else if (isEducator) {
-           navItems.add(const ModernNavItem(icon: Icons.assignment, label: 'English Assessment'));
         }
 
         if (!isEducator) {

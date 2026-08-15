@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'role_service.dart';
 import '../models/spelling_word.dart';
+import '../utils/image_utils.dart';
 
 class ImageUpload {
   final String id;
@@ -171,11 +172,13 @@ class Lesson {
 class QuizQuestion {
   final String question;
   final String answer;
-  final String type; // 'text', 'multiple_choice', 'passage'
+  final String type; // 'text', 'multiple_choice', 'passage', 'image'
   final List<String>? options;
   final List<QuizQuestion>? nestedQuestions;
   final String? hint;
   final String? explanation;
+  final String? imageUrl;
+  final String? imageDescription;
 
   QuizQuestion({
     required this.question,
@@ -185,6 +188,8 @@ class QuizQuestion {
     this.nestedQuestions,
     this.hint,
     this.explanation,
+    this.imageUrl,
+    this.imageDescription,
   });
 
   factory QuizQuestion.fromMap(Map<String, dynamic> map) {
@@ -202,6 +207,8 @@ class QuizQuestion {
           : null,
       hint: map['hint'] as String?,
       explanation: map['explanation'] as String?,
+      imageUrl: map['imageUrl'] as String?,
+      imageDescription: map['imageDescription'] as String?,
     );
   }
 
@@ -214,6 +221,8 @@ class QuizQuestion {
       'nestedQuestions': nestedQuestions?.map((q) => q.toMap()).toList(),
       if (hint != null) 'hint': hint,
       if (explanation != null) 'explanation': explanation,
+      if (imageUrl != null) 'imageUrl': imageUrl,
+      if (imageDescription != null) 'imageDescription': imageDescription,
     };
   }
 }
@@ -433,6 +442,19 @@ class DatabaseService {
     required String syllabusUrl,
     required String applicationType,
   }) async {
+    // Delete any existing application files for this user to avoid storage bloat
+    final existingApps = await _educatorApplications.where('applicantUid', isEqualTo: uid).get();
+    for (final doc in existingApps.docs) {
+      final app = EducatorApplication.fromDoc(doc);
+      if (app.cvUrl != cvUrl) await _deleteFileFromUrl(app.cvUrl);
+      for (final url in app.certificateUrls) {
+        if (!certificateUrls.contains(url)) await _deleteFileFromUrl(url);
+      }
+      if (app.videoUrl != videoUrl) await _deleteFileFromUrl(app.videoUrl);
+      if (app.syllabusUrl != syllabusUrl) await _deleteFileFromUrl(app.syllabusUrl);
+      await _educatorApplications.doc(doc.id).delete();
+    }
+
     await _educatorApplications.add({
       'applicantUid': uid,
       'applicantEmail': email,
@@ -573,6 +595,10 @@ class DatabaseService {
     required String contentType,
   }) async {
     try {
+      final finalBytes = contentType.startsWith('image/')
+          ? await compressImageBytes(fileBytes)
+          : fileBytes;
+
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('educator_applications')
@@ -580,7 +606,7 @@ class DatabaseService {
           .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
 
       final uploadTask = storageRef.putData(
-        fileBytes,
+        finalBytes,
         SettableMetadata(contentType: contentType),
       );
 
@@ -633,6 +659,19 @@ class DatabaseService {
     return doc.id;
   }
 
+  Set<String> _extractImageUrlsFromPrompt(String prompt) {
+    final urls = <String>{};
+    final imgRegex = RegExp(r'!\[[\s\S]*?\]\((https?://[^\s)]+|\S+?)\)');
+    for (final match in imgRegex.allMatches(prompt)) {
+      var url = match.group(2) ?? '';
+      if (url.endsWith(')')) url = url.substring(0, url.length - 1);
+      if (url.contains('firebasestorage.googleapis.com')) {
+        urls.add(url);
+      }
+    }
+    return urls;
+  }
+
   Future<void> updateLesson({
     required String id,
     String? title,
@@ -646,6 +685,19 @@ class DatabaseService {
     bool? isGrammaticaLesson,
     String? quizId,
   }) async {
+    if (prompt != null) {
+      final doc = await _lessons.doc(id).get();
+      if (doc.exists) {
+        final oldPrompt = (doc.data()?['prompt'] ?? '').toString();
+        final oldUrls = _extractImageUrlsFromPrompt(oldPrompt);
+        final newUrls = _extractImageUrlsFromPrompt(prompt);
+        final removedUrls = oldUrls.difference(newUrls);
+        for (final url in removedUrls) {
+          await _deleteFileFromUrl(url);
+        }
+      }
+    }
+
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
     if (prompt != null) data['prompt'] = prompt;
@@ -668,7 +720,35 @@ class DatabaseService {
     final doc = await _lessons.doc(id).get();
     if (doc.exists) {
       final data = doc.data();
+      // Delete attachment from storage
       await _deleteFileFromUrl(data?['attachmentUrl']);
+
+      // Delete images embedded in prompt and answer from storage
+      final prompt = (data?['prompt'] ?? '').toString();
+      final answer = (data?['answer'] ?? '').toString();
+      final embeddedUrls = {
+        ..._extractImageUrlsFromPrompt(prompt),
+        ..._extractImageUrlsFromPrompt(answer),
+      };
+      for (final url in embeddedUrls) {
+        await _deleteFileFromUrl(url);
+      }
+
+      // Delete linked quiz if exists
+      final quizId = (data?['quizId'] ?? '').toString();
+      if (quizId.isNotEmpty) {
+        await deleteQuiz(quizId);
+      }
+
+      // Clean up any user progress docs referencing this lesson
+      try {
+        final usersSnap = await _firestore.collection('users').get();
+        for (final userDoc in usersSnap.docs) {
+          await _userProgress(userDoc.id).doc(id).delete();
+        }
+      } catch (e) {
+        debugPrint('Error cleaning up lesson progress: $e');
+      }
     }
     await _lessons.doc(id).delete();
   }
@@ -767,6 +847,11 @@ class DatabaseService {
     return stream;
   }
 
+  Future<Map<String, dynamic>?> getLessonProgress(String uid, String lessonId) async {
+    final doc = await _userProgress(uid).doc(lessonId).get();
+    return doc.data();
+  }
+
   Future<void> markLessonCompleted({
     required User user,
     required String lessonId,
@@ -776,6 +861,22 @@ class DatabaseService {
       'completed': completed,
       'completedAt': completed ? FieldValue.serverTimestamp() : null,
     }, SetOptions(merge: true));
+  }
+
+  Future<void> updateLessonProgress({
+    required User user,
+    required String lessonId,
+    required double progress,
+  }) async {
+    final isCompleted = progress >= 1.0;
+    final updateData = <String, dynamic>{
+      'progress': progress,
+    };
+    if (isCompleted) {
+      updateData['completed'] = true;
+      updateData['completedAt'] = FieldValue.serverTimestamp();
+    }
+    await _userProgress(user.uid).doc(lessonId).set(updateData, SetOptions(merge: true));
   }
 
   Future<Lesson?> getLessonByQuizId(String quizId) async {
@@ -885,11 +986,53 @@ class DatabaseService {
     }
   }
 
+  void _extractQuizImageUrls(List<dynamic>? questions, Set<String> targetSet) {
+    if (questions == null) return;
+    for (final q in questions) {
+      if (q is Map<String, dynamic>) {
+        final imgUrl = q['imageUrl'] as String?;
+        if (imgUrl != null && imgUrl.contains('firebasestorage.googleapis.com')) {
+          targetSet.add(imgUrl);
+        }
+        final nested = q['nestedQuestions'] as List?;
+        if (nested != null) {
+          _extractQuizImageUrls(nested, targetSet);
+        }
+      }
+    }
+  }
+
   Future<void> deleteQuiz(String id) async {
     final doc = await _quizzes.doc(id).get();
     if (doc.exists) {
-      final data = doc.data();
-      await _deleteFileFromUrl(data?['attachmentUrl']);
+      final data = doc.data() ?? {};
+      await _deleteFileFromUrl(data['attachmentUrl'] as String?);
+      final urls = <String>{};
+      final questions = data['questions'] as List?;
+      _extractQuizImageUrls(questions, urls);
+      for (final url in urls) {
+        await _deleteFileFromUrl(url);
+      }
+
+      // Remove quizId reference in lessons pointing to this quiz
+      try {
+        final linkedLessons = await _lessons.where('quizId', isEqualTo: id).get();
+        for (final lDoc in linkedLessons.docs) {
+          await _lessons.doc(lDoc.id).update({'quizId': null});
+        }
+      } catch (e) {
+        debugPrint('Error unlinking quiz from lessons: $e');
+      }
+
+      // Clean up user quiz progress docs referencing this quiz
+      try {
+        final usersSnap = await _firestore.collection('users').get();
+        for (final userDoc in usersSnap.docs) {
+          await _userQuizProgress(userDoc.id).doc(id).delete();
+        }
+      } catch (e) {
+        debugPrint('Error cleaning up quiz progress: $e');
+      }
     }
     await _quizzes.doc(id).delete();
   }
@@ -1192,22 +1335,28 @@ class DatabaseService {
     }
   }
 
-  Future<String> uploadGeneratedImage(Uint8List bytes, String fileName) async {
+  Future<String> uploadGeneratedImage(Uint8List bytes, String fileName, {String? folder}) async {
     try {
+      final targetFolder = folder ?? 'lesson_images';
+      final uniqueFileName = generateUniqueImageKey(fileName);
       final storageRef = FirebaseStorage.instance
           .ref()
-          .child('generated_images')
-          .child('${DateTime.now().millisecondsSinceEpoch}_$fileName');
+          .child(targetFolder)
+          .child(uniqueFileName);
+
+      final compressedBytes = await compressImageBytes(bytes);
+      final mimeType = getMimeType(fileName);
 
       final uploadTask = storageRef.putData(
-        bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
+        compressedBytes,
+        SettableMetadata(contentType: mimeType),
       );
 
       final snapshot = await uploadTask.whenComplete(() => null);
-      return await snapshot.ref.getDownloadURL();
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      return downloadUrl;
     } catch (e) {
-      throw Exception('Failed to upload generated image: $e');
+      throw Exception('Failed to upload image: $e');
     }
   }
 

@@ -9,11 +9,12 @@ import '../services/database_service.dart';
 import '../services/role_service.dart';
 import '../services/notification_service.dart';
 import '../services/web_service.dart';
-import '../services/ai_service.dart';
 import '../models/spelling_word.dart';
 import '../pages/admin/admin_spelling_words_tab.dart';
 import '../theme/app_colors.dart';
 import '../widgets/design_ornaments.dart';
+import '../services/ai_logic_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 class SpellingBeePage extends StatefulWidget {
@@ -32,7 +33,6 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   int _score = 0;
   bool _isPlaying = false;
   bool _isGameOver = false;
-  bool _useAiWords = false;
 
   final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -126,24 +126,27 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   Future<void> _startSession(SpellingDifficulty difficulty) async {
     List<SpellingWord> allWords;
 
-    if (_useAiWords) {
-      try {
-        allWords = await AIService.instance.generateWords(
-          count: 10,
+    try {
+      final diffStr = difficulty.toString().split('.').last;
+      final aiWords = await AILogicService.instance.generatePracticeWords(diffStr, 10);
+      
+      allWords = aiWords.map((w) {
+        return SpellingWord(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          word: w,
           difficulty: difficulty,
+          createdAt: Timestamp.now(),
+          createdByUid: 'ai_generated',
+          audioUrl: null,
         );
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('AI generation failed: $e')),
-          );
-        }
-        return;
+      }).toList();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('AI generation failed: $e')),
+        );
       }
-    } else {
-      allWords = await DatabaseService.instance.fetchSpellingWords(
-        difficulty: difficulty,
-      );
+      return;
     }
 
     if (allWords.isEmpty) {
@@ -349,57 +352,6 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
             style: TextStyle(
               fontSize: 16,
               color: AppColors.textSecondary,
-            ),
-          ),
-          SizedBox(height: 48),
-          // AI toggle
-          Container(
-            constraints: const BoxConstraints(maxWidth: 400),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _useAiWords ? Icons.psychology_rounded : Icons.storage_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Word Source:',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Database')),
-                    ButtonSegment(value: true, label: Text('AI Generated')),
-                  ],
-                  selected: {_useAiWords},
-                  onSelectionChanged: (val) {
-                    setState(() => _useAiWords = val.first);
-                  },
-                  style: ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              ],
             ),
           ),
           SizedBox(height: 32),

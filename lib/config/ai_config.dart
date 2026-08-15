@@ -45,11 +45,11 @@ class AIConfig {
 
   // ── Execution mode ──────────────────────────────────────────────────────
   /// **DEV TOGGLE**: Change this constant to swap between execution modes.
-  static const AIExecutionMode mode = AIExecutionMode.directClientSide;
+  static const AIExecutionMode mode = AIExecutionMode.firebaseAI;
 
   // ── Firebase AI (used in firebaseAI mode) ───────────────────────────────
   /// The Gemini model to use via Firebase AI Logic SDK.
-  static const String firebaseAIModel = 'gemini-2.5-flash';
+  static const String firebaseAIModel = 'gemini-1.5-flash';
 
   // ── Gemini REST API (used in directClientSide mode) ─────────────────────
   /// Your Google Gemini API key loaded from the .env file.
@@ -57,6 +57,9 @@ class AIConfig {
 
   /// The Gemini model identifier to use for direct REST calls.
   static const String geminiModel = 'gemini-3.6-flash';
+
+  /// Base URL for the Gemini API.
+  static const String geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/$geminiModel:generateContent';
 
   // ── Python backend (used in pythonBackend mode) ─────────────────────────
   /// Base URL of the running `ai_backend` FastAPI service.

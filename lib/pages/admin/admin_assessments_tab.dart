@@ -779,6 +779,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
               items: [
                 const DropdownMenuItem(value: 'text', child: Text('Textfield')),
                 const DropdownMenuItem(value: 'multiple_choice', child: Text('Multiple Choice')),
+                const DropdownMenuItem(value: 'fill_in_the_blank', child: Text('Fill in the Blank')),
                 if (!isNested) const DropdownMenuItem(value: 'passage', child: Text('Passage')),
               ],
               onChanged: (v) {

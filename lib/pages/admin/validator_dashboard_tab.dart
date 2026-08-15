@@ -72,30 +72,37 @@ class ValidatorDashboardTab extends StatelessWidget {
                 const SizedBox(height: 60),
                 
                 // Stats Grid
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'EDUCATOR').snapshots(),
-                  builder: (context, educSnap) {
-                    final educCount = educSnap.data?.docs.length ?? 0;
-                    return StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance.collection('lessons').where('validationStatus', isEqualTo: 'awaiting_approval').snapshots(),
-                      builder: (context, lessonSnap) {
-                        final lessonCount = lessonSnap.data?.docs.length ?? 0;
-                        return StreamBuilder<List<EducatorApplication>>(
-                          stream: DatabaseService.instance.streamEducatorApplications(),
-                          builder: (context, appSnap) {
-                            final appCount = appSnap.data?.length ?? 0;
-                            
-                            return LayoutBuilder(
-                              builder: (context, constraints) {
-                                return Wrap(
-                                  spacing: 24,
-                                  runSpacing: 24,
-                                  alignment: WrapAlignment.center,
-                                  children: [
-                                    _buildStatCard('Pending Lessons', lessonCount.toString(), Icons.pending_actions, AppColors.secondary),
-                                    _buildStatCard('Pending Applicants', appCount.toString(), Icons.person_add, const Color(0xFF4A90E2)),
-                                    _buildStatCard('Active Educators', educCount.toString(), Icons.school, AppColors.primary),
-                                  ],
+                StreamBuilder<List<Lesson>>(
+                  stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
+                  builder: (context, lessonSnap) {
+                    final lessonCount = lessonSnap.data?.length ?? 0;
+                    return StreamBuilder<List<Quiz>>(
+                      stream: DatabaseService.instance.streamAwaitingApprovalQuizzes(),
+                      builder: (context, quizSnap) {
+                        final quizCount = quizSnap.data?.length ?? 0;
+                        return StreamBuilder<List<Quiz>>(
+                          stream: DatabaseService.instance.streamAwaitingApprovalAssessments(),
+                          builder: (context, assessSnap) {
+                            final assessCount = assessSnap.data?.length ?? 0;
+                            return StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance.collection('users').where('role', isEqualTo: 'EDUCATOR').snapshots(),
+                              builder: (context, educSnap) {
+                                final educCount = educSnap.data?.docs.length ?? 0;
+
+                                return LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    return Wrap(
+                                      spacing: 20,
+                                      runSpacing: 20,
+                                      alignment: WrapAlignment.center,
+                                      children: [
+                                        _buildStatCard('Pending Lessons', lessonCount.toString(), Icons.menu_book_rounded, AppColors.secondary),
+                                        _buildStatCard('Pending Quizzes', quizCount.toString(), Icons.quiz_rounded, const Color(0xFF4A90E2)),
+                                        _buildStatCard('Pending Assessments', assessCount.toString(), Icons.assignment_turned_in_rounded, Colors.purple),
+                                        _buildStatCard('Active Educators', educCount.toString(), Icons.school_rounded, AppColors.primary),
+                                      ],
+                                    );
+                                  },
                                 );
                               },
                             );
@@ -106,45 +113,31 @@ class ValidatorDashboardTab extends StatelessWidget {
                   },
                 ),
                 
-                const SizedBox(height: 80),
+                const SizedBox(height: 60),
                 
-                // Content Layout
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isNarrow = constraints.maxWidth < 850;
-                    return Flex(
-                      direction: isNarrow ? Axis.vertical : Axis.horizontal,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left Column: Lessons
-                        Expanded(
-                          flex: isNarrow ? 0 : 1,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionHeader('Lesson Requests', Icons.auto_stories, AppColors.primary),
-                              const SizedBox(height: 24),
-                              _buildLessonsList(context),
-                            ],
-                          ),
-                        ),
-                        if (!isNarrow) const SizedBox(width: 48),
-                        if (isNarrow) const SizedBox(height: 60),
-                        // Right Column: Applications
-                        Expanded(
-                          flex: isNarrow ? 0 : 1,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionHeader('Verification Requests', Icons.how_to_reg, const Color(0xFF4A90E2)),
-                              const SizedBox(height: 24),
-                              _buildApplicationsList(context),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                // Content Layout Sections
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('Lesson Requests', Icons.auto_stories, AppColors.primary),
+                    const SizedBox(height: 16),
+                    _buildLessonsList(context),
+                    const SizedBox(height: 40),
+
+                    _buildSectionHeader('Quizzes Requests', Icons.quiz_rounded, const Color(0xFF4A90E2)),
+                    const SizedBox(height: 16),
+                    _buildQuizzesList(context),
+                    const SizedBox(height: 40),
+
+                    _buildSectionHeader('Assessments Requests', Icons.assignment_turned_in_rounded, Colors.purple),
+                    const SizedBox(height: 16),
+                    _buildAssessmentsList(context),
+                    const SizedBox(height: 40),
+
+                    _buildSectionHeader('Verification Requests', Icons.how_to_reg, Colors.teal),
+                    const SizedBox(height: 16),
+                    _buildApplicationsList(context),
+                  ],
                 ),
                 
                 const SizedBox(height: 80),
@@ -182,16 +175,16 @@ class ValidatorDashboardTab extends StatelessWidget {
 
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(
-      width: 320,
-      padding: const EdgeInsets.all(40),
+      width: 260,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(40),
+        borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
             color: color.withValues(alpha: 0.06),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
         border: Border.all(color: color.withValues(alpha: 0.05), width: 1),
@@ -199,18 +192,18 @@ class ValidatorDashboardTab extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 40),
+            child: Icon(icon, color: color, size: 32),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Text(
             value,
             style: GoogleFonts.outfit(
-              fontSize: 56,
+              fontSize: 44,
               fontWeight: FontWeight.w900,
               color: AppColors.textPrimary,
               height: 1,
@@ -222,9 +215,9 @@ class ValidatorDashboardTab extends StatelessWidget {
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
               color: AppColors.textSecondary,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w900,
-              letterSpacing: 1.5,
+              letterSpacing: 1.2,
             ),
           ),
         ],
@@ -241,7 +234,7 @@ class ValidatorDashboardTab extends StatelessWidget {
         }
         final lessons = snapshot.data ?? [];
         if (lessons.isEmpty) {
-          return _buildEmptyState('No new lessons to validate', Icons.done_all_rounded);
+          return _buildEmptyState('No pending lessons to validate', Icons.done_all_rounded);
         }
 
         return Column(
@@ -262,6 +255,66 @@ class ValidatorDashboardTab extends StatelessWidget {
     );
   }
 
+  Widget _buildQuizzesList(BuildContext context) {
+    return StreamBuilder<List<Quiz>>(
+      stream: DatabaseService.instance.streamAwaitingApprovalQuizzes(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final quizzes = snapshot.data ?? [];
+        if (quizzes.isEmpty) {
+          return _buildEmptyState('No pending quizzes to validate', Icons.quiz_rounded);
+        }
+
+        return Column(
+          children: quizzes.map((q) => _buildReviewCard(
+            context,
+            title: q.title,
+            subtitle: AuthorName(
+              uid: q.createdByUid,
+              fallbackEmail: q.createdByEmail,
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            icon: Icons.quiz_rounded,
+            iconColor: const Color(0xFF4A90E2),
+            onTap: () => onReviewRequests?.call(1),
+          )).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildAssessmentsList(BuildContext context) {
+    return StreamBuilder<List<Quiz>>(
+      stream: DatabaseService.instance.streamAwaitingApprovalAssessments(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final assessments = snapshot.data ?? [];
+        if (assessments.isEmpty) {
+          return _buildEmptyState('No pending assessments to validate', Icons.assignment_turned_in_rounded);
+        }
+
+        return Column(
+          children: assessments.map((q) => _buildReviewCard(
+            context,
+            title: q.title,
+            subtitle: AuthorName(
+              uid: q.createdByUid,
+              fallbackEmail: q.createdByEmail,
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            icon: Icons.assignment_turned_in_rounded,
+            iconColor: Colors.purple,
+            onTap: () => onReviewRequests?.call(2),
+          )).toList(),
+        );
+      },
+    );
+  }
+
   Widget _buildApplicationsList(BuildContext context) {
     return StreamBuilder<List<EducatorApplication>>(
       stream: DatabaseService.instance.streamEducatorApplications(type: 'educator'),
@@ -271,7 +324,7 @@ class ValidatorDashboardTab extends StatelessWidget {
         }
         final apps = snapshot.data ?? [];
         if (apps.isEmpty) {
-          return _buildEmptyState('No pending applications', Icons.verified_user_rounded);
+          return _buildEmptyState('No pending educator applications', Icons.verified_user_rounded);
         }
 
         return Column(
@@ -283,8 +336,8 @@ class ValidatorDashboardTab extends StatelessWidget {
               style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
             ),
             icon: Icons.badge_rounded,
-            iconColor: const Color(0xFF4A90E2),
-            onTap: () => onReviewRequests?.call(2),
+            iconColor: Colors.teal,
+            onTap: () => onReviewRequests?.call(3),
           )).toList(),
         );
       },

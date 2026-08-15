@@ -3,9 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'spelling_bee_page.dart';
 import 'pronunciation_quiz_page.dart';
-import '../services/database_service.dart';
 import '../services/role_service.dart';
-import 'quiz_folder_page.dart';
 import 'admin/admin_assessments_tab.dart';
 import 'ai_assessment_generator_page.dart';
 
@@ -59,14 +57,6 @@ class _PracticeTabState extends State<PracticeTab> {
             onBack: () => setState(() => _selectedSubTab = null),
           );
         }
-        // AI Assessment Generator sub-tab
-        if (_selectedSubTab == 3) {
-          return AiAssessmentGeneratorPage(
-            user: user,
-            onBack: () => setState(() => _selectedSubTab = 2),
-          );
-        }
-
         // English Assessment sub-tab
         if (_selectedSubTab == 2) {
           return Column(
@@ -79,18 +69,6 @@ class _PracticeTabState extends State<PracticeTab> {
                 ),
                 child: Row(
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: () => setState(() => _selectedSubTab = 3),
-                      icon: const Icon(Icons.psychology_rounded, size: 18),
-                      label: const Text('AI Assessment'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E5090),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
                     const Spacer(),
                     if (isAdmin)
                       FittedBox(
@@ -133,29 +111,9 @@ class _PracticeTabState extends State<PracticeTab> {
                         ),
                         body: const AdminAssessmentsTab(isEmbedded: false),
                       )
-                    : StreamBuilder<List<Quiz>>(
-                        stream: DatabaseService.instance.streamQuizzes(
-                          userRole: role,
-                          userId: user.uid,
-                          isAssessment: true,
-                        ),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-                          final assessments = snapshot.data ?? [];
-                          return QuizFolderPage(
-                            user: user,
-                            title: 'English Assessment',
-                            pillLabel: 'Assessment',
-                            quizzes: assessments,
-                            onBack: () =>
-                                setState(() => _selectedSubTab = null),
-                          );
-                        },
+                    : AiAssessmentGeneratorPage(
+                        user: user,
+                        onBack: () => setState(() => _selectedSubTab = null),
                       ),
               ),
             ],
