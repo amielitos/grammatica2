@@ -202,7 +202,6 @@ class _AiQuizGeneratorTabState extends State<AiQuizGeneratorTab>
           case QuizQuestionType.shortAnswer:
           case QuizQuestionType.fillInTheBlank:
           case QuizQuestionType.matching:
-          case QuizQuestionType.passage:
             nativeType = 'text';
             break;
           case QuizQuestionType.passage:

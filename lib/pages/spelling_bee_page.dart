@@ -555,7 +555,8 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                 const SizedBox(height: 24),
               ],
             ),
-          )
+          ),
+        ),
       ),
     );
   }

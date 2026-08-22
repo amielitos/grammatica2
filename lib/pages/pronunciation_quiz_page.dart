@@ -774,7 +774,8 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                 const SizedBox(height: 24),
               ],
             ),
-          )
+          ),
+        ),
       ),
     );
   }
