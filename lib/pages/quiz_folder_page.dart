@@ -59,20 +59,22 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
       return _buildContent(context);
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.title,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: isDark ? Colors.white : AppColors.textPrimary,
               ),
         ),
       ),
@@ -88,6 +90,8 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
   }
 
   Widget _buildPublicContentBody(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     // Group quizzes by author
     final Map<String, List<Quiz>> authorQuizzes = {};
     for (var quiz in widget.quizzes) {
@@ -116,7 +120,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                  icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : AppColors.textPrimary),
                   onPressed: widget.onBack,
                 ),
                 const SizedBox(width: 8),
@@ -124,7 +128,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                   widget.title,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
                       ),
                 ),
               ],
@@ -159,25 +163,31 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                   final quizzes = authorQuizzes[authorUid]!;
                   final authorEmail = quizzes.first.createdByEmail;
 
-                  return Card(
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => QuizFolderPage(
-                              user: widget.user,
-                              title: 'Public Quizzes',
-                              pillLabel: 'Public',
-                              quizzes: quizzes,
-                              isPublicContentFolder: false,
+                  return SizedBox(
+                    width: 260,
+                    height: 300,
+                    child: Card(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => QuizFolderPage(
+                                user: widget.user,
+                                title: 'Public Quizzes',
+                                pillLabel: 'Public',
+                                quizzes: quizzes,
+                                isPublicContentFolder: false,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(24),
-                      child: SizedBox(
-                        width: 260,
-                        height: 300,
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(24),
                         child: Padding(
                           padding: const EdgeInsets.all(24.0),
                           child: Column(
@@ -206,14 +216,14 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                     .titleMedium
                                     ?.copyWith(
                                       fontWeight: FontWeight.bold,
-                                      color: AppColors.textPrimary,
+                                      color: isDark ? Colors.white : AppColors.textPrimary,
                                     ),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'Check out content!',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: isDark ? Colors.grey[400] : AppColors.textSecondary,
                                   fontSize: 14,
                                 ),
                                 maxLines: 2,
@@ -254,6 +264,8 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
   }
 
   Widget _buildQuizListBody(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     final filteredQuizzes = widget.quizzes.where((q) {
       if (_searchQuery.isEmpty) return true;
       return q.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -297,7 +309,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                      icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : AppColors.textPrimary),
                       onPressed: widget.onBack,
                     ),
                     const SizedBox(width: 8),
@@ -305,7 +317,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                       widget.title,
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                            color: isDark ? Colors.white : AppColors.textPrimary,
                           ),
                     ),
                   ],
@@ -340,7 +352,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                 style: TextStyle(
                                   color: _selectedFilter == option
                                       ? AppColors.primary
-                                      : AppColors.textPrimary,
+                                      : (isDark ? Colors.white : AppColors.textPrimary),
                                   fontWeight: _selectedFilter == option
                                       ? FontWeight.bold
                                       : null,
@@ -382,6 +394,12 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                             bool failed = !isCorrect && attempts >= max;
 
                             return Card(
+                              elevation: 0,
+                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                              ),
                               child: InkWell(
                                 onTap: () {
                                   Navigator.of(context).push(
@@ -418,17 +436,17 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                           children: [
                                             Text(
                                               quiz.title,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.bold,
-                                                color: AppColors.textPrimary,
+                                                color: isDark ? Colors.white : AppColors.textPrimary,
                                               ),
                                             ),
                                             const SizedBox(height: 6),
                                             Text(
                                               '${quiz.questions.length} Questions • Max Attempts: $max',
-                                              style: const TextStyle(
-                                                color: AppColors.textSecondary,
+                                              style: TextStyle(
+                                                color: isDark ? Colors.grey[400] : AppColors.textSecondary,
                                                 fontSize: 13,
                                               ),
                                             ),
@@ -509,6 +527,8 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
     List<Quiz> quizzes,
     Map<String, dynamic> progress,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     int completedCount = 0;
     int passedCount = 0;
     List<Map<String, dynamic>> recentlyCompleted = [];
@@ -545,15 +565,20 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Card(
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Folder Progress',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
                 ),
                 const SizedBox(height: 20),
                 ClipRRect(
@@ -570,15 +595,15 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                 const SizedBox(height: 12),
                 Text(
                   '$completedCount / ${quizzes.length} Quizzes Completed',
-                  style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : AppColors.textSecondary),
                 ),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Success Rate',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
                     ),
                     Text(
                       '${(passRate * 100).toInt()}%',
@@ -595,19 +620,24 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
           ),
         ),
         const SizedBox(height: 24),
-        Card(
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Recent Activity',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
                 ),
                 const SizedBox(height: 20),
                 if (recentlyCompleted.isEmpty)
-                  const Text('No activity yet.', style: TextStyle(color: AppColors.textSecondary))
+                  Text('No activity yet.', style: TextStyle(color: isDark ? Colors.white54 : AppColors.textSecondary))
                 else
                   ListView.separated(
                     shrinkWrap: true,
@@ -632,7 +662,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                             Expanded(
                               child: Text(
                                 item['title'],
-                                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                                style: TextStyle(fontSize: 14, color: isDark ? Colors.white : AppColors.textPrimary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),

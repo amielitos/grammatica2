@@ -63,6 +63,11 @@ class UniversalDrawer extends StatelessWidget {
           navItems.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
         }
 
+        // Site Settings — Admin only (must match AdminDashboard tab order)
+        if (isAdminOrSuperAdmin) {
+          navItems.add(const ModernNavItem(icon: Icons.web_rounded, label: 'Site Settings'));
+        }
+
         if (!isEducator) {
           navItems.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
         }

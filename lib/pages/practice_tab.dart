@@ -137,10 +137,11 @@ class _PracticeToolsHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 800;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: double.infinity,
-      color: const Color(0xFFFAFAFA), // Soft minimalist off-white
+      color: isDark ? const Color(0xFF121212) : const Color(0xFFFAFAFA), // Soft minimalist off-white or dark
       child: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
@@ -161,7 +162,7 @@ class _PracticeToolsHome extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontSize: isDesktop ? 44 : 32,
                     fontWeight: FontWeight.w900,
-                    color: const Color(0xFF0F172A),
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                     height: 1.15,
                     letterSpacing: -1.0,
                   ),
@@ -176,7 +177,7 @@ class _PracticeToolsHome extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 15,
-                      color: const Color(0xFF64748B),
+                      color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
                       height: 1.55,
                       fontWeight: FontWeight.w400,
                     ),
@@ -324,6 +325,8 @@ class _PracticeCardState extends State<_PracticeCard>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return MouseRegion(
       onEnter: (_) {
         setState(() => _hovered = true);
@@ -344,12 +347,12 @@ class _PracticeCardState extends State<_PracticeCard>
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: _hovered
                     ? widget.themeColor.withValues(alpha: 0.5)
-                    : const Color(0xFFE2E8F0),
+                    : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 width: _hovered ? 1.8 : 1.0,
               ),
               boxShadow: [
@@ -414,7 +417,7 @@ class _PracticeCardState extends State<_PracticeCard>
                   style: GoogleFonts.outfit(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                     height: 1.2,
                   ),
                 ),
@@ -427,7 +430,7 @@ class _PracticeCardState extends State<_PracticeCard>
                   style: GoogleFonts.inter(
                     fontSize: 13.5,
                     height: 1.55,
-                    color: const Color(0xFF64748B),
+                    color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
                   ),
                 ),
                 const SizedBox(height: 32),

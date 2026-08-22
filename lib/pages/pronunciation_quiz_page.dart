@@ -539,7 +539,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       ),
       body: _selectedDifficulty == null
           ? Container(
-              color: const Color(0xFFFAFAFA),
+              color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF121212) : const Color(0xFFFAFAFA),
               child: _buildBody(),
             )
           : BackgroundWrapper(
@@ -563,10 +563,11 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 
   Widget _buildDifficultySelection() {
     final isDesktop = MediaQuery.of(context).size.width > 800;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: double.infinity,
-      color: const Color(0xFFFAFAFA),
+      color: isDark ? const Color(0xFF121212) : const Color(0xFFFAFAFA),
       child: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
@@ -587,7 +588,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                   style: GoogleFonts.outfit(
                     fontSize: isDesktop ? 44 : 32,
                     fontWeight: FontWeight.w900,
-                    color: const Color(0xFF0F172A),
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                     height: 1.15,
                     letterSpacing: -1.0,
                   ),
@@ -602,7 +603,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 15,
-                      color: const Color(0xFF64748B),
+                      color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
                       height: 1.55,
                       fontWeight: FontWeight.w400,
                     ),
@@ -618,9 +619,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.03),
@@ -639,7 +640,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                           _useAiWords
                               ? Icons.psychology_rounded
                               : Icons.storage_rounded,
-                          color: const Color(0xFF2E5090),
+                          color: isDark ? Colors.blue[300] : const Color(0xFF2E5090),
                           size: 20,
                         ),
                         const SizedBox(width: 8),
@@ -648,7 +649,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                           style: GoogleFonts.outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF0F172A),
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -1231,6 +1232,8 @@ class _DifficultyCardState extends State<_DifficultyCard>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return MouseRegion(
       onEnter: (_) {
         setState(() => _hovered = true);
@@ -1251,12 +1254,12 @@ class _DifficultyCardState extends State<_DifficultyCard>
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: _hovered
                     ? widget.themeColor.withValues(alpha: 0.5)
-                    : const Color(0xFFE2E8F0),
+                    : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 width: _hovered ? 1.8 : 1.0,
               ),
               boxShadow: [
@@ -1321,7 +1324,7 @@ class _DifficultyCardState extends State<_DifficultyCard>
                   style: GoogleFonts.outfit(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF0F172A),
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                     height: 1.2,
                   ),
                 ),
@@ -1334,7 +1337,7 @@ class _DifficultyCardState extends State<_DifficultyCard>
                   style: GoogleFonts.inter(
                     fontSize: 13.5,
                     height: 1.5,
-                    color: const Color(0xFF64748B),
+                    color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -1352,12 +1355,12 @@ class _DifficultyCardState extends State<_DifficultyCard>
                         decoration: BoxDecoration(
                           color: filled
                               ? widget.themeColor
-                              : const Color(0xFFE2E8F0),
+                              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.star_rounded,
-                          color: filled ? Colors.white : const Color(0xFF94A3B8),
+                          color: filled ? Colors.white : (isDark ? Colors.grey[600] : const Color(0xFF94A3B8)),
                           size: 14,
                         ),
                       ),

@@ -65,7 +65,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: CustomAppBar(
         user: widget.user,
         onNotificationTap: () {
@@ -88,6 +88,8 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
   }
 
   Widget _buildPublicContentBody(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     // Group lessons by author
     final Map<String, List<Lesson>> authorLessons = {};
     for (var lesson in widget.lessons) {
@@ -116,7 +118,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+                  icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : AppColors.textPrimary),
                   onPressed: widget.onBack,
                 ),
                 const SizedBox(width: 8),
@@ -124,7 +126,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                   widget.title,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
                       ),
                 ),
               ],
@@ -159,25 +161,31 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                   final lessons = authorLessons[authorUid]!;
                   final authorEmail = lessons.first.createdByEmail;
 
-                  return Card(
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => LessonFolderPage(
-                              user: widget.user,
-                              title: 'Public Lessons',
-                              pillLabel: 'Public',
-                              lessons: lessons,
-                              isPublicContentFolder: false,
+                  return SizedBox(
+                    width: 260,
+                    height: 300,
+                    child: Card(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => LessonFolderPage(
+                                user: widget.user,
+                                title: 'Public Lessons',
+                                pillLabel: 'Public',
+                                lessons: lessons,
+                                isPublicContentFolder: false,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(24),
-                      child: SizedBox(
-                        width: 260,
-                        height: 300,
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(24),
                         child: Padding(
                           padding: const EdgeInsets.all(24.0),
                           child: Column(
@@ -206,14 +214,14 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                     .titleMedium
                                     ?.copyWith(
                                       fontWeight: FontWeight.bold,
-                                      color: AppColors.textPrimary,
+                                      color: isDark ? Colors.white : AppColors.textPrimary,
                                     ),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'Check out content!',
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: isDark ? Colors.grey[400] : AppColors.textSecondary,
                                   fontSize: 14,
                                 ),
                                 maxLines: 2,
@@ -254,6 +262,8 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
   }
 
   Widget _buildLessonListBody(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     final filteredLessons = widget.lessons.where((l) {
       if (_searchQuery.isEmpty) return true;
       return l.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -316,12 +326,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       children: [
                         GestureDetector(
                           onTap: widget.onBack,
-                          child: const Row(
+                          child: Row(
                             children: [
-                              Icon(Icons.arrow_back_ios_rounded, size: 16, color: AppColors.textPrimary),
+                              Icon(Icons.arrow_back_ios_rounded, size: 16, color: isDark ? Colors.white : AppColors.textPrimary),
                               SizedBox(width: 4),
                               Text('Back to Folders',
-                                  style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                                  style: TextStyle(color: isDark ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
@@ -333,10 +343,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                   child: Center(
                     child: Text(
                       widget.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
                       ),
                     ),
                   ),
@@ -346,16 +356,20 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                   child: TextField(
                     controller: _searchController,
                     onChanged: (val) => setState(() => _searchQuery = val),
-                    style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black),
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
                       hintText: 'Search lesson..',
-                      hintStyle: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : AppColors.textSecondary),
-                      suffixIcon: Icon(Icons.search_rounded, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : AppColors.textSecondary),
+                      hintStyle: TextStyle(color: isDark ? Colors.white70 : AppColors.textSecondary),
+                      suffixIcon: Icon(Icons.search_rounded, color: isDark ? Colors.white70 : AppColors.textSecondary),
                       filled: true,
-                      fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF333333) : Colors.white,
+                      fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
-                        borderSide: BorderSide.none,
+                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(50),
+                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                       ),
                       contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                     ),
@@ -365,10 +379,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             );
 
             final lessonsBlock = filteredLessons.isEmpty
-                ? const Center(
+                ? Center(
                     child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text('No lessons found.', style: TextStyle(color: AppColors.textSecondary)),
+                      padding: const EdgeInsets.all(32),
+                      child: Text('No lessons found.', style: TextStyle(color: isDark ? Colors.white54 : AppColors.textSecondary)),
                     ),
                   )
                 : SingleChildScrollView(
@@ -380,10 +394,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                           const SizedBox(height: 20),
                           Text(
                             'Lessons in $cat',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: isDark ? Colors.white : AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -496,8 +510,11 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
         },
         child: Card(
           elevation: 0,
-          color: isDark ? const Color(0xFF333333) : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24), // Increased padding
             child: Column(
@@ -573,7 +590,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Card(
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -605,7 +627,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
           ),
         ),
         const SizedBox(height: 24),
-        Card(
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(

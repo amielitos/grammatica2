@@ -20,6 +20,7 @@ import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import 'admin/validator_dashboard_tab.dart';
 import 'admin/educator_dashboard_tab.dart';
+import 'admin/admin_landing_settings_tab.dart';
 
 import 'dart:async';
 
@@ -246,6 +247,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
         tabs.add(const PracticeTab());
         navItems.add(
           const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
+        );
+
+        // Landing Page Settings (Admin only)
+        tabs.add(const AdminLandingSettingsTab());
+        navItems.add(
+          const ModernNavItem(icon: Icons.web_rounded, label: 'Site Settings'),
         );
       } else if (isEducator) {
         tabs.add(

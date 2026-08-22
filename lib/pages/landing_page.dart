@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -22,6 +23,9 @@ class _LandingPageState extends State<LandingPage>
   final List<String> _bgImages = ['assets/hero_bg2.png', 'assets/people4.png'];
   int _currentBgIndex = 0;
   Timer? _bgTimer;
+
+  // Remote image URLs from Firebase (empty = use local asset fallback)
+  List<String> _remoteImages = [];
 
   @override
   void initState() {
@@ -61,6 +65,30 @@ class _LandingPageState extends State<LandingPage>
         });
       }
     });
+
+    _fetchRemoteImages();
+  }
+
+  Future<void> _fetchRemoteImages() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('landing_page')
+          .get();
+      if (doc.exists && mounted) {
+        final data = doc.data() ?? {};
+        final raw = data['hero_images'];
+        if (raw is List && raw.isNotEmpty) {
+          setState(() {
+            _remoteImages = List<String>.from(raw.whereType<String>());
+            // Reset index if it's out of bounds for new list
+            _currentBgIndex = 0;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Could not load landing page remote images: $e');
+    }
   }
 
   @override
@@ -310,14 +338,7 @@ class _LandingPageState extends State<LandingPage>
             duration: const Duration(milliseconds: 1500),
             transitionBuilder: (child, animation) =>
                 FadeTransition(opacity: animation, child: child),
-            child: Image.asset(
-              _bgImages[_currentBgIndex],
-              key: ValueKey<int>(_currentBgIndex),
-              fit: BoxFit.cover,
-              alignment: const Alignment(0, 0.35),
-              width: double.infinity,
-              height: double.infinity,
-            ),
+            child: _buildHeroImage(_currentBgIndex),
           ),
 
           // Dark gradient overlay (stronger on left for text legibility)
@@ -480,6 +501,44 @@ class _LandingPageState extends State<LandingPage>
     return Wrap(spacing: 24, runSpacing: 12);
   }
 
+  Widget _buildHeroImage(int index) {
+    // Use remote images if available, otherwise fall back to local assets
+    final imageList = _remoteImages.isNotEmpty ? _remoteImages : _bgImages;
+    final safeIndex = index % imageList.length;
+    final source = imageList[safeIndex];
+    final isRemote = _remoteImages.isNotEmpty;
+
+    if (isRemote) {
+      return Image.network(
+        source,
+        key: ValueKey<String>('remote_$safeIndex$source'),
+        fit: BoxFit.cover,
+        alignment: const Alignment(0, 0.35),
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (ctx, err, st) {
+          // Fallback to local asset on network error
+          final assetPath = _bgImages[safeIndex % _bgImages.length];
+          return Image.asset(
+            assetPath,
+            key: ValueKey<String>('asset_fallback_$safeIndex'),
+            fit: BoxFit.cover,
+            alignment: const Alignment(0, 0.35),
+            width: double.infinity,
+            height: double.infinity,
+          );
+        },
+      );
+    }
+    return Image.asset(
+      source,
+      key: ValueKey<String>('asset_$safeIndex'),
+      fit: BoxFit.cover,
+      alignment: const Alignment(0, 0.35),
+      width: double.infinity,
+      height: double.infinity,
+    );
+  }
 
 
   // ─── BANNER STRIP (STI "enrollment" style) ─────────────────────────────────
