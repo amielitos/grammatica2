@@ -480,36 +480,7 @@ class _LandingPageState extends State<LandingPage>
     return Wrap(spacing: 24, runSpacing: 12);
   }
 
-  Widget _buildStatChip(String value, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.outfit(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: Colors.white.withValues(alpha: 0.65),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(width: 20),
-        Container(
-          width: 1,
-          height: 18,
-          color: Colors.white.withValues(alpha: 0.25),
-        ),
-      ],
-    );
-  }
+
 
   // ─── BANNER STRIP (STI "enrollment" style) ─────────────────────────────────
 

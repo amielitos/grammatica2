@@ -39,6 +39,10 @@ class QuizGenerationConfig {
 ///
 /// The active mode is controlled by [AIConfig.mode].
 class AILogicService {
+  AILogicService._();
+  static final instance = AILogicService._();
+  factory AILogicService() => instance;
+
   // ---------------------------------------------------------------------------
   // System prompts (mirrored from ai_backend/services/gemini_service.py)
   // ---------------------------------------------------------------------------
@@ -57,7 +61,7 @@ Rules:
    - "text": data is a string containing a paragraph or explanation.
    - "list": data is an array of strings (key points, bullet items).
    - "table": data is an array of objects. Each object is a row. All objects MUST have the same keys, which serve as column headers.
-   - "image": data is a descriptive prompt string describing an image, diagram, or illustration that would help the learner understand the concept. Be very specific about what the image should depict.
+   - "image": data is a SHORT, simple description (5-10 words max) of what the image should show. Examples: "two children playing in a park", "a colorful number line diagram", "a teacher explaining on a whiteboard". Do NOT write lengthy detailed prompts.
 4. Use a variety of content types to make the lesson engaging.
 5. Place images exactly where they would be most helpful in the lesson flow.
 6. Summarize the content clearly — do not just copy-paste from the source.
@@ -180,7 +184,7 @@ $explanationLine
 
     final text = response.text;
     if (text == null || text.isEmpty) {
-      throw Exception('Firebase AI returned empty response.');
+      throw Exception('Empty response.');
     }
 
     final parsed = jsonDecode(text) as Map<String, dynamic>;
@@ -218,7 +222,7 @@ $explanationLine
 
     if (response.statusCode != 200) {
       throw Exception(
-          'Gemini API error ${response.statusCode}: ${response.body}');
+          'API error ${response.statusCode}: ${response.body}');
     }
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -347,7 +351,7 @@ $explanationLine
 
     final text = response.text;
     if (text == null || text.isEmpty) {
-      throw Exception('Firebase AI returned empty response.');
+      throw Exception('Empty response.');
     }
 
     final parsed = jsonDecode(text) as Map<String, dynamic>;
@@ -384,7 +388,7 @@ $explanationLine
 
     if (response.statusCode != 200) {
       throw Exception(
-          'Gemini API error ${response.statusCode}: ${response.body}');
+          'API error ${response.statusCode}: ${response.body}');
     }
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -487,7 +491,7 @@ $explanationLine
 
     if (response.statusCode != 200) {
       throw Exception(
-          'Gemini API error ${response.statusCode}: ${response.body}');
+          'API error ${response.statusCode}: ${response.body}');
     }
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
@@ -656,7 +660,68 @@ $explanationLine
       final firstPart = parts.first as Map<String, dynamic>;
       return firstPart['text'] as String;
     } catch (e) {
-      throw Exception('Failed to parse Gemini response: $e\nRaw: $json');
+      throw Exception('Failed to parse response: $e\nRaw: $json');
+    }
+  }
+
+  Future<List<String>> generatePracticeWords(String difficulty, int count) async {
+    final systemPrompt = '''
+You are an expert English teacher.
+Output a valid JSON array of exactly $count English words appropriate for $difficulty difficulty level.
+Example format:
+["apple", "banana", "cat"]
+''';
+    
+    try {
+      final model = FirebaseAI.googleAI().generativeModel(
+        model: AIConfig.firebaseAIModel,
+        systemInstruction: Content.system(systemPrompt),
+        generationConfig: GenerationConfig(
+          responseMimeType: 'application/json',
+          temperature: 0.9,
+        ),
+      );
+
+      final response = await model.generateContent([
+        Content.text('Generate $count words for $difficulty difficulty.'),
+      ]);
+
+      final text = response.text;
+      if (text == null || text.isEmpty) {
+        throw Exception('Firebase AI returned empty response.');
+      }
+
+      final parsed = jsonDecode(text) as List<dynamic>;
+      return parsed.map((e) => e.toString()).toList();
+    } catch (e) {
+      debugPrint('Error in generatePracticeWords (Firebase): $e');
+      final body = jsonEncode({
+        'system_instruction': {
+          'parts': [{'text': systemPrompt}]
+        },
+        'contents': [
+          {'parts': [{'text': 'Generate $count words for $difficulty difficulty.'}]}
+        ],
+        'generationConfig': {
+          'responseMimeType': 'application/json',
+          'temperature': 0.9,
+        }
+      });
+
+      final res = await http.post(
+        Uri.parse('${AIConfig.geminiBaseUrl}?key=${AIConfig.geminiApiKey}'),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      );
+
+      if (res.statusCode != 200) {
+        throw Exception('API error ${res.statusCode}: ${res.body}');
+      }
+
+      final data = jsonDecode(res.body);
+      final textResponse = data['candidates'][0]['content']['parts'][0]['text'] as String;
+      final parsedList = jsonDecode(textResponse) as List<dynamic>;
+      return parsedList.map((e) => e.toString()).toList();
     }
   }
 }

@@ -896,6 +896,46 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                     height: 1.4,
                   ),
                 ),
+                if (question.imageUrl != null && question.imageUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 320),
+                        child: Image.network(
+                          question.imageUrl!,
+                          fit: BoxFit.contain,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              height: 200,
+                              alignment: Alignment.center,
+                              child: const CircularProgressIndicator(color: AppColors.primary),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.broken_image_rounded, color: Colors.grey),
+                                  SizedBox(width: 8),
+                                  Text('Image failed to load', style: TextStyle(color: Colors.grey)),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
 
               const SizedBox(height: 40),

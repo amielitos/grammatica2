@@ -172,8 +172,10 @@ class NotificationService {
       title: approved ? 'Content Approved!' : 'Content Rejected',
       message: approved 
           ? 'Your content "$title" has been approved and is now live!'
-          : 'Your content "$title" was not approved. ${reason ?? ""}',
+          : 'Your content "$title" was not approved.',
       type: approved ? NotificationType.general : NotificationType.appRejected,
+      rejectionReason: reason,
+      rejectionDescription: approved ? null : 'The validator determined that your content needs revision or does not meet our guidelines.',
     );
   }
 

@@ -205,6 +205,9 @@ class _AiQuizGeneratorTabState extends State<AiQuizGeneratorTab>
           case QuizQuestionType.passage:
             nativeType = 'text';
             break;
+          case QuizQuestionType.passage:
+            nativeType = 'passage';
+            break;
         }
 
         return QuizQuestion(
@@ -240,17 +243,12 @@ class _AiQuizGeneratorTabState extends State<AiQuizGeneratorTab>
         if (_selectedLessonId != null) 'linkedLessonId': _selectedLessonId,
       };
 
-      await FirebaseFirestore.instance.collection('quizzes').add(quizData);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '✅ Quiz with ${_generatedQuiz!.questions.length} questions published!'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
+      if (_errorMessage != null) {
+        setState(() => _isPublishing = false);
+        return;
       }
+      await FirebaseFirestore.instance.collection('quizzes').add(quizData);
+      // Removed confusing success toast.
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

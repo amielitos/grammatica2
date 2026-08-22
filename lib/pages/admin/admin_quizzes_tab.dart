@@ -9,6 +9,7 @@ import '../../services/role_service.dart';
 import '../../widgets/user_visibility_selector.dart';
 import '../../services/ai_logic_service.dart';
 import 'dart:io';
+import 'dart:typed_data';
 
 class AdminQuizzesTab extends StatefulWidget {
   final bool isEmbedded;
@@ -61,8 +62,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     }
   }
 
-  List<_QuestionState> _questions = [_QuestionState()];
+  List<_QuestionState> _questions = [];
   bool _isVisible = true;
+
   bool _isMembersOnly = false;
   bool _isGrammaticaQuiz = false;
   List<String> _visibleTo = [];
@@ -169,165 +171,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     );
   }
 
-  Widget _buildQuizzesList() {
-    final user = AuthService.instance.currentUser;
-    return StreamBuilder<UserRole>(
-      stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
-      builder: (context, roleSnap) {
-        final role = roleSnap.data ?? UserRole.learner;
-        
-        return StreamBuilder<List<Quiz>>(
-          stream: DatabaseService.instance.streamQuizzes(
-            approvedOnly: false,
-            userRole: role,
-            userId: user?.uid,
-            isAssessment: false,
-          ),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) return const SizedBox.shrink();
-            
-            var quizzes = snapshot.data!.toList();
-            
-            // Educators should only see and manage their own quizzes
-            if (role == UserRole.educator && user != null) {
-              quizzes = quizzes.where((q) => q.createdByUid == user.uid).toList();
-            }
 
-            if (quizzes.isEmpty) return const SizedBox.shrink();
 
-            return Container(
-              height: 180,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Existing Quizzes',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      if (_selectedQuizId != null)
-                        TextButton.icon(
-                          onPressed: resetForm,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Create New'),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: quizzes.length,
-                      itemBuilder: (context, index) {
-                        final q = quizzes[index];
-                        final isSelected = q.id == _selectedQuizId;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 12.0),
-                          child: InkWell(
-                            onTap: () => loadQuiz(q.id),
-                            child: Container(
-                              width: 200,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFF88B342).withValues(alpha: 0.1) : Colors.white,
-                                border: Border.all(
-                                  color: isSelected ? const Color(0xFF88B342) : Colors.grey.shade300,
-                                  width: isSelected ? 2 : 1,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          q.title,
-                                          style: const TextStyle(fontWeight: FontWeight.bold),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        onPressed: () => _confirmDeleteQuiz(context, q),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    q.description,
-                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    '${q.questions.length} Questions',
-                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 
-  Future<void> _confirmDeleteQuiz(BuildContext context, Quiz quiz) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Quiz?'),
-        content: Text('Are you sure you want to delete "${quiz.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (ok == true) {
-      try {
-        await DatabaseService.instance.deleteQuiz(quiz.id);
-        if (_selectedQuizId == quiz.id) resetForm();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Quiz deleted')),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-        }
-      }
-    }
-  }
 
   Widget _buildInputFields() {
     return Container(
@@ -685,23 +531,93 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Questions', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 16),
-        ...List.generate(_questions.length, (index) {
-          return _buildQuestionItem(_questions[index], index, _questions);
-        }),
-        const SizedBox(height: 16),
-        Center(
-          child: TextButton.icon(
-            onPressed: () {
-              setState(() {
-                _questions.add(_QuestionState());
-              });
-            },
-            icon: const Icon(Icons.add_circle_outline),
-            label: const Text('Add Question'),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Questions (${_questions.length})',
+              style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A)),
+            ),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _showQuizPreviewDialog,
+                  icon: const Icon(Icons.visibility_rounded, size: 18),
+                  label: const Text('Preview'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF88B342),
+                    side: const BorderSide(color: Color(0xFF88B342)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _questions.add(_QuestionState());
+                    });
+                  },
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add Question'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF88B342),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
+        const SizedBox(height: 16),
+        if (_questions.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.help_outline_rounded, size: 36, color: Color(0xFF88B342)),
+                const SizedBox(height: 12),
+                Text(
+                  'No questions yet.',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: const Color(0xFF2A2A2A)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Use "AI Generation Config" to generate questions automatically, or click "Add Question" to create manually.',
+                  style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          ...List.generate(_questions.length, (index) {
+            return _buildQuestionItem(_questions[index], index, _questions);
+          }),
+        if (_questions.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Center(
+            child: OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _questions.add(_QuestionState());
+                });
+              },
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add Question'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF88B342),
+                side: const BorderSide(color: Color(0xFF88B342)),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -743,26 +659,33 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
-                if (parentList.length > 1 || isNested)
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        q.dispose();
-                        parentList.removeAt(index);
-                      });
-                    },
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                  tooltip: 'Remove Question',
+                  onPressed: () {
+                    setState(() {
+                      q.dispose();
+                      parentList.removeAt(index);
+                    });
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 12),
+            // Title / Question text
             TextField(
               controller: q.questionCtrl,
               decoration: InputDecoration(
-                labelText: q.type == 'passage' ? 'Passage Content' : 'Question',
+                labelText: q.type == 'passage'
+                    ? 'Passage Content'
+                    : q.type == 'image'
+                        ? 'Image Question Title'
+                        : 'Question',
                 hintText: q.type == 'passage'
                     ? 'Enter the text passage here...'
-                    : 'Enter your question...',
+                    : q.type == 'image'
+                        ? 'Enter the title for this image question...'
+                        : 'Enter your question...',
                 border: const OutlineInputBorder(),
               ),
               maxLines: q.type == 'passage' ? 8 : null,
@@ -776,8 +699,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 border: OutlineInputBorder(),
               ),
               items: [
-                const DropdownMenuItem(value: 'text', child: Text('Textfield')),
+                const DropdownMenuItem(value: 'text', child: Text('Identification')),
                 const DropdownMenuItem(value: 'multiple_choice', child: Text('Multiple Choice')),
+                const DropdownMenuItem(value: 'fill_in_the_blank', child: Text('Fill in the Blank')),
+                if (!isNested) const DropdownMenuItem(value: 'image', child: Text('Image Question')),
                 if (!isNested) const DropdownMenuItem(value: 'passage', child: Text('Passage')),
               ],
               onChanged: (v) {
@@ -794,6 +719,137 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 }
               },
             ),
+            // --- IMAGE QUESTION UI ---
+            if (q.type == 'image') ...[
+              const SizedBox(height: 16),
+              // AI Recommendation banner
+              if (q.imageDescription != null && q.imageDescription!.trim().isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, color: Colors.blue, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'AI Recommendation: ${q.imageDescription}',
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
+              // Drag-and-drop / click-to-upload image area
+              InkWell(
+                onTap: () => _uploadImageForQuestion(q),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(minHeight: 160, maxHeight: 280),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: (q.pendingImageBytes != null || q.imageUrl != null)
+                          ? const Color(0xFF88B342)
+                          : Colors.grey.shade400,
+                      width: 2,
+                    ),
+                  ),
+                  child: (q.pendingImageBytes != null || (q.imageUrl != null && q.imageUrl!.isNotEmpty))
+                      ? Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: q.pendingImageBytes != null
+                                      ? Image.memory(
+                                          q.pendingImageBytes!,
+                                          fit: BoxFit.contain,
+                                          height: 220,
+                                        )
+                                      : Image.network(
+                                          q.imageUrl!,
+                                          fit: BoxFit.contain,
+                                          height: 220,
+                                        ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.7),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.edit_rounded, size: 14, color: Colors.white),
+                                    const SizedBox(width: 4),
+                                    Text('Change', style: GoogleFonts.inter(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF88B342).withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.cloud_upload_outlined, size: 32, color: Color(0xFF88B342)),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Drop your image here',
+                              style: GoogleFonts.outfit(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF2A2A2A),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'or click to browse from device',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: q.answerCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Correct Answer',
+                  hintText: 'Enter the correct answer for this image question...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+            // --- MULTIPLE CHOICE ---
             if (q.type == 'multiple_choice') ...[
               const SizedBox(height: 16),
               const Text('Options', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -854,6 +910,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 label: const Text('Add Option'),
               ),
             ],
+            // --- IDENTIFICATION / TEXT ---
             if (q.type == 'text') ...[
               const SizedBox(height: 16),
               TextField(
@@ -864,13 +921,33 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 ),
               ),
             ],
+            // --- PASSAGE ---
             if (q.type == 'passage') ...[
               const SizedBox(height: 16),
               const Divider(),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text('Questions for this Passage',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Questions for this Passage (${q.nestedQuestions.length})',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          q.nestedQuestions.add(_QuestionState());
+                        });
+                      },
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF88B342),
+                        side: const BorderSide(color: Color(0xFF88B342)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               ...List.generate(q.nestedQuestions.length, (nIdx) {
                 return _buildQuestionItem(
@@ -880,18 +957,21 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   isNested: true,
                 );
               }),
-              const SizedBox(height: 8),
-              Center(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      q.nestedQuestions.add(_QuestionState());
-                    });
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Question to Passage'),
+              if (q.nestedQuestions.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'No nested questions yet. Click "Add" above.',
+                      style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+                    ),
+                  ),
                 ),
-              ),
             ],
           ],
         ),
@@ -899,71 +979,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     );
   }
 
-  Future<void> _generateQuestionsFromPdf() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-        withData: true,
-      );
 
-      if (result != null && result.files.isNotEmpty) {
-        setState(() => _isGeneratingFromPdf = true);
-
-        final platformFile = result.files.single;
-        List<int> bytes;
-        if (platformFile.bytes != null) {
-          bytes = platformFile.bytes!;
-        } else if (platformFile.path != null) {
-          bytes = await File(platformFile.path!).readAsBytes();
-        } else {
-          throw Exception('Could not read file data');
-        }
-
-        final extractedText = await _aiLogicService.extractTextFromPdf(bytes);
-
-        final generatedQuestions = await _aiLogicService.generateQuizFromText(
-          extractedText,
-        );
-
-        setState(() {
-          // Clear default first empty question if it's the only one and empty
-          if (_questions.length == 1 && _questions[0].questionCtrl.text.isEmpty) {
-            _questions[0].dispose();
-            _questions.clear();
-          }
-
-          for (final q in generatedQuestions) {
-            _questions.add(_QuestionState(
-              questionCtrl: TextEditingController(text: q['question']),
-              answerCtrl: TextEditingController(text: q['correctAnswer']),
-              type: 'multiple_choice',
-              optionsCtrls: (q['options'] as List<String>)
-                  .map((opt) => TextEditingController(text: opt))
-                  .toList(),
-            ));
-          }
-
-          _isGeneratingFromPdf = false;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Successfully generated questions from PDF!'),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isGeneratingFromPdf = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating from PDF: $e')),
-        );
-      }
-    }
-  }
 
   /// AI Config panel — replaces old PDF attachment panel.
   Widget _buildAiConfigPanel() {
@@ -1360,7 +1376,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     for (final q in _questions) {
       q.dispose();
     }
-    _questions = [_QuestionState()];
+    _questions = [];
     _isVisible = true;
     _isMembersOnly = false;
     _isGrammaticaQuiz = false;
@@ -1370,13 +1386,223 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     setState(() {});
   }
 
+  Future<void> _uploadImageForQuestion(_QuestionState q) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final platformFile = result.files.single;
+      List<int> bytes;
+      if (platformFile.bytes != null) {
+        bytes = platformFile.bytes!;
+      } else if (platformFile.path != null) {
+        bytes = await File(platformFile.path!).readAsBytes();
+      } else {
+        throw Exception('Could not read image file data');
+      }
+
+      setState(() {
+        q.pendingImageBytes = Uint8List.fromList(bytes);
+        q.pendingImageFileName = platformFile.name;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image cached locally! It will be uploaded when you save the quiz.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error selecting image: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _uploadAllQuestionImages(List<_QuestionState> list, String quizId) async {
+    for (final q in list) {
+      if (q.type == 'image' && q.pendingImageBytes != null) {
+        try {
+          final fileName = q.pendingImageFileName ?? 'quiz_img_${DateTime.now().millisecondsSinceEpoch}.png';
+          final folder = 'quiz_images/quiz_$quizId';
+          final url = await DatabaseService.instance.uploadGeneratedImage(
+            q.pendingImageBytes!,
+            fileName,
+            folder: folder,
+          );
+          q.imageUrl = url;
+          q.pendingImageBytes = null;
+          q.pendingImageFileName = null;
+        } catch (e) {
+          debugPrint('Quiz image upload error: $e');
+          // Don't clear pendingImageBytes on failure so the data isn't lost
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Warning: Image upload failed ($e). The image may not display.')),
+            );
+          }
+        }
+      }
+      if (q.nestedQuestions.isNotEmpty) {
+        await _uploadAllQuestionImages(q.nestedQuestions, quizId);
+      }
+    }
+  }
+
+  void _showQuizPreviewDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 800, maxHeight: 750),
+            padding: const EdgeInsets.all(32),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Quiz Preview',
+                        style: GoogleFonts.outfit(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _title.text.isEmpty ? 'Untitled Quiz' : _title.text,
+                    style: GoogleFonts.outfit(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF88B342),
+                    ),
+                  ),
+                  if (_description.text.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _description.text,
+                      style: GoogleFonts.inter(fontSize: 14, color: Colors.grey.shade600),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  if (_questions.isEmpty)
+                    const Text('No questions added to this quiz yet.')
+                  else
+                    ..._questions.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final q = entry.value;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Question ${idx + 1}',
+                              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF88B342)),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              q.questionCtrl.text.isEmpty ? '(No question prompt)' : q.questionCtrl.text,
+                              style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+                            ),
+                            if (q.type == 'image') ...[
+                              const SizedBox(height: 16),
+                              if (q.pendingImageBytes != null)
+                                Center(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.memory(q.pendingImageBytes!, height: 200, fit: BoxFit.contain),
+                                  ),
+                                )
+                              else if (q.imageUrl != null && q.imageUrl!.isNotEmpty)
+                                Center(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.network(q.imageUrl!, height: 200, fit: BoxFit.contain),
+                                  ),
+                                ),
+                            ],
+                            if (q.type == 'multiple_choice') ...[
+                              const SizedBox(height: 16),
+                              ...q.optionsCtrls.map((optCtrl) {
+                                final isAns = optCtrl.text.trim() == q.answerCtrl.text.trim() && optCtrl.text.isNotEmpty;
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: isAns ? const Color(0xFF88B342).withValues(alpha: 0.1) : Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: isAns ? const Color(0xFF88B342) : Colors.grey.shade300),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isAns ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                                        size: 18,
+                                        color: isAns ? const Color(0xFF88B342) : Colors.grey,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          optCtrl.text.isEmpty ? 'Option' : optCtrl.text,
+                                          style: GoogleFonts.inter(fontSize: 14, fontWeight: isAns ? FontWeight.bold : FontWeight.normal),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                            if (q.type == 'text' || q.type == 'image') ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                'Correct Answer: ${q.answerCtrl.text.isEmpty ? "(Not set)" : q.answerCtrl.text}',
+                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<String?> _saveQuiz() async {
     setState(() => _creatingOrUpdating = true);
     try {
       String? attachmentUrl;
       String? attachmentName;
-
-      // No more file upload — attachment fields left null
 
       final durationSegments = _durationCtrl.text.split(':');
       int durationInMinutes = 0;
@@ -1384,8 +1610,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
         final hh = int.tryParse(durationSegments[0]) ?? 0;
         final mm = int.tryParse(durationSegments[1]) ?? 0;
         final ss = int.tryParse(durationSegments[2]) ?? 0;
-        durationInMinutes =
-            (hh * 60) + mm + (ss > 0 ? 1 : 0); // Round up if any seconds
+        durationInMinutes = (hh * 60) + mm + (ss > 0 ? 1 : 0);
       } else if (durationSegments.length == 1) {
         durationInMinutes = int.tryParse(durationSegments[0]) ?? 0;
       }
@@ -1398,6 +1623,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       if (maxAttempts <= 0) {
         throw Exception('Max attempts must be at least 1');
       }
+
+      // First upload any pending question images if updating an existing quiz
+      final targetQuizId = _selectedQuizId ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      await _uploadAllQuestionImages(_questions, targetQuizId);
 
       final questions = _questions
           .map((q) => _mapToQuizQuestion(q))
@@ -1421,6 +1650,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           isMembersOnly: _isMembersOnly,
           isGrammaticaQuiz: _isGrammaticaQuiz,
         );
+        // Upload images if any were targeted at temp ID, then re-update quiz
+        bool hasImagesToUpload = false;
+        for (final q in _questions) {
+          if (q.imageUrl == null && q.pendingImageBytes != null) {
+            hasImagesToUpload = true;
+            break;
+          }
+        }
+        if (hasImagesToUpload) {
+          await _uploadAllQuestionImages(_questions, quizId);
+          final updatedQuestions = _questions.map((q) => _mapToQuizQuestion(q)).toList();
+          await DatabaseService.instance.updateQuiz(id: quizId, questions: updatedQuestions);
+        }
+
         if (mounted && !widget.isEmbedded) {
           final role = await RoleService.instance.getRole(
             AuthService.instance.currentUser?.uid ?? '',
@@ -1473,7 +1716,16 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   }
 
   // Expose save method for parent
-  Future<String?> saveForLesson() => _saveQuiz();
+  Future<String?> saveForLesson() async {
+    final validQuestions = _questions
+        .map((q) => _mapToQuizQuestion(q))
+        .where((q) => q.question.isNotEmpty)
+        .toList();
+    if (_title.text.trim().isEmpty || validQuestions.isEmpty) {
+      return _selectedQuizId;
+    }
+    return _saveQuiz();
+  }
 
   // Expose load method for parent
   Future<void> loadQuiz(String quizId) async {
@@ -1524,6 +1776,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           : null,
       hint: q.hintCtrl?.text.trim().isNotEmpty == true ? q.hintCtrl!.text.trim() : null,
       explanation: q.explanationCtrl?.text.trim().isNotEmpty == true ? q.explanationCtrl!.text.trim() : null,
+      imageUrl: q.imageUrl,
+      imageDescription: q.imageDescription,
     );
   }
 
@@ -1540,6 +1794,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           .toList(),
       hintCtrl: q.hint != null ? TextEditingController(text: q.hint) : null,
       explanationCtrl: q.explanation != null ? TextEditingController(text: q.explanation) : null,
+      imageUrl: q.imageUrl,
+      imageDescription: q.imageDescription,
     );
   }
 }
@@ -1552,6 +1808,10 @@ class _QuestionState {
   List<_QuestionState> nestedQuestions;
   TextEditingController? hintCtrl;
   TextEditingController? explanationCtrl;
+  String? imageUrl;
+  String? imageDescription;
+  Uint8List? pendingImageBytes;
+  String? pendingImageFileName;
 
   _QuestionState({
     TextEditingController? questionCtrl,
@@ -1561,6 +1821,8 @@ class _QuestionState {
     List<_QuestionState>? nestedQuestions,
     this.hintCtrl,
     this.explanationCtrl,
+    this.imageUrl,
+    this.imageDescription,
   })  : questionCtrl = questionCtrl ?? TextEditingController(),
         answerCtrl = answerCtrl ?? TextEditingController(),
         optionsCtrls = optionsCtrls ?? [],
@@ -1578,4 +1840,4 @@ class _QuestionState {
       q.dispose();
     }
   }
-}
+}

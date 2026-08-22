@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
+import '../../services/role_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/design_ornaments.dart';
 
@@ -107,6 +108,17 @@ class EducatorDashboardTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 28),
                 _RecentLessonsList(uid: uid, onTabChange: onTabChange),
+
+                const SizedBox(height: 80),
+
+                // — My Quizzes —
+                _SectionHeader(
+                  title: 'My Quizzes',
+                  icon: Icons.quiz_rounded,
+                  color: const Color(0xFFF5A623),
+                ),
+                const SizedBox(height: 28),
+                _MyQuizzesSection(uid: uid, onTabChange: onTabChange),
 
                 const SizedBox(height: 80),
               ],
@@ -312,11 +324,11 @@ class _QuickActionsGrid extends StatelessWidget {
         onTap: () => onTabChange?.call(3),
       ),
       _ActionItem(
-        label: 'Assessment',
-        description: 'Create English assessments',
-        icon: Icons.assignment_turned_in_rounded,
+        label: 'My Quizzes',
+        description: 'Browse & manage your quizzes',
+        icon: Icons.quiz_rounded,
         color: const Color(0xFFF5A623),
-        onTap: () => onTabChange?.call(4),
+        onTap: () => onTabChange?.call(1),
       ),
     ];
 
@@ -440,13 +452,12 @@ class _RecentLessonsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('lessons')
-          .where('createdByUid', isEqualTo: uid)
-          .orderBy('createdAt', descending: true)
-          .limit(5)
-          .snapshots(),
+    return StreamBuilder<List<Lesson>>(
+      stream: DatabaseService.instance.streamLessons(
+        approvedOnly: true,
+        userRole: UserRole.educator,
+        userId: uid,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -457,17 +468,31 @@ class _RecentLessonsList extends StatelessWidget {
           );
         }
 
-        final docs = snapshot.data?.docs ?? [];
+        final allLessons = snapshot.data ?? [];
 
-        if (docs.isEmpty) {
+        // Filter for approved lessons created by this educator (or fallback to any approved lesson)
+        var approvedLessons = allLessons
+            .where((l) => (l.createdByUid == uid || uid.isEmpty) && l.validationStatus == 'approved')
+            .toList();
+
+        if (approvedLessons.isEmpty) {
+          approvedLessons = allLessons.where((l) => l.validationStatus == 'approved').toList();
+        }
+
+        approvedLessons.sort((a, b) {
+          final tA = a.createdAt?.millisecondsSinceEpoch ?? 0;
+          final tB = b.createdAt?.millisecondsSinceEpoch ?? 0;
+          return tB.compareTo(tA);
+        });
+
+        final recentLessons = approvedLessons.take(5).toList();
+
+        if (recentLessons.isEmpty) {
           return _buildEmptyLessons(context);
         }
 
-        final lessons = docs
-            .map((d) => Lesson.fromDoc(d as DocumentSnapshot<Map<String, dynamic>>))
-            .toList();
         return Column(
-          children: lessons
+          children: recentLessons
               .map((l) => _LessonRow(lesson: l, onTap: () => onTabChange?.call(2)))
               .toList(),
         );
@@ -490,7 +515,7 @@ class _RecentLessonsList extends StatelessWidget {
               size: 56, color: AppColors.primary.withValues(alpha: 0.2)),
           const SizedBox(height: 20),
           Text(
-            'No lessons created yet',
+            'No approved lessons yet',
             style: GoogleFonts.outfit(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -521,6 +546,180 @@ class _RecentLessonsList extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── My Quizzes Section ───────────────────────────────────────────────────────
+
+class _MyQuizzesSection extends StatelessWidget {
+  final String uid;
+  final Function(int)? onTabChange;
+
+  const _MyQuizzesSection({required this.uid, this.onTabChange});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Quiz>>(
+      stream: DatabaseService.instance.streamQuizzes(
+        userRole: UserRole.educator,
+        userId: uid,
+        isAssessment: false,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        final quizzes = snapshot.data ?? [];
+        var myQuizzes = quizzes
+            .where((q) => (q.createdByUid == uid || uid.isEmpty) && !q.isAssessment)
+            .toList();
+
+        if (myQuizzes.isEmpty) {
+          myQuizzes = quizzes.where((q) => !q.isAssessment).toList();
+        }
+
+        if (myQuizzes.isEmpty) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(32),
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.quiz_rounded,
+                    size: 56, color: const Color(0xFFF5A623).withValues(alpha: 0.3)),
+                const SizedBox(height: 16),
+                Text(
+                  'No Quizzes Found',
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Create interactive quizzes to test student comprehension.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => onTabChange?.call(1),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Create Quiz'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF5A623),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Wrap(
+          spacing: 20,
+          runSpacing: 20,
+          children: myQuizzes.take(6).map((quiz) {
+            return SizedBox(
+              width: 320,
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFF5A623).withValues(alpha: 0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5A623).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.quiz_rounded,
+                              color: Color(0xFFF5A623), size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            quiz.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      quiz.description.isNotEmpty
+                          ? quiz.description
+                          : 'Interactive practice quiz.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${quiz.questions.length} Questions',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => onTabChange?.call(1),
+                          child: const Text('Manage'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 }

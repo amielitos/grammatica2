@@ -37,6 +37,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
   bool _isLoading = false;
   String? _errorMessage;
   String? _selectedMode; // 'general' or 'ielts'
+  String? _selectedDifficulty;
 
   // Cache keys
   static const _cacheKeyGeneral = 'cached_assessment_general';
@@ -50,7 +51,10 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
       return _buildLoadingView(isDark);
     }
 
-    return _buildSelectionView(isDark);
+    if (_selectedMode == null) {
+      return _buildSelectionView(isDark);
+    }
+    return _buildDifficultySelectionView(isDark);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -126,7 +130,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                                   'General English grammar, vocabulary, and reading comprehension.',
                               icon: Icons.menu_book_rounded,
                               color: const Color(0xFF4A7C59),
-                              onTap: () => _generateAssessment('general'),
+                              onTap: () => setState(() => _selectedMode = 'general'),
                               onLoadCached: () => _loadCachedAssessment('general'),
                               isDark: isDark,
                             ),
@@ -139,7 +143,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                                   'IELTS-style reading passages with academic question formats.',
                               icon: Icons.school_rounded,
                               color: const Color(0xFF2E5090),
-                              onTap: () => _generateAssessment('ielts'),
+                              onTap: () => setState(() => _selectedMode = 'ielts'),
                               onLoadCached: () => _loadCachedAssessment('ielts'),
                               isDark: isDark,
                             ),
@@ -155,7 +159,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                               'General English grammar, vocabulary, and reading comprehension.',
                           icon: Icons.menu_book_rounded,
                           color: const Color(0xFF4A7C59),
-                          onTap: () => _generateAssessment('general'),
+                          onTap: () => setState(() => _selectedMode = 'general'),
                           onLoadCached: () => _loadCachedAssessment('general'),
                           isDark: isDark,
                         ),
@@ -166,13 +170,131 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                               'IELTS-style reading passages with academic question formats.',
                           icon: Icons.school_rounded,
                           color: const Color(0xFF2E5090),
-                          onTap: () => _generateAssessment('ielts'),
+                          onTap: () => setState(() => _selectedMode = 'ielts'),
                           onLoadCached: () => _loadCachedAssessment('ielts'),
                           isDark: isDark,
                         ),
                       ],
                     );
                   },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Difficulty Selection View
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildDifficultySelectionView(bool isDark) {
+    final title = _selectedMode == 'ielts' ? 'IELTS Assessment' : 'English Assessment';
+    final difficulties = ['A1 (Novice)', 'A2 (Novice)', 'B1 (Intermediate)', 'B2 (Intermediate)', 'C1 (Master)', 'C2 (Master)'];
+
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded,
+              color: isDark ? Colors.white : AppColors.textPrimary),
+          onPressed: () => setState(() {
+            _selectedMode = null;
+            _selectedDifficulty = null;
+          }),
+        ),
+        title: Text(
+          title,
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : AppColors.textPrimary,
+          ),
+        ),
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Column(
+              children: [
+                Text(
+                  'Select Difficulty',
+                  style: GoogleFonts.outfit(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose the appropriate CEFR level for your assessment.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: isDark ? Colors.white54 : AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: difficulties.map((diff) {
+                    final isSelected = _selectedDifficulty == diff;
+                    return ChoiceChip(
+                      label: Text(diff),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) _selectedDifficulty = diff;
+                        });
+                      },
+                      labelStyle: GoogleFonts.inter(
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : AppColors.textPrimary),
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                      selectedColor: AppColors.primary,
+                      backgroundColor: isDark ? Colors.grey.shade800 : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(
+                          color: isSelected
+                              ? AppColors.primary
+                              : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 48),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _selectedDifficulty == null ? null : _generateAssessment,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Text(
+                      'Start Assessment',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -261,32 +383,34 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
   // Assessment generation
   // ─────────────────────────────────────────────────────────────────────────
 
-  Future<void> _generateAssessment(String mode) async {
+  Future<void> _generateAssessment() async {
+    final mode = _selectedMode!;
+    final diff = _selectedDifficulty!;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _selectedMode = mode;
     });
 
     try {
       final String customInstructions;
       if (mode == 'ielts') {
         customInstructions = '''
-Generate an IELTS-style reading assessment. Include:
-1. One or two reading passages (200-350 words each) on academic topics.
-2. For each passage, create 5-8 questions of mixed types: multiple choice, true/false, short answer, and fill-in-the-blank.
+Generate an IELTS-style reading assessment for $diff difficulty level. Include:
+1. One or two reading passages on academic topics.
+2. For each passage, create questions of mixed types: multiple choice, true/false, identification, and fill-in-the-blank.
 3. Structure the output as passage-type questions with nested questions underneath.
-4. Use formal academic English appropriate for IELTS band 6-8.
+4. Use formal academic English appropriate for the $diff band/level.
 5. Include questions testing skimming, scanning, inference, and vocabulary in context.
 ''';
       } else {
         customInstructions = '''
-Generate a General English assessment. Include:
-1. One or two reading passages (150-300 words each) on general interest topics.
-2. For each passage, create 5-8 questions of mixed types: multiple choice, true/false, short answer, and fill-in-the-blank.
+Generate a General English assessment for $diff difficulty level. Include:
+1. One or two reading passages on general interest topics.
+2. For each passage, create questions of mixed types: multiple choice, true/false, identification, and fill-in-the-blank.
 3. Structure the output as passage-type questions with nested questions underneath.
 4. Test grammar, vocabulary, reading comprehension, and inference skills.
-5. Vary difficulty from intermediate to upper-intermediate level.
+5. Ensure the language complexity targets exactly the $diff level.
 ''';
       }
 
@@ -294,10 +418,10 @@ Generate a General English assessment. Include:
         questionTypes: [
           'multiple_choice',
           'true_false',
-          'short_answer',
+          'identification',
           'fill_in_the_blank',
         ],
-        difficulty: 'medium',
+        difficulty: diff,
         customInstructions: customInstructions,
         includeHints: true,
       );
@@ -309,7 +433,7 @@ Generate a General English assessment. Include:
 
       final aiResponse = await _aiService.generateQuiz(
         contextText,
-        numQuestions: 10,
+        numQuestions: 50,
         config: config,
       );
 

@@ -10,11 +10,12 @@ import '../services/database_service.dart';
 import '../services/role_service.dart';
 import '../services/notification_service.dart';
 import '../services/web_service.dart';
-import '../services/ai_service.dart';
+import '../services/ai_logic_service.dart';
 import '../models/spelling_word.dart';
 import '../widgets/design_ornaments.dart';
 import '../pages/admin/admin_spelling_words_tab.dart';
 import '../theme/app_colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 class PronunciationQuizPage extends StatefulWidget {
@@ -138,10 +139,19 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 
     if (_useAiWords) {
       try {
-        allWords = await AIService.instance.generateWords(
-          count: 10,
-          difficulty: difficulty,
-        );
+        final diffStr = difficulty.toString().split('.').last;
+        final aiWords = await AILogicService.instance.generatePracticeWords(diffStr, 10);
+        
+        allWords = aiWords.map((w) {
+          return SpellingWord(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            word: w,
+            difficulty: difficulty,
+            createdAt: Timestamp.now(),
+            createdByUid: 'ai_generated',
+            audioUrl: null,
+          );
+        }).toList();
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -764,8 +774,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                 const SizedBox(height: 24),
               ],
             ),
-          ),
-        ),
+          )
       ),
     );
   }

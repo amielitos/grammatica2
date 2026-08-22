@@ -22,17 +22,25 @@ import 'pages/onboarding_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint('Dotenv initialization warning: $e');
+  }
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Firebase App Check — required for Firebase AI Logic (enforced July 2026+).
-  // Uses the debug provider for local development; swap to production
-  // attestation providers before shipping to production.
-  await FirebaseAppCheck.instance.activate(
-    providerAndroid: AndroidDebugProvider(),
-    providerApple: AppleDebugProvider(),
-    providerWeb: WebDebugProvider(),
-  );
+  try {
+    await FirebaseAppCheck.instance.activate(
+      providerAndroid: AndroidDebugProvider(),
+      providerApple: AppleDebugProvider(),
+      providerWeb: WebDebugProvider(),
+    );
+  } catch (e) {
+    debugPrint('AppCheck initialization warning: $e');
+  }
+
 
   if (kIsWeb) {
     try {

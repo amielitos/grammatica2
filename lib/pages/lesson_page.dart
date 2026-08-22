@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -32,11 +33,77 @@ class _LessonPageState extends State<LessonPage> {
   bool get _previewMode => widget.previewMode;
   Map<String, dynamic>? _userData;
 
+  final ScrollController _scrollController = ScrollController();
+  double _progress = 0.0;
+  bool _isCompleted = false;
+  Timer? _debounceTimer;
+
   @override
   void initState() {
     super.initState();
     _lesson = widget.lesson;
     _fetchUserData();
+    _initProgress();
+    _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _initProgress() async {
+    if (widget.previewMode) return;
+    final data = await DatabaseService.instance.getLessonProgress(widget.user.uid, widget.lesson.id);
+    if (data != null && mounted) {
+      setState(() {
+        _isCompleted = data['completed'] == true;
+        _progress = _isCompleted ? 1.0 : (data['progress'] as double? ?? 0.0);
+      });
+    }
+  }
+
+  void _onScroll() {
+    if (_isCompleted || widget.previewMode) return;
+    if (!_scrollController.hasClients) return;
+
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    if (maxScroll <= 0) {
+      if (_progress < 1.0) {
+        setState(() {
+          _progress = 1.0;
+          _isCompleted = true;
+        });
+        _updateProgressToDb();
+      }
+      return;
+    }
+
+    final currentScroll = _scrollController.position.pixels;
+    double newProgress = (currentScroll / maxScroll).clamp(0.0, 1.0);
+
+    if (newProgress > _progress) {
+      setState(() => _progress = newProgress);
+      if (_progress >= 1.0) {
+        _isCompleted = true;
+        _updateProgressToDb();
+      } else {
+        _debounceTimer?.cancel();
+        _debounceTimer = Timer(const Duration(seconds: 2), _updateProgressToDb);
+      }
+    }
+  }
+
+  void _updateProgressToDb() {
+    if (widget.previewMode || !mounted) return;
+    DatabaseService.instance.updateLessonProgress(
+      user: widget.user,
+      lessonId: widget.lesson.id,
+      progress: _progress,
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchUserData() async {
@@ -88,16 +155,30 @@ class _LessonPageState extends State<LessonPage> {
         user: widget.user,
         userData: _userData ?? {},
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 900;
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              isWide ? 40 : 20, 32, isWide ? 40 : 20, 40,
+      body: Column(
+        children: [
+          if (!widget.previewMode)
+            LinearProgressIndicator(
+              value: _progress,
+              minHeight: 4,
+              backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 900;
+                return SingleChildScrollView(
+                  controller: _scrollController,
+                  padding: EdgeInsets.fromLTRB(
+                    isWide ? 40 : 20, 32, isWide ? 40 : 20, 40,
+                  ),
+                  child: SizedBox(
+                    width: constraints.maxWidth,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1200),
                 child: isWide
                     ? Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,18 +196,31 @@ class _LessonPageState extends State<LessonPage> {
                           _buildQuizSidebar(isDark),
                         ],
                       ),
-              ),
+                    ),
+                  ),
+                ),
+              );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildMainCard(bool isDark, bool isWide) {
     final cardColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
-    final titleColor = isDark ? Colors.white : const Color(0xFF1E1E1E);
-    final subtleColor = isDark ? Colors.white54 : Colors.grey.shade600;
+    final headerGradient = isDark
+        ? const LinearGradient(
+            colors: [Color(0xFF1E3A2B), Color(0xFF0F1E19)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+        : const LinearGradient(
+            colors: [Color(0xFF88B342), Color(0xFF5B8927)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          );
 
     return Container(
       decoration: BoxDecoration(
@@ -134,19 +228,30 @@ class _LessonPageState extends State<LessonPage> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
             blurRadius: 40,
             offset: const Offset(0, 12),
           ),
         ],
-        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade100),
+        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header Area ──
-          Padding(
-            padding: EdgeInsets.fromLTRB(isWide ? 48 : 32, isWide ? 48 : 32, isWide ? 48 : 32, 32),
+          // ── Gradient Hero Header Area ──
+          Container(
+            decoration: BoxDecoration(
+              gradient: headerGradient,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF88B342).withValues(alpha: 0.25),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            padding: EdgeInsets.fromLTRB(isWide ? 40 : 24, isWide ? 40 : 24, isWide ? 40 : 24, 36),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -160,16 +265,16 @@ class _LessonPageState extends State<LessonPage> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.white12 : Colors.grey.shade50,
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(100),
-                          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.arrow_back_rounded, size: 16, color: titleColor),
+                            const Icon(Icons.arrow_back_rounded, size: 16, color: Colors.white),
                             const SizedBox(width: 8),
-                            Text('Back', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: titleColor)),
+                            Text('Back', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
                           ],
                         ),
                       ),
@@ -177,9 +282,9 @@ class _LessonPageState extends State<LessonPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF88B342).withValues(alpha: 0.1),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(100),
-                        border: Border.all(color: const Color(0xFF88B342).withValues(alpha: 0.2)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                       ),
                       child: Text(
                         _lesson.isMembersOnly ? 'MEMBERS ONLY' : 'PUBLIC LESSON',
@@ -187,57 +292,57 @@ class _LessonPageState extends State<LessonPage> {
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
-                          color: const Color(0xFF88B342),
+                          color: Colors.white,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
                 // Title
                 Text(
                   _lesson.title,
                   style: GoogleFonts.outfit(
-                    fontSize: isWide ? 48 : 36,
-                    fontWeight: FontWeight.w800,
-                    color: titleColor,
-                    height: 1.1,
-                    letterSpacing: -1.0,
+                    fontSize: isWide ? 44 : 32,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    height: 1.15,
+                    letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // Meta info row
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade50,
+                    color: Colors.black.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.person_outline_rounded, size: 16, color: subtleColor),
+                      const Icon(Icons.person_outline_rounded, size: 16, color: Colors.white70),
                       const SizedBox(width: 8),
                       _authorName(
                         uid: _lesson.createdByUid,
                         fallbackEmail: _lesson.createdByEmail,
-                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: subtleColor),
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
                       ),
                       if (_lesson.createdAt != null) ...[
                         Container(
                           width: 1,
                           height: 16,
                           margin: const EdgeInsets.symmetric(horizontal: 16),
-                          color: isDark ? Colors.white24 : Colors.grey.shade300,
+                          color: Colors.white30,
                         ),
-                        Icon(Icons.calendar_today_rounded, size: 16, color: subtleColor),
+                        const Icon(Icons.calendar_today_rounded, size: 16, color: Colors.white70),
                         const SizedBox(width: 8),
                         Text(
                           _fmt(_lesson.createdAt!),
-                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: subtleColor),
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
                         ),
                       ],
                     ],
@@ -247,15 +352,202 @@ class _LessonPageState extends State<LessonPage> {
             ),
           ),
           
-          Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
-
-          // ── Body Content ──
+          // ── Body Content (Interactive Block Cards) ──
           Padding(
-            padding: EdgeInsets.all(isWide ? 48 : 32),
-            child: InteractiveMarkdown(data: _lesson.prompt.trim()),
+            padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: isWide ? 32 : 24),
+            child: _buildContentBlockCards(_lesson.prompt.trim(), isDark),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildContentBlockCards(String fullContent, bool isDark) {
+    final rawBlocks = fullContent.split('\n\n').where((b) => b.trim().isNotEmpty).toList();
+    if (rawBlocks.isEmpty) {
+      return const Text('No content available.');
+    }
+
+    final cardBg = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final cardBorder = isDark ? Colors.white12 : Colors.grey.shade200;
+
+    final accentColors = [
+      const Color(0xFF88B342), // Grammatica Green
+      const Color(0xFF2563EB), // Indigo Blue
+      const Color(0xFFD97706), // Amber
+      const Color(0xFF0D9488), // Teal
+      const Color(0xFF7C3AED), // Purple
+    ];
+
+    int blockIndex = 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: rawBlocks.map((blockText) {
+        final trimmed = blockText.trim();
+        final accentColor = accentColors[blockIndex % accentColors.length];
+        blockIndex++;
+        
+        // Image Markdown Pattern: ![alt](url)
+        final imgRegex = RegExp(r'!\[([\s\S]*?)\]\((https?://[^\s)]+|\S+?)\)');
+        final match = imgRegex.firstMatch(trimmed);
+
+        if (match != null) {
+          var imageUrl = match.group(2) ?? '';
+          final altText = match.group(1) ?? '';
+          if (imageUrl.endsWith(')')) {
+            imageUrl = imageUrl.substring(0, imageUrl.length - 1);
+          }
+          return Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withValues(alpha: isDark ? 0.2 : 0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+              border: Border.all(color: cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: isDark ? 0.15 : 0.08),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    border: Border(bottom: BorderSide(color: accentColor.withValues(alpha: 0.2))),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.image_rounded, size: 16, color: accentColor),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'VISUAL AID',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                          color: accentColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              padding: const EdgeInsets.all(24),
+                              alignment: Alignment.center,
+                              child: Text('[Image: $altText]', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                            );
+                          },
+                        ),
+                      ),
+                      if (altText.isNotEmpty && altText != 'Image' && altText != 'Generated Image') ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          altText,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: isDark ? Colors.white60 : Colors.black54),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        String sectionTag = 'LESSON CONTENT';
+        IconData sectionIcon = Icons.article_rounded;
+        if (trimmed.startsWith('# ') || trimmed.startsWith('## ')) {
+          sectionTag = 'KEY TOPIC';
+          sectionIcon = Icons.auto_awesome_rounded;
+        } else if (trimmed.contains('|') && trimmed.contains('---')) {
+          sectionTag = 'COMPARISON TABLE';
+          sectionIcon = Icons.table_chart_rounded;
+        } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('• ')) {
+          sectionTag = 'KEY POINTS';
+          sectionIcon = Icons.checklist_rounded;
+        }
+
+        // Standard Text/List/Table Block Card
+        return Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withValues(alpha: isDark ? 0.2 : 0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+            border: Border.all(color: cardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: isDark ? 0.15 : 0.08),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  border: Border(bottom: BorderSide(color: accentColor.withValues(alpha: 0.2))),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(sectionIcon, size: 16, color: accentColor),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      sectionTag,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                        color: accentColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(28),
+                child: InteractiveMarkdown(data: trimmed),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
