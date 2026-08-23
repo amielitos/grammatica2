@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/auth_service.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -51,11 +53,17 @@ class _SignupPageState extends State<SignupPage> {
   DateTime? _selectedDate;
   bool _agreedToTerms = false;
   bool _hasScrolledToBottom = false;
+  StreamSubscription<User?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
     _emailController.addListener(_validateEmailRealTime);
+    _authSubscription = AuthService.instance.authStateChanges().listen((user) {
+      if (user != null && mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    });
   }
 
   void _validateEmailRealTime() async {
@@ -267,7 +275,7 @@ class _SignupPageState extends State<SignupPage> {
       // Now that sign-up/sign-in is successful, pop this page so the AuthWrapper in main.dart
       // can show the dashboard.
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       if (mounted) {
@@ -803,6 +811,7 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _emailController.removeListener(_validateEmailRealTime);
     _firstNameController.dispose();
     _lastNameController.dispose();

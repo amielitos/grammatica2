@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../theme/app_colors.dart';
 import '../../services/ai_logic_service.dart';
 import '../../services/database_service.dart';
+import '../../services/role_service.dart';
 import '../../models/ai_models.dart';
 
 /// AI Quiz Generator tab — configure question types, difficulty, custom
@@ -219,6 +220,12 @@ class _AiQuizGeneratorTabState extends State<AiQuizGeneratorTab>
         ).toMap();
       }).toList();
 
+      UserRole userRole = UserRole.learner;
+      if (user != null) {
+        userRole = await RoleService.instance.getRole(user.uid);
+      }
+      final isAdmin = userRole == UserRole.admin || userRole == UserRole.superadmin;
+
       final quizData = {
         'title': _selectedLessonTitle != null
             ? 'AI Quiz: $_selectedLessonTitle'
@@ -232,11 +239,11 @@ class _AiQuizGeneratorTabState extends State<AiQuizGeneratorTab>
         'createdAt': FieldValue.serverTimestamp(),
         'createdByUid': user?.uid ?? 'ai_studio',
         'createdByEmail': user?.email ?? 'ai_studio',
-        'validationStatus': 'approved',
+        'validationStatus': 'awaiting_approval',
         'isVisible': true,
         'visibleTo': <String>[],
         'isMembersOnly': false,
-        'isGrammaticaQuiz': false,
+        'isGrammaticaQuiz': isAdmin,
         'isAssessment': false,
         'source': 'ai_studio',
         if (_selectedLessonId != null) 'linkedLessonId': _selectedLessonId,

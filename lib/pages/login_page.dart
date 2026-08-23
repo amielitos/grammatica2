@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
@@ -22,6 +23,17 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  StreamSubscription<User?>? _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSubscription = AuthService.instance.authStateChanges().listen((user) {
+      if (user != null && mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    });
+  }
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -38,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
       // Now that sign-in is successful, pop this page so the AuthWrapper in main.dart
       // can show the dashboard.
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
@@ -80,7 +92,7 @@ class _LoginPageState extends State<LoginPage> {
       // Now that sign-in is successful, pop this page so the AuthWrapper in main.dart
       // can show the dashboard.
       if (mounted) {
-        Navigator.of(context).pop();
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       if (mounted) {
@@ -437,6 +449,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();

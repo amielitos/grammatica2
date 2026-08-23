@@ -465,44 +465,6 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
               },
             ),
           ],
-          if (!widget.isEmbedded) ...[
-            const SizedBox(height: 24),
-            StreamBuilder<UserRole>(
-              stream: RoleService.instance.roleStream(
-                AuthService.instance.currentUser?.uid ?? '',
-              ),
-              builder: (context, snapshot) {
-                final role = snapshot.data;
-                if (role == UserRole.admin || role == UserRole.superadmin) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF88B342).withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF88B342).withValues(alpha: 0.3)),
-                    ),
-                    child: CheckboxListTile(
-                      title: Text('Official Grammatica Content', style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A))),
-                      subtitle: Text('This will appear in the official folders', style: GoogleFonts.inter(fontSize: 12, color: Colors.black54)),
-                      activeColor: const Color(0xFF88B342),
-                      value: _isGrammaticaQuiz,
-                      onChanged: (val) {
-                        setState(() {
-                          _isGrammaticaQuiz = val ?? false;
-                          if (_isGrammaticaQuiz) {
-                            _maxAttemptsCtrl.text = '1000000';
-                          } else {
-                            _maxAttemptsCtrl.text = '1';
-                          }
-                        });
-                      },
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ],
         ],
       ),
     );

@@ -62,6 +62,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (widget.role == UserRole.educator) {
       NotificationService.instance.sendDailyLessonReminders(widget.user.uid);
     }
+
+    if (widget.role == UserRole.admin || widget.role == UserRole.superadmin) {
+      DatabaseService.instance.migrateAdminLessonsToGrammaticaOfficial();
+    }
   }
 
   void _setupNotificationListener() {

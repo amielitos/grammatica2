@@ -672,6 +672,36 @@ Example format:
 ["apple", "banana", "cat"]
 ''';
     
+    if (AIConfig.mode == AIExecutionMode.directClientSide) {
+      final body = jsonEncode({
+        'system_instruction': {
+          'parts': [{'text': systemPrompt}]
+        },
+        'contents': [
+          {'parts': [{'text': 'Generate $count words for $difficulty difficulty.'}]}
+        ],
+        'generationConfig': {
+          'responseMimeType': 'application/json',
+          'temperature': 0.9,
+        }
+      });
+
+      final res = await http.post(
+        Uri.parse('${AIConfig.geminiBaseUrl}?key=${AIConfig.geminiApiKey}'),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      );
+
+      if (res.statusCode != 200) {
+        throw Exception('API error ${res.statusCode}: ${res.body}');
+      }
+
+      final data = jsonDecode(res.body);
+      final textResponse = data['candidates'][0]['content']['parts'][0]['text'] as String;
+      final parsedList = jsonDecode(textResponse) as List<dynamic>;
+      return parsedList.map((e) => e.toString()).toList();
+    }
+
     try {
       final model = FirebaseAI.googleAI().generativeModel(
         model: AIConfig.firebaseAIModel,

@@ -630,15 +630,17 @@ class DatabaseService {
     String? quizId,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-    // Determine initial status based on role
-    String status = 'approved'; 
+    UserRole userRole = UserRole.learner;
     if (user != null) {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      final role = doc.data()?['role'];
-      if (role == 'EDUCATOR' || role == 'VALIDATOR') {
-        status = 'awaiting_approval';
-      }
+      userRole = await RoleService.instance.getRole(user.uid);
     }
+    final isAdmin = userRole == UserRole.admin || userRole == UserRole.superadmin;
+
+    // Admin content is permanently Grammatica Official (educators are not)
+    final effectiveIsGrammatica = isAdmin;
+
+    // ALL newly uploaded content must go through validation process
+    const String status = 'awaiting_approval';
 
     final doc = await _lessons.add({
       'title': title,
@@ -653,7 +655,7 @@ class DatabaseService {
       'isVisible': isVisible,
       'visibleTo': visibleTo,
       'isMembersOnly': isMembersOnly,
-      'isGrammaticaLesson': isGrammaticaLesson,
+      'isGrammaticaLesson': effectiveIsGrammatica,
       'quizId': quizId,
     });
     return doc.id;
@@ -684,6 +686,7 @@ class DatabaseService {
     bool? isMembersOnly,
     bool? isGrammaticaLesson,
     String? quizId,
+    String? validationStatus,
   }) async {
     if (prompt != null) {
       final doc = await _lessons.doc(id).get();
@@ -698,6 +701,13 @@ class DatabaseService {
       }
     }
 
+    final user = FirebaseAuth.instance.currentUser;
+    UserRole? userRole;
+    if (user != null) {
+      userRole = await RoleService.instance.getRole(user.uid);
+    }
+    final isAdmin = userRole == UserRole.admin || userRole == UserRole.superadmin;
+
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
     if (prompt != null) data['prompt'] = prompt;
@@ -707,8 +717,13 @@ class DatabaseService {
     if (isVisible != null) data['isVisible'] = isVisible;
     if (visibleTo != null) data['visibleTo'] = visibleTo;
     if (isMembersOnly != null) data['isMembersOnly'] = isMembersOnly;
-    if (isGrammaticaLesson != null) {
+    if (isAdmin) {
+      data['isGrammaticaLesson'] = true;
+    } else if (isGrammaticaLesson != null) {
       data['isGrammaticaLesson'] = isGrammaticaLesson;
+    }
+    if (validationStatus != null) {
+      data['validationStatus'] = validationStatus;
     }
     data['quizId'] = quizId;
     if (data.isNotEmpty) {
@@ -905,19 +920,17 @@ class DatabaseService {
     String? validationStatus,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-    // Determine initial status based on role if not explicitly provided
-    String status = validationStatus ?? 'approved';
-    if (validationStatus == null) {
-      if (isAssessment) {
-        status = 'awaiting_approval';
-      } else if (user != null) {
-        final doc = await _firestore.collection('users').doc(user.uid).get();
-        final role = doc.data()?['role'];
-        if (role == 'EDUCATOR' || role == 'VALIDATOR') {
-          status = 'awaiting_approval';
-        }
-      }
+    UserRole userRole = UserRole.learner;
+    if (user != null) {
+      userRole = await RoleService.instance.getRole(user.uid);
     }
+    final isAdmin = userRole == UserRole.admin || userRole == UserRole.superadmin;
+
+    // Admin content is permanently Grammatica Official
+    final effectiveIsGrammaticaQuiz = isAdmin ? true : isGrammaticaQuiz;
+
+    // All newly uploaded quizzes must go through validation process
+    final String status = validationStatus ?? 'awaiting_approval';
 
     final doc = await _quizzes.add({
       'title': title,
@@ -934,7 +947,7 @@ class DatabaseService {
       'isVisible': isVisible,
       'visibleTo': visibleTo,
       'isMembersOnly': isMembersOnly,
-      'isGrammaticaQuiz': isGrammaticaQuiz,
+      'isGrammaticaQuiz': effectiveIsGrammaticaQuiz,
       'isAssessment': isAssessment,
     });
     return doc.id;
@@ -1963,5 +1976,66 @@ class DatabaseService {
       batch.delete(doc.reference);
     }
     await batch.commit();
+  }
+
+  /// Migrates all lessons created by administrators/superadmins or specifically "Admin Espena"
+  /// to be under the Grammatica Official folder (isGrammaticaLesson: true, validationStatus: 'approved', isVisible: true).
+  Future<int> migrateAdminLessonsToGrammaticaOfficial() async {
+    try {
+      // 1. Find all admin/superadmin UIDs from users collection
+      final usersSnap = await _firestore.collection('users').get();
+      final adminUids = <String>{};
+      final adminEmails = <String>{};
+
+      for (final doc in usersSnap.docs) {
+        final data = doc.data();
+        final role = (data['role'] ?? '').toString().toUpperCase();
+        final username = (data['username'] ?? '').toString().toLowerCase();
+        final email = (data['email'] ?? '').toString().toLowerCase();
+
+        if (role == 'ADMIN' ||
+            role == 'SUPERADMIN' ||
+            username.contains('admin') ||
+            username.contains('espena') ||
+            email.contains('admin')) {
+          adminUids.add(doc.id);
+          if (email.isNotEmpty) adminEmails.add(email);
+        }
+      }
+
+      // 2. Fetch all lessons and check which need updating
+      final lessonsSnap = await _lessons.get();
+      final batch = _firestore.batch();
+      int migratedCount = 0;
+
+      for (final doc in lessonsSnap.docs) {
+        final data = doc.data();
+        final creatorUid = (data['createdByUid'] ?? '').toString();
+        final creatorEmail = (data['createdByEmail'] ?? '').toString().toLowerCase();
+        final isGrammatica = data['isGrammaticaLesson'] == true;
+
+        final isCreatedByAdmin = adminUids.contains(creatorUid) ||
+            adminEmails.contains(creatorEmail) ||
+            creatorEmail.contains('admin');
+
+        if (isCreatedByAdmin && !isGrammatica) {
+          batch.update(doc.reference, {
+            'isGrammaticaLesson': true,
+            'validationStatus': 'approved',
+            'isVisible': true,
+          });
+          migratedCount++;
+        }
+      }
+
+      if (migratedCount > 0) {
+        await batch.commit();
+        debugPrint('Successfully migrated $migratedCount admin lesson(s) to Grammatica Official.');
+      }
+      return migratedCount;
+    } catch (e) {
+      debugPrint('Error migrating admin lessons: $e');
+      return 0;
+    }
   }
 }

@@ -99,7 +99,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   final _prompt = TextEditingController();
   bool _isVisible = true;
   bool _isMembersOnly = false;
-  bool _isGrammaticaLesson = false;
   List<String> _visibleTo = [];
   final _quizKey = GlobalKey<AdminQuizzesTabState>();
   String? _selectedQuizId;
@@ -144,7 +143,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     _prompt.text = l.prompt;
     _isVisible = l.isVisible;
     _isMembersOnly = l.isMembersOnly;
-    _isGrammaticaLesson = l.isGrammaticaLesson;
     _visibleTo = l.visibleTo;
     _selectedQuizId = l.quizId;
 
@@ -1015,7 +1013,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
 
   Widget _buildVisibilitySettings(UserRole? userRole, bool isDark) {
     final isEducator = userRole == UserRole.educator;
-    final isAdminOrSuperAdmin = userRole == UserRole.admin || userRole == UserRole.superadmin;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1091,28 +1088,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             selectedUserIds: _visibleTo,
             educatorUid: isEducator ? AuthService.instance.currentUser?.uid : null,
             onChanged: (users) => setState(() => _visibleTo = users),
-          ),
-        ],
-        if (isAdminOrSuperAdmin) ...[
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFF88B342).withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFF88B342).withValues(alpha: 0.3)),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: CheckboxListTile(
-                title: Text('Upload as Grammatica Lesson', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : const Color(0xFF2A2A2A))),
-                subtitle: Text('Shows in the global learning section for all users', style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54)),
-                value: _isGrammaticaLesson,
-                activeColor: const Color(0xFF88B342),
-                onChanged: (value) => setState(() => _isGrammaticaLesson = value ?? false),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
           ),
         ],
       ],
@@ -1264,7 +1239,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     _cachedOriginalBlocks = [];
     _isVisible = true;
     _isMembersOnly = false;
-    _isGrammaticaLesson = false;
     _visibility = ContentVisibility.public;
     _visibleTo = [];
     _quizKey.currentState?.resetForm();
@@ -1328,16 +1302,28 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           ? _contentBlocks.map((c) => c.textCtrl.text).join('\n\n')
           : _prompt.text.trim();
 
+      final user = AuthService.instance.currentUser;
+      UserRole userRole = UserRole.learner;
+      if (user != null) {
+        userRole = await RoleService.instance.getRole(user.uid);
+      }
+      final isAdmin = userRole == UserRole.admin || userRole == UserRole.superadmin;
+      final effectiveGrammatica = isAdmin;
+
       final lessonData = Lesson(
         id: _selectedLessonId ?? '',
         title: _title.text.trim(),
         prompt: lessonPrompt,
         answer: '',
-        createdByUid: AuthService.instance.currentUser?.uid ?? '',
+        createdByUid: user?.uid ?? '',
+        createdByEmail: user?.email,
+        validationStatus: _selectedLessonId == null
+            ? 'awaiting_approval'
+            : (_selectedLesson?.validationStatus ?? 'awaiting_approval'),
         isVisible: _isVisible,
         visibleTo: _visibleTo,
         isMembersOnly: _isMembersOnly,
-        isGrammaticaLesson: _isGrammaticaLesson,
+        isGrammaticaLesson: effectiveGrammatica,
         quizId: finalQuizId, 
         createdAt: _selectedLesson?.createdAt ?? Timestamp.now(),
       );
