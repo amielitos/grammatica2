@@ -193,10 +193,6 @@ class _LandingPageState extends State<LandingPage>
 
               // Desktop nav links
               if (isDesktop) ...[
-                _buildNavLink('Features', () {}, isDesktop),
-                const SizedBox(width: 4),
-                _buildNavLink('How It Works', () {}, isDesktop),
-                const SizedBox(width: 28),
                 TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/login'),
                   style: TextButton.styleFrom(
@@ -309,20 +305,7 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  Widget _buildNavLink(String label, VoidCallback onTap, bool isDesktop) {
-    return TextButton(
-      onPressed: onTap,
-      style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFF64748B),
-        textStyle: GoogleFonts.outfit(
-          fontWeight: FontWeight.w500,
-          fontSize: 15,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      ),
-      child: Text(label),
-    );
-  }
+
 
   // ─── HERO ─────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/database_service.dart';
 
 import 'quizzes_page.dart';
@@ -293,13 +295,16 @@ builder: (context, progressSnap) {
                     children: [
                       // 1. Hero Header
                       _buildHeroHeader(context, username: username),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
-                      // 2. Search Bar & Filter Chips
+                      // 2. Upcoming Mentorship Session Banner
+                      _buildUpcomingSessionBanner(context),
+
+                      // 3. Search Bar & Filter Chips
                       _buildSearchBarAndFilters(context),
                       const SizedBox(height: 20),
 
-                      // 3. Continue Learning Card
+                      // 4. Continue Learning Card
                       if (nextLesson != null && _searchQuery.isEmpty && _selectedFilter == 'All') ...[
                         _buildContinueLearningCard(context, nextLesson),
                         const SizedBox(height: 24),
@@ -875,6 +880,225 @@ builder: (context, progressSnap) {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUpcomingSessionBanner(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: DatabaseService.instance.streamStudentMentorshipSessions(widget.user.uid),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data == null) return const SizedBox.shrink();
+        final now = DateTime.now();
+        final upcoming = snapshot.data!
+            .where((s) {
+              final status = (s['status'] ?? '').toString().toLowerCase();
+              if (status == 'cancelled' || status == 'completed') return false;
+              final startTime = (s['startTime'] as Timestamp?)?.toDate();
+              final endTime = (s['endTime'] as Timestamp?)?.toDate();
+              final compareTime = endTime ?? startTime;
+              // Filter out sessions whose scheduled time has already passed
+              if (compareTime != null && compareTime.isBefore(now)) return false;
+              return true;
+            })
+            .toList()
+          ..sort((a, b) {
+            // Sort by nearest upcoming startTime
+            final ta = (a['startTime'] as Timestamp?)?.toDate() ?? DateTime(2099);
+            final tb = (b['startTime'] as Timestamp?)?.toDate() ?? DateTime(2099);
+            return ta.compareTo(tb);
+          });
+
+        if (upcoming.isEmpty) return const SizedBox.shrink();
+        final next = upcoming.first;
+        final title = (next['meetingTitle'] as String? ?? '').isNotEmpty
+            ? next['meetingTitle'] as String
+            : 'Mentorship Session';
+        final app = next['conferenceApp'] as String? ?? 'google_meet';
+        final link = next['meetingLink'] as String? ?? '';
+        final startTime = (next['startTime'] as Timestamp).toDate();
+        final endTime = (next['endTime'] as Timestamp?)?.toDate();
+        final dateStr = DateFormat('EEE, MMM d, yyyy').format(startTime);
+        final timeStr = endTime != null
+            ? '${DateFormat('h:mm a').format(startTime)} – ${DateFormat('h:mm a').format(endTime)}'
+            : DateFormat('h:mm a').format(startTime);
+        final educatorId = next['educatorId'] as String? ?? '';
+
+        Color appColor;
+        IconData appIcon;
+        String appLabel;
+        if (app.contains('zoom')) {
+          appColor = const Color(0xFF2D8CFF);
+          appIcon = Icons.videocam_rounded;
+          appLabel = 'Zoom';
+        } else if (app.contains('team')) {
+          appColor = const Color(0xFF5B5FC7);
+          appIcon = Icons.groups_rounded;
+          appLabel = 'MS Teams';
+        } else {
+          appColor = const Color(0xFF00832D);
+          appIcon = Icons.video_call_rounded;
+          appLabel = 'Google Meet';
+        }
+
+        return Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? [const Color(0xFF1a2a4a), const Color(0xFF111827)]
+                      : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF3B82F6).withValues(alpha: isDark ? 0.15 : 0.10),
+                    blurRadius: 16,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.event_rounded, size: 12, color: Color(0xFF3B82F6)),
+                            const SizedBox(width: 5),
+                            Text(
+                              'UPCOMING SESSION',
+                              style: TextStyle(
+                                color: const Color(0xFF3B82F6),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: appColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: appColor.withValues(alpha: 0.35)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(appIcon, size: 13, color: appColor),
+                            const SizedBox(width: 4),
+                            Text(appLabel,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: appColor,
+                                )),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : const Color(0xFF1E3A5F),
+                      letterSpacing: -0.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  FutureBuilder<Map<String, dynamic>?>(
+                    future: DatabaseService.instance.getUserDoc(educatorId),
+                    builder: (context, snap) {
+                      final name = snap.data?['username'] as String? ?? 'Your Educator';
+                      return Row(
+                        children: [
+                          Icon(Icons.person_rounded, size: 14,
+                              color: isDark ? Colors.white54 : const Color(0xFF4B7AB5)),
+                          const SizedBox(width: 4),
+                          Text(name,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white60 : const Color(0xFF4B7AB5),
+                                fontWeight: FontWeight.w600,
+                              )),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today_rounded, size: 14,
+                          color: isDark ? Colors.white54 : const Color(0xFF4B7AB5)),
+                      const SizedBox(width: 4),
+                      Text('$dateStr  •  $timeStr',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: isDark ? Colors.white60 : const Color(0xFF4B7AB5),
+                            fontWeight: FontWeight.w500,
+                          )),
+                    ],
+                  ),
+                  if (link.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 40,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                        label: Text('Join on $appLabel',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: 13)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3B82F6),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () async {
+                          final uri = Uri.parse(link);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri,
+                                mode: LaunchMode.externalApplication);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
     );
   }
 

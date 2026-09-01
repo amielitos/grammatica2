@@ -1,8 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/database_service.dart';
 import 'package:intl/intl.dart';
+
+Widget buildConferenceAppBadge(String? app, {bool compact = false}) {
+  final normApp = (app ?? 'google_meet').toLowerCase();
+  String name;
+  Color bg;
+  String logoUrl;
+
+  if (normApp.contains('zoom')) {
+    name = 'Zoom';
+    bg = const Color(0xFF2D8CFF);
+    logoUrl = 'https://logo.clearbit.com/zoom.us';
+  } else if (normApp.contains('team')) {
+    name = 'MS Teams';
+    bg = const Color(0xFF5B5FC7);
+    logoUrl = 'https://logo.clearbit.com/microsoft.com';
+  } else {
+    name = 'Google Meet';
+    bg = const Color(0xFF00832D);
+    logoUrl = 'https://logo.clearbit.com/meet.google.com';
+  }
+
+  Widget logoWidget = ClipRRect(
+    borderRadius: BorderRadius.circular(compact ? 3 : 4),
+    child: Image.network(
+      logoUrl,
+      width: compact ? 12 : 16,
+      height: compact ? 12 : 16,
+      fit: BoxFit.cover,
+      errorBuilder: (c, e, s) => Icon(
+        normApp.contains('zoom') ? Icons.videocam_rounded :
+        normApp.contains('team') ? Icons.groups_rounded : Icons.video_call_rounded,
+        size: compact ? 12 : 16,
+        color: bg,
+      ),
+    ),
+  );
+
+  if (compact) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: bg.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          logoWidget,
+          const SizedBox(width: 4),
+          Text(
+            name,
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: bg),
+          ),
+        ],
+      ),
+    );
+  }
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    decoration: BoxDecoration(
+      color: bg.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: bg.withValues(alpha: 0.3)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        logoWidget,
+        const SizedBox(width: 6),
+        Text(
+          name,
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: bg),
+        ),
+      ],
+    ),
+  );
+}
 
 class EducatorGroupsTab extends StatefulWidget {
   final User user;
@@ -580,6 +660,8 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
     final dateString = DateFormat('MMMM d, yyyy').format(start);
     final timeString = '${DateFormat('h:mm a').format(start)} - ${DateFormat('h:mm a').format(end)}';
     final meetingLink = s['meetingLink']?.toString() ?? '';
+    final meetingTitle = s['meetingTitle']?.toString() ?? '';
+    final conferenceApp = s['conferenceApp']?.toString() ?? 'google_meet';
 
     showDialog(
       context: context,
@@ -595,8 +677,25 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Learner', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-            Text(s['studentName'] ?? 'Mentorship', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+            if (meetingTitle.isNotEmpty) ...[
+              const Text('Meeting Topic', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 2),
+              Text(meetingTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Learner', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+                    Text(s['studentName'] ?? 'Mentorship', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+                buildConferenceAppBadge(conferenceApp),
+              ],
+            ),
             const SizedBox(height: 12),
             const Text('Date & Time', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
             Text('$dateString\n$timeString', style: const TextStyle(fontSize: 14)),
@@ -604,10 +703,25 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
             const Text('Status', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
             Text((s['status']?.toString().toUpperCase() ?? 'SCHEDULED'), style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.bold)),
             if (meetingLink.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Text('Meeting Link', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              SelectableText(meetingLink, style: const TextStyle(fontSize: 13, color: Colors.blue, decoration: TextDecoration.underline)),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  label: const Text('Open Conference App'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () async {
+                    final uri = Uri.parse(meetingLink);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                ),
+              ),
             ],
           ],
         ),
@@ -616,24 +730,101 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close', style: TextStyle(color: Colors.grey)),
           ),
-          ElevatedButton(
+          // ── Edit Button ──
+          ElevatedButton.icon(
+            icon: const Icon(Icons.edit_rounded, size: 16),
+            label: const Text('Edit'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade50,
+              foregroundColor: Colors.blue.shade700,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              Navigator.pop(context); // Close details dialog
+              showDialog(
+                context: context,
+                builder: (ctx) => MentorshipBookingModal(user: widget.user, initialSession: s),
+              );
+            },
+          ),
+          // ── Mark as Done (only if has link & not yet completed) ──
+          if (meetingLink.isNotEmpty && (s['status']?.toString().toLowerCase() != 'completed'))
+            ElevatedButton.icon(
+              icon: const Icon(Icons.check_circle_rounded, size: 16),
+              label: const Text('Mark as Done'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF81B655),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('End Session?'),
+                    content: const Text('Mark this mentorship session as completed?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF81B655), foregroundColor: Colors.white),
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Yes, Done'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true && context.mounted) {
+                  try {
+                    await DatabaseService.instance.completeMentorshipSession(s['id']);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Session marked as completed ✓'), backgroundColor: Color(0xFF81B655)),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                }
+              },
+            ),
+          // ── Delete Button with Confirmation ──
+          ElevatedButton.icon(
+            icon: const Icon(Icons.delete_outline_rounded, size: 16),
+            label: const Text('Delete'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade50,
-              foregroundColor: Colors.red,
+              foregroundColor: Colors.red.shade700,
               elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Cancel Session?'),
-                  content: const Text('Are you sure you want to cancel this mentorship session? This action cannot be undone.'),
+                builder: (ctx) => AlertDialog(
+                  title: const Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Delete Session?'),
+                    ],
+                  ),
+                  content: const Text('Are you sure you want to delete this mentorship session? This action cannot be undone.'),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No, keep it')),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                    ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Yes, Cancel'),
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Yes, Delete'),
                     ),
                   ],
                 ),
@@ -641,23 +832,22 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
 
               if (confirm == true && context.mounted) {
                 try {
-                  await DatabaseService.instance.cancelMentorshipSession(s['id']);
+                  await DatabaseService.instance.deleteMentorshipSession(s['id']);
                   if (context.mounted) {
                     Navigator.pop(context); // Close details dialog
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Session cancelled successfully'), backgroundColor: Colors.red),
+                      const SnackBar(content: Text('Session deleted successfully'), backgroundColor: Colors.red),
                     );
                   }
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error cancelling session: $e'), backgroundColor: Colors.red),
+                      SnackBar(content: Text('Error deleting session: $e'), backgroundColor: Colors.red),
                     );
                   }
                 }
               }
             },
-            child: const Text('Cancel Session'),
           ),
         ],
       ),
@@ -674,41 +864,116 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
 
 class MentorshipBookingModal extends StatefulWidget {
   final User user;
-  const MentorshipBookingModal({super.key, required this.user});
+  final Map<String, dynamic>? initialSession;
+  const MentorshipBookingModal({super.key, required this.user, this.initialSession});
 
   @override
   State<MentorshipBookingModal> createState() => _MentorshipBookingModalState();
 }
 
 class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
+  final _titleController = TextEditingController();
   final _linkController = TextEditingController();
+  String _conferenceApp = 'google_meet';
   DateTime _date = DateTime.now();
   TimeOfDay _time = const TimeOfDay(hour: 9, minute: 0);
   int _duration = 60;
   String? _sid;
   String? _snam;
   bool _isSubmitting = false;
+  String? _linkError;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialSession != null) {
+      final s = widget.initialSession!;
+      _titleController.text = s['meetingTitle']?.toString() ?? '';
+      _linkController.text = s['meetingLink']?.toString() ?? '';
+      _conferenceApp = s['conferenceApp']?.toString() ?? 'google_meet';
+      _sid = s['studentId']?.toString();
+      _snam = s['studentName']?.toString();
+      final start = (s['startTime'] as Timestamp?)?.toDate();
+      if (start != null) {
+        _date = DateTime(start.year, start.month, start.day);
+        _time = TimeOfDay(hour: start.hour, minute: start.minute);
+      }
+      final end = (s['endTime'] as Timestamp?)?.toDate();
+      if (start != null && end != null) {
+        final diff = end.difference(start).inMinutes;
+        if (diff > 0) _duration = diff;
+      }
+    }
+  }
+
+  /// Validates meeting link matches the selected conference app
+  String? _validateLink(String link) {
+    if (link.trim().isEmpty) return null; // optional
+    final lower = link.toLowerCase();
+    if (_conferenceApp == 'zoom') {
+      if (!lower.contains('zoom.us')) {
+        return 'Please enter a valid Zoom link (e.g. https://zoom.us/j/...)';
+      }
+    } else if (_conferenceApp == 'teams') {
+      if (!lower.contains('teams.microsoft.com') && !lower.contains('teams.live.com')) {
+        return 'Please enter a valid MS Teams link (e.g. https://teams.microsoft.com/...)';
+      }
+    } else {
+      if (!lower.contains('meet.google.com')) {
+        return 'Please enter a valid Google Meet link (e.g. https://meet.google.com/xxx-xxxx-xxx)';
+      }
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.initialSession != null;
     return AlertDialog(
-      title: const Text('New mentorship', style: TextStyle(fontWeight: FontWeight.bold)),
+      title: Text(
+        isEditing ? 'Edit mentorship session' : 'New mentorship',
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400),
+        constraints: const BoxConstraints(maxWidth: 440),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text('Meeting Title / Topic', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _titleController,
+                decoration: InputDecoration(
+                  hintText: 'e.g. Grammar Practice & Accent Coaching',
+                  filled: true,
+                  fillColor: Colors.grey.withValues(alpha: 0.05),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              const Text('Conference App', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: _buildAppChip('google_meet', 'Google Meet', 'https://logo.clearbit.com/meet.google.com', const Color(0xFF00832D))),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildAppChip('zoom', 'Zoom', 'https://logo.clearbit.com/zoom.us', const Color(0xFF2D8CFF))),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildAppChip('teams', 'MS Teams', 'https://logo.clearbit.com/microsoft.com', const Color(0xFF5B5FC7))),
+                ],
+              ),
+              const SizedBox(height: 16),
+
               const Text('Select Student', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
               const SizedBox(height: 8),
               StreamBuilder<List<Map<String, dynamic>>>(
                 stream: DatabaseService.instance.streamEducatorSubscribers(widget.user.uid),
                 builder: (context, snapshot) {
-                  final subs = (snapshot.data ?? []).where((s) => 
-                    s['tier']?.toString().toLowerCase() == 'premium'
-                  ).toList();
+                  final subs = (snapshot.data ?? []).toList();
                   
                   if (subs.isEmpty && snapshot.connectionState != ConnectionState.waiting) {
                     return DropdownButtonFormField<String>(
@@ -719,7 +984,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                       ),
                       items: const [],
-                      hint: const Text('No premium learners found', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                      hint: const Text('No active subscribers found', style: TextStyle(fontSize: 13, color: Colors.grey)),
                     );
                   }
 
@@ -736,13 +1001,15 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                     ),
                     items: subs.map((s) {
                       final uid = s['uid']?.toString() ?? '';
+                      final tierStr = (s['tier'] ?? 'Subscribed').toString();
                       return DropdownMenuItem(
                         value: uid, 
                         child: FutureBuilder<Map<String, dynamic>?>(
                           future: DatabaseService.instance.getUserDoc(uid),
                           builder: (context, userSnap) {
                             final userData = userSnap.data;
-                            return Text(userData?['username'] ?? userData?['email'] ?? 'User ($uid)');
+                            final name = userData?['username'] ?? userData?['email'] ?? 'User ($uid)';
+                            return Text('$name • $tierStr');
                           }
                         ),
                       );
@@ -773,7 +1040,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                         final picked = await showDatePicker(
                           context: context, 
                           initialDate: _date, 
-                          firstDate: DateTime.now(), 
+                          firstDate: DateTime.now().subtract(const Duration(days: 365)), 
                           lastDate: DateTime.now().add(const Duration(days: 365))
                         );
                         if (picked != null) setState(() => _date = picked);
@@ -797,7 +1064,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
               const Text('Duration', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
-                initialValue: _duration,
+                initialValue: [30, 45, 60, 90, 120].contains(_duration) ? _duration : 60,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.grey.withValues(alpha: 0.05),
@@ -811,11 +1078,49 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
               const SizedBox(height: 8),
               TextField(
                 controller: _linkController,
+                onChanged: (val) {
+                  setState(() => _linkError = _validateLink(val));
+                },
                 decoration: InputDecoration(
-                  hintText: 'https://zoom.us/j/...',
+                  hintText: _conferenceApp == 'zoom'
+                      ? 'https://zoom.us/j/123456789'
+                      : _conferenceApp == 'teams'
+                          ? 'https://teams.microsoft.com/l/meetup-join/...'
+                          : 'https://meet.google.com/xxx-xxxx-xxx',
                   filled: true,
-                  fillColor: Colors.grey.withValues(alpha: 0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                  fillColor: _linkError != null
+                      ? Colors.red.withValues(alpha: 0.05)
+                      : Colors.grey.withValues(alpha: 0.05),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: _linkError != null
+                        ? const BorderSide(color: Colors.red, width: 1.5)
+                        : BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: _linkError != null
+                        ? const BorderSide(color: Colors.red, width: 1.5)
+                        : BorderSide.none,
+                  ),
+                  errorText: _linkError,
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Image.network(
+                        _conferenceApp == 'zoom'
+                            ? 'https://logo.clearbit.com/zoom.us'
+                            : _conferenceApp == 'teams'
+                                ? 'https://logo.clearbit.com/microsoft.com'
+                                : 'https://logo.clearbit.com/meet.google.com',
+                        width: 20,
+                        height: 20,
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => const Icon(Icons.link_rounded, size: 18),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -837,9 +1142,64 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
           onPressed: _isSubmitting ? null : _handleSchedule,
           child: _isSubmitting 
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Schedule'),
+              : Text(isEditing ? 'Update' : 'Schedule'),
         ),
       ],
+    );
+  }
+
+  Widget _buildAppChip(String appKey, String label, String logoUrl, Color color) {
+    final selected = _conferenceApp == appKey;
+    return InkWell(
+      onTap: () => setState(() {
+        _conferenceApp = appKey;
+        // Re-validate link when app changes
+        _linkError = _validateLink(_linkController.text);
+      }),
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.13) : Colors.grey.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: selected ? color : Colors.grey.shade300, width: selected ? 2 : 1),
+          boxShadow: selected ? [
+            BoxShadow(color: color.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 3)),
+          ] : [],
+        ),
+        child: Column(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.network(
+                logoUrl,
+                width: 28,
+                height: 28,
+                fit: BoxFit.cover,
+                errorBuilder: (c, e, s) => Icon(
+                  appKey == 'zoom' ? Icons.videocam_rounded :
+                  appKey == 'teams' ? Icons.groups_rounded : Icons.video_call_rounded,
+                  color: selected ? color : Colors.grey,
+                  size: 26,
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                color: selected ? color : Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -848,30 +1208,65 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a student')));
       return;
     }
-    
+
+    // Validate link
+    final linkVal = _validateLink(_linkController.text.trim());
+    if (linkVal != null) {
+      setState(() => _linkError = linkVal);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(linkVal), backgroundColor: Colors.red),
+      );
+      return;
+    }
     setState(() => _isSubmitting = true);
     
     try {
       final start = DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute);
       final end = start.add(Duration(minutes: _duration));
-      
-      await DatabaseService.instance.createMentorshipSession(
-        educatorId: widget.user.uid,
-        studentId: _sid!,
-        studentName: _snam ?? 'Student',
-        startTime: start,
-        endTime: end,
-        meetingLink: _linkController.text,
-      );
-      
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Mentorship scheduled successfully!'),
-            backgroundColor: Colors.green,
-          )
+
+      if (widget.initialSession != null) {
+        final sessionId = widget.initialSession!['id']?.toString() ?? '';
+        await DatabaseService.instance.updateMentorshipSession(
+          sessionId: sessionId,
+          studentId: _sid!,
+          studentName: _snam ?? 'Student',
+          startTime: start,
+          endTime: end,
+          meetingLink: _linkController.text,
+          conferenceApp: _conferenceApp,
+          meetingTitle: _titleController.text.trim(),
         );
+
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Mentorship updated successfully!'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+        }
+      } else {
+        await DatabaseService.instance.createMentorshipSession(
+          educatorId: widget.user.uid,
+          studentId: _sid!,
+          studentName: _snam ?? 'Student',
+          startTime: start,
+          endTime: end,
+          meetingLink: _linkController.text,
+          conferenceApp: _conferenceApp,
+          meetingTitle: _titleController.text.trim(),
+        );
+        
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Mentorship scheduled successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -880,7 +1275,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: Colors.red,
-          )
+          ),
         );
       }
     }
@@ -888,6 +1283,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
 
   @override
   void dispose() {
+    _titleController.dispose();
     _linkController.dispose();
     super.dispose();
   }

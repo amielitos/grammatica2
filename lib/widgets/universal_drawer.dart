@@ -11,6 +11,7 @@ class UniversalDrawer extends StatelessWidget {
   final Map<String, dynamic> userData;
   final int? currentIndex;
   final ValueChanged<int>? onTap;
+  final List<ModernNavItem>? navItems;
 
   const UniversalDrawer({
     super.key,
@@ -18,6 +19,7 @@ class UniversalDrawer extends StatelessWidget {
     required this.userData,
     this.currentIndex,
     this.onTap,
+    this.navItems,
   });
 
   @override
@@ -28,51 +30,43 @@ class UniversalDrawer extends StatelessWidget {
     final username = (userData['username'] as String?)?.split(' ').first ?? 'User';
 
     if (isAdmin || isEducator) {
-      // Logic from AdminDashboard
-      final List<ModernNavItem> navItems = [];
-      final isSuperAdmin = role == UserRole.superadmin;
-      final isAdminOrSuperAdmin = role == UserRole.admin || role == UserRole.superadmin;
-      
-      if (role == UserRole.validator) {
-        navItems.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
-        navItems.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
-      } else {
-        if (isEducator) {
-          navItems.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
-        }
+      final List<ModernNavItem> items = navItems ?? [];
+      if (items.isEmpty) {
+        final isSuperAdmin = role == UserRole.superadmin;
+        final isAdminOrSuperAdmin = role == UserRole.admin || role == UserRole.superadmin;
 
-        if (isAdminOrSuperAdmin) {
-          navItems.add(const ModernNavItem(icon: Icons.people, label: 'User Management'));
-        }
+        if (role == UserRole.validator) {
+          items.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
+          items.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
+        } else {
+          if (isEducator) {
+            items.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
+          }
 
-        if (isSuperAdmin) {
-           navItems.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
-        }
+          if (isAdminOrSuperAdmin) {
+            items.add(const ModernNavItem(icon: Icons.people, label: 'User Management'));
+          }
 
-        if (isAdminOrSuperAdmin || isEducator) {
-          navItems.add(const ModernNavItem(icon: Icons.edit_document, label: 'Contents'));
-        }
+          if (isSuperAdmin) {
+            items.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
+          }
 
-        navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
-        
-        if (isAdminOrSuperAdmin || isEducator) {
-          navItems.add(const ModernNavItem(icon: Icons.group, label: 'Premium Group'));
-        }
-        
-        if (isAdminOrSuperAdmin || isEducator) {
-          navItems.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
-        }
+          if (isAdminOrSuperAdmin || isEducator) {
+            items.add(const ModernNavItem(icon: Icons.edit_document, label: 'Contents'));
+          }
 
-        // Site Settings — Admin only (must match AdminDashboard tab order)
-        if (isAdminOrSuperAdmin) {
-          navItems.add(const ModernNavItem(icon: Icons.web_rounded, label: 'Site Settings'));
-        }
+          items.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
 
-        if (!isEducator) {
-          navItems.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
+          if (isAdminOrSuperAdmin || isEducator) {
+            items.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
+          }
+
+          if (isAdminOrSuperAdmin) {
+            items.add(const ModernNavItem(icon: Icons.web_rounded, label: 'Site Settings'));
+          }
         }
+        items.add(ModernNavItem(icon: Icons.person, label: username));
       }
-      navItems.add(ModernNavItem(icon: Icons.person, label: username));
 
       return AdminSidebar(
         selectedIndex: currentIndex ?? -1,
@@ -80,35 +74,32 @@ class UniversalDrawer extends StatelessWidget {
           if (onTap != null) {
             onTap!(i);
           } else {
-            // Default behavior for pages not strictly in the dash
             Navigator.pop(context);
-            // Maybe navigate to dashboard?
           }
         },
         userName: username,
-        items: navItems,
+        items: items,
         onSignOut: () => AuthService.instance.signOut(),
       );
     } else {
       // Logic from HomePage
-      final navItems = [
+      final items = [
         const ModernNavItem(icon: Icons.book, label: 'Lessons'),
         const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
         if (role != UserRole.learner) const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
-        const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
         ModernNavItem(icon: Icons.person, label: username),
       ];
 
       return Sidebar(
         currentIndex: currentIndex ?? -1,
         onTap: (i) {
-           if (onTap != null) {
+          if (onTap != null) {
             onTap!(i);
           } else {
             Navigator.pop(context);
           }
         },
-        items: navItems,
+        items: items,
         isDrawer: true,
       );
     }

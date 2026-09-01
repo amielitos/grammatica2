@@ -3,6 +3,9 @@ import 'package:grammatica/services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:intl/intl.dart';
+import '../models/notification.dart';
+import 'email_sender_service.dart';
 import 'role_service.dart';
 import '../models/spelling_word.dart';
 import '../utils/image_utils.dart';
@@ -124,6 +127,7 @@ class Lesson {
   final bool isMembersOnly;
   final bool isGrammaticaLesson;
   final String? quizId;
+  final String? imageUrl;
 
   Lesson({
     required this.id,
@@ -141,6 +145,7 @@ class Lesson {
     this.isMembersOnly = false,
     this.isGrammaticaLesson = false,
     this.quizId,
+    this.imageUrl,
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -165,6 +170,7 @@ class Lesson {
       isMembersOnly: data['isMembersOnly'] ?? false,
       isGrammaticaLesson: data['isGrammaticaLesson'] ?? false,
       quizId: (data['quizId'] ?? '') == '' ? null : (data['quizId'] as String?),
+      imageUrl: (data['imageUrl'] ?? '').toString() == '' ? null : (data['imageUrl'] as String?),
     );
   }
 }
@@ -517,6 +523,8 @@ class DatabaseService {
     required DateTime startTime,
     required DateTime endTime,
     required String meetingLink,
+    String conferenceApp = 'google_meet',
+    String meetingTitle = '',
   }) async {
     await _firestore.collection('mentorship_sessions').add({
       'educatorId': educatorId,
@@ -525,13 +533,81 @@ class DatabaseService {
       'startTime': Timestamp.fromDate(startTime),
       'endTime': Timestamp.fromDate(endTime),
       'meetingLink': meetingLink,
+      'conferenceApp': conferenceApp,
+      'meetingTitle': meetingTitle,
       'status': 'scheduled',
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    try {
+      final educatorDoc = await getUserDoc(educatorId);
+      final studentDoc = await getUserDoc(studentId);
+      final educatorName = educatorDoc?['username'] ?? 'Your Educator';
+      final sName = studentDoc?['username'] ?? studentName;
+      final studentEmail = studentDoc?['email'] as String?;
+      final dateStr = DateFormat('EEE, MMM d, yyyy @ h:mm a').format(startTime);
+      final titleStr = meetingTitle.isNotEmpty ? meetingTitle : 'Mentorship Session';
+
+      // 1. Send In-App Notification (Bell Icon)
+      await NotificationService.instance.sendNotification(
+        uid: studentId,
+        title: 'Mentorship Session Scheduled!',
+        message: '$educatorName scheduled "$titleStr" for $dateStr.',
+        type: NotificationType.general,
+      );
+
+      // 2. Send Email Notification
+      if (studentEmail != null && studentEmail.isNotEmpty) {
+        await EmailSenderService.sendMentorshipNotificationEmail(
+          recipientEmail: studentEmail,
+          recipientName: sName,
+          educatorName: educatorName,
+          meetingTitle: titleStr,
+          timeStr: dateStr,
+          conferenceApp: conferenceApp,
+          meetingLink: meetingLink,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error sending mentorship notification/email: $e');
+    }
   }
 
   Future<void> cancelMentorshipSession(String sessionId) async {
     await _firestore.collection('mentorship_sessions').doc(sessionId).delete();
+  }
+
+  Future<void> deleteMentorshipSession(String sessionId) async {
+    await _firestore.collection('mentorship_sessions').doc(sessionId).delete();
+  }
+
+  Future<void> completeMentorshipSession(String sessionId) async {
+    await _firestore.collection('mentorship_sessions').doc(sessionId).update({
+      'status': 'completed',
+      'completedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateMentorshipSession({
+    required String sessionId,
+    required String studentId,
+    required String studentName,
+    required DateTime startTime,
+    required DateTime endTime,
+    required String meetingLink,
+    String conferenceApp = 'google_meet',
+    String meetingTitle = '',
+  }) async {
+    await _firestore.collection('mentorship_sessions').doc(sessionId).update({
+      'studentId': studentId,
+      'studentName': studentName,
+      'startTime': Timestamp.fromDate(startTime),
+      'endTime': Timestamp.fromDate(endTime),
+      'meetingLink': meetingLink,
+      'conferenceApp': conferenceApp,
+      'meetingTitle': meetingTitle,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Stream<List<Map<String, dynamic>>> streamEducatorMentorshipSessions(String educatorId) {
@@ -628,6 +704,7 @@ class DatabaseService {
     bool isMembersOnly = false,
     bool isGrammaticaLesson = false,
     String? quizId,
+    String? imageUrl,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     // Determine initial status based on role
@@ -655,6 +732,7 @@ class DatabaseService {
       'isMembersOnly': isMembersOnly,
       'isGrammaticaLesson': isGrammaticaLesson,
       'quizId': quizId,
+      'imageUrl': imageUrl,
     });
     return doc.id;
   }
@@ -684,6 +762,7 @@ class DatabaseService {
     bool? isMembersOnly,
     bool? isGrammaticaLesson,
     String? quizId,
+    String? imageUrl,
   }) async {
     if (prompt != null) {
       final doc = await _lessons.doc(id).get();
@@ -711,6 +790,7 @@ class DatabaseService {
       data['isGrammaticaLesson'] = isGrammaticaLesson;
     }
     data['quizId'] = quizId;
+    if (imageUrl != null) data['imageUrl'] = imageUrl;
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
     }

@@ -129,6 +129,60 @@ class EmailSenderService {
     );
   }
 
+  static Future<bool> sendMentorshipNotificationEmail({
+    required String recipientEmail,
+    required String recipientName,
+    required String educatorName,
+    required String meetingTitle,
+    required String timeStr,
+    required String conferenceApp,
+    required String meetingLink,
+  }) async {
+    String appName = 'Google Meet';
+    if (conferenceApp.toLowerCase().contains('zoom')) appName = 'Zoom';
+    if (conferenceApp.toLowerCase().contains('team')) appName = 'MS Teams';
+
+    final subject = '📅 Mentorship Session Scheduled: $meetingTitle with $educatorName';
+    final body = """
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f4f7f6; padding: 20px; border-radius: 12px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h1 style="color: #81B655; margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -1px;">Grammatica</h1>
+        <p style="color: #666; font-size: 15px; margin-top: 5px;">Personalized Language Learning</p>
+      </div>
+      
+      <div style="background-color: white; padding: 36px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06); border-top: 4px solid #3B82F6;">
+        <h2 style="color: #1E293B; margin-top: 0; font-size: 22px;">📅 Mentorship Session Scheduled!</h2>
+        
+        <p style="color: #475569; font-size: 16px; line-height: 1.6;">Hi <strong>$recipientName</strong>,</p>
+        
+        <p style="color: #475569; font-size: 16px; line-height: 1.6;">Your educator <strong>$educatorName</strong> has scheduled a mentorship session with you on Grammatica!</p>
+        
+        <div style="background-color: #f0f9ff; padding: 20px; border-radius: 12px; margin: 24px 0; border: 1px solid #bae6fd;">
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #0369a1;"><strong>Topic:</strong> $meetingTitle</p>
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #0369a1;"><strong>Date & Time:</strong> $timeStr</p>
+          <p style="margin: 0; font-size: 14px; color: #0369a1;"><strong>Platform:</strong> $appName</p>
+        </div>
+
+        ${meetingLink.isNotEmpty ? '''
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="$meetingLink" target="_blank" style="background-color: #3B82F6; color: white; padding: 14px 28px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">Join Session on $appName</a>
+        </div>
+        ''' : ''}
+
+        <p style="color: #64748b; font-size: 14px; line-height: 1.6;">You can also access this session directly from your <strong>Grammatica Subscriptions Dashboard</strong> or your educator's profile page.</p>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+        <p style="color: #94a3b8; font-size: 12px; text-align: center; margin: 0;">Sent with ❤️ by the Grammatica Team</p>
+      </div>
+    </div>
+    """;
+
+    return await sendEmail(
+      toEmail: recipientEmail,
+      subject: subject,
+      body: body,
+    );
+  }
+
   static Future<bool> sendEmail({
     required String toEmail,
     required String subject,
@@ -140,7 +194,7 @@ class EmailSenderService {
     if (kIsWeb) {
       try {
         final response = await http.post(
-          Uri.parse('http://localhost:8081/send-generic'), // We should update relay to support this!
+          Uri.parse('http://localhost:8081/send-generic'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'smtpEmail': _smtpEmail,
@@ -155,13 +209,10 @@ class EmailSenderService {
           return true;
         } else {
           debugPrint('HTTP Generic Relay failed: ${response.body}');
-          // If the relay doesn't support generic /send-generic yet, try to fallback to /send
-          // but we will lose the custom subject/body. Better to update relay.
           return false;
         }
       } catch (e) {
         debugPrint("Local relay error: $e");
-        debugPrint("TIP: If you are testing on Web, you MUST run: dart scripts/local_email_relay.dart");
         return false; 
       }
     }
@@ -177,7 +228,7 @@ class EmailSenderService {
       await send(message, smtpServer);
       return true;
     } catch (e) {
-      debugPrint('Error sending email: \$e');
+      debugPrint('Error sending email: $e');
       return false;
     }
   }

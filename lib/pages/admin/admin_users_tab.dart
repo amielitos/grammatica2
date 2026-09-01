@@ -14,6 +14,7 @@ class AdminUsersTab extends StatefulWidget {
 class _AdminUsersTabState extends State<AdminUsersTab> {
   String _searchQuery = '';
   String _selectedFilter = 'Create Date';
+  String _selectedRoleFilter = 'ALL';
 
   final List<String> _filterOptions = ['Name', 'Role', 'Status', 'Create Date'];
 
@@ -42,10 +43,15 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             var users = List<Map<String, dynamic>>.from(allUsers);
 
             // Calculate Counts
-            final adminCount = allUsers.where((u) => u['role'] == 'ADMIN').length;
-            final validatorCount = allUsers.where((u) => u['role'] == 'VALIDATOR').length;
-            final educatorCount = allUsers.where((u) => u['role'] == 'EDUCATOR').length;
-            final learnerCount = allUsers.where((u) => u['role'] == 'LEARNER').length;
+            final adminCount = allUsers.where((u) => (u['role'] ?? '').toString().toUpperCase() == 'ADMIN').length;
+            final validatorCount = allUsers.where((u) => (u['role'] ?? '').toString().toUpperCase() == 'VALIDATOR').length;
+            final educatorCount = allUsers.where((u) => (u['role'] ?? '').toString().toUpperCase() == 'EDUCATOR').length;
+            final learnerCount = allUsers.where((u) => (u['role'] ?? '').toString().toUpperCase() == 'LEARNER').length;
+
+            // Filter by role if selected
+            if (_selectedRoleFilter != 'ALL') {
+              users = users.where((u) => (u['role'] ?? '').toString().toUpperCase() == _selectedRoleFilter).toList();
+            }
 
             if (_searchQuery.isNotEmpty) {
               final query = _searchQuery.toLowerCase();
@@ -131,7 +137,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   ),
                   const SizedBox(height: 24),
 
-                  // ── Stat Cards ───────────────────────────────────────
+                  // ── Stat Cards (Interactive Role Filters) ─────────────
                   Row(
                     children: [
                       _buildStatCard(
@@ -139,6 +145,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         count: adminCount,
                         icon: Icons.shield_rounded,
                         color: const Color(0xFF8B5CF6),
+                        roleKey: 'ADMIN',
                       ),
                       const SizedBox(width: 16),
                       _buildStatCard(
@@ -146,6 +153,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         count: validatorCount,
                         icon: Icons.verified_rounded,
                         color: const Color(0xFF3B82F6),
+                        roleKey: 'VALIDATOR',
                       ),
                       const SizedBox(width: 16),
                       _buildStatCard(
@@ -153,6 +161,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         count: educatorCount,
                         icon: Icons.school_rounded,
                         color: const Color(0xFF81B655),
+                        roleKey: 'EDUCATOR',
                       ),
                       const SizedBox(width: 16),
                       _buildStatCard(
@@ -160,10 +169,30 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         count: learnerCount,
                         icon: Icons.person_rounded,
                         color: const Color(0xFFF59E0B),
+                        roleKey: 'LEARNER',
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
+
+                  // ── Segmented Role Filter Tabs ────────────────────────
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildRoleChip('ALL', 'All Users', allUsers.length, const Color(0xFF64748B)),
+                        const SizedBox(width: 8),
+                        _buildRoleChip('ADMIN', 'Admins', adminCount, const Color(0xFF8B5CF6)),
+                        const SizedBox(width: 8),
+                        _buildRoleChip('VALIDATOR', 'Validators', validatorCount, const Color(0xFF3B82F6)),
+                        const SizedBox(width: 8),
+                        _buildRoleChip('EDUCATOR', 'Educators', educatorCount, const Color(0xFF81B655)),
+                        const SizedBox(width: 8),
+                        _buildRoleChip('LEARNER', 'Learners', learnerCount, const Color(0xFFF59E0B)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
                   // ── Search & Filter Bar ──────────────────────────────
                   Row(
@@ -275,10 +304,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                               _tableH('Email', 4),
                               _tableH('Role', 2),
                               _tableH('Status', 2),
-                              _tableH('Subscription', 2),
                               _tableH('Educ. Dates', 3),
-                              _tableH('Change Role', 2),
-                              _tableH('Action', 2, center: true),
+                              _tableH('Action', 3, center: true),
                             ],
                           ),
                         ),
@@ -330,58 +357,140 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     );
   }
 
+  Widget _buildRoleChip(String roleKey, String label, int count, Color color) {
+    final isSelected = _selectedRoleFilter == roleKey;
+    return InkWell(
+      onTap: () => setState(() => _selectedRoleFilter = roleKey),
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? color : color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? color : color.withValues(alpha: 0.2),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? Colors.white : Colors.black87,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white.withValues(alpha: 0.25) : color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: isSelected ? Colors.white : color,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatCard({
     required String label,
     required int count,
     required IconData icon,
     required Color color,
+    required String roleKey,
   }) {
+    final isSelected = _selectedRoleFilter == roleKey;
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: color.withValues(alpha: 0.18)),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 5),
+      child: InkWell(
+        onTap: () => setState(() {
+          _selectedRoleFilter = isSelected ? 'ALL' : roleKey;
+        }),
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 18),
+          decoration: BoxDecoration(
+            color: isSelected ? color.withValues(alpha: 0.05) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isSelected ? color : color.withValues(alpha: 0.18),
+              width: isSelected ? 2.5 : 1,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: isSelected ? 0.16 : 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 5),
               ),
-              child: Icon(icon, color: color, size: 18),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              '$count',
-              style: GoogleFonts.outfit(
-                fontSize: 30,
-                fontWeight: FontWeight.w900,
-                color: Colors.black87,
-                height: 1,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: color, size: 18),
+                  ),
+                  if (isSelected)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'FILTERED',
+                        style: GoogleFonts.outfit(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade500,
+              const SizedBox(height: 14),
+              Text(
+                '$count',
+                style: GoogleFonts.outfit(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.black87,
+                  height: 1,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -478,7 +587,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final uid = (u['uid'] ?? 'N/A') as String;
     final username = (u['username'] ?? 'N/A') as String;
     final status = (u['status'] ?? 'N/A') as String;
-    final subscription = (u['subscription_status'] ?? 'NONE') as String;
 
     final educStart = u['educatorStartDate'] != null ? _formatTs(u['educatorStartDate']) : 'N/A';
     final educEnd = u['educatorEndDate'] != null ? _formatTs(u['educatorEndDate']) : 'Present';
@@ -587,15 +695,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             ),
           ),
 
-          // ── Subscription ──────────────────────────────────────────
-          Expanded(
-            flex: 2,
-            child: Text(
-              subscription.toUpperCase(),
-              style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
-            ),
-          ),
-
           // ── Educ Dates ────────────────────────────────────────────
           Expanded(
             flex: 3,
@@ -605,72 +704,50 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             ),
           ),
 
-          // ── Role Dropdown ─────────────────────────────────────────
+          // ── Action Buttons ─────────────────────────────────────────
           Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<UserRole>(
-                  isExpanded: true,
-                  value: roleFromString(role),
-                  icon: const Icon(Icons.expand_more, size: 16, color: Colors.grey),
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  items: UserRole.values
-                      .where((r) => r != UserRole.superadmin)
-                      .map((r) => DropdownMenuItem(
-                            value: r,
-                            child: Text(
-                              roleToString(r).toUpperCase(),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ))
-                      .toList(),
-                  onChanged: (newRole) async {
-                    if (newRole != null && roleToString(newRole) != role) {
-                      await RoleService.instance.setUserRole(uid: uid, role: newRole);
-                    }
-                  },
-                ),
-              ),
-            ),
-          ),
-
-          // ── Status Toggle Button ──────────────────────────────────
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: ElevatedButton(
-                onPressed: () => _showStatusToggleConfirmation(uid, username, status),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isActive
-                      ? Colors.orange.shade50
-                      : const Color(0xFF81B655).withValues(alpha: 0.10),
-                  foregroundColor: isActive ? Colors.orange.shade700 : const Color(0xFF81B655),
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  side: BorderSide(
-                    color: isActive ? Colors.orange.shade200 : const Color(0xFF81B655).withValues(alpha: 0.3),
-                  ),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  textStyle: GoogleFonts.outfit(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+            flex: 3,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Change Role Button
+                Tooltip(
+                  message: 'Change Role',
+                  child: IconButton(
+                    icon: const Icon(Icons.manage_accounts_rounded, size: 18),
+                    color: const Color(0xFF4B49AC),
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFF4B49AC).withValues(alpha: 0.10),
+                      padding: const EdgeInsets.all(8),
+                      minimumSize: const Size(32, 32),
+                    ),
+                    onPressed: () => _showChangeRoleDialog(uid, username, role),
                   ),
                 ),
-                child: Text(isActive ? 'DEACTIVATE' : 'ACTIVATE'),
-              ),
+                const SizedBox(width: 6),
+                // Status Toggle Button
+                ElevatedButton(
+                  onPressed: () => _showStatusToggleConfirmation(uid, username, status),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isActive
+                        ? Colors.orange.shade50
+                        : const Color(0xFF81B655).withValues(alpha: 0.10),
+                    foregroundColor: isActive ? Colors.orange.shade700 : const Color(0xFF81B655),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    side: BorderSide(
+                      color: isActive ? Colors.orange.shade200 : const Color(0xFF81B655).withValues(alpha: 0.3),
+                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    textStyle: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  child: Text(isActive ? 'DEACTIVATE' : 'ACTIVATE'),
+                ),
+              ],
             ),
           ),
         ],
@@ -689,6 +766,192 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       default:
         return const Color(0xFFF59E0B);
     }
+  }
+
+  void _showChangeRoleDialog(String uid, String username, String currentRoleStr) {
+    String selectedRole = currentRoleStr.toUpperCase();
+    final roles = [
+      {
+        'key': 'LEARNER',
+        'label': 'Learner',
+        'desc': 'Standard student learning account',
+        'icon': Icons.person_rounded,
+        'color': const Color(0xFFF59E0B),
+      },
+      {
+        'key': 'EDUCATOR',
+        'label': 'Educator',
+        'desc': 'Can host mentorships & create contents',
+        'icon': Icons.school_rounded,
+        'color': const Color(0xFF81B655),
+      },
+      {
+        'key': 'VALIDATOR',
+        'label': 'Validator',
+        'desc': 'Can review & validate quiz questions',
+        'icon': Icons.verified_rounded,
+        'color': const Color(0xFF3B82F6),
+      },
+      {
+        'key': 'ADMIN',
+        'label': 'Admin',
+        'desc': 'Full administrative platform control',
+        'icon': Icons.shield_rounded,
+        'color': const Color(0xFF8B5CF6),
+      },
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            width: 420,
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4B49AC).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.manage_accounts_rounded, color: Color(0xFF4B49AC), size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Change User Role',
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 18, color: Colors.black87),
+                          ),
+                          Text(
+                            'Select new role for $username',
+                            style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                ...roles.map((r) {
+                  final key = r['key'] as String;
+                  final isSelected = selectedRole == key;
+                  final color = r['color'] as Color;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: InkWell(
+                      onTap: () => setDialogState(() => selectedRole = key),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isSelected ? color.withValues(alpha: 0.08) : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected ? color : Colors.grey.shade200,
+                            width: isSelected ? 2 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(r['icon'] as IconData, color: color, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    r['label'] as String,
+                                    style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.black87),
+                                  ),
+                                  Text(
+                                    r['desc'] as String,
+                                    style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isSelected ? color : Colors.transparent,
+                                border: Border.all(
+                                  color: isSelected ? color : Colors.grey.shade400,
+                                  width: isSelected ? 6 : 2,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.black54,
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          Navigator.pop(context);
+                          try {
+                            final newRole = roleFromString(selectedRole);
+                            await RoleService.instance.setUserRole(uid: uid, role: newRole);
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('$username\'s role updated to $selectedRole ✓'),
+                                backgroundColor: const Color(0xFF81B655),
+                              ),
+                            );
+                          } catch (e) {
+                            messenger.showSnackBar(
+                              SnackBar(content: Text('Error updating role: $e'), backgroundColor: Colors.red),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4B49AC),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text('Save Role', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _showStatusToggleConfirmation(

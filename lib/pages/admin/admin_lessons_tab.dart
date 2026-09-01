@@ -104,6 +104,11 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   final _quizKey = GlobalKey<AdminQuizzesTabState>();
   String? _selectedQuizId;
 
+  // Title Page (Cover) Image
+  String? _lessonImageUrl;
+  Uint8List? _pendingTitleImageBytes;
+  String? _pendingTitleImageFileName;
+
   // AI-generated & manual content blocks
   List<EditableContentBlock> _contentBlocks = [];
   List<EditableContentBlock> _cachedOriginalBlocks = [];
@@ -147,6 +152,9 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     _isGrammaticaLesson = l.isGrammaticaLesson;
     _visibleTo = l.visibleTo;
     _selectedQuizId = l.quizId;
+    _lessonImageUrl = l.imageUrl;
+    _pendingTitleImageBytes = null;
+    _pendingTitleImageFileName = null;
 
     if (l.isMembersOnly) {
       _visibility = ContentVisibility.membersOnly;
@@ -392,6 +400,8 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             isDark: isDark,
           ),
           const SizedBox(height: 24),
+          _buildTitlePageImagePicker(isDark),
+          const SizedBox(height: 24),
           _buildVisibilitySettings(role, isDark),
           const SizedBox(height: 32),
           
@@ -500,6 +510,115 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         ),
       ),
     );
+  }
+
+  Widget _buildTitlePageImagePicker(bool isDark) {
+    final hasImage = _pendingTitleImageBytes != null || (_lessonImageUrl != null && _lessonImageUrl!.isNotEmpty);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Title Page (Cover Image)'),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _pickTitlePageImage,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: double.infinity,
+            height: 140,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: hasImage ? AppColors.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
+                width: hasImage ? 2 : 1,
+              ),
+            ),
+            child: hasImage
+                ? Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: _pendingTitleImageBytes != null
+                            ? Image.memory(_pendingTitleImageBytes!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+                            : Image.network(_lessonImageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.black54,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.close, size: 16, color: Colors.white),
+                            onPressed: () {
+                              setState(() {
+                                _pendingTitleImageBytes = null;
+                                _pendingTitleImageFileName = null;
+                                _lessonImageUrl = null;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_photo_alternate_rounded, size: 36, color: isDark ? Colors.white54 : AppColors.primary),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Upload Title Page Image',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'JPG or PNG recommended',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: isDark ? Colors.white30 : Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickTitlePageImage() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final platformFile = result.files.single;
+      List<int> bytes;
+      if (platformFile.bytes != null) {
+        bytes = platformFile.bytes!;
+      } else if (platformFile.path != null) {
+        bytes = await File(platformFile.path!).readAsBytes();
+      } else {
+        throw Exception('Could not read image file data');
+      }
+      setState(() {
+        _pendingTitleImageBytes = Uint8List.fromList(bytes);
+        _pendingTitleImageFileName = platformFile.name;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error selecting cover image: $e')),
+        );
+      }
+    }
   }
 
   Widget _label(String text) {
@@ -1257,6 +1376,9 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     _selectedQuizId = null;
     _title.clear();
     _prompt.clear();
+    _lessonImageUrl = null;
+    _pendingTitleImageBytes = null;
+    _pendingTitleImageFileName = null;
     for (final block in _contentBlocks) {
       block.textCtrl.dispose();
     }
@@ -1294,6 +1416,23 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         final savedQuizId = await _quizKey.currentState!.saveForLesson();
         if (savedQuizId != null) {
           finalQuizId = savedQuizId;
+        }
+      }
+
+      // Upload pending title cover image if present
+      if (_pendingTitleImageBytes != null) {
+        try {
+          final fileName = _pendingTitleImageFileName ?? 'cover_${DateTime.now().millisecondsSinceEpoch}.png';
+          final url = await DatabaseService.instance.uploadGeneratedImage(
+            _pendingTitleImageBytes!,
+            fileName,
+            folder: 'lesson_covers',
+          );
+          _lessonImageUrl = url;
+          _pendingTitleImageBytes = null;
+          _pendingTitleImageFileName = null;
+        } catch (e) {
+          debugPrint('Title image upload error (non-fatal): $e');
         }
       }
 
@@ -1339,6 +1478,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         isMembersOnly: _isMembersOnly,
         isGrammaticaLesson: _isGrammaticaLesson,
         quizId: finalQuizId, 
+        imageUrl: _lessonImageUrl,
         createdAt: _selectedLesson?.createdAt ?? Timestamp.now(),
       );
 
@@ -1352,6 +1492,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           isMembersOnly: lessonData.isMembersOnly,
           isGrammaticaLesson: lessonData.isGrammaticaLesson,
           quizId: lessonData.quizId,
+          imageUrl: lessonData.imageUrl,
         );
       } else {
         await DatabaseService.instance.updateLesson(
@@ -1364,6 +1505,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           isMembersOnly: lessonData.isMembersOnly,
           isGrammaticaLesson: lessonData.isGrammaticaLesson,
           quizId: lessonData.quizId,
+          imageUrl: lessonData.imageUrl,
         );
       }
       _resetForm();

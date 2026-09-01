@@ -7,8 +7,6 @@ import 'admin/lessons_list_tab.dart';
 import 'admin/admin_validation_tab.dart';
 import '../../services/role_service.dart';
 import '../widgets/modern_bottom_nav.dart';
-import 'browse_educators_tab.dart';
-import 'admin/educator_groups_tab.dart';
 import 'practice_tab.dart';
 import '../widgets/notification_widgets.dart';
 
@@ -234,14 +232,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       );
       navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
 
-      // Premium Group (Educator & Admin)
-      if (isEducator || isAdmin) {
-        tabs.add(EducatorGroupsTab(user: widget.user));
-        navItems.add(
-          const ModernNavItem(icon: Icons.group, label: 'Premium Group'),
-        );
-      }
-
       // Practice (Admin only) or English Assessment (Educator)
       if (isAdmin) {
         tabs.add(const PracticeTab());
@@ -269,16 +259,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
             icon: Icons.auto_awesome,
             label: 'Practice',
           ),
-        );
-      }
-
-      // AI Studio has been migrated to Content and Practice tabs
-      // AI Studio (Removed)
-
-      if (!isEducator) {
-        tabs.add(BrowseEducatorsTab(user: widget.user));
-        navItems.add(
-          const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
         );
       }
     }
@@ -325,6 +305,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         user: widget.user,
         userData: widget.userData,
         currentIndex: _index,
+        navItems: navItems,
         onTap: (i) {
           setState(() {
             _initialPracticeSubTab = null;

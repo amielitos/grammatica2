@@ -79,6 +79,11 @@ class _LessonsListTabState extends State<LessonsListTab> {
 
             var lessons = snapshot.data!.toList();
 
+            // Admin / Superadmin only see official Grammatica lessons
+            if (role == UserRole.admin || role == UserRole.superadmin) {
+              lessons = lessons.where((l) => l.isGrammaticaLesson == true).toList();
+            }
+
             // Educators only see their own lessons
             if (role == UserRole.educator && user != null) {
               lessons = lessons.where((l) => l.createdByUid == user.uid).toList();
@@ -592,6 +597,19 @@ class _LessonCardState extends State<_LessonCard> {
                       ),
                   ],
                 ),
+                if (widget.lesson.imageUrl != null && widget.lesson.imageUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      widget.lesson.imageUrl!,
+                      height: 110,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
 
                 // ── Title ──

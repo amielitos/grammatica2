@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/database_service.dart';
 import '../pages/lesson_page.dart';
 import '../widgets/subscription_tier_dialog.dart';
@@ -337,6 +339,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       children: [
+                        _buildMentorshipBanner(uid, isDark, cardBg, borderColor, textColor, subtitleColor),
                         // Tab Selector Pills
                         Container(
                           padding: const EdgeInsets.all(4),
@@ -1074,6 +1077,196 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMentorshipBanner(
+    String educatorUid,
+    bool isDark,
+    Color cardBg,
+    Color borderColor,
+    Color textColor,
+    Color subtitleColor,
+  ) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: DatabaseService.instance.streamStudentMentorshipSessions(widget.currentUser.uid),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final eduSessions = snapshot.data!.where((s) =>
+          s['educatorId'] == educatorUid &&
+          (s['status'] ?? 'scheduled').toString().toLowerCase() != 'cancelled'
+        ).toList();
+
+        if (eduSessions.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.5), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF3B82F6).withValues(alpha: isDark ? 0.08 : 0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.video_call_rounded, color: Color(0xFF3B82F6), size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Scheduled Mentorship Session',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: textColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...eduSessions.map((s) {
+                final title = s['meetingTitle'] as String? ?? 'Mentorship Meeting';
+                final app = s['conferenceApp'] as String? ?? 'google_meet';
+                final link = s['meetingLink'] as String? ?? '';
+                final startTime = (s['startTime'] as Timestamp?)?.toDate();
+                final endTime = (s['endTime'] as Timestamp?)?.toDate();
+                final dateStr = startTime != null ? DateFormat('EEE, MMM d, yyyy').format(startTime) : '';
+                final timeStr = (startTime != null && endTime != null)
+                    ? '${DateFormat('h:mm a').format(startTime)} - ${DateFormat('h:mm a').format(endTime)}'
+                    : '';
+
+                return Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title.isNotEmpty ? title : 'Mentorship Consultation',
+                              style: GoogleFonts.outfit(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                          _buildConferenceBadge(app),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today_rounded, size: 14, color: const Color(0xFF81B655)),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$dateStr  •  $timeStr',
+                            style: GoogleFonts.inter(
+                              fontSize: 12.5,
+                              color: subtitleColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (link.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 38,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                            label: Text(
+                              'Open Conference App',
+                              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B82F6),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () async {
+                              final uri = Uri.parse(link);
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildConferenceBadge(String app) {
+    final normApp = app.toLowerCase();
+    String name;
+    Color bg;
+    IconData icon;
+
+    if (normApp.contains('zoom')) {
+      name = 'Zoom';
+      bg = const Color(0xFF2D8CFF);
+      icon = Icons.videocam_rounded;
+    } else if (normApp.contains('team')) {
+      name = 'MS Teams';
+      bg = const Color(0xFF5B5FC7);
+      icon = Icons.groups_rounded;
+    } else {
+      name = 'Google Meet';
+      bg = const Color(0xFF00832D);
+      icon = Icons.video_call_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: bg.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: bg),
+          const SizedBox(width: 4),
+          Text(
+            name,
+            style: GoogleFonts.outfit(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: bg,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -143,7 +143,6 @@ class _StatsRow extends StatelessWidget {
       builder: (context, userSnap) {
         final uData = userSnap.data?.data() as Map<String, dynamic>? ?? {};
         final avgRating = (uData['averageRating'] ?? 0.0).toDouble();
-        final subscriberCount = (uData['subscriberCount'] ?? 0) as int;
 
         return StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
@@ -153,30 +152,42 @@ class _StatsRow extends StatelessWidget {
           builder: (context, lessonSnap) {
             final lessonCount = lessonSnap.data?.docs.length ?? 0;
 
-            return Wrap(
-              spacing: 24,
-              runSpacing: 24,
-              alignment: WrapAlignment.center,
-              children: [
-                _StatCard(
-                  label: 'Total Lessons',
-                  value: lessonCount.toString(),
-                  icon: Icons.book_rounded,
-                  color: AppColors.primary,
-                ),
-                _StatCard(
-                  label: 'Educator Rating',
-                  value: avgRating.toStringAsFixed(1),
-                  icon: Icons.star_rounded,
-                  color: const Color(0xFFF5A623),
-                ),
-                _StatCard(
-                  label: 'Subscribers',
-                  value: subscriberCount.toString(),
-                  icon: Icons.people_alt_rounded,
-                  color: const Color(0xFF4A90E2),
-                ),
-              ],
+            // Live subscriber count from correct subcollection path
+            return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .collection('subscribers')
+                  .snapshots(),
+              builder: (context, subSnap) {
+                final subscriberCount = subSnap.data?.docs.length ?? 0;
+
+                return Wrap(
+                  spacing: 24,
+                  runSpacing: 24,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _StatCard(
+                      label: 'Total Lessons',
+                      value: lessonCount.toString(),
+                      icon: Icons.book_rounded,
+                      color: AppColors.primary,
+                    ),
+                    _StatCard(
+                      label: 'Educator Rating',
+                      value: avgRating.toStringAsFixed(1),
+                      icon: Icons.star_rounded,
+                      color: const Color(0xFFF5A623),
+                    ),
+                    _StatCard(
+                      label: 'Subscribers',
+                      value: subscriberCount.toString(),
+                      icon: Icons.people_alt_rounded,
+                      color: const Color(0xFF4A90E2),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
