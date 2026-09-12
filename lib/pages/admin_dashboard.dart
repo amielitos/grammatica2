@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'profile_page.dart';
 import 'admin/admin_users_tab.dart';
-import 'admin/admin_lessons_tab.dart';
 import 'admin/lessons_list_tab.dart';
 import 'admin/admin_validation_tab.dart';
 import '../../services/role_service.dart';
@@ -21,6 +20,7 @@ import '../widgets/universal_drawer.dart';
 import 'admin/validator_dashboard_tab.dart';
 import 'admin/educator_dashboard_tab.dart';
 import 'admin/admin_landing_settings_tab.dart';
+import 'notebook/notebook_list_page.dart';
 
 import 'dart:async';
 
@@ -47,8 +47,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _initialValidationTabIndex = 0;
   int? _initialPracticeSubTab;
   bool _initialPracticeShowEditor = false;
-  Lesson? _editingLesson;
-  int _editingLessonTabIndex = 0;
   StreamSubscription? _notifSubscription;
   final Set<String> _notifiedIds = {};
 
@@ -88,29 +86,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void dispose() {
     _notifSubscription?.cancel();
     super.dispose();
-  }
-
-  void _showEditLessonModal(BuildContext context, Lesson lesson, int tabIndex) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog.fullscreen(
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text('Edit Lesson: ${lesson.title}'),
-            leading: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          body: AdminLessonsTab(
-            initialLesson: lesson,
-            initialTabIndex: tabIndex,
-            onReset: () => Navigator.pop(context),
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -190,52 +165,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
       }
 
-      // Manage Lessons (Admin / Educator only)
-      int? manageLessonsIndex;
-      if (isAdmin || isEducator) {
-        manageLessonsIndex = tabs.length;
-        tabs.add(
-          AdminLessonsTab(
-            initialLesson: _editingLesson,
-            initialTabIndex: _editingLessonTabIndex,
-            onReset: () => setState(() {
-              _editingLesson = null;
-              _editingLessonTabIndex = 0;
-            }),
-          ),
-        );
-        navItems.add(
-          const ModernNavItem(icon: Icons.edit_document, label: 'Contents'),
-        );
-      }
-
       // Lessons List / Content (Admin / Educator)
-      tabs.add(
-        LessonsListTab(
-          onEdit: (l) {
-            if (isEducator) {
-              _showEditLessonModal(context, l, 0);
-            } else if (manageLessonsIndex != null) {
-              setState(() {
-                _editingLesson = l;
-                _editingLessonTabIndex = 0;
-                _index = manageLessonsIndex!;
-              });
-            }
-          },
-          onEditQuiz: (l) {
-            if (isEducator) {
-              _showEditLessonModal(context, l, 1);
-            } else if (manageLessonsIndex != null) {
-              setState(() {
-                _editingLesson = l;
-                _editingLessonTabIndex = 1; // Show Quizzes tab
-                _index = manageLessonsIndex!;
-              });
-            }
-          },
-        ),
-      );
+      tabs.add(const LessonsListTab());
       navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
 
       // Premium Group (Educator & Admin)
@@ -276,8 +207,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
       }
 
-      // AI Studio has been migrated to Content and Practice tabs
-      // AI Studio (Removed)
+      // AI Notebooks workspace (Educator & Admin)
+      if (isAdmin || isEducator) {
+        tabs.add(const NotebookListPage());
+        navItems.add(
+          const ModernNavItem(
+            icon: Icons.auto_stories_rounded,
+            label: 'AI Notebooks',
+          ),
+        );
+      }
 
       if (!isEducator) {
         tabs.add(BrowseEducatorsTab(user: widget.user));

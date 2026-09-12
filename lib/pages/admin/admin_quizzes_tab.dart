@@ -7,9 +7,12 @@ import '../../models/ai_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../../widgets/user_visibility_selector.dart';
-import '../../services/ai_logic_service.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import '../../services/ai_logic_service.dart';
+import '../../models/notebook_models.dart';
+import '../../widgets/notebook/notebook_selector_dialog.dart';
+import '../notebook/notebook_list_page.dart';
 
 class AdminQuizzesTab extends StatefulWidget {
   final bool isEmbedded;
@@ -963,7 +966,86 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               color: const Color(0xFF2A2A2A),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+
+          // AI Notebook Studio Bridge
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF88B342).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF88B342).withValues(alpha: 0.25)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.auto_awesome_rounded, color: Color(0xFF88B342), size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'AI Notebook Studio',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: const Color(0xFF2A2A2A),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Synthesize multi-source documents into quizzes or reading assessments, or import drafts here to review and publish.',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: _openNotebookSelectorForQuiz,
+                      icon: const Icon(Icons.download_rounded, size: 16),
+                      label: const Text('Import from AI Notebook'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF88B342),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NotebookListPage()),
+                        );
+                      },
+                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                      label: const Text('Open Notebook Studio'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF2A2A2A),
+                        side: BorderSide(color: Colors.grey.shade400),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Divider(),
+          const SizedBox(height: 12),
+
+          Text('Single Source Generator', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A))),
+          const SizedBox(height: 10),
 
           // Question Types Checkboxes
           Text('Question Types', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
@@ -1215,6 +1297,39 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               ],
             ),
         ],
+      ),
+    );
+  }
+
+  void importFromNotebookOutput(NotebookOutput output) {
+    final quiz = AIQuizResponse.fromNotebookOutput(output);
+    setState(() {
+      _title.text = quiz.title ?? 'Generated Quiz';
+      _description.text = 'Synthesized from AI Notebook documents';
+      if (quiz.durationMinutes != null && quiz.durationMinutes! > 0) {
+        final h = quiz.durationMinutes! ~/ 60;
+        final m = quiz.durationMinutes! % 60;
+        _durationCtrl.text = '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:00';
+      }
+      for (final q in _questions) {
+        q.dispose();
+      }
+      final quizQuestions = quiz.toQuizQuestions();
+      _questions = quizQuestions.map((q) => _loadQuestionState(q)).toList();
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Successfully imported ${quiz.questions.length} questions from AI Notebook!')),
+      );
+    }
+  }
+
+  void _openNotebookSelectorForQuiz() {
+    showDialog(
+      context: context,
+      builder: (_) => NotebookSelectorDialog(
+        targetType: NotebookOutputType.quiz,
+        onOutputSelected: importFromNotebookOutput,
       ),
     );
   }

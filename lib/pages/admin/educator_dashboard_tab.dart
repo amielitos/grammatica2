@@ -303,32 +303,32 @@ class _QuickActionsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final actions = [
       _ActionItem(
-        label: 'Create Lesson',
-        description: 'Write & publish a new lesson',
-        icon: Icons.add_circle_outline_rounded,
+        label: 'AI Notebooks',
+        description: 'Create lessons, quizzes & study aids',
+        icon: Icons.auto_stories_rounded,
         color: AppColors.primary,
-        onTap: () => onTabChange?.call(1),
+        onTap: () => onTabChange?.call(4),
       ),
       _ActionItem(
         label: 'My Lessons',
-        description: 'View & edit existing content',
+        description: 'View published curriculum lessons',
         icon: Icons.library_books_rounded,
         color: const Color(0xFF4A90E2),
-        onTap: () => onTabChange?.call(2),
+        onTap: () => onTabChange?.call(1),
       ),
       _ActionItem(
         label: 'Mentorship',
         description: 'Manage student sessions',
         icon: Icons.event_rounded,
         color: const Color(0xFF9B59B6),
-        onTap: () => onTabChange?.call(3),
+        onTap: () => onTabChange?.call(2),
       ),
       _ActionItem(
-        label: 'My Quizzes',
-        description: 'Browse & manage your quizzes',
-        icon: Icons.quiz_rounded,
+        label: 'Practice & Quizzes',
+        description: 'Interactive student practice',
+        icon: Icons.auto_awesome_rounded,
         color: const Color(0xFFF5A623),
-        onTap: () => onTabChange?.call(1),
+        onTap: () => onTabChange?.call(3),
       ),
     ];
 
@@ -493,7 +493,7 @@ class _RecentLessonsList extends StatelessWidget {
 
         return Column(
           children: recentLessons
-              .map((l) => _LessonRow(lesson: l, onTap: () => onTabChange?.call(2)))
+              .map((l) => _LessonRow(lesson: l, onTap: () => onTabChange?.call(1)))
               .toList(),
         );
       },
@@ -534,7 +534,7 @@ class _RecentLessonsList extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           ElevatedButton.icon(
-            onPressed: () => onTabChange?.call(1),
+            onPressed: () => onTabChange?.call(4),
             icon: const Icon(Icons.add_rounded),
             label: const Text('Create First Lesson'),
             style: ElevatedButton.styleFrom(
@@ -618,7 +618,7 @@ class _MyQuizzesSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
-                  onPressed: () => onTabChange?.call(1),
+                  onPressed: () => onTabChange?.call(4),
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Create Quiz'),
                   style: ElevatedButton.styleFrom(
@@ -708,8 +708,8 @@ class _MyQuizzesSection extends StatelessWidget {
                           ),
                         ),
                         TextButton(
-                          onPressed: () => onTabChange?.call(1),
-                          child: const Text('Manage'),
+                          onPressed: () => onTabChange?.call(3),
+                          child: const Text('Practice'),
                         ),
                       ],
                     ),

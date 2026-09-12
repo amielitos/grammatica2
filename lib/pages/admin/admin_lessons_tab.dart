@@ -17,6 +17,9 @@ import '../../models/ai_models.dart';
 
 import 'admin_quizzes_tab.dart'; 
 import 'admin_assessments_tab.dart';
+import '../../models/notebook_models.dart';
+import '../../widgets/notebook/notebook_selector_dialog.dart';
+import '../notebook/notebook_list_page.dart';
 
 class EditableContentBlock {
   final String id;
@@ -412,8 +415,85 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                     color: isDark ? Colors.white : const Color(0xFF2A2A2A),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text('Generate from Prompt or PDF Source', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF2A2A2A))),
+                const SizedBox(height: 14),
+
+                // AI Notebook Studio Bridge
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.auto_awesome_rounded, color: AppColors.primary, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'AI Notebook Studio',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isDark ? Colors.white : AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Synthesize multiple PDFs and sources in your local notebook, or import generated lesson drafts directly here.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isDark ? Colors.white70 : AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: _openNotebookSelectorForLesson,
+                            icon: const Icon(Icons.download_rounded, size: 16),
+                            label: const Text('Import from AI Notebook'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const NotebookListPage()),
+                              );
+                            },
+                            icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                            label: const Text('Open Notebook Studio'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: isDark ? Colors.white : const Color(0xFF2A2A2A),
+                              side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade400),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Divider(),
+                const SizedBox(height: 12),
+
+                Text('Quick Single-Source Generator', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF2A2A2A))),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 12,
@@ -1161,6 +1241,21 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         SnackBar(content: Text('Generated ${newBlocks.length} content blocks! Placeholders created for images.')),
       );
     }
+  }
+
+  void _openNotebookSelectorForLesson() {
+    showDialog(
+      context: context,
+      builder: (_) => NotebookSelectorDialog(
+        targetType: NotebookOutputType.lesson,
+        onOutputSelected: (output) {
+          final lessonResponse = AILessonResponse.fromNotebookOutput(output);
+          _title.text = lessonResponse.title;
+          _prompt.text = lessonResponse.toMarkdownContent();
+          _processGeneratedLesson(lessonResponse);
+        },
+      ),
+    );
   }
 
   Future<void> _generateFromTextPrompt() async {

@@ -6,6 +6,7 @@ import 'pronunciation_quiz_page.dart';
 import '../services/role_service.dart';
 import 'admin/admin_assessments_tab.dart';
 import 'ai_assessment_generator_page.dart';
+import 'notebook/learner_decks_page.dart';
 
 class PracticeTab extends StatefulWidget {
   final int? initialSubTab;
@@ -119,6 +120,12 @@ class _PracticeTabState extends State<PracticeTab> {
             ],
           );
         }
+        if (_selectedSubTab == 3) {
+          return LearnerDecksPage(
+            user: user,
+            onBack: () => setState(() => _selectedSubTab = null),
+          );
+        }
 
         return _PracticeToolsHome(
           onSelectTool: (index) => setState(() => _selectedSubTab = index),
@@ -173,7 +180,7 @@ class _PracticeToolsHome extends StatelessWidget {
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 520),
                   child: Text(
-                    'Choose a tool below to practice spelling, perfect your pronunciation, or take English assessments.',
+                    'Choose a tool below to practice spelling, perfect your pronunciation, review spaced-repetition decks, or take assessments.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 15,
@@ -190,44 +197,62 @@ class _PracticeToolsHome extends StatelessWidget {
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1100),
                   child: isDesktop
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.center,
+                      ? Column(
                           children: [
-                            Expanded(
-                              child: _PracticeCard(
-                                title: 'Spelling Bee',
-                                subtitle:
-                                    'Interactive spelling challenges with audio prompts across difficulty levels.',
-                                tag: 'VOCABULARY',
-                                icon: Icons.emoji_nature_rounded,
-                                themeColor: const Color(0xFFF59E0B),
-                                onTap: () => onSelectTool(0),
-                              ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _PracticeCard(
+                                    title: 'Spelling Bee',
+                                    subtitle:
+                                        'Interactive spelling challenges with audio prompts across difficulty levels.',
+                                    tag: 'VOCABULARY',
+                                    icon: Icons.emoji_nature_rounded,
+                                    themeColor: const Color(0xFFF59E0B),
+                                    onTap: () => onSelectTool(0),
+                                  ),
+                                ),
+                                const SizedBox(width: 24),
+                                Expanded(
+                                  child: _PracticeCard(
+                                    title: 'Pronunciation',
+                                    subtitle:
+                                        'Practice speaking with real-time speech recognition & accuracy scoring.',
+                                    tag: 'SPEAKING',
+                                    icon: Icons.graphic_eq_rounded,
+                                    themeColor: const Color(0xFF81B655),
+                                    onTap: () => onSelectTool(1),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: _PracticeCard(
-                                title: 'Pronunciation',
-                                subtitle:
-                                    'Practice speaking with real-time speech recognition & accuracy scoring.',
-                                tag: 'SPEAKING',
-                                icon: Icons.graphic_eq_rounded,
-                                themeColor: const Color(0xFF81B655),
-                                onTap: () => onSelectTool(1),
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: _PracticeCard(
-                                title: 'English Assessment',
-                                subtitle:
-                                    'Comprehensive grammar tests with instant evaluation & certificates.',
-                                tag: 'EVALUATION',
-                                icon: Icons.verified_rounded,
-                                themeColor: const Color(0xFFEF4444),
-                                onTap: () => onSelectTool(2),
-                              ),
+                            const SizedBox(height: 24),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _PracticeCard(
+                                    title: 'AI Study Decks',
+                                    subtitle:
+                                        'Practice active recall with SM-2 spaced repetition decks shared by your educators.',
+                                    tag: 'SPACED REPETITION',
+                                    icon: Icons.style_rounded,
+                                    themeColor: const Color(0xFF3B82F6),
+                                    onTap: () => onSelectTool(3),
+                                  ),
+                                ),
+                                const SizedBox(width: 24),
+                                Expanded(
+                                  child: _PracticeCard(
+                                    title: 'English Assessment',
+                                    subtitle:
+                                        'Comprehensive grammar tests with instant evaluation & certificates.',
+                                    tag: 'EVALUATION',
+                                    icon: Icons.verified_rounded,
+                                    themeColor: const Color(0xFFEF4444),
+                                    onTap: () => onSelectTool(2),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         )
@@ -251,6 +276,16 @@ class _PracticeToolsHome extends StatelessWidget {
                               icon: Icons.graphic_eq_rounded,
                               themeColor: const Color(0xFF81B655),
                               onTap: () => onSelectTool(1),
+                            ),
+                            const SizedBox(height: 20),
+                            _PracticeCard(
+                              title: 'AI Study Decks',
+                              subtitle:
+                                  'Practice active recall with SM-2 spaced repetition decks shared by your educators.',
+                              tag: 'SPACED REPETITION',
+                              icon: Icons.style_rounded,
+                              themeColor: const Color(0xFF3B82F6),
+                              onTap: () => onSelectTool(3),
                             ),
                             const SizedBox(height: 20),
                             _PracticeCard(

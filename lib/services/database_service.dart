@@ -4,7 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'role_service.dart';
+import 'notebook_service.dart';
 import '../models/spelling_word.dart';
+import '../models/notebook_models.dart';
+import '../models/published_content_item.dart';
 import '../utils/image_utils.dart';
 
 class ImageUpload {
@@ -124,6 +127,7 @@ class Lesson {
   final bool isMembersOnly;
   final bool isGrammaticaLesson;
   final String? quizId;
+  final String? notebookId;
 
   Lesson({
     required this.id,
@@ -141,6 +145,7 @@ class Lesson {
     this.isMembersOnly = false,
     this.isGrammaticaLesson = false,
     this.quizId,
+    this.notebookId,
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -165,8 +170,34 @@ class Lesson {
       isMembersOnly: data['isMembersOnly'] ?? false,
       isGrammaticaLesson: data['isGrammaticaLesson'] ?? false,
       quizId: (data['quizId'] ?? '') == '' ? null : (data['quizId'] as String?),
+      notebookId: (data['notebookId'] ?? '') == '' ? null : (data['notebookId'] as String?),
     );
   }
+}
+
+/// Represents an aggregated bundle of companion learning materials generated
+/// together from the same AI notebook (e.g. Lesson, Quiz, Flashcard Deck, Mind Map).
+class LinkedContentBundle {
+  final String? notebookId;
+  final Lesson? lesson;
+  final Quiz? quiz;
+  final List<PublishedContentItem> publishedItems;
+
+  const LinkedContentBundle({
+    this.notebookId,
+    this.lesson,
+    this.quiz,
+    this.publishedItems = const [],
+  });
+
+  bool get hasMultipleItems => totalCount > 1;
+
+  int get totalCount =>
+      (lesson != null ? 1 : 0) +
+      (quiz != null ? 1 : 0) +
+      publishedItems.length;
+
+  bool get isEmpty => totalCount == 0;
 }
 
 class QuizQuestion {
@@ -245,6 +276,7 @@ class Quiz {
   final bool isMembersOnly;
   final bool isGrammaticaQuiz;
   final bool isAssessment;
+  final String? notebookId;
 
   Quiz({
     required this.id,
@@ -264,6 +296,7 @@ class Quiz {
     this.isMembersOnly = false,
     this.isGrammaticaQuiz = false,
     this.isAssessment = false,
+    this.notebookId,
   });
 
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -293,6 +326,7 @@ class Quiz {
       isMembersOnly: d['isMembersOnly'] ?? false,
       isGrammaticaQuiz: d['isGrammaticaQuiz'] ?? false,
       isAssessment: d['isAssessment'] ?? false,
+      notebookId: (d['notebookId'] ?? '') == '' ? null : (d['notebookId'] as String?),
     );
   }
 }
@@ -380,6 +414,8 @@ class DatabaseService {
       _firestore.collection('lessons');
   CollectionReference<Map<String, dynamic>> get _quizzes =>
       _firestore.collection('quizzes');
+  CollectionReference<Map<String, dynamic>> get _publishedContent =>
+      _firestore.collection('published_content');
   CollectionReference<Map<String, dynamic>> _userProgress(String uid) =>
       _firestore.collection('users').doc(uid).collection('progress');
   CollectionReference<Map<String, dynamic>> _userQuizProgress(String uid) =>
@@ -628,6 +664,7 @@ class DatabaseService {
     bool isMembersOnly = false,
     bool isGrammaticaLesson = false,
     String? quizId,
+    String? notebookId,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     UserRole userRole = UserRole.learner;
@@ -657,6 +694,7 @@ class DatabaseService {
       'isMembersOnly': isMembersOnly,
       'isGrammaticaLesson': effectiveIsGrammatica,
       'quizId': quizId,
+      'notebookId': notebookId,
     });
     return doc.id;
   }
@@ -687,6 +725,7 @@ class DatabaseService {
     bool? isGrammaticaLesson,
     String? quizId,
     String? validationStatus,
+    String? notebookId,
   }) async {
     if (prompt != null) {
       final doc = await _lessons.doc(id).get();
@@ -702,7 +741,7 @@ class DatabaseService {
     }
 
     final user = FirebaseAuth.instance.currentUser;
-    UserRole? userRole;
+    UserRole userRole = UserRole.learner;
     if (user != null) {
       userRole = await RoleService.instance.getRole(user.uid);
     }
@@ -725,7 +764,12 @@ class DatabaseService {
     if (validationStatus != null) {
       data['validationStatus'] = validationStatus;
     }
-    data['quizId'] = quizId;
+    if (quizId != null) {
+      data['quizId'] = quizId;
+    }
+    if (notebookId != null) {
+      data['notebookId'] = notebookId;
+    }
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
     }
@@ -878,6 +922,277 @@ class DatabaseService {
     }, SetOptions(merge: true));
   }
 
+  Future<void> markContentCompleted({
+    required User user,
+    required String contentId,
+    bool completed = true,
+  }) async {
+    await markLessonCompleted(user: user, lessonId: contentId, completed: completed);
+  }
+
+  Future<String> createPublishedContent({
+    required NotebookOutputType type,
+    required String title,
+    required Map<String, dynamic> data,
+    String? createdByUid,
+    String? createdByEmail,
+    bool isVisible = true,
+    List<String> visibleTo = const [],
+    bool isMembersOnly = false,
+    bool isGrammaticaContent = false,
+    String validationStatus = 'approved',
+    String? notebookId,
+    String? outputId,
+  }) async {
+    final docRef = await _publishedContent.add({
+      'type': type.serialName,
+      'title': title,
+      'data': data,
+      'createdByUid': createdByUid,
+      'createdByEmail': createdByEmail,
+      'createdAt': FieldValue.serverTimestamp(),
+      'isVisible': isVisible,
+      'visibleTo': visibleTo,
+      'isMembersOnly': isMembersOnly,
+      'isGrammaticaContent': isGrammaticaContent,
+      'validationStatus': validationStatus,
+      'notebookId': ?notebookId,
+      'outputId': ?outputId,
+    });
+    return docRef.id;
+  }
+
+  Future<void> updatePublishedContent({
+    required String id,
+    String? title,
+    Map<String, dynamic>? data,
+    bool? isVisible,
+    List<String>? visibleTo,
+    bool? isMembersOnly,
+    bool? isGrammaticaContent,
+    String? validationStatus,
+    String? notebookId,
+    String? outputId,
+  }) async {
+    final updateData = <String, dynamic>{};
+    if (title != null) updateData['title'] = title;
+    if (data != null) updateData['data'] = data;
+    if (isVisible != null) updateData['isVisible'] = isVisible;
+    if (visibleTo != null) updateData['visibleTo'] = visibleTo;
+    if (isMembersOnly != null) updateData['isMembersOnly'] = isMembersOnly;
+    if (isGrammaticaContent != null) updateData['isGrammaticaContent'] = isGrammaticaContent;
+    if (validationStatus != null) updateData['validationStatus'] = validationStatus;
+    if (notebookId != null) updateData['notebookId'] = notebookId;
+    if (outputId != null) updateData['outputId'] = outputId;
+    if (updateData.isNotEmpty) {
+      await _publishedContent.doc(id).update(updateData);
+    }
+  }
+
+  Future<void> deletePublishedContent(String id) async {
+    await _publishedContent.doc(id).delete();
+  }
+
+  Stream<List<PublishedContentItem>> streamPublishedContent({
+    UserRole? userRole,
+    String? userId,
+    NotebookOutputType? type,
+    bool approvedOnly = true,
+  }) {
+    return _publishedContent.orderBy('createdAt', descending: true).snapshots().map((snapshot) {
+      var items = snapshot.docs.map(PublishedContentItem.fromDoc).toList();
+
+      if (type != null) {
+        items = items.where((item) => item.type == type).toList();
+      }
+
+      // Admins and Superadmins see all items
+      if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
+        return items;
+      }
+
+      // Educators see their own content + approved public / Grammatica content
+      if (userRole == UserRole.educator && userId != null) {
+        return items.where((item) {
+          if (item.createdByUid == userId) return true;
+          if (item.validationStatus == 'awaiting_approval') return false;
+          return item.isGrammaticaContent || item.isVisible || item.visibleTo.contains(userId);
+        }).toList();
+      }
+
+      if (approvedOnly) {
+        return items.where((item) {
+          if (item.validationStatus == 'awaiting_approval') return false;
+          // Grammatica official content
+          if (item.isGrammaticaContent && item.isVisible) return true;
+          // Own content
+          if (userId != null && item.createdByUid == userId) return true;
+          // Explicit audience constraint: if visibleTo is set, user MUST be in it
+          if (item.visibleTo.isNotEmpty) {
+            return userId != null && item.visibleTo.contains(userId);
+          }
+          // Public or Members-only item (members-only is visible in list, guarded at consumption)
+          return item.isVisible;
+        }).toList();
+      }
+
+      return items;
+    });
+  }
+
+  /// Resolves all companion content items (Lesson, Quiz, and PublishedContentItems)
+  /// that were synthesized together within the same AI notebook or linked bundle.
+  Future<LinkedContentBundle> getLinkedContentBundle({
+    String? notebookId,
+    Lesson? currentLesson,
+    Quiz? currentQuiz,
+    PublishedContentItem? currentPublishedItem,
+  }) async {
+    String? nbId = notebookId ??
+        currentLesson?.notebookId ??
+        currentQuiz?.notebookId ??
+        currentPublishedItem?.notebookId;
+
+    Lesson? lesson = currentLesson;
+    Quiz? quiz = currentQuiz;
+    List<PublishedContentItem> items = [];
+
+    // Fallback 1: If nbId is missing, check if lesson has a quizId that contains notebookId
+    if ((nbId == null || nbId.isEmpty) && lesson != null) {
+      if (lesson.quizId != null && lesson.quizId!.isNotEmpty) {
+        try {
+          final qDoc = await _quizzes.doc(lesson.quizId).get();
+          if (qDoc.exists) {
+            quiz ??= Quiz.fromDoc(qDoc);
+            if (quiz.notebookId != null && quiz.notebookId!.isNotEmpty) {
+              nbId = quiz.notebookId;
+            }
+          }
+        } catch (e) {
+          debugPrint('Error resolving notebookId from linked quiz: $e');
+        }
+      }
+      // Fallback 2: Check if NotebookService session tracks this lesson
+      if (nbId == null || nbId.isEmpty) {
+        final localNbId = NotebookService.instance.findNotebookIdForLesson(lesson.id);
+        if (localNbId != null && localNbId.isNotEmpty) {
+          nbId = localNbId;
+        }
+      }
+    }
+
+    // Fallback 3: If quiz was provided without notebookId or lesson
+    if ((nbId == null || nbId.isEmpty) && quiz != null) {
+      final localNbId = NotebookService.instance.findNotebookIdForLesson(quiz.id);
+      if (localNbId != null && localNbId.isNotEmpty) {
+        nbId = localNbId;
+      }
+    }
+
+    if (nbId != null && nbId.isNotEmpty) {
+      // 1. Fetch lesson if not already provided
+      if (lesson == null) {
+        try {
+          final lessonSnap =
+              await _lessons.where('notebookId', isEqualTo: nbId).limit(1).get();
+          if (lessonSnap.docs.isNotEmpty) {
+            lesson = Lesson.fromDoc(lessonSnap.docs.first);
+          }
+        } catch (e) {
+          debugPrint('Error fetching companion lesson: $e');
+        }
+      }
+
+      // 2. Fetch quiz if not already provided
+      if (quiz == null) {
+        if (lesson?.quizId != null && lesson!.quizId!.isNotEmpty) {
+          try {
+            final qDoc = await _quizzes.doc(lesson.quizId).get();
+            if (qDoc.exists) {
+              quiz = Quiz.fromDoc(qDoc);
+            }
+          } catch (e) {
+            debugPrint('Error fetching linked quiz by id: $e');
+          }
+        }
+        if (quiz == null) {
+          try {
+            final quizSnap =
+                await _quizzes.where('notebookId', isEqualTo: nbId).limit(1).get();
+            if (quizSnap.docs.isNotEmpty) {
+              quiz = Quiz.fromDoc(quizSnap.docs.first);
+            }
+          } catch (e) {
+            debugPrint('Error fetching companion quiz: $e');
+          }
+        }
+      }
+
+      // 3. Fetch published content items for this notebook
+      try {
+        final pubSnap =
+            await _publishedContent.where('notebookId', isEqualTo: nbId).get();
+        items = pubSnap.docs.map(PublishedContentItem.fromDoc).toList();
+      } catch (e) {
+        debugPrint('Error fetching companion published items: $e');
+      }
+
+      // 4. Merge companion items from local session that were generated for this notebook
+      try {
+        final localOutputs = NotebookService.instance.getOutputsForNotebook(nbId);
+        for (final out in localOutputs) {
+          if (out.type != NotebookOutputType.lesson && out.type != NotebookOutputType.quiz) {
+            final alreadyIncluded = items.any((i) =>
+                i.id == out.publishedId ||
+                i.outputId == out.id ||
+                (i.title.trim().toLowerCase() == out.title.trim().toLowerCase() && i.type == out.type));
+            if (!alreadyIncluded) {
+              items.add(PublishedContentItem.fromNotebookOutput(out));
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error merging local session notebook outputs: $e');
+      }
+
+      // Back-populate missing notebookId on Firestore documents
+      if (lesson != null && (lesson.notebookId == null || lesson.notebookId!.isEmpty)) {
+        _lessons.doc(lesson.id).update({'notebookId': nbId}).catchError((_) {});
+      }
+      if (quiz != null && (quiz.notebookId == null || quiz.notebookId!.isEmpty)) {
+        _quizzes.doc(quiz.id).update({'notebookId': nbId}).catchError((_) {});
+      }
+    } else {
+      // Legacy fallback: lesson has quizId
+      if (lesson != null &&
+          quiz == null &&
+          lesson.quizId != null &&
+          lesson.quizId!.isNotEmpty) {
+        try {
+          final qDoc = await _quizzes.doc(lesson.quizId).get();
+          if (qDoc.exists) {
+            quiz = Quiz.fromDoc(qDoc);
+          }
+        } catch (e) {
+          debugPrint('Error fetching fallback quiz: $e');
+        }
+      }
+    }
+
+    // Ensure currentPublishedItem is in list if supplied
+    if (currentPublishedItem != null &&
+        !items.any((i) => i.id == currentPublishedItem.id)) {
+      items.add(currentPublishedItem);
+    }
+
+    return LinkedContentBundle(
+      notebookId: nbId,
+      lesson: lesson,
+      quiz: quiz,
+      publishedItems: items,
+    );
+  }
+
   Future<void> updateLessonProgress({
     required User user,
     required String lessonId,
@@ -918,6 +1233,7 @@ class DatabaseService {
     bool isGrammaticaQuiz = false,
     bool isAssessment = false,
     String? validationStatus,
+    String? notebookId,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     UserRole userRole = UserRole.learner;
@@ -949,6 +1265,7 @@ class DatabaseService {
       'isMembersOnly': isMembersOnly,
       'isGrammaticaQuiz': effectiveIsGrammaticaQuiz,
       'isAssessment': isAssessment,
+      'notebookId': notebookId,
     });
     return doc.id;
   }
@@ -968,6 +1285,7 @@ class DatabaseService {
     bool? isGrammaticaQuiz,
     bool? isAssessment,
     String? validationStatus,
+    String? notebookId,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -988,11 +1306,8 @@ class DatabaseService {
       data['validationStatus'] = validationStatus;
     } else if (isAssessment == true) {
       data['validationStatus'] = 'awaiting_approval';
-    } else {
-      // If we don't know if it's an assessment from the call, we might want to check the current doc
-      // but that would require an extra read. For now, since AdminAssessmentsTab passes isAssessment: true,
-      // it will work for new/existing assessments being edited through that tab.
     }
+    if (notebookId != null) data['notebookId'] = notebookId;
 
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);

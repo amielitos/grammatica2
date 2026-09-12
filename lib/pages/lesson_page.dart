@@ -10,6 +10,7 @@ import '../widgets/notification_widgets.dart';
 import '../pages/quiz_detail_page.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
+import '../widgets/linked_companion_toolbar.dart';
 
 class LessonPage extends StatefulWidget {
   final User user;
@@ -154,6 +155,12 @@ class _LessonPageState extends State<LessonPage> {
       drawer: UniversalDrawer(
         user: widget.user,
         userData: _userData ?? {},
+      ),
+      bottomNavigationBar: LinkedCompanionToolbar(
+        user: widget.user,
+        notebookId: _lesson.notebookId,
+        currentLesson: _lesson,
+        activeType: CompanionMediaType.lesson,
       ),
       body: Column(
         children: [
@@ -321,11 +328,12 @@ class _LessonPageState extends State<LessonPage> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       const Icon(Icons.person_outline_rounded, size: 16, color: Colors.white70),
-                      const SizedBox(width: 8),
                       _authorName(
                         uid: _lesson.createdByUid,
                         fallbackEmail: _lesson.createdByEmail,
@@ -334,12 +342,11 @@ class _LessonPageState extends State<LessonPage> {
                       if (_lesson.createdAt != null) ...[
                         Container(
                           width: 1,
-                          height: 16,
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
+                          height: 14,
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
                           color: Colors.white30,
                         ),
                         const Icon(Icons.calendar_today_rounded, size: 16, color: Colors.white70),
-                        const SizedBox(width: 8),
                         Text(
                           _fmt(_lesson.createdAt!),
                           style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
@@ -694,7 +701,12 @@ class _LessonPageState extends State<LessonPage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => QuizDetailPage(user: widget.user, quiz: quiz),
+            builder: (context) => QuizDetailPage(
+              user: widget.user,
+              quiz: quiz,
+              notebookId: _lesson.notebookId,
+              lesson: _lesson,
+            ),
           ),
         );
       }

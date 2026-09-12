@@ -18,6 +18,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
+import '../models/published_content_item.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -230,212 +231,245 @@ class _LessonsListState extends State<_LessonsList> {
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No lessons available.'));
-        }
-        final lessons = snapshot.data!;
+        final lessons = snapshot.data ?? [];
 
-        return StreamBuilder<Map<String, Map<String, dynamic>>>(
-          stream: _progressStream,
-          builder: (context, progressSnap) {
-            final progressMap = progressSnap.data ?? {};
-
-            final grammaticaLessons = lessons
-                .where((l) =>
-                    l.isGrammaticaLesson == true ||
-                    (l.createdByEmail != null &&
-                        l.createdByEmail!.toLowerCase().contains('admin')))
-                .toList();
-
-            final publicLessons = lessons.where((l) {
-              if (l.isGrammaticaLesson) return false;
-              if (l.createdByEmail != null &&
-                  l.createdByEmail!.toLowerCase().contains('admin')) {
-                return false;
-              }
-              if (!l.isVisible) return false;
-              return true;
-            }).toList();
-            // Calculate completed counts for each hub
-            final int grammaticaCompleted = grammaticaLessons.where((l) => progressMap[l.id]?['completed'] == true).length;
-            final int publicCompleted = publicLessons.where((l) => progressMap[l.id]?['completed'] == true).length;
-
-
-
-            if (_activeFolder != null) {
-              return LessonFolderPage(
-                user: widget.user,
-                title: _activeFolder!['title'],
-                pillLabel: _activeFolder!['pillLabel'],
-                lessons: _activeFolder!['lessons'],
-                isPublicContentFolder:
-                    _activeFolder!['isPublicFolder'] ?? false,
-                onBack: () {
-                  setState(() => _activeFolder = null);
-                  widget.onFolderChanged?.call(null);
-                },
-              );
+        return StreamBuilder<List<PublishedContentItem>>(
+          stream: DatabaseService.instance.streamPublishedContent(
+            userRole: widget.role,
+            userId: widget.user.uid,
+          ),
+          builder: (context, publishedSnap) {
+            if (publishedSnap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
             }
+            final publishedItems = publishedSnap.data ?? [];
 
-            // Find next uncompleted lesson for "Continue Learning"
-            Lesson? nextLesson;
-            for (var l in lessons) {
-              if (progressMap[l.id]?['completed'] != true) {
-                nextLesson = l;
-                break;
-              }
-            }
+            return StreamBuilder<Map<String, Map<String, dynamic>>>(
+              stream: _progressStream,
+              builder: (context, progressSnap) {
+                final progressMap = progressSnap.data ?? {};
 
-            final isDark = Theme.of(context).brightness == Brightness.dark;
-            final username = widget.userData['username'] as String? ?? 'Learner';
+                final grammaticaLessons = lessons
+                    .where((l) =>
+                        l.isGrammaticaLesson == true ||
+                        (l.createdByEmail != null &&
+                            l.createdByEmail!.toLowerCase().contains('admin')))
+                    .toList();
 
-            return CustomPaint(
-              painter: _DashboardBackgroundPainter(isDark: isDark),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 960),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. Hero Header
-                      _buildHeroHeader(context, username: username),
-                      const SizedBox(height: 20),
+                final grammaticaPublished = publishedItems
+                    .where((p) =>
+                        p.isGrammaticaContent == true ||
+                        (p.createdByEmail != null &&
+                            p.createdByEmail!.toLowerCase().contains('admin')))
+                    .toList();
 
-                      // 2. Search Bar & Filter Chips
-                      _buildSearchBarAndFilters(context),
-                      const SizedBox(height: 20),
+                final publicLessons = lessons.where((l) {
+                  if (l.isGrammaticaLesson) return false;
+                  if (l.createdByEmail != null &&
+                      l.createdByEmail!.toLowerCase().contains('admin')) {
+                    return false;
+                  }
+                  if (!l.isVisible) return false;
+                  return true;
+                }).toList();
 
-                      // 3. Continue Learning Card
-                      if (nextLesson != null && _searchQuery.isEmpty && _selectedFilter == 'All') ...[
-                        _buildContinueLearningCard(context, nextLesson),
-                        const SizedBox(height: 24),
-                      ],
+                final publicPublished = publishedItems.where((p) {
+                  if (p.isGrammaticaContent) return false;
+                  if (p.createdByEmail != null &&
+                      p.createdByEmail!.toLowerCase().contains('admin')) {
+                    return false;
+                  }
+                  if (!p.isVisible) return false;
+                  return true;
+                }).toList();
 
-                      // 4. Learning Hubs label
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
+                // Calculate completed counts for each hub
+                final int grammaticaTotal = grammaticaLessons.length + grammaticaPublished.length;
+                final int grammaticaCompleted = grammaticaLessons.where((l) => progressMap[l.id]?['completed'] == true).length +
+                    grammaticaPublished.where((p) => progressMap[p.id]?['completed'] == true).length;
+
+                final int publicTotal = publicLessons.length + publicPublished.length;
+                final int publicCompleted = publicLessons.where((l) => progressMap[l.id]?['completed'] == true).length +
+                    publicPublished.where((p) => progressMap[p.id]?['completed'] == true).length;
+
+                if (_activeFolder != null) {
+                  return LessonFolderPage(
+                    user: widget.user,
+                    title: _activeFolder!['title'],
+                    pillLabel: _activeFolder!['pillLabel'],
+                    lessons: List<Lesson>.from(_activeFolder!['lessons'] ?? []),
+                    publishedItems: List<PublishedContentItem>.from(_activeFolder!['publishedItems'] ?? []),
+                    isPublicContentFolder:
+                        _activeFolder!['isPublicFolder'] ?? false,
+                    onBack: () {
+                      setState(() => _activeFolder = null);
+                      widget.onFolderChanged?.call(null);
+                    },
+                  );
+                }
+
+                // Find next uncompleted lesson for "Continue Learning"
+                Lesson? nextLesson;
+                for (var l in lessons) {
+                  if (progressMap[l.id]?['completed'] != true) {
+                    nextLesson = l;
+                    break;
+                  }
+                }
+
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                final username = widget.userData['username'] as String? ?? 'Learner';
+
+                return CustomPaint(
+                  painter: _DashboardBackgroundPainter(isDark: isDark),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 960),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 4,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF81B655),
-                                borderRadius: BorderRadius.circular(2),
+                            // 1. Hero Header
+                            _buildHeroHeader(context, username: username),
+                            const SizedBox(height: 20),
+
+                            // 2. Search Bar & Filter Chips
+                            _buildSearchBarAndFilters(context),
+                            const SizedBox(height: 20),
+
+                            // 3. Continue Learning Card
+                            if (nextLesson != null && _searchQuery.isEmpty && _selectedFilter == 'All') ...[
+                              _buildContinueLearningCard(context, nextLesson),
+                              const SizedBox(height: 24),
+                            ],
+
+                            // 4. Learning Hubs label
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 4,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF81B655),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Learning Hubs',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Learning Hubs',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: isDark ? Colors.white : Colors.black87,
-                                letterSpacing: -0.3,
-                              ),
+
+                            // 5. Hub Cards — responsive row
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isNarrow = constraints.maxWidth < 600;
+                                final cards = <Widget>[
+                                  if (_selectedFilter == 'All' ||
+                                      _selectedFilter == 'Grammatica' ||
+                                      (_selectedFilter == 'Completed' && grammaticaCompleted > 0))
+                                    _buildHubCard(
+                                      context,
+                                      tag: 'OFFICIAL CURRICULUM',
+                                      title: 'Grammatica Content',
+                                      description:
+                                          'Structured curriculum by language experts. Master lessons, flashcards, mind maps & study guides.',
+                                      icon: Icons.verified_rounded,
+                                      brandColor: const Color(0xFFF59E0B),
+                                      gradientEnd: const Color(0xFFD97706),
+                                      lessonCount: grammaticaTotal,
+                                      completedCount: grammaticaCompleted,
+                                      onTap: () {
+                                        setState(() {
+                                          _activeFolder = {
+                                            'title': 'Grammatica Content',
+                                            'pillLabel': 'From Grammatica',
+                                            'lessons': grammaticaLessons,
+                                            'publishedItems': grammaticaPublished,
+                                          };
+                                        });
+                                        widget.onFolderChanged?.call('Grammatica Content');
+                                      },
+                                    ),
+                                  if (_selectedFilter == 'All' ||
+                                      _selectedFilter == 'Public' ||
+                                      (_selectedFilter == 'Completed' && publicCompleted > 0))
+                                    _buildHubCard(
+                                      context,
+                                      tag: 'COMMUNITY & EDUCATORS',
+                                      title: 'Educator Content',
+                                      description:
+                                          'Public content by verified educators. Real-world topics, flashcards, mind maps & guides.',
+                                      icon: Icons.public_rounded,
+                                      brandColor: const Color(0xFFEF4444),
+                                      gradientEnd: const Color(0xFFDC2626),
+                                      lessonCount: publicTotal,
+                                      completedCount: publicCompleted,
+                                      onTap: () {
+                                        setState(() {
+                                          _activeFolder = {
+                                            'title': 'Educator Content',
+                                            'pillLabel': 'Educator Content',
+                                            'lessons': publicLessons,
+                                            'publishedItems': publicPublished,
+                                            'isPublicFolder': true,
+                                          };
+                                        });
+                                        widget.onFolderChanged?.call('Educator Content');
+                                      },
+                                    ),
+                                ];
+
+                                if (isNarrow) {
+                                  return Column(
+                                    children: cards
+                                        .map((c) => Padding(
+                                              padding: const EdgeInsets.only(bottom: 16),
+                                              child: c,
+                                            ))
+                                        .toList(),
+                                  );
+                                }
+                                return IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: cards
+                                        .map((c) => Expanded(
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(right: 16),
+                                                child: c,
+                                              ),
+                                            ))
+                                        .toList(),
+                                  ),
+                                );
+                              },
                             ),
+
+                            const SizedBox(height: 24),
+
+                            // 6. AI Practice Banner
+                            _buildAiPracticeBanner(context),
+                            const SizedBox(height: 16),
                           ],
                         ),
                       ),
-
-                      // 5. Hub Cards — responsive row
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isNarrow = constraints.maxWidth < 600;
-                          final cards = <Widget>[
-                            if (_selectedFilter == 'All' ||
-                                _selectedFilter == 'Grammatica' ||
-                                (_selectedFilter == 'Completed' && grammaticaCompleted > 0))
-                              _buildHubCard(
-                                context,
-                                tag: 'OFFICIAL CURRICULUM',
-                                title: 'Grammatica Official',
-                                description:
-                                    'Structured lessons by language experts. Master tenses, punctuation & sentence structure.',
-                                icon: Icons.verified_rounded,
-                                brandColor: const Color(0xFFF59E0B),
-                                gradientEnd: const Color(0xFFD97706),
-                                lessonCount: grammaticaLessons.length,
-                                completedCount: grammaticaCompleted,
-                                onTap: () {
-                                  setState(() {
-                                    _activeFolder = {
-                                      'title': 'Grammatica Lessons',
-                                      'pillLabel': 'From Grammatica',
-                                      'lessons': grammaticaLessons,
-                                    };
-                                  });
-                                  widget.onFolderChanged?.call('Grammatica Lessons');
-                                },
-                              ),
-                            if (_selectedFilter == 'All' ||
-                                _selectedFilter == 'Public' ||
-                                (_selectedFilter == 'Completed' && publicCompleted > 0))
-                              _buildHubCard(
-                                context,
-                                tag: 'COMMUNITY & EDUCATORS',
-                                title: 'Community Hub',
-                                description:
-                                    'Public lessons by verified educators. Real-world topics & specialized exercises.',
-                                icon: Icons.public_rounded,
-                                brandColor: const Color(0xFFEF4444),
-                                gradientEnd: const Color(0xFFDC2626),
-                                lessonCount: publicLessons.length,
-                                completedCount: publicCompleted,
-                                onTap: () {
-                                  setState(() {
-                                    _activeFolder = {
-                                      'title': 'Public Content',
-                                      'pillLabel': 'Public',
-                                      'lessons': publicLessons,
-                                      'isPublicFolder': true,
-                                    };
-                                  });
-                                  widget.onFolderChanged?.call('Public');
-                                },
-                              ),
-                          ];
-
-                          if (isNarrow) {
-                            return Column(
-                              children: cards
-                                  .map((c) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 16),
-                                        child: c,
-                                      ))
-                                  .toList(),
-                            );
-                          }
-                          return IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: cards
-                                  .map((c) => Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(right: 16),
-                                          child: c,
-                                        ),
-                                      ))
-                                  .toList(),
-                            ),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // 6. AI Practice Banner
-                      _buildAiPracticeBanner(context),
-                      const SizedBox(height: 16),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ),
-          );
-
+                );
+              },
+            );
           },
         );
       },
@@ -753,7 +787,49 @@ class _LessonsListState extends State<_LessonsList> {
                     height: 1.4,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.auto_stories_rounded,
+                      size: 14,
+                      color: brandColor,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$lessonCount materials',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
+                    if (completedCount > 0) ...[
+                      Text(
+                        ' • ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white38 : Colors.black38,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        size: 13,
+                        color: Color(0xFF81B655),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$completedCount completed',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF81B655),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
                   height: 42,

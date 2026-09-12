@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../lib/firebase_options.dart';
+import 'package:grammatica/firebase_options.dart';
 
 /// One-time Migration Script to migrate all Admin-uploaded lessons
 /// to the "Grammatica Official" folder.

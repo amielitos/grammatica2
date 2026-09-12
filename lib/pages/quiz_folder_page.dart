@@ -407,6 +407,7 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                                       builder: (_) => QuizDetailPage(
                                         user: widget.user,
                                         quiz: quiz,
+                                        notebookId: quiz.notebookId,
                                       ),
                                     ),
                                   );

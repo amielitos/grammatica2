@@ -5,6 +5,9 @@
 /// generated lessons and quizzes.
 library;
 
+import '../services/database_service.dart';
+import 'notebook_models.dart';
+
 // ---------------------------------------------------------------------------
 // Content blocks
 // ---------------------------------------------------------------------------
@@ -83,6 +86,77 @@ class AILessonResponse {
         'title': title,
         'content': content.map((b) => b.toJson()).toList(),
       };
+
+  NotebookOutput toNotebookOutput({
+    required String id,
+    required String notebookId,
+    List<String> sourceIds = const [],
+    bool isShared = false,
+    DateTime? sharedAt,
+    List<String> sharedTo = const [],
+    String? publishedId,
+    String? publishedCollection,
+  }) {
+    return NotebookOutput(
+      id: id,
+      notebookId: notebookId,
+      type: NotebookOutputType.lesson,
+      title: title,
+      data: toJson(),
+      generatedAt: DateTime.now(),
+      sourceIds: sourceIds,
+      isShared: isShared,
+      sharedAt: sharedAt,
+      sharedTo: sharedTo,
+      publishedId: publishedId,
+      publishedCollection: publishedCollection,
+    );
+  }
+
+  factory AILessonResponse.fromNotebookOutput(NotebookOutput output) {
+    return AILessonResponse.fromJson(output.data);
+  }
+
+  /// Converts all structured content blocks into markdown for saving to the Lesson prompt.
+  String toMarkdownContent() {
+    final buffer = StringBuffer();
+    for (final b in content) {
+      switch (b.type) {
+        case ContentBlockType.text:
+          buffer.writeln(b.data.toString());
+          buffer.writeln();
+          break;
+        case ContentBlockType.list:
+          if (b.data is List) {
+            for (final item in b.data as List) {
+              buffer.writeln('• $item');
+            }
+          } else {
+            buffer.writeln(b.data.toString());
+          }
+          buffer.writeln();
+          break;
+        case ContentBlockType.table:
+          if (b.data is List && (b.data as List).isNotEmpty) {
+            final rows = b.data as List;
+            final headers = (rows.first as Map<String, dynamic>).keys.toList();
+            buffer.writeln('| ${headers.join(' | ')} |');
+            buffer.writeln('| ${headers.map((_) => '---').join(' | ')} |');
+            for (final row in rows) {
+              final r = row as Map<String, dynamic>;
+              buffer.writeln('| ${headers.map((h) => r[h]?.toString() ?? '').join(' | ')} |');
+            }
+          }
+          buffer.writeln();
+          break;
+        case ContentBlockType.image:
+          buffer.writeln('[Image Placeholder: ${b.data}]');
+          buffer.writeln();
+          break;
+      }
+    }
+    return buffer.toString().trim();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -196,8 +270,16 @@ class AIQuizResponse {
   final String? title;
   final String? description;
   final List<AIQuizQuestion> questions;
+  final int? durationMinutes;
+  final bool isAssessment;
 
-  const AIQuizResponse({this.title, this.description, required this.questions});
+  const AIQuizResponse({
+    this.title,
+    this.description,
+    required this.questions,
+    this.durationMinutes,
+    this.isAssessment = false,
+  });
 
   factory AIQuizResponse.fromJson(Map<String, dynamic> json) {
     final qs = (json['questions'] as List<dynamic>?)
@@ -208,6 +290,8 @@ class AIQuizResponse {
       title: json['title'] as String?,
       description: json['description'] as String?,
       questions: qs,
+      durationMinutes: json['durationMinutes'] as int?,
+      isAssessment: json['isAssessment'] as bool? ?? false,
     );
   }
 
@@ -215,5 +299,55 @@ class AIQuizResponse {
         if (title != null) 'title': title,
         if (description != null) 'description': description,
         'questions': questions.map((q) => q.toJson()).toList(),
+        if (durationMinutes != null) 'durationMinutes': durationMinutes,
+        'isAssessment': isAssessment,
       };
+
+  NotebookOutput toNotebookOutput({
+    required String id,
+    required String notebookId,
+    List<String> sourceIds = const [],
+    bool isShared = false,
+    DateTime? sharedAt,
+    List<String> sharedTo = const [],
+    String? publishedId,
+    String? publishedCollection,
+  }) {
+    return NotebookOutput(
+      id: id,
+      notebookId: notebookId,
+      type: NotebookOutputType.quiz,
+      title: title ?? 'Generated Quiz',
+      data: toJson(),
+      generatedAt: DateTime.now(),
+      sourceIds: sourceIds,
+      isShared: isShared,
+      sharedAt: sharedAt,
+      sharedTo: sharedTo,
+      publishedId: publishedId,
+      publishedCollection: publishedCollection,
+    );
+  }
+
+  factory AIQuizResponse.fromNotebookOutput(NotebookOutput output) {
+    return AIQuizResponse.fromJson(output.data);
+  }
+
+  /// Maps AI quiz questions into native DatabaseService QuizQuestion objects.
+  List<QuizQuestion> toQuizQuestions() {
+    return questions.map((q) {
+      final qText = q.content
+          .where((b) => b.type == ContentBlockType.text)
+          .map((b) => b.data.toString())
+          .join('\n');
+      return QuizQuestion(
+        question: qText.isEmpty ? 'Question' : qText,
+        answer: q.correctAnswer,
+        type: q.questionType.toJsonString(),
+        options: q.options.isNotEmpty ? q.options : null,
+        hint: q.hint,
+        explanation: q.explanation,
+      );
+    }).toList();
+  }
 }

@@ -7,6 +7,9 @@ import '../theme/app_colors.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/author_name_widget.dart';
 import '../pages/lesson_page.dart';
+import '../models/published_content_item.dart';
+import '../models/notebook_models.dart';
+import 'content_viewer_page.dart';
 
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
@@ -17,6 +20,7 @@ class LessonFolderPage extends StatefulWidget {
   final String title;
   final String pillLabel;
   final List<Lesson> lessons;
+  final List<PublishedContentItem> publishedItems;
   // If true, this is the "Public Content" top folder which contains sub-folders
   final bool isPublicContentFolder;
 
@@ -28,6 +32,7 @@ class LessonFolderPage extends StatefulWidget {
     required this.title,
     required this.pillLabel,
     required this.lessons,
+    this.publishedItems = const [],
     this.isPublicContentFolder = false,
     this.onBack,
   });
@@ -39,6 +44,7 @@ class LessonFolderPage extends StatefulWidget {
 class _LessonFolderPageState extends State<LessonFolderPage> {
   String _searchQuery = '';
   final String _selectedFilter = 'Name'; // Default
+  String _selectedMediaFilter = 'All'; // Media filter: All, Lessons, Flashcards, etc.
 
 
 
@@ -90,24 +96,36 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
   Widget _buildPublicContentBody(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    // Group lessons by author
+    // Group lessons and published items by author
     final Map<String, List<Lesson>> authorLessons = {};
     for (var lesson in widget.lessons) {
       final key = lesson.createdByUid ?? 'Unknown';
       authorLessons.putIfAbsent(key, () => []).add(lesson);
     }
+    final Map<String, List<PublishedContentItem>> authorPublished = {};
+    for (var item in widget.publishedItems) {
+      final key = item.createdByUid ?? 'Unknown';
+      authorPublished.putIfAbsent(key, () => []).add(item);
+    }
+
+    final allAuthorUids = <String>{
+      ...authorLessons.keys,
+      ...authorPublished.keys,
+    }.toList();
 
     // Filter by search query
-    final filteredAuthors = authorLessons.keys.where((uid) {
+    final filteredAuthors = allAuthorUids.where((uid) {
       if (_searchQuery.isEmpty) return true;
-      final lessons = authorLessons[uid]!;
-      return lessons.any(
-        (l) =>
-            l.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            (l.createdByEmail ?? '').toLowerCase().contains(
-              _searchQuery.toLowerCase(),
-            ),
-      );
+      final q = _searchQuery.toLowerCase();
+      final lList = authorLessons[uid] ?? [];
+      final pList = authorPublished[uid] ?? [];
+      final matchesLesson = lList.any((l) =>
+          l.title.toLowerCase().contains(q) ||
+          (l.createdByEmail ?? '').toLowerCase().contains(q));
+      final matchesPublished = pList.any((p) =>
+          p.title.toLowerCase().contains(q) ||
+          (p.createdByEmail ?? '').toLowerCase().contains(q));
+      return matchesLesson || matchesPublished;
     }).toList();
 
     return Column(
@@ -143,7 +161,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     : double.infinity,
               ),
               child: AppSearchBar(
-                hintText: 'Search public lessons...',
+                hintText: 'Search educator content...',
                 onSearch: (val) => setState(() => _searchQuery = val),
               ),
             ),
@@ -158,8 +176,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                 runSpacing: 24,
                 alignment: WrapAlignment.center,
                 children: filteredAuthors.map((authorUid) {
-                  final lessons = authorLessons[authorUid]!;
-                  final authorEmail = lessons.first.createdByEmail;
+                  final lessons = authorLessons[authorUid] ?? [];
+                  final published = authorPublished[authorUid] ?? [];
+                  final authorEmail = lessons.isNotEmpty
+                      ? lessons.first.createdByEmail
+                      : (published.isNotEmpty ? published.first.createdByEmail : null);
+                  final totalCount = lessons.length + published.length;
 
                   return SizedBox(
                     width: 260,
@@ -177,9 +199,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                             MaterialPageRoute(
                               builder: (_) => LessonFolderPage(
                                 user: widget.user,
-                                title: 'Public Lessons',
-                                pillLabel: 'Public',
+                                title: 'Educator Content',
+                                pillLabel: 'Educator Content',
                                 lessons: lessons,
+                                publishedItems: published,
                                 isPublicContentFolder: false,
                               ),
                             ),
@@ -219,7 +242,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Check out content!',
+                                '$totalCount learning materials available',
                                 style: TextStyle(
                                   color: isDark ? Colors.grey[400] : AppColors.textSecondary,
                                   fontSize: 14,
@@ -238,7 +261,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: const Text(
-                                  'Public',
+                                  'Educator',
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -261,15 +284,87 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     );
   }
 
+  Widget _buildMediaFilterChips(bool isDark) {
+    final filters = [
+      'All',
+      'Lessons',
+      'Flashcards',
+      'Mind Maps',
+      'Study Guides',
+      'Timelines',
+      'Briefings',
+      'FAQs',
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 6),
+      child: Row(
+        children: filters.map((filter) {
+          final isSelected = _selectedMediaFilter == filter;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedMediaFilter = filter),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.primary
+                      : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected
+                        ? Colors.transparent
+                        : (isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0)),
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  filter,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    color: isSelected
+                        ? Colors.white
+                        : (isDark ? Colors.white70 : AppColors.textPrimary),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildLessonListBody(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     final filteredLessons = widget.lessons.where((l) {
       if (_searchQuery.isEmpty) return true;
-      return l.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (l.createdByEmail ?? '').toLowerCase().contains(
-            _searchQuery.toLowerCase(),
-          );
+      final q = _searchQuery.toLowerCase();
+      return l.title.toLowerCase().contains(q) ||
+          (l.createdByEmail ?? '').toLowerCase().contains(q);
+    }).toList();
+
+    final filteredPublished = widget.publishedItems.where((item) {
+      if (_searchQuery.isEmpty) return true;
+      final q = _searchQuery.toLowerCase();
+      return item.title.toLowerCase().contains(q) ||
+          (item.createdByEmail ?? '').toLowerCase().contains(q);
     }).toList();
 
     filteredLessons.sort((a, b) {
@@ -292,24 +387,75 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
           : cmp;
     });
 
+    filteredPublished.sort((a, b) {
+      int cmp = 0;
+      if (_selectedFilter == 'Name') {
+        cmp = a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      } else if (_selectedFilter == 'Create Date') {
+        final tsA = a.createdAt;
+        final tsB = b.createdAt;
+        cmp = tsA == null && tsB == null
+            ? 0
+            : tsA == null
+                ? 1
+                : tsB == null
+                    ? -1
+                    : tsB.compareTo(tsA);
+      }
+      return cmp == 0
+          ? a.title.toLowerCase().compareTo(b.title.toLowerCase())
+          : cmp;
+    });
+
+    final flashcards = filteredPublished
+        .where((p) => p.type == NotebookOutputType.flashcards)
+        .toList();
+    final mindMaps = filteredPublished
+        .where((p) => p.type == NotebookOutputType.mindMap)
+        .toList();
+    final studyGuides = filteredPublished
+        .where((p) => p.type == NotebookOutputType.studyGuide)
+        .toList();
+    final timelines = filteredPublished
+        .where((p) => p.type == NotebookOutputType.timeline)
+        .toList();
+    final briefings = filteredPublished
+        .where((p) => p.type == NotebookOutputType.briefing)
+        .toList();
+    final faqs = filteredPublished
+        .where((p) => p.type == NotebookOutputType.faq)
+        .toList();
+
+    final showLessons =
+        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Lessons';
+    final showFlashcards =
+        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Flashcards';
+    final showMindMaps =
+        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Mind Maps';
+    final showStudyGuides =
+        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Study Guides';
+    final showTimelines =
+        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Timelines';
+    final showBriefings =
+        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Briefings';
+    final showFaqs =
+        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'FAQs';
+
+    final hasAnyItems = (showLessons && filteredLessons.isNotEmpty) ||
+        (showFlashcards && flashcards.isNotEmpty) ||
+        (showMindMaps && mindMaps.isNotEmpty) ||
+        (showStudyGuides && studyGuides.isNotEmpty) ||
+        (showTimelines && timelines.isNotEmpty) ||
+        (showBriefings && briefings.isNotEmpty) ||
+        (showFaqs && faqs.isNotEmpty);
+
     return StreamBuilder<Map<String, Map<String, dynamic>>>(
       stream: _progressStream,
       builder: (context, progressSnap) {
         final progress = progressSnap.data ?? const {};
 
-        // Group lessons by inferred category
-        final Map<String, List<Lesson>> grouped = {};
-        for (final lesson in filteredLessons) {
-          final cat = _inferCategory(lesson.title);
-          grouped.putIfAbsent(cat, () => []).add(lesson);
-        }
-        const categoryOrder = ['Grammar', 'Reading', 'Vocabulary', 'Writing', 'General'];
-        final sortedKeys = [
-          ...categoryOrder.where((c) => grouped.containsKey(c)),
-          ...grouped.keys.where((k) => !categoryOrder.contains(k)),
-        ];
-
-        final authorLabel = (widget.pillLabel == 'From Grammatica' || widget.pillLabel == 'Grammatica')
+        final authorLabel = (widget.pillLabel == 'From Grammatica' ||
+                widget.pillLabel == 'Grammatica')
             ? 'Grammatica'
             : null;
 
@@ -328,10 +474,18 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                           onTap: widget.onBack,
                           child: Row(
                             children: [
-                              Icon(Icons.arrow_back_ios_rounded, size: 16, color: isDark ? Colors.white : AppColors.textPrimary),
-                              SizedBox(width: 4),
-                              Text('Back to Folders',
-                                  style: TextStyle(color: isDark ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                              Icon(Icons.arrow_back_ios_rounded,
+                                  size: 16,
+                                  color: isDark
+                                      ? Colors.white
+                                      : AppColors.textPrimary),
+                              const SizedBox(width: 4),
+                              Text('Back to Hubs',
+                                  style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white
+                                          : AppColors.textPrimary,
+                                      fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
@@ -339,7 +493,8 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     ),
                   ),
                 Padding(
-                  padding: EdgeInsets.fromLTRB(28, widget.onBack != null ? 16 : 100, 28, 0),
+                  padding: EdgeInsets.fromLTRB(
+                      28, widget.onBack != null ? 16 : 100, 28, 0),
                   child: Center(
                     child: Text(
                       widget.title,
@@ -352,37 +507,82 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                   child: TextField(
                     controller: _searchController,
                     onChanged: (val) => setState(() => _searchQuery = val),
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                    style:
+                        TextStyle(color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
-                      hintText: 'Search lesson..',
-                      hintStyle: TextStyle(color: isDark ? Colors.white70 : AppColors.textSecondary),
-                      suffixIcon: Icon(Icons.search_rounded, color: isDark ? Colors.white70 : AppColors.textSecondary),
+                      hintText: 'Search materials, lessons, flashcards...',
+                      hintStyle: TextStyle(
+                          color: isDark
+                              ? Colors.white70
+                              : AppColors.textSecondary),
+                      suffixIcon: Icon(Icons.search_rounded,
+                          color: isDark
+                              ? Colors.white70
+                              : AppColors.textSecondary),
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      fillColor:
+                          isDark ? const Color(0xFF1E293B) : Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
-                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(50),
-                        borderSide: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0)),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 20),
                     ),
                   ),
                 ),
+                _buildMediaFilterChips(isDark),
+                const SizedBox(height: 8),
               ],
             );
 
-            final lessonsBlock = filteredLessons.isEmpty
+            Widget buildSection(String title, List<Widget> cards) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: cards,
+                  ),
+                ],
+              );
+            }
+
+            final contentBlock = !hasAnyItems
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(32),
-                      child: Text('No lessons found.', style: TextStyle(color: isDark ? Colors.white54 : AppColors.textSecondary)),
+                      child: Text('No materials found.',
+                          style: TextStyle(
+                              color: isDark
+                                  ? Colors.white54
+                                  : AppColors.textSecondary)),
                     ),
                   )
                 : SingleChildScrollView(
@@ -390,36 +590,110 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        for (final cat in sortedKeys) ...[
-                          const SizedBox(height: 20),
-                          Text(
-                            'Lessons in $cat',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: grouped[cat]!.map((lesson) {
-                              final completed = progress[lesson.id]?['completed'] == true;
+                        if (showLessons && filteredLessons.isNotEmpty)
+                          buildSection(
+                            'Lessons (${filteredLessons.length})',
+                            filteredLessons.map((l) {
+                              final completed =
+                                  progress[l.id]?['completed'] == true;
                               return _buildSmallLessonCard(
                                 context,
-                                lesson: lesson,
+                                lesson: l,
                                 completed: completed,
                                 authorLabel: authorLabel,
                               );
                             }).toList(),
                           ),
-                        ],
+                        if (showFlashcards && flashcards.isNotEmpty)
+                          buildSection(
+                            'Flashcard Decks (${flashcards.length})',
+                            flashcards.map((f) {
+                              final completed =
+                                  progress[f.id]?['completed'] == true;
+                              return _buildSmallPublishedItemCard(
+                                context,
+                                item: f,
+                                completed: completed,
+                                authorLabel: authorLabel,
+                              );
+                            }).toList(),
+                          ),
+                        if (showMindMaps && mindMaps.isNotEmpty)
+                          buildSection(
+                            'Mind Maps (${mindMaps.length})',
+                            mindMaps.map((m) {
+                              final completed =
+                                  progress[m.id]?['completed'] == true;
+                              return _buildSmallPublishedItemCard(
+                                context,
+                                item: m,
+                                completed: completed,
+                                authorLabel: authorLabel,
+                              );
+                            }).toList(),
+                          ),
+                        if (showStudyGuides && studyGuides.isNotEmpty)
+                          buildSection(
+                            'Study Guides (${studyGuides.length})',
+                            studyGuides.map((g) {
+                              final completed =
+                                  progress[g.id]?['completed'] == true;
+                              return _buildSmallPublishedItemCard(
+                                context,
+                                item: g,
+                                completed: completed,
+                                authorLabel: authorLabel,
+                              );
+                            }).toList(),
+                          ),
+                        if (showTimelines && timelines.isNotEmpty)
+                          buildSection(
+                            'Timelines (${timelines.length})',
+                            timelines.map((t) {
+                              final completed =
+                                  progress[t.id]?['completed'] == true;
+                              return _buildSmallPublishedItemCard(
+                                context,
+                                item: t,
+                                completed: completed,
+                                authorLabel: authorLabel,
+                              );
+                            }).toList(),
+                          ),
+                        if (showBriefings && briefings.isNotEmpty)
+                          buildSection(
+                            'Briefing Documents (${briefings.length})',
+                            briefings.map((b) {
+                              final completed =
+                                  progress[b.id]?['completed'] == true;
+                              return _buildSmallPublishedItemCard(
+                                context,
+                                item: b,
+                                completed: completed,
+                                authorLabel: authorLabel,
+                              );
+                            }).toList(),
+                          ),
+                        if (showFaqs && faqs.isNotEmpty)
+                          buildSection(
+                            'Frequently Asked Questions (${faqs.length})',
+                            faqs.map((q) {
+                              final completed =
+                                  progress[q.id]?['completed'] == true;
+                              return _buildSmallPublishedItemCard(
+                                context,
+                                item: q,
+                                completed: completed,
+                                authorLabel: authorLabel,
+                              );
+                            }).toList(),
+                          ),
                       ],
                     ),
                   );
 
-            final metricsBlock = _buildMetricsSection(context, widget.lessons, progress);
+            final metricsBlock = _buildMetricsSection(
+                context, widget.lessons, widget.publishedItems, progress);
 
             if (isWide) {
               return Column(
@@ -429,7 +703,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(flex: 6, child: lessonsBlock),
+                        Expanded(flex: 6, child: contentBlock),
                         SizedBox(
                           width: 260,
                           child: SingleChildScrollView(
@@ -446,8 +720,9 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
               return Column(
                 children: [
                   headerBlock,
-                  Expanded(child: lessonsBlock),
-                  Padding(padding: const EdgeInsets.all(24), child: metricsBlock),
+                  Expanded(child: contentBlock),
+                  Padding(
+                      padding: const EdgeInsets.all(24), child: metricsBlock),
                 ],
               );
             }
@@ -457,32 +732,6 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     );
   }
 
-  String _inferCategory(String title) {
-    final t = title.toLowerCase();
-    if (t.contains('grammar') || t.contains('verb') || t.contains('tense') ||
-        t.contains('noun') || t.contains('adjective') || t.contains('adverb') ||
-        t.contains('pronoun') || t.contains('conjunction') ||
-        t.contains('preposition') || t.contains('parts of speech')) {
-      return 'Grammar';
-    }
-    if (t.contains('reading') || t.contains('comprehension') ||
-        t.contains('inference') || t.contains('main idea') ||
-        t.contains('supporting') || t.contains('context clue')) {
-      return 'Reading';
-    }
-    if (t.contains('vocabulary') || t.contains('word') ||
-        t.contains('synonym') || t.contains('antonym') ||
-        t.contains('definition') || t.contains('spelling')) {
-      return 'Vocabulary';
-    }
-    if (t.contains('writing') || t.contains('essay') || t.contains('paragraph') ||
-        t.contains('composition') || t.contains('structure') ||
-        t.contains('organization') || t.contains('sentence')) {
-      return 'Writing';
-    }
-    return 'General';
-  }
-
   Widget _buildSmallLessonCard(
     BuildContext context, {
     required Lesson lesson,
@@ -490,16 +739,18 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     String? authorLabel,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    // Determine icon color based on folder type
+
     Color iconColor = const Color(0xFFE8B84B); // Default Gold for Grammatica
-    if (widget.pillLabel == 'Public' || widget.pillLabel == 'Public Lessons') {
-      iconColor = const Color(0xFFE6625B); // Salmon Red for Public
+    if (widget.pillLabel == 'Public' ||
+        widget.pillLabel == 'Public Lessons' ||
+        widget.pillLabel == 'Educator Content' ||
+        widget.pillLabel == 'Educator') {
+      iconColor = const Color(0xFFE6625B); // Salmon Red for Educator/Public
     }
 
     return SizedBox(
       width: 200,
-      height: 280, // Even taller, giving a more pronounced portrait format that feels larger overall
+      height: 280,
       child: GestureDetector(
         onTap: () {
           Navigator.of(context).push(
@@ -513,35 +764,69 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            side: BorderSide(
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(24), // Increased padding
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Stack(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.menu_book_rounded, color: iconColor, size: 28),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: iconColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.menu_book_rounded,
+                          color: iconColor, size: 22),
+                    ),
                     if (completed)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 14),
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primary,
+                        size: 20,
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: iconColor.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'LESSON',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: iconColor,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                       ),
                   ],
                 ),
-                const Spacer(), // Use Spacer to push text to the bottom
+                const Spacer(),
                 Text(
                   lesson.title,
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'by: ${authorLabel ?? lesson.createdByEmail ?? 'Unknown'}',
-                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : AppColors.textSecondary),
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.white70 : AppColors.textSecondary),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -553,11 +838,172 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     );
   }
 
+  Widget _buildSmallPublishedItemCard(
+    BuildContext context, {
+    required PublishedContentItem item,
+    required bool completed,
+    String? authorLabel,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    Color typeColor;
+    IconData typeIcon;
+    String badgeLabel = item.type.displayName.toUpperCase();
+    String subtitle = '';
+
+    switch (item.type) {
+      case NotebookOutputType.flashcards:
+        typeColor = const Color(0xFF8B5CF6); // Purple
+        typeIcon = Icons.style_rounded;
+        final count = item.flashcardDeck.cards.length;
+        subtitle = '$count cards';
+        break;
+      case NotebookOutputType.mindMap:
+        typeColor = const Color(0xFF06B6D4); // Cyan
+        typeIcon = Icons.account_tree_rounded;
+        subtitle = 'Interactive graph';
+        break;
+      case NotebookOutputType.studyGuide:
+        typeColor = const Color(0xFF10B981); // Emerald
+        typeIcon = Icons.menu_book_rounded;
+        final count = item.studyGuide.sections.length;
+        subtitle = '$count sections';
+        break;
+      case NotebookOutputType.timeline:
+        typeColor = const Color(0xFFF59E0B); // Amber
+        typeIcon = Icons.timeline_rounded;
+        final count = item.timeline.events.length;
+        subtitle = '$count events';
+        break;
+      case NotebookOutputType.briefing:
+        typeColor = const Color(0xFF3B82F6); // Blue
+        typeIcon = Icons.description_rounded;
+        subtitle = 'Executive doc';
+        break;
+      case NotebookOutputType.faq:
+        typeColor = const Color(0xFFEC4899); // Pink
+        typeIcon = Icons.question_answer_rounded;
+        final count = item.faq.items.length;
+        subtitle = '$count Q&As';
+        break;
+      default:
+        typeColor = const Color(0xFF81B655);
+        typeIcon = Icons.article_rounded;
+        subtitle = 'Document';
+        break;
+    }
+
+    return SizedBox(
+      width: 200,
+      height: 280,
+      child: GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ContentViewerPage(
+                user: widget.user,
+                item: item,
+              ),
+            ),
+          );
+        },
+        child: Card(
+          elevation: 0,
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: isDark
+                  ? const Color(0xFF334155)
+                  : const Color(0xFFE2E8F0)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: typeColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(typeIcon, color: typeColor, size: 22),
+                    ),
+                    if (completed)
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.primary,
+                        size: 20,
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: typeColor.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          badgeLabel,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: typeColor,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  item.title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                if (subtitle.isNotEmpty)
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: typeColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                const SizedBox(height: 4),
+                Text(
+                  'by: ${authorLabel ?? item.createdByEmail ?? 'Grammatica'}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildMetricsSection(
     BuildContext context,
     List<Lesson> lessons,
+    List<PublishedContentItem> publishedItems,
     Map<String, dynamic> progress,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -576,7 +1022,20 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       }
     }
 
-    double percent = lessons.isEmpty ? 0 : completedCount / lessons.length;
+    for (var item in publishedItems) {
+      final p = progress[item.id];
+      if (p != null && p['completed'] == true) {
+        completedCount++;
+        Timestamp? ts = p['completedAt'] as Timestamp?;
+        recentlyCompleted.add({
+          'title': item.title,
+          'completedAt': ts ?? Timestamp.now(),
+        });
+      }
+    }
+
+    final totalItems = lessons.length + publishedItems.length;
+    double percent = totalItems == 0 ? 0 : completedCount / totalItems;
     recentlyCompleted.sort(
       (a, b) => (b['completedAt'] as Timestamp).compareTo(
         a['completedAt'] as Timestamp,
@@ -594,7 +1053,9 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            border: Border.all(
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -603,7 +1064,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
               children: [
                 Text(
                   'Folder Progress',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary),
                 ),
                 const SizedBox(height: 20),
                 ClipRRect(
@@ -619,8 +1083,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '$completedCount / ${lessons.length} Lessons Completed',
-                  style: TextStyle(fontWeight: FontWeight.w600, color: isDark ? Colors.white : AppColors.textSecondary),
+                  '$completedCount / $totalItems Materials Completed',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : AppColors.textSecondary),
                 ),
               ],
             ),
@@ -631,7 +1097,9 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            border: Border.all(
+                color:
+                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -640,17 +1108,25 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
               children: [
                 Text(
                   'Recent Activity',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : AppColors.textPrimary),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary),
                 ),
                 const SizedBox(height: 20),
                 if (recentlyCompleted.isEmpty)
-                  Text('No recent activities...', style: TextStyle(color: isDark ? Colors.white54 : AppColors.textSecondary))
+                  Text('No recent activities...',
+                      style: TextStyle(
+                          color: isDark
+                              ? Colors.white54
+                              : AppColors.textSecondary))
                 else
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: recentlyCompleted.length,
-                    separatorBuilder: (c, i) => Divider(color: isDark ? Colors.grey[800] : AppColors.divider),
+                    separatorBuilder: (c, i) => Divider(
+                        color: isDark ? Colors.grey[800] : AppColors.divider),
                     itemBuilder: (context, index) {
                       final item = recentlyCompleted[index];
                       return Padding(
@@ -666,7 +1142,11 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                             Expanded(
                               child: Text(
                                 item['title'],
-                                style: TextStyle(fontSize: 14, color: isDark ? Colors.white : AppColors.textPrimary),
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    color: isDark
+                                        ? Colors.white
+                                        : AppColors.textPrimary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
