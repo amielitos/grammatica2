@@ -66,6 +66,10 @@ class AIConfig {
   /// Base URL of the running `ai_backend` FastAPI service.
   /// On Android emulators the host machine is reachable at `10.0.2.2`.
   static String get pythonBackendUrl {
+    final envUrl = dotenv.env['PYTHON_BACKEND_URL'];
+    if (envUrl != null && envUrl.isNotEmpty) {
+      return envUrl;
+    }
     if (kIsWeb) return 'http://localhost:8001';
     if (defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:8001';
@@ -74,5 +78,5 @@ class AIConfig {
   }
 
   /// The `X-API-Key` header value expected by the Python backend.
-  static const String pythonApiKey = 'YOUR_BACKEND_API_KEY';
+  static String get pythonApiKey => dotenv.env['PYTHON_API_KEY'] ?? 'YOUR_BACKEND_API_KEY';
 }

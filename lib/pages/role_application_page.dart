@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:web/web.dart' as web;
-import 'dart:js_interop';
 import '../services/database_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
 import '../widgets/universal_drawer.dart';
 import '../widgets/application_preview_widgets.dart';
+import '../widgets/preview_helper.dart';
 
 class RoleApplicationPage extends StatefulWidget {
   final User user;
@@ -92,12 +91,19 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
   }
 
   void _showLocalFilePreview(PlatformFile file) {
-    final String type = file.name.toLowerCase().endsWith('.pdf')
-        ? 'application/pdf'
-        : 'image/jpeg';
-    final blob = web.Blob([file.bytes!.toJS].toJS, web.BlobPropertyBag(type: type));
-    final blobUrl = web.URL.createObjectURL(blob);
-    showFilePreviewModal(context, blobUrl, file.name);
+    if (file.bytes != null) {
+      final String type = file.name.toLowerCase().endsWith('.pdf')
+          ? 'application/pdf'
+          : 'image/jpeg';
+      final blobUrl = createBlobUrl(file.bytes!, type);
+      if (blobUrl.isNotEmpty) {
+        showFilePreviewModal(context, blobUrl, file.name);
+        return;
+      }
+    }
+    if (file.path != null) {
+      showFilePreviewModal(context, file.path!, file.name);
+    }
   }
 
   Future<void> _submit() async {
