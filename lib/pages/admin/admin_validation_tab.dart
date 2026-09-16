@@ -4,6 +4,7 @@ import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/author_name_widget.dart';
 import '../quiz_detail_page.dart';
+import '../../services/navigation_service.dart';
 
 import '../../widgets/application_preview_widgets.dart';
 
@@ -608,28 +609,17 @@ class _ValidationList extends StatelessWidget {
               ),
               child: InkWell(
                 onTap: () {
-                  final user = AuthService.instance.currentUser;
-                  if (user == null) return;
-
                   if (collection == 'lessons') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => LessonPage(
-                          user: user,
-                          lesson: item as Lesson,
-                          previewMode: true,
-                        ),
-                      ),
+                    NavigationService.instance.goToLesson(
+                      context,
+                      item as Lesson,
+                      previewMode: true,
                     );
                   } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => QuizDetailPage(
-                          user: user,
-                          quiz: item as Quiz,
-                          previewMode: true,
-                        ),
-                      ),
+                    NavigationService.instance.goToQuiz(
+                      context,
+                      item as Quiz,
+                      previewMode: true,
                     );
                   }
                 },

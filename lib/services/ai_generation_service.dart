@@ -293,7 +293,12 @@ class AIGenerationService {
       },
     });
 
-    final uri = Uri.parse('${AIConfig.geminiBaseUrl}?key=${AIConfig.geminiApiKey}');
+    final apiKey = AIConfig.geminiApiKey;
+    if (apiKey.isEmpty) {
+      throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
+    }
+
+    final uri = Uri.parse('${AIConfig.geminiBaseUrl}?key=$apiKey');
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json'},

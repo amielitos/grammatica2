@@ -7,7 +7,7 @@ import '../theme/app_colors.dart';
 import '../services/ai_logic_service.dart';
 import '../services/database_service.dart';
 import '../models/ai_models.dart';
-import 'quiz_detail_page.dart';
+import '../services/navigation_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -563,14 +563,10 @@ Generate a General English assessment for $diff difficulty level. Include:
   void _navigateToQuiz(Quiz quiz) {
     setState(() => _isLoading = false);
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => QuizDetailPage(
-          user: widget.user,
-          quiz: quiz,
-          previewMode: true,
-        ),
-      ),
+    NavigationService.instance.goToQuiz(
+      context,
+      quiz,
+      previewMode: true,
     );
   }
 }

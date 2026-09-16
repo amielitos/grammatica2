@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
 import 'dart:typed_data';
+import '../../utils/file_helper.dart';
 
 import '../../services/database_service.dart';
 import '../../services/ai_logic_service.dart';
@@ -965,12 +965,8 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
       if (result == null || result.files.isEmpty) return;
 
       final platformFile = result.files.single;
-      List<int> bytes;
-      if (platformFile.bytes != null) {
-        bytes = platformFile.bytes!;
-      } else if (platformFile.path != null) {
-        bytes = await File(platformFile.path!).readAsBytes();
-      } else {
+      final bytes = await FileHelper.readBytes(platformFile.path, platformFile.bytes);
+      if (bytes == null) {
         throw Exception('Could not read image file data');
       }
 
@@ -1299,12 +1295,8 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
       }
 
       final platformFile = result.files.single;
-      List<int> bytes;
-      if (platformFile.bytes != null) {
-        bytes = platformFile.bytes!;
-      } else if (platformFile.path != null) {
-        bytes = await File(platformFile.path!).readAsBytes();
-      } else {
+      final bytes = await FileHelper.readBytes(platformFile.path, platformFile.bytes);
+      if (bytes == null) {
         throw Exception('Could not read file data');
       }
 

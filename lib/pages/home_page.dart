@@ -4,8 +4,8 @@ import '../services/database_service.dart';
 
 import 'quizzes_page.dart';
 import 'lesson_folder_page.dart';
-import 'lesson_page.dart';
 import 'profile_page.dart';
+import '../services/navigation_service.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../widgets/modern_bottom_nav.dart';
 
@@ -938,11 +938,7 @@ class _LessonsListState extends State<_LessonsList> {
           const SizedBox(width: 12),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => LessonPage(user: widget.user, lesson: lesson),
-                ),
-              );
+              NavigationService.instance.goToLesson(context, lesson);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF81B655),

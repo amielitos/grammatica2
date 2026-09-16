@@ -7,8 +7,8 @@ import '../../models/ai_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../../widgets/user_visibility_selector.dart';
-import 'dart:io';
 import 'dart:typed_data';
+import '../../utils/file_helper.dart';
 import '../../services/ai_logic_service.dart';
 import '../../models/notebook_models.dart';
 import '../../widgets/notebook/notebook_selector_dialog.dart';
@@ -1354,12 +1354,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
         }
 
         final platformFile = result.files.single;
-        List<int> bytes;
-        if (platformFile.bytes != null) {
-          bytes = platformFile.bytes!;
-        } else if (platformFile.path != null) {
-          bytes = await File(platformFile.path!).readAsBytes();
-        } else {
+        final bytes = await FileHelper.readBytes(platformFile.path, platformFile.bytes);
+        if (bytes == null) {
           throw Exception('Could not read file data');
         }
 
@@ -1473,12 +1469,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       if (result == null || result.files.isEmpty) return;
 
       final platformFile = result.files.single;
-      List<int> bytes;
-      if (platformFile.bytes != null) {
-        bytes = platformFile.bytes!;
-      } else if (platformFile.path != null) {
-        bytes = await File(platformFile.path!).readAsBytes();
-      } else {
+      final bytes = await FileHelper.readBytes(platformFile.path, platformFile.bytes);
+      if (bytes == null) {
         throw Exception('Could not read image file data');
       }
 

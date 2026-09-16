@@ -129,6 +129,9 @@ class Lesson {
   final String? quizId;
   final String? notebookId;
 
+  /// Semantic alias for [notebookId] to identify the unified content bundle.
+  String? get bundleId => notebookId;
+
   Lesson({
     required this.id,
     required this.title,
@@ -277,6 +280,9 @@ class Quiz {
   final bool isGrammaticaQuiz;
   final bool isAssessment;
   final String? notebookId;
+
+  /// Semantic alias for [notebookId] to identify the unified content bundle.
+  String? get bundleId => notebookId;
 
   Quiz({
     required this.id,
@@ -1161,6 +1167,15 @@ class DatabaseService {
       }
       if (quiz != null && (quiz.notebookId == null || quiz.notebookId!.isEmpty)) {
         _quizzes.doc(quiz.id).update({'notebookId': nbId}).catchError((_) {});
+      }
+      if (currentPublishedItem != null &&
+          (currentPublishedItem.notebookId == null || currentPublishedItem.notebookId!.isEmpty)) {
+        _publishedContent.doc(currentPublishedItem.id).update({'notebookId': nbId}).catchError((_) {});
+      }
+      for (final item in items) {
+        if (item.notebookId == null || item.notebookId!.isEmpty) {
+          _publishedContent.doc(item.id).update({'notebookId': nbId}).catchError((_) {});
+        }
       }
     } else {
       // Legacy fallback: lesson has quizId

@@ -2,6 +2,7 @@ import 'package:confetti/confetti.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
 import '../services/notification_service.dart';
@@ -70,6 +71,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   bool get _previewMode => widget.previewMode;
   Map<String, dynamic>? _userData;
 
+  /// Live user object to preserve auth session continuity.
+  User get _effectiveUser => AuthService.maybeLiveUser ?? widget.user;
+
   @override
   void initState() {
     super.initState();
@@ -108,14 +112,13 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       (_) => TextEditingController(),
     );
     _secondsRemaining = widget.quiz.duration * 60;
-    _secondsRemaining = widget.quiz.duration * 60;
-    _quizProgressStream = DatabaseService.instance.quizProgressStream(widget.user);
+    _quizProgressStream = DatabaseService.instance.quizProgressStream(_effectiveUser);
     _confettiController = ConfettiController(duration: const Duration(seconds: 5));
     _checkSubscription();
   }
 
   Future<void> _fetchUserData() async {
-    final data = await DatabaseService.instance.getUserData(widget.user.uid);
+    final data = await DatabaseService.instance.getUserData(_effectiveUser.uid);
     if (!mounted) return;
     setState(() {
       _userData = data;
@@ -123,7 +126,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   }
 
   Future<void> _checkSubscription() async {
-    final role = await RoleService.instance.getRole(widget.user.uid);
+    final role = await RoleService.instance.getRole(_effectiveUser.uid);
     if (!mounted) return;
     if (role == UserRole.admin || role == UserRole.superadmin) {
       setState(() {
@@ -134,13 +137,13 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       return;
     }
 
-    if (!widget.quiz.isMembersOnly || widget.quiz.createdByUid == widget.user.uid) {
+    if (!widget.quiz.isMembersOnly || widget.quiz.createdByUid == _effectiveUser.uid) {
       setState(() => _checkingSubscription = false);
       return;
     }
     final isSub = await DatabaseService.instance.isSubscribed(
       widget.quiz.createdByUid!,
-      widget.user.uid,
+      _effectiveUser.uid,
     );
     if (!mounted) return;
     setState(() {
@@ -241,7 +244,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       final lesson = await DatabaseService.instance.getLessonByQuizId(widget.quiz.id);
 
       await DatabaseService.instance.completeQuizAndLesson(
-        user: widget.user,
+        user: _effectiveUser,
         quizId: widget.quiz.id,
         passed: isPassed,
         isCorrect: isCorrect,
@@ -261,10 +264,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         _confettiController.play();
       });
 
-      DatabaseService.instance.checkAndAwardAchievement(widget.user.uid, 'first_quiz').then((awarded) {
+      DatabaseService.instance.checkAndAwardAchievement(_effectiveUser.uid, 'first_quiz').then((awarded) {
         if (awarded) {
           NotificationService.instance.sendAchievementNotification(
-            uid: widget.user.uid,
+            uid: _effectiveUser.uid,
             title: 'Quiz Mastery!',
             message: 'Congratulations on completing your first quiz on Grammatica!',
           );
@@ -300,14 +303,14 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       },
       child: Scaffold(
       appBar: CustomAppBar(
-        user: widget.user,
+        user: _effectiveUser,
         userData: _userData,
-        showBackButton: _previewMode,
+        showBackButton: _previewMode || Navigator.canPop(context),
         onNotificationTap: () {
           showDialog(
             context: context,
             barrierColor: Colors.transparent,
-            builder: (context) => NotificationsDialog(userId: widget.user.uid),
+            builder: (context) => NotificationsDialog(userId: _effectiveUser.uid),
           );
         },
         onLogoTap: () async {
@@ -332,7 +335,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         },
       ),
       drawer: UniversalDrawer(
-        user: widget.user,
+        user: _effectiveUser,
         userData: _userData ?? {},
         onTap: (i) async {
           if (_quizStarted && !_completedLocal && !_previewMode) {
@@ -488,7 +491,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         ),
       ),
       bottomNavigationBar: LinkedCompanionToolbar(
-        user: widget.user,
+        user: _effectiveUser,
         notebookId: widget.notebookId ?? widget.quiz.notebookId,
         currentQuiz: widget.quiz,
         currentLesson: widget.lesson,
@@ -705,7 +708,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                         const SizedBox(height: 48),
                         if (!_previewMode)
                           (maxAttempts - _attemptsUsed > 0)
-                              ? (_isSubscribed || _isAdminOrSuperAdmin || !widget.quiz.isMembersOnly || widget.quiz.createdByUid == widget.user.uid
+                              ? (_isSubscribed || _isAdminOrSuperAdmin || !widget.quiz.isMembersOnly || widget.quiz.createdByUid == _effectiveUser.uid
                                   ? Center(
                                       child: SizedBox(
                                         width: 340,

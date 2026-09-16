@@ -7,7 +7,8 @@ import '../services/database_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/interactive_markdown.dart';
 import '../widgets/notification_widgets.dart';
-import '../pages/quiz_detail_page.dart';
+import '../services/auth_service.dart';
+import '../services/navigation_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import '../widgets/linked_companion_toolbar.dart';
@@ -34,6 +35,9 @@ class _LessonPageState extends State<LessonPage> {
   bool get _previewMode => widget.previewMode;
   Map<String, dynamic>? _userData;
 
+  /// Live user object to preserve auth session continuity.
+  User get _effectiveUser => AuthService.maybeLiveUser ?? widget.user;
+
   final ScrollController _scrollController = ScrollController();
   double _progress = 0.0;
   bool _isCompleted = false;
@@ -50,7 +54,7 @@ class _LessonPageState extends State<LessonPage> {
 
   Future<void> _initProgress() async {
     if (widget.previewMode) return;
-    final data = await DatabaseService.instance.getLessonProgress(widget.user.uid, widget.lesson.id);
+    final data = await DatabaseService.instance.getLessonProgress(_effectiveUser.uid, widget.lesson.id);
     if (data != null && mounted) {
       setState(() {
         _isCompleted = data['completed'] == true;
@@ -93,7 +97,7 @@ class _LessonPageState extends State<LessonPage> {
   void _updateProgressToDb() {
     if (widget.previewMode || !mounted) return;
     DatabaseService.instance.updateLessonProgress(
-      user: widget.user,
+      user: _effectiveUser,
       lessonId: widget.lesson.id,
       progress: _progress,
     );
@@ -108,7 +112,7 @@ class _LessonPageState extends State<LessonPage> {
   }
 
   Future<void> _fetchUserData() async {
-    final data = await DatabaseService.instance.getUserData(widget.user.uid);
+    final data = await DatabaseService.instance.getUserData(_effectiveUser.uid);
     if (mounted) setState(() => _userData = data);
   }
 
@@ -141,23 +145,23 @@ class _LessonPageState extends State<LessonPage> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: CustomAppBar(
-        user: widget.user,
+        user: _effectiveUser,
         userData: _userData,
-        showBackButton: widget.previewMode,
+        showBackButton: widget.previewMode || Navigator.canPop(context),
         onNotificationTap: () {
           showDialog(
             context: context,
             barrierColor: Colors.transparent,
-            builder: (context) => NotificationsDialog(userId: widget.user.uid),
+            builder: (context) => NotificationsDialog(userId: _effectiveUser.uid),
           );
         },
       ),
       drawer: UniversalDrawer(
-        user: widget.user,
+        user: _effectiveUser,
         userData: _userData ?? {},
       ),
       bottomNavigationBar: LinkedCompanionToolbar(
-        user: widget.user,
+        user: _effectiveUser,
         notebookId: _lesson.notebookId,
         currentLesson: _lesson,
         activeType: CompanionMediaType.lesson,
@@ -687,7 +691,7 @@ class _LessonPageState extends State<LessonPage> {
     setState(() => _isLoadingQuiz = true);
     try {
       await DatabaseService.instance.markLessonCompleted(
-        user: widget.user,
+        user: _effectiveUser,
         lessonId: _lesson.id,
       );
 
@@ -698,16 +702,12 @@ class _LessonPageState extends State<LessonPage> {
 
       if (doc.exists && mounted) {
         final quiz = Quiz.fromDoc(doc);
-        Navigator.pushReplacement(
+        NavigationService.instance.goToQuiz(
           context,
-          MaterialPageRoute(
-            builder: (context) => QuizDetailPage(
-              user: widget.user,
-              quiz: quiz,
-              notebookId: _lesson.notebookId,
-              lesson: _lesson,
-            ),
-          ),
+          quiz,
+          notebookId: _lesson.notebookId,
+          lesson: _lesson,
+          replace: true,
         );
       }
     } catch (e) {

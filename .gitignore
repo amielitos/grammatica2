@@ -46,4 +46,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment files - NEVER commit to GitHub
 .env
+.env*
+*.env
+assets/env
+assets/*.env

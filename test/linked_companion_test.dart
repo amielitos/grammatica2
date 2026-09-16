@@ -129,6 +129,7 @@ void main() {
       );
 
       expect(lesson.notebookId, 'nb_verbs_101');
+      expect(lesson.bundleId, 'nb_verbs_101');
     });
 
     test('Quiz constructor retains notebookId and validationStatus', () {
@@ -144,6 +145,7 @@ void main() {
       );
 
       expect(quiz.notebookId, 'nb_verbs_101');
+      expect(quiz.bundleId, 'nb_verbs_101');
       expect(quiz.validationStatus, 'awaiting_approval');
     });
 
@@ -162,6 +164,7 @@ void main() {
       expect(pubItem.type, NotebookOutputType.mindMap);
       expect(pubItem.title, 'Mind Map Title');
       expect(pubItem.notebookId, 'nb_123');
+      expect(pubItem.bundleId, 'nb_123');
       expect(pubItem.outputId, 'out_mm_1');
     });
   });

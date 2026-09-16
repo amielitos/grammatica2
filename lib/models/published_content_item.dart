@@ -21,6 +21,9 @@ class PublishedContentItem {
   final String? notebookId;
   final String? outputId;
 
+  /// Semantic alias for [notebookId] to identify the unified content bundle.
+  String? get bundleId => notebookId;
+
   const PublishedContentItem({
     required this.id,
     required this.type,

@@ -214,8 +214,13 @@ $explanationLine
       },
     });
 
+    final apiKey = AIConfig.geminiApiKey;
+    if (apiKey.isEmpty) {
+      throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
+    }
+
     final uri = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/${AIConfig.geminiModel}:generateContent?key=${AIConfig.geminiApiKey}');
+        'https://generativelanguage.googleapis.com/v1beta/models/${AIConfig.geminiModel}:generateContent?key=$apiKey');
 
     final response = await http.post(uri,
         headers: {'Content-Type': 'application/json'}, body: body);
@@ -380,8 +385,13 @@ $explanationLine
       },
     });
 
+    final apiKey = AIConfig.geminiApiKey;
+    if (apiKey.isEmpty) {
+      throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
+    }
+
     final uri = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/${AIConfig.geminiModel}:generateContent?key=${AIConfig.geminiApiKey}');
+        'https://generativelanguage.googleapis.com/v1beta/models/${AIConfig.geminiModel}:generateContent?key=$apiKey');
 
     final response = await http.post(uri,
         headers: {'Content-Type': 'application/json'}, body: body);
@@ -483,8 +493,13 @@ $explanationLine
       },
     });
 
+    final apiKey = AIConfig.geminiApiKey;
+    if (apiKey.isEmpty) {
+      throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
+    }
+
     final uri = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/${AIConfig.geminiModel}:generateContent?key=${AIConfig.geminiApiKey}');
+        'https://generativelanguage.googleapis.com/v1beta/models/${AIConfig.geminiModel}:generateContent?key=$apiKey');
 
     final response = await http.post(uri,
         headers: {'Content-Type': 'application/json'}, body: body);
@@ -686,8 +701,13 @@ Example format:
         }
       });
 
+      final apiKey = AIConfig.geminiApiKey;
+      if (apiKey.isEmpty) {
+        throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
+      }
+
       final res = await http.post(
-        Uri.parse('${AIConfig.geminiBaseUrl}?key=${AIConfig.geminiApiKey}'),
+        Uri.parse('${AIConfig.geminiBaseUrl}?key=$apiKey'),
         headers: {'Content-Type': 'application/json'},
         body: body,
       );
@@ -738,8 +758,13 @@ Example format:
         }
       });
 
+      final apiKey = AIConfig.geminiApiKey;
+      if (apiKey.isEmpty) {
+        throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
+      }
+
       final res = await http.post(
-        Uri.parse('${AIConfig.geminiBaseUrl}?key=${AIConfig.geminiApiKey}'),
+        Uri.parse('${AIConfig.geminiBaseUrl}?key=$apiKey'),
         headers: {'Content-Type': 'application/json'},
         body: body,
       );

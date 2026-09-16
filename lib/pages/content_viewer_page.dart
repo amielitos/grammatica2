@@ -6,6 +6,7 @@ import '../models/flashcard_models.dart';
 import '../models/notebook_models.dart';
 import '../models/published_content_item.dart';
 import '../models/study_guide_models.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../theme/app_colors.dart';
 import 'notebook/briefing_view.dart';
@@ -45,6 +46,9 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
   late final bool _isMembersOnly;
   late final String _notebookId;
   late final String _outputId;
+
+  /// Live user object to preserve auth session continuity.
+  User get _effectiveUser => AuthService.maybeLiveUser ?? widget.user;
 
   @override
   void initState() {
@@ -398,7 +402,7 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
         actions: [
           // Completion status button synced with Firestore progress
           StreamBuilder<Map<String, Map<String, dynamic>>>(
-            stream: DatabaseService.instance.progressStream(widget.user),
+            stream: DatabaseService.instance.progressStream(_effectiveUser),
             builder: (context, snapshot) {
               final progressMap = snapshot.data ?? {};
               final isCompleted = progressMap[_contentId]?['completed'] == true;
@@ -408,7 +412,7 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
                 child: TextButton.icon(
                   onPressed: () async {
                     await DatabaseService.instance.markContentCompleted(
-                      user: widget.user,
+                      user: _effectiveUser,
                       contentId: _contentId,
                       completed: !isCompleted,
                     );
@@ -575,7 +579,7 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
         ),
       ),
       bottomNavigationBar: LinkedCompanionToolbar(
-        user: widget.user,
+        user: _effectiveUser,
         notebookId: _notebookId.isNotEmpty ? _notebookId : widget.item?.notebookId,
         currentPublishedItem: widget.item,
         currentContentId: _contentId,

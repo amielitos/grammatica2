@@ -7,8 +7,17 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class EmailSenderService {
-  static String get _smtpEmail => dotenv.env['SMTP_EMAIL'] ?? ''; 
-  static String get _smtpPassword => dotenv.env['SMTP_PASSWORD'] ?? ''; 
+  static String get _smtpEmail {
+    const fromEnv = String.fromEnvironment('SMTP_EMAIL');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    return dotenv.env['SMTP_EMAIL'] ?? '';
+  }
+
+  static String get _smtpPassword {
+    const fromEnv = String.fromEnvironment('SMTP_PASSWORD');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    return dotenv.env['SMTP_PASSWORD'] ?? '';
+  } 
 
   static Future<bool> sendOtpEmail({
     required String recipientEmail,

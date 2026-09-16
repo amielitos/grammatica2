@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
+import '../../services/navigation_service.dart';
 import '../../theme/app_colors.dart';
-import '../lesson_page.dart';
 
 class LessonsListTab extends StatefulWidget {
   final Function(Lesson)? onEdit;
@@ -275,14 +275,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                 statusIcon: _statusIcon(l.validationStatus, l.isMembersOnly),
                                 dateStr: _formatTs(l.createdAt),
                                 onTap: () {
-                                  final currentUser = AuthService.instance.currentUser;
-                                  if (currentUser != null) {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => LessonPage(user: currentUser, lesson: l),
-                                      ),
-                                    );
-                                  }
+                                  NavigationService.instance.goToLesson(context, l);
                                 },
                                 onEdit: canEdit ? () => widget.onEdit?.call(l) : null,
                                 onEditQuiz: (canEdit && l.quizId != null)

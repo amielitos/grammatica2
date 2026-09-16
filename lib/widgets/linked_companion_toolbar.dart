@@ -4,10 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/notebook_models.dart';
 import '../models/published_content_item.dart';
-import '../pages/content_viewer_page.dart';
-import '../pages/lesson_page.dart';
-import '../pages/quiz_detail_page.dart';
 import '../services/database_service.dart';
+import '../services/navigation_service.dart';
 import '../theme/app_colors.dart';
 
 /// Identifies the active content viewer embedding the toolbar.
@@ -23,7 +21,7 @@ enum CompanionMediaType {
 /// Automatically queries companion materials and provides seamless one-tap switching
 /// between study media while maintaining zero-overflow responsive design.
 class LinkedCompanionToolbar extends StatefulWidget {
-  final User user;
+  final User? user;
   final String? notebookId;
   final Lesson? currentLesson;
   final Quiz? currentQuiz;
@@ -34,7 +32,7 @@ class LinkedCompanionToolbar extends StatefulWidget {
 
   const LinkedCompanionToolbar({
     super.key,
-    required this.user,
+    this.user,
     this.notebookId,
     this.currentLesson,
     this.currentQuiz,
@@ -127,7 +125,61 @@ class _LinkedCompanionToolbarState extends State<LinkedCompanionToolbar> {
       future: _bundleFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const SizedBox.shrink();
+          if (widget.notebookId == null &&
+              widget.currentLesson?.notebookId == null &&
+              widget.currentQuiz?.notebookId == null &&
+              widget.currentPublishedItem?.notebookId == null &&
+              widget.currentLesson?.quizId == null) {
+            return const SizedBox.shrink();
+          }
+          return Container(
+            height: 58,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1A2218) : Colors.white,
+              border: Border(
+                top: BorderSide(
+                  color: isDark ? Colors.white12 : Colors.grey.shade200,
+                  width: 1,
+                ),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 70,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      width: 80,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 80,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
         }
 
         final bundle = snapshot.data!;
@@ -210,14 +262,10 @@ class _LinkedCompanionToolbarState extends State<LinkedCompanionToolbar> {
                                       widget.currentPublishedItem == null &&
                                       widget.currentLesson!.id == bundle.lesson!.id),
                               onTap: () {
-                                Navigator.pushReplacement(
+                                NavigationService.instance.goToLesson(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => LessonPage(
-                                      user: widget.user,
-                                      lesson: bundle.lesson!,
-                                    ),
-                                  ),
+                                  bundle.lesson!,
+                                  replace: true,
                                 );
                               },
                             ),
@@ -235,16 +283,12 @@ class _LinkedCompanionToolbarState extends State<LinkedCompanionToolbar> {
                                       widget.currentQuiz != null &&
                                       widget.currentQuiz!.id == bundle.quiz!.id),
                               onTap: () {
-                                Navigator.pushReplacement(
+                                NavigationService.instance.goToQuiz(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => QuizDetailPage(
-                                      user: widget.user,
-                                      quiz: bundle.quiz!,
-                                      notebookId: bundle.notebookId,
-                                      lesson: bundle.lesson,
-                                    ),
-                                  ),
+                                  bundle.quiz!,
+                                  notebookId: bundle.notebookId,
+                                  lesson: bundle.lesson,
+                                  replace: true,
                                 );
                               },
                             ),
@@ -270,14 +314,10 @@ class _LinkedCompanionToolbarState extends State<LinkedCompanionToolbar> {
                               color: color,
                               isActive: isActive,
                               onTap: () {
-                                Navigator.pushReplacement(
+                                NavigationService.instance.goToContent(
                                   context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ContentViewerPage(
-                                      user: widget.user,
-                                      item: item,
-                                    ),
-                                  ),
+                                  item,
+                                  replace: true,
                                 );
                               },
                             );

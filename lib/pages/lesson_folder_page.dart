@@ -6,10 +6,9 @@ import '../services/database_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/author_name_widget.dart';
-import '../pages/lesson_page.dart';
 import '../models/published_content_item.dart';
 import '../models/notebook_models.dart';
-import 'content_viewer_page.dart';
+import '../services/navigation_service.dart';
 
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
@@ -753,11 +752,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       height: 280,
       child: GestureDetector(
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => LessonPage(user: widget.user, lesson: lesson),
-            ),
-          );
+          NavigationService.instance.goToLesson(context, lesson);
         },
         child: Card(
           elevation: 0,
@@ -898,14 +893,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       height: 280,
       child: GestureDetector(
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ContentViewerPage(
-                user: widget.user,
-                item: item,
-              ),
-            ),
-          );
+          NavigationService.instance.goToContent(context, item);
         },
         child: Card(
           elevation: 0,
