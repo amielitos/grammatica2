@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:web/web.dart' as web;
-import 'dart:ui_web' as ui_web;
+import 'preview_helper.dart';
 
 class LocalVideoPlayer extends StatefulWidget {
   final String url;
@@ -26,10 +25,14 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
     }
     
     _controller.initialize().then((_) {
-      setState(() {});
-      _controller.play();
+      if (mounted) {
+        setState(() {});
+        _controller.play();
+      }
     }).catchError((e) {
-      setState(() => _isError = true);
+      if (mounted) {
+        setState(() => _isError = true);
+      }
     });
   }
 
@@ -68,46 +71,13 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
   }
 }
 
-class WebPdfViewer extends StatefulWidget {
+class WebPdfViewer extends StatelessWidget {
   final String url;
   const WebPdfViewer({super.key, required this.url});
 
   @override
-  State<WebPdfViewer> createState() => _WebPdfViewerState();
-}
-
-class _WebPdfViewerState extends State<WebPdfViewer> {
-  late String _viewId;
-
-  @override
-  void initState() {
-    super.initState();
-    _viewId = 'pdf-viewer-${DateTime.now().millisecondsSinceEpoch}';
-
-    ui_web.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
-      String finalUrl = widget.url;
-      // If it's a network URL (not a blob), use Google Docs Viewer for better reliability on web
-      if (finalUrl.startsWith('http')) {
-        finalUrl = 'https://docs.google.com/viewer?url=${Uri.encodeComponent(finalUrl)}&embedded=true';
-      }
-
-      final iframe = web.HTMLIFrameElement()
-        ..src = finalUrl
-        ..style.border = 'none'
-        ..style.width = '100%'
-        ..style.height = '100%';
-      return iframe;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      color: Colors.white,
-      child: HtmlElementView(viewType: _viewId),
-    );
+    return getPlatformPdfViewer(url);
   }
 }
 

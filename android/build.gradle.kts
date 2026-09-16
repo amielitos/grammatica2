@@ -19,54 +19,45 @@ subprojects {
 subprojects {
     project.evaluationDependsOn(":app")
 
-    // Fix Flutter plugins that use the deprecated `package` attribute in AndroidManifest.xml
-    // instead of setting `namespace` in their build.gradle. AGP 8.8+ treats this as a hard error.
-    val fixPlugin: () -> Unit = {
-        if (plugins.hasPlugin("com.android.library") || plugins.hasPlugin("com.android.application")) {
-            val android = extensions.findByName("android")
-            if (android is com.android.build.gradle.BaseExtension) {
-                if (android is com.android.build.gradle.LibraryExtension) {
-                    // Set namespace from group if missing (e.g. vosk_flutter_2)
-                    if (android.namespace.isNullOrEmpty()) {
-                        val ns = project.group.toString().ifEmpty {
-                            "com.grammatica.generated.${project.name.replace("-", "_")}"
-                        }
-                        android.namespace = ns
-                    }
+    plugins.withId("com.android.library") {
+        val android = extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)
+        if (android != null) {
+            android.compileOptions.sourceCompatibility = JavaVersion.VERSION_17
+            android.compileOptions.targetCompatibility = JavaVersion.VERSION_17
 
-                    // Strip the deprecated `package` attribute from the source AndroidManifest.xml
-                    // so AGP 8.8+ doesn't throw a hard error.
-                    val manifestFile = project.file("src/main/AndroidManifest.xml")
-                    if (manifestFile.exists()) {
-                        val content = manifestFile.readText()
-                        if (content.contains("package=")) {
-                            val fixed = content
-                                .replace(Regex("""\s*package="[^"]*""""), "")
-                            if (fixed != content) {
-                                manifestFile.writeText(fixed)
-                            }
-                        }
+            if (android.namespace.isNullOrEmpty()) {
+                val ns = project.group.toString().ifEmpty {
+                    "com.grammatica.generated.${project.name.replace("-", "_")}"
+                }
+                android.namespace = ns
+            }
+
+            val manifestFile = project.file("src/main/AndroidManifest.xml")
+            if (manifestFile.exists()) {
+                val content = manifestFile.readText()
+                if (content.contains("package=")) {
+                    val fixed = content.replace(Regex("""\s*package="[^"]*""""), "")
+                    if (fixed != content) {
+                        manifestFile.writeText(fixed)
                     }
                 }
             }
         }
-
-        // Force Java 17 for all tasks to support modern features like pattern matching
-        tasks.withType<JavaCompile>().configureEach {
-            sourceCompatibility = JavaVersion.VERSION_17.toString()
-            targetCompatibility = JavaVersion.VERSION_17.toString()
-        }
-        
-        // Also force Kotlin jvmTarget if the plugin is present
-        plugins.withId("org.jetbrains.kotlin.android") {
-            extensions.findByType<org.jetbrains.kotlin.gradle.dsl.KotlinJvmOptions>()?.jvmTarget = "17"
-        }
     }
 
-    if (project.state.executed) {
-        fixPlugin()
-    } else {
-        project.afterEvaluate { fixPlugin() }
+
+
+    // Force Java 17 for all JavaCompile tasks across all subprojects
+    tasks.withType<JavaCompile>().configureEach {
+        sourceCompatibility = JavaVersion.VERSION_17.toString()
+        targetCompatibility = JavaVersion.VERSION_17.toString()
+    }
+
+    // Force Kotlin compiler jvmTarget to 17
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 }
 

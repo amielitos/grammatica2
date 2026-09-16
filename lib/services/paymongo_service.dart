@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class PaymongoService {
-  // Live Secret Key to fetch the live QR Code
-  static const String _secretKey = 'sk_live_spqXAkVZE4LvX2qhKtAR9Nw9';
+  // Secret Key loaded from environment
+  static String get _secretKey => dotenv.env['PAYMONGO_SECRET_KEY'] ?? '';
   
   static Future<String?> createPaymentLink({
     required double amount, 
