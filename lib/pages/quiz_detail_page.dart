@@ -2,6 +2,7 @@ import 'package:confetti/confetti.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
 import '../services/notification_service.dart';
@@ -9,6 +10,7 @@ import '../widgets/notification_widgets.dart';
 import '../theme/app_colors.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
+import '../widgets/linked_companion_toolbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class _RenderableQuestion {
@@ -27,12 +29,16 @@ class QuizDetailPage extends StatefulWidget {
   final User user;
   final Quiz quiz;
   final bool previewMode;
+  final String? notebookId;
+  final Lesson? lesson;
 
   const QuizDetailPage({
     super.key,
     required this.user,
     required this.quiz,
     this.previewMode = false,
+    this.notebookId,
+    this.lesson,
   });
 
   @override
@@ -62,8 +68,11 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   late ConfettiController _confettiController;
 
   bool _isReviewing = false;
-  bool get _previewMode => widget.previewMode || widget.quiz.validationStatus == 'awaiting_approval';
+  bool get _previewMode => widget.previewMode;
   Map<String, dynamic>? _userData;
+
+  /// Live user object to preserve auth session continuity.
+  User get _effectiveUser => AuthService.maybeLiveUser ?? widget.user;
 
   @override
   void initState() {
@@ -103,14 +112,13 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       (_) => TextEditingController(),
     );
     _secondsRemaining = widget.quiz.duration * 60;
-    _secondsRemaining = widget.quiz.duration * 60;
-    _quizProgressStream = DatabaseService.instance.quizProgressStream(widget.user);
+    _quizProgressStream = DatabaseService.instance.quizProgressStream(_effectiveUser);
     _confettiController = ConfettiController(duration: const Duration(seconds: 5));
     _checkSubscription();
   }
 
   Future<void> _fetchUserData() async {
-    final data = await DatabaseService.instance.getUserData(widget.user.uid);
+    final data = await DatabaseService.instance.getUserData(_effectiveUser.uid);
     if (!mounted) return;
     setState(() {
       _userData = data;
@@ -118,7 +126,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   }
 
   Future<void> _checkSubscription() async {
-    final role = await RoleService.instance.getRole(widget.user.uid);
+    final role = await RoleService.instance.getRole(_effectiveUser.uid);
     if (!mounted) return;
     if (role == UserRole.admin || role == UserRole.superadmin) {
       setState(() {
@@ -129,13 +137,13 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       return;
     }
 
-    if (!widget.quiz.isMembersOnly || widget.quiz.createdByUid == widget.user.uid) {
+    if (!widget.quiz.isMembersOnly || widget.quiz.createdByUid == _effectiveUser.uid) {
       setState(() => _checkingSubscription = false);
       return;
     }
     final isSub = await DatabaseService.instance.isSubscribed(
       widget.quiz.createdByUid!,
-      widget.user.uid,
+      _effectiveUser.uid,
     );
     if (!mounted) return;
     setState(() {
@@ -236,7 +244,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       final lesson = await DatabaseService.instance.getLessonByQuizId(widget.quiz.id);
 
       await DatabaseService.instance.completeQuizAndLesson(
-        user: widget.user,
+        user: _effectiveUser,
         quizId: widget.quiz.id,
         passed: isPassed,
         isCorrect: isCorrect,
@@ -256,10 +264,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         _confettiController.play();
       });
 
-      DatabaseService.instance.checkAndAwardAchievement(widget.user.uid, 'first_quiz').then((awarded) {
+      DatabaseService.instance.checkAndAwardAchievement(_effectiveUser.uid, 'first_quiz').then((awarded) {
         if (awarded) {
           NotificationService.instance.sendAchievementNotification(
-            uid: widget.user.uid,
+            uid: _effectiveUser.uid,
             title: 'Quiz Mastery!',
             message: 'Congratulations on completing your first quiz on Grammatica!',
           );
@@ -295,14 +303,14 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       },
       child: Scaffold(
       appBar: CustomAppBar(
-        user: widget.user,
+        user: _effectiveUser,
         userData: _userData,
-        showBackButton: _previewMode,
+        showBackButton: _previewMode || Navigator.canPop(context),
         onNotificationTap: () {
           showDialog(
             context: context,
             barrierColor: Colors.transparent,
-            builder: (context) => NotificationsDialog(userId: widget.user.uid),
+            builder: (context) => NotificationsDialog(userId: _effectiveUser.uid),
           );
         },
         onLogoTap: () async {
@@ -327,7 +335,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         },
       ),
       drawer: UniversalDrawer(
-        user: widget.user,
+        user: _effectiveUser,
         userData: _userData ?? {},
         onTap: (i) async {
           if (_quizStarted && !_completedLocal && !_previewMode) {
@@ -482,6 +490,20 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           },
         ),
       ),
+      bottomNavigationBar: LinkedCompanionToolbar(
+        user: _effectiveUser,
+        notebookId: widget.notebookId ?? widget.quiz.notebookId,
+        currentQuiz: widget.quiz,
+        currentLesson: widget.lesson,
+        activeType: CompanionMediaType.quiz,
+        onBeforeNavigate: () async {
+          if (_quizStarted && !_completedLocal && !_previewMode) {
+            final shouldPop = await _showExitConfirmation();
+            return shouldPop == true;
+          }
+          return true;
+        },
+      ),
     ),
   );
 }
@@ -525,97 +547,101 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
 
-    return Column(
-      children: [
-        if (_previewMode)
-          Container(
-            padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.only(bottom: 32),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.visibility_rounded, color: AppColors.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'PREVIEW MODE - Contents only view active.',
-                    style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        Container(
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 600;
+        final horizontalPad = isNarrow ? 20.0 : 48.0;
+        final verticalPad = isNarrow ? 24.0 : 48.0;
+
+        return Column(
+          children: [
+            if (_previewMode)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 48),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF76A34F), Color(0xFF5A8A38)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 32),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
                 ),
-                child: Column(
+                child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.quiz_rounded, size: 48, color: Colors.white),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      widget.quiz.title,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(
-                        fontSize: 42,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        height: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      widget.quiz.description,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        color: Colors.white.withValues(alpha: 0.9),
-                        height: 1.4,
+                    const Icon(Icons.visibility_rounded, color: AppColors.primary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'PREVIEW MODE - Contents only view active.',
+                        style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                     ),
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 48),
-                child: Column(
-                  children: [
-                    Row(
+            Container(
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: verticalPad),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF76A34F), Color(0xFF5A8A38)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                    ),
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: _statBox(
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.quiz_rounded, size: 48, color: Colors.white),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          widget.quiz.title,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: isNarrow ? 28 : 42,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            height: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          widget.quiz.description,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: isNarrow ? 15 : 18,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: horizontalPad, vertical: verticalPad),
+                    child: Column(
+                      children: [
+                        if (isNarrow) ...[
+                          _statBox(
                             color: AppColors.primary.withValues(alpha: 0.1),
                             iconColor: AppColors.primary,
                             icon: Icons.timer_outlined,
@@ -623,10 +649,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                             value: '${widget.quiz.duration.toString().padLeft(2, '0')}:00',
                             isDark: isDark,
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _statBox(
+                          const SizedBox(height: 12),
+                          _statBox(
                             color: Colors.blue.withValues(alpha: 0.1),
                             iconColor: Colors.blue,
                             icon: Icons.help_outline_rounded,
@@ -634,10 +658,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                             value: '${widget.quiz.questions.length}',
                             isDark: isDark,
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _statBox(
+                          const SizedBox(height: 12),
+                          _statBox(
                             color: Colors.orange.withValues(alpha: 0.1),
                             iconColor: Colors.orange,
                             icon: Icons.refresh_rounded,
@@ -645,58 +667,95 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                             value: '$_attemptsUsed/$maxAttempts',
                             isDark: isDark,
                           ),
-                        ),
+                        ] else ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _statBox(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  iconColor: AppColors.primary,
+                                  icon: Icons.timer_outlined,
+                                  label: 'Duration',
+                                  value: '${widget.quiz.duration.toString().padLeft(2, '0')}:00',
+                                  isDark: isDark,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _statBox(
+                                  color: Colors.blue.withValues(alpha: 0.1),
+                                  iconColor: Colors.blue,
+                                  icon: Icons.help_outline_rounded,
+                                  label: 'Questions',
+                                  value: '${widget.quiz.questions.length}',
+                                  isDark: isDark,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _statBox(
+                                  color: Colors.orange.withValues(alpha: 0.1),
+                                  iconColor: Colors.orange,
+                                  icon: Icons.refresh_rounded,
+                                  label: 'Attempts',
+                                  value: '$_attemptsUsed/$maxAttempts',
+                                  isDark: isDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 48),
+                        if (!_previewMode)
+                          (maxAttempts - _attemptsUsed > 0)
+                              ? (_isSubscribed || _isAdminOrSuperAdmin || !widget.quiz.isMembersOnly || widget.quiz.createdByUid == _effectiveUser.uid
+                                  ? Center(
+                                      child: SizedBox(
+                                        width: 340,
+                                        child: ElevatedButton(
+                                          onPressed: _startQuiz,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.primary,
+                                            foregroundColor: Colors.white,
+                                            minimumSize: const Size(double.infinity, 64),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(16),
+                                            ),
+                                            elevation: 0,
+                                          ),
+                                          child: Text(
+                                            'Start Quiz',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : _buildLockMessage(isDark))
+                              : _buildNoAttemptsMessage(isDark),
+                        if (_previewMode)
+                          OutlinedButton.icon(
+                            onPressed: _startReview,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 64),
+                              side: const BorderSide(color: AppColors.primary, width: 2),
+                              foregroundColor: AppColors.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            icon: const Icon(Icons.rate_review_rounded),
+                            label: Text('Review Questions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
+                          ),
                       ],
                     ),
-                    const SizedBox(height: 48),
-                    if (!_previewMode)
-                      (maxAttempts - _attemptsUsed > 0)
-                          ? (_isSubscribed || _isAdminOrSuperAdmin || !widget.quiz.isMembersOnly || widget.quiz.createdByUid == widget.user.uid
-                              ? Center(
-                                  child: SizedBox(
-                                    width: 340,
-                                    child: ElevatedButton(
-                                      onPressed: _startQuiz,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.primary,
-                                        foregroundColor: Colors.white,
-                                        minimumSize: const Size(double.infinity, 64),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                        elevation: 0,
-                                      ),
-                                      child: Text(
-                                        'Start Quiz',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : _buildLockMessage(isDark))
-                          : _buildNoAttemptsMessage(isDark),
-                    if (_previewMode)
-                      OutlinedButton.icon(
-                        onPressed: _startReview,
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 64),
-                          side: const BorderSide(color: AppColors.primary, width: 2),
-                          foregroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                        icon: const Icon(Icons.rate_review_rounded),
-                        label: Text('Review Questions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
-                      ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 

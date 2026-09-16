@@ -7,9 +7,11 @@ import '../services/database_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/interactive_markdown.dart';
 import '../widgets/notification_widgets.dart';
-import '../pages/quiz_detail_page.dart';
+import '../services/auth_service.dart';
+import '../services/navigation_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
+import '../widgets/linked_companion_toolbar.dart';
 
 class LessonPage extends StatefulWidget {
   final User user;
@@ -33,6 +35,9 @@ class _LessonPageState extends State<LessonPage> {
   bool get _previewMode => widget.previewMode;
   Map<String, dynamic>? _userData;
 
+  /// Live user object to preserve auth session continuity.
+  User get _effectiveUser => AuthService.maybeLiveUser ?? widget.user;
+
   final ScrollController _scrollController = ScrollController();
   double _progress = 0.0;
   bool _isCompleted = false;
@@ -49,7 +54,7 @@ class _LessonPageState extends State<LessonPage> {
 
   Future<void> _initProgress() async {
     if (widget.previewMode) return;
-    final data = await DatabaseService.instance.getLessonProgress(widget.user.uid, widget.lesson.id);
+    final data = await DatabaseService.instance.getLessonProgress(_effectiveUser.uid, widget.lesson.id);
     if (data != null && mounted) {
       setState(() {
         _isCompleted = data['completed'] == true;
@@ -92,7 +97,7 @@ class _LessonPageState extends State<LessonPage> {
   void _updateProgressToDb() {
     if (widget.previewMode || !mounted) return;
     DatabaseService.instance.updateLessonProgress(
-      user: widget.user,
+      user: _effectiveUser,
       lessonId: widget.lesson.id,
       progress: _progress,
     );
@@ -107,7 +112,7 @@ class _LessonPageState extends State<LessonPage> {
   }
 
   Future<void> _fetchUserData() async {
-    final data = await DatabaseService.instance.getUserData(widget.user.uid);
+    final data = await DatabaseService.instance.getUserData(_effectiveUser.uid);
     if (mounted) setState(() => _userData = data);
   }
 
@@ -140,20 +145,26 @@ class _LessonPageState extends State<LessonPage> {
     return Scaffold(
       backgroundColor: bgColor,
       appBar: CustomAppBar(
-        user: widget.user,
+        user: _effectiveUser,
         userData: _userData,
-        showBackButton: widget.previewMode,
+        showBackButton: widget.previewMode || Navigator.canPop(context),
         onNotificationTap: () {
           showDialog(
             context: context,
             barrierColor: Colors.transparent,
-            builder: (context) => NotificationsDialog(userId: widget.user.uid),
+            builder: (context) => NotificationsDialog(userId: _effectiveUser.uid),
           );
         },
       ),
       drawer: UniversalDrawer(
-        user: widget.user,
+        user: _effectiveUser,
         userData: _userData ?? {},
+      ),
+      bottomNavigationBar: LinkedCompanionToolbar(
+        user: _effectiveUser,
+        notebookId: _lesson.notebookId,
+        currentLesson: _lesson,
+        activeType: CompanionMediaType.lesson,
       ),
       body: Column(
         children: [
@@ -321,11 +332,12 @@ class _LessonPageState extends State<LessonPage> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       const Icon(Icons.person_outline_rounded, size: 16, color: Colors.white70),
-                      const SizedBox(width: 8),
                       _authorName(
                         uid: _lesson.createdByUid,
                         fallbackEmail: _lesson.createdByEmail,
@@ -334,12 +346,11 @@ class _LessonPageState extends State<LessonPage> {
                       if (_lesson.createdAt != null) ...[
                         Container(
                           width: 1,
-                          height: 16,
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
+                          height: 14,
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
                           color: Colors.white30,
                         ),
                         const Icon(Icons.calendar_today_rounded, size: 16, color: Colors.white70),
-                        const SizedBox(width: 8),
                         Text(
                           _fmt(_lesson.createdAt!),
                           style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white),
@@ -680,7 +691,7 @@ class _LessonPageState extends State<LessonPage> {
     setState(() => _isLoadingQuiz = true);
     try {
       await DatabaseService.instance.markLessonCompleted(
-        user: widget.user,
+        user: _effectiveUser,
         lessonId: _lesson.id,
       );
 
@@ -691,11 +702,12 @@ class _LessonPageState extends State<LessonPage> {
 
       if (doc.exists && mounted) {
         final quiz = Quiz.fromDoc(doc);
-        Navigator.pushReplacement(
+        NavigationService.instance.goToQuiz(
           context,
-          MaterialPageRoute(
-            builder: (context) => QuizDetailPage(user: widget.user, quiz: quiz),
-          ),
+          quiz,
+          notebookId: _lesson.notebookId,
+          lesson: _lesson,
+          replace: true,
         );
       }
     } catch (e) {

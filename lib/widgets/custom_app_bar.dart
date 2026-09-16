@@ -25,7 +25,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String fullName = userData?['username'] ?? userData?['full_name'] ?? user.displayName ?? 'User';
+    final String fullName = userData?['username'] ??
+        userData?['full_name'] ??
+        user.displayName ??
+        ((user.email != null && user.email!.contains('@'))
+            ? user.email!.split('@')[0]
+            : 'User');
     final String profileImageUrl = userData?['photoUrl'] ?? userData?['profile_image_url'] ?? user.photoURL ?? '';
     final screenWidth = MediaQuery.of(context).size.width;
     final isDark = Theme.of(context).brightness == Brightness.dark;

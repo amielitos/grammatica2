@@ -179,6 +179,20 @@ class AuthService {
 
   User? get currentUser => _auth.currentUser;
 
+  /// Always returns the current, live Firebase Auth user.
+  /// Use this instead of stale `widget.user` references for
+  /// any Firestore operations or navigation.
+  static User get liveUser {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw StateError('No authenticated user. This should never happen in an authenticated context.');
+    }
+    return user;
+  }
+
+  /// Returns the current Firebase Auth user if logged in, or null.
+  static User? get maybeLiveUser => FirebaseAuth.instance.currentUser;
+
   Future<UserCredential> signInAnonymously() async {
     return await _auth.signInAnonymously();
   }

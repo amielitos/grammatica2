@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/database_service.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/author_name_widget.dart';
-import '../pages/quiz_detail_page.dart';
+import '../services/navigation_service.dart';
 import '../theme/app_colors.dart';
 
 class QuizFolderPage extends StatefulWidget {
@@ -402,13 +402,10 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                               ),
                               child: InkWell(
                                 onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => QuizDetailPage(
-                                        user: widget.user,
-                                        quiz: quiz,
-                                      ),
-                                    ),
+                                  NavigationService.instance.goToQuiz(
+                                    context,
+                                    quiz,
+                                    notebookId: quiz.notebookId,
                                   );
                                 },
                                 borderRadius: BorderRadius.circular(24),

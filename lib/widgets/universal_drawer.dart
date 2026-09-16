@@ -64,6 +64,11 @@ class UniversalDrawer extends StatelessWidget {
           if (isAdminOrSuperAdmin) {
             items.add(const ModernNavItem(icon: Icons.web_rounded, label: 'Site Settings'));
           }
+
+          // AI Notebooks — Educator & Admin
+          if (isAdminOrSuperAdmin || isEducator) {
+            items.add(const ModernNavItem(icon: Icons.auto_stories_rounded, label: 'AI Notebooks'));
+          }
         }
         items.add(ModernNavItem(icon: Icons.person, label: username));
       }

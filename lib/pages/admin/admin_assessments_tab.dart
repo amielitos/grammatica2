@@ -8,7 +8,7 @@ import '../../services/role_service.dart';
 import '../../widgets/user_visibility_selector.dart';
 import '../../services/ai_logic_service.dart';
 import '../../models/ai_models.dart';
-import 'dart:io';
+import '../../utils/file_helper.dart';
 
 class AdminAssessmentsTab extends StatefulWidget {
   final bool isEmbedded;
@@ -1159,12 +1159,8 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
         }
 
         final platformFile = result.files.single;
-        List<int> bytes;
-        if (platformFile.bytes != null) {
-          bytes = platformFile.bytes!;
-        } else if (platformFile.path != null) {
-          bytes = await File(platformFile.path!).readAsBytes();
-        } else {
+        final bytes = await FileHelper.readBytes(platformFile.path, platformFile.bytes);
+        if (bytes == null) {
           throw Exception('Could not read file data');
         }
 

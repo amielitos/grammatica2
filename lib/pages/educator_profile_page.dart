@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/database_service.dart';
-import '../pages/lesson_page.dart';
+import '../services/navigation_service.dart';
 import '../widgets/subscription_tier_dialog.dart';
 import '../widgets/paymongo_qr_dialog.dart';
 import '../widgets/custom_app_bar.dart';
@@ -721,12 +721,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                     width: double.infinity,
                     height: 38,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => LessonPage(user: currentUser, lesson: lesson),
-                        ),
-                      ),
+                      onPressed: () => NavigationService.instance.goToLesson(context, lesson),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF81B655),
                         foregroundColor: Colors.white,

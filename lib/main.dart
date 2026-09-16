@@ -25,7 +25,12 @@ void main() async {
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
-    debugPrint('Dotenv initialization warning: $e');
+    debugPrint('Dotenv initialization note: $e');
+  }
+  if (dotenv.env['GEMINI_API_KEY'] == null || dotenv.env['GEMINI_API_KEY']!.isEmpty) {
+    try {
+      await dotenv.load(fileName: "assets/env");
+    } catch (_) {}
   }
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);

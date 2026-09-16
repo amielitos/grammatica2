@@ -53,7 +53,11 @@ class AIConfig {
 
   // ── Gemini REST API (used in directClientSide mode) ─────────────────────
   /// Your Google Gemini API key loaded from the .env file.
-  static String get geminiApiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
+  static String get geminiApiKey {
+    final key = dotenv.env['GEMINI_API_KEY'];
+    if (key != null && key.isNotEmpty) return key;
+    return const String.fromEnvironment('GEMINI_API_KEY');
+  }
 
   /// The Gemini model identifier to use for direct REST calls.
   static const String geminiModel = 'gemini-flash-latest';
@@ -78,5 +82,25 @@ class AIConfig {
   }
 
   /// The `X-API-Key` header value expected by the Python backend.
-  static String get pythonApiKey => dotenv.env['PYTHON_API_KEY'] ?? 'YOUR_BACKEND_API_KEY';
+  static String get pythonApiKey {
+    final key = dotenv.env['PYTHON_API_KEY'];
+    if (key != null && key.isNotEmpty) return key;
+    return const String.fromEnvironment('PYTHON_API_KEY');
+  }
+
+  // ── Notebook Configuration ─────────────────────────────────────────────
+  /// Maximum number of sources per notebook.
+  static const int maxSourcesPerNotebook = 20;
+
+  /// Default and max flashcard count limits.
+  static const int defaultFlashcardsCount = 15;
+  static const int maxFlashcardsPerDeck = 100;
+
+  /// Maximum file size for uploaded sources (25 MB).
+  static const int maxSourceSizeBytes = 25 * 1024 * 1024;
+
+  /// Supported file extensions for document & media ingestion.
+  static const List<String> supportedDocumentExtensions = ['pdf', 'txt', 'md'];
+  static const List<String> supportedAudioExtensions = ['mp3', 'm4a', 'wav', 'aac'];
+  static const List<String> supportedVideoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'webm'];
 }

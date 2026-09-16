@@ -6,7 +6,11 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PaymongoService {
   // Secret Key loaded from environment
-  static String get _secretKey => dotenv.env['PAYMONGO_SECRET_KEY'] ?? '';
+  static String get _secretKey {
+    const fromEnv = String.fromEnvironment('PAYMONGO_SECRET_KEY');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    return dotenv.env['PAYMONGO_SECRET_KEY'] ?? '';
+  }
   
   static Future<String?> createPaymentLink({
     required double amount, 

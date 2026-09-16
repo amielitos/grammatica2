@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:io';
+import '../../utils/file_helper.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -456,7 +456,7 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
           }
         } else {
           setState(() {
-            _audioBytes = File(path).readAsBytesSync();
+            _audioBytes = FileHelper.readBytesSync(path);
           });
         }
       }
@@ -471,6 +471,7 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['mp3', 'm4a', 'wav'],
+      withData: true,
     );
 
     if (result != null && result.files.single.bytes != null) {
@@ -488,8 +489,9 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
         _audioPath = null;
       });
     } else if (result != null && result.files.single.path != null) {
-      final file = File(result.files.single.path!);
-      if (await file.length() > 2 * 1024 * 1024) {
+      final file = result.files.single;
+      final fileLength = await FileHelper.getFileSize(file.path, file.size);
+      if (fileLength > 2 * 1024 * 1024) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('File size exceeds 2MB limit.')),
@@ -497,9 +499,10 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
         }
         return;
       }
+      final bytes = await FileHelper.readBytes(file.path, file.bytes);
       setState(() {
-        _audioBytes = file.readAsBytesSync();
-        _audioPath = result.files.single.path;
+        _audioBytes = bytes;
+        _audioPath = file.path;
       });
     }
   }
