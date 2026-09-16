@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../models/notebook_models.dart';
 import '../../theme/app_colors.dart';
@@ -44,9 +45,7 @@ class _NotebookCardState extends State<NotebookCard> {
               ? Matrix4.translationValues(0, -4, 0)
               : Matrix4.identity(),
           decoration: BoxDecoration(
-            color: isDark
-                ? const Color(0xFF1E261D).withValues(alpha: 0.85)
-                : Colors.white,
+            color: isDark ? const Color(0xFF262626) : Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: _isHovered
@@ -176,7 +175,7 @@ class _NotebookCardState extends State<NotebookCard> {
                         widget.notebook.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: GoogleFonts.outfit(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
                           color: isDark ? Colors.white : AppColors.textPrimary,
@@ -189,7 +188,7 @@ class _NotebookCardState extends State<NotebookCard> {
                             : 'No description provided.',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 13,
                           color: isDark ? Colors.white60 : AppColors.textSecondary,
                           height: 1.4,

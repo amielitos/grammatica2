@@ -54,8 +54,9 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
       );
     }
 
+
     return DefaultTabController(
-      length: 4,
+      length: 5,
       initialIndex: widget.initialTabIndex,
       child: BackgroundWrapper(
         child: Column(
@@ -64,67 +65,91 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
               margin: const EdgeInsets.symmetric(vertical: 16),
               child: TabBar(
                 isScrollable: true,
+                tabAlignment: TabAlignment.start,
                 labelColor: AppColors.primary,
                 unselectedLabelColor: AppColors.textSecondary,
                 indicatorColor: AppColors.primary,
-                indicatorWeight: 4,
+                indicatorWeight: 3,
                 indicatorSize: TabBarIndicatorSize.label,
                 dividerColor: Colors.transparent,
-                labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
-                unselectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w500, fontSize: 16),
+                labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15),
+                unselectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w500, fontSize: 15),
                 tabs: const [
                   Tab(text: 'Lessons'),
                   Tab(text: 'Quizzes'),
                   Tab(text: 'Assessments'),
-                  Tab(text: 'Educators'),
+                  Tab(text: 'Applications'),
+                  Tab(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.block_rounded, size: 14, color: Color(0xFFE05050)),
+                        SizedBox(width: 6),
+                        Text('Rejected'),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _ValidationList(
-                  stream: DatabaseService.instance
-                      .streamAwaitingApprovalLessons(),
-                  collection: 'lessons',
-                  formatDate: _formatTs,
-                ),
-                _ValidationList(
-                  stream: DatabaseService.instance
-                      .streamAwaitingApprovalQuizzes(),
-                  collection: 'quizzes',
-                  formatDate: _formatTs,
-                ),
-                _ValidationList(
-                  stream: DatabaseService.instance
-                      .streamAwaitingApprovalAssessments(),
-                  collection: 'quizzes',
-                  formatDate: _formatTs,
-                ),
-                _EducatorApplicationsList(
-                  formatDate: _formatTs,
-                  type: 'educator',
-                ),
-              ],
+            Expanded(
+              child: TabBarView(
+                children: [
+                  // ── Pending ──────────────────────────────────────────────
+                  _ValidationList(
+                    stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
+                    collection: 'lessons',
+                    formatDate: _formatTs,
+                  ),
+                  _ValidationList(
+                    stream: DatabaseService.instance.streamAwaitingApprovalQuizzes(),
+                    collection: 'quizzes',
+                    formatDate: _formatTs,
+                  ),
+                  _ValidationList(
+                    stream: DatabaseService.instance.streamAwaitingApprovalAssessments(),
+                    collection: 'quizzes',
+                    formatDate: _formatTs,
+                  ),
+                  _EducatorApplicationsList(
+                    formatDate: _formatTs,
+                    type: 'educator',
+                    showRejected: false,
+                  ),
+                  // ── All Rejected ──────────────────────────────────────────
+                  _AllRejectedTab(formatDate: _formatTs),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
-}
+
+
+
 
 class _EducatorApplicationsList extends StatelessWidget {
   final String Function(dynamic) formatDate;
   final String? type;
+  final bool showRejected;
 
-  const _EducatorApplicationsList({required this.formatDate, this.type});
+  const _EducatorApplicationsList({
+    required this.formatDate,
+    this.type,
+    this.showRejected = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final stream = showRejected
+        ? DatabaseService.instance.streamRejectedApplications()
+        : DatabaseService.instance.streamEducatorApplications(type: type);
+
     return StreamBuilder<List<EducatorApplication>>(
-      stream: DatabaseService.instance.streamEducatorApplications(type: type),
+      stream: stream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -155,7 +180,10 @@ class _EducatorApplicationsList extends StatelessWidget {
         final items = snapshot.data ?? [];
         if (items.isEmpty) {
           final typeStr = type == 'validator' ? 'validator' : 'educator';
-          return Center(child: Text('No $typeStr applications pending.'));
+          final msg = showRejected
+              ? 'No rejected $typeStr applications.'
+              : 'No $typeStr applications pending.';
+          return Center(child: Text(msg));
         }
 
         return ListView.separated(
@@ -265,120 +293,82 @@ class _EducatorApplicationsList extends StatelessWidget {
                     ),
                   ),
                   Divider(height: 1, color: Colors.grey.shade200),
-                  // Credentials section
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Credentials Review:',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2C3E50)),
-                        ),
-                        const SizedBox(height: 16),
-                        // Professional Grid for Review
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: MediaQuery.of(context).size.width > 1200 ? 4 : 2,
-                          mainAxisSpacing: 20,
-                          crossAxisSpacing: 20,
-                          childAspectRatio: 1.2,
-                          children: [
-                            _buildAdminReviewCard(context, "Curriculum Vitae", app.cvUrl, Icons.description, "cv.pdf"),
-                            ...app.certificateUrls.asMap().entries.map(
-                                  (e) => _buildAdminReviewCard(context, "Certificate ${e.key + 1}", e.value, Icons.verified, "certificate_${e.key + 1}.pdf")
+                  // ── Credentials section with thumbnails ─────────────
+                  if (!showRejected) ...[  
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'CREDENTIALS',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.2,
+                              color: Colors.grey.shade500,
                             ),
-                            _buildAdminReviewCard(context, "Teaching Demo", app.videoUrl, Icons.videocam, "demo.mp4"),
-                            _buildAdminReviewCard(context, "Syllabus", app.syllabusUrl, Icons.book, "syllabus.pdf"),
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(height: 12),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                if (app.cvUrl.isNotEmpty)
+                                  _ValidationCredentialThumb(
+                                    label: 'CV / Résumé',
+                                    url: app.cvUrl,
+                                    fallbackIcon: Icons.description_rounded,
+                                  ),
+                                ...app.certificateUrls.asMap().entries.where((e) => e.value.isNotEmpty).map(
+                                  (e) => _ValidationCredentialThumb(
+                                    label: 'Certificate ${e.key + 1}',
+                                    url: e.value,
+                                    fallbackIcon: Icons.verified_rounded,
+                                  ),
+                                ),
+                                if (app.videoUrl.isNotEmpty)
+                                  _ValidationCredentialThumb(
+                                    label: 'Teaching Demo',
+                                    url: app.videoUrl,
+                                    fallbackIcon: Icons.videocam_rounded,
+                                  ),
+                                if (app.syllabusUrl.isNotEmpty)
+                                  _ValidationCredentialThumb(
+                                    label: 'Syllabus',
+                                    url: app.syllabusUrl,
+                                    fallbackIcon: Icons.book_rounded,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ] else ...[  
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 15, color: Colors.orange.shade400),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Credential files were removed after rejection.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.orange.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             );
           },
         );
       },
-    );
-  }
-
-  Widget _buildAdminReviewCard(BuildContext context, String title, String url, IconData icon, String fileName) {
-    if (url.isEmpty) return const SizedBox();
-    
-    // Extract extension from Firebase Storage URL (ignoring tokens)
-    final bool isImage = ['jpg', 'jpeg', 'png'].contains(url.toLowerCase().split('?').first.split('.').last);
-    final bool isVideo = ['mp4', 'mov', 'avi', 'webm', 'm4v'].contains(url.toLowerCase().split('?').first.split('.').last);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))
-        ],
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
-            ),
-            child: Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF2C3E50)),
-            ),
-          ),
-          Expanded(
-            child: InkWell(
-              onTap: () => showFilePreviewModal(context, url, fileName),
-              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
-              child: Container(
-                decoration: const BoxDecoration(
-                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(16), bottomRight: Radius.circular(16)),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (isImage)
-                      Image.network(url, fit: BoxFit.cover)
-                    else if (isVideo)
-                      const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.play_circle_fill, size: 48, color: Color(0xFF81B655)),
-                            SizedBox(height: 8),
-                            Text("Review Video", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 13)),
-                          ],
-                        ),
-                      )
-                    else
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(icon, size: 48, color: Colors.grey.shade400),
-                            const SizedBox(height: 8),
-                            const Text("Review PDF", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -857,7 +847,6 @@ class _ValidationList extends StatelessWidget {
 
     if (confirm == true) {
       try {
-        // Notify before deleting (so we still have item data)
         if (item.createdByUid != null && item.createdByUid!.isNotEmpty) {
           await NotificationService.instance.sendContentValidationNotification(
             uid: item.createdByUid!,
@@ -869,17 +858,19 @@ class _ValidationList extends StatelessWidget {
           debugPrint('CANNOT NOTIFY: createdByUid is null for item ${item.id}');
         }
 
-        if (collection == 'lessons') {
-          await DatabaseService.instance.deleteLesson(item.id);
-        } else {
-          await DatabaseService.instance.deleteQuiz(item.id);
-        }
-        
+        // Mark as rejected — preserves content for audit trail
+        await DatabaseService.instance.updateContentStatus(
+          collection,
+          item.id,
+          'rejected',
+          rejectionReason: reasonController.text.trim(),
+        );
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Rejected! Notification sent to creator (ID: ${item.createdByUid})'),
-              backgroundColor: Colors.orange,
+            const SnackBar(
+              content: Text('Content rejected. Educator has been notified.'),
+              backgroundColor: Color(0xFFE05050),
             ),
           );
         }
@@ -894,5 +885,519 @@ class _ValidationList extends StatelessWidget {
         }
       }
     }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  _AllRejectedTab — unified view of ALL rejected content with reasons
+// ═══════════════════════════════════════════════════════
+class _AllRejectedTab extends StatelessWidget {
+  final String Function(dynamic) formatDate;
+  const _AllRejectedTab({required this.formatDate});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Lesson>>(
+      stream: DatabaseService.instance.streamRejectedLessons(),
+      builder: (ctx, lessonSnap) {
+        return StreamBuilder<List<Quiz>>(
+          stream: DatabaseService.instance.streamRejectedQuizzes(),
+          builder: (ctx, quizSnap) {
+            return StreamBuilder<List<Quiz>>(
+              stream: DatabaseService.instance.streamRejectedAssessments(),
+              builder: (ctx, assessSnap) {
+                return StreamBuilder<List<EducatorApplication>>(
+                  stream: DatabaseService.instance.streamRejectedApplications(),
+                  builder: (ctx, appSnap) {
+                    if (lessonSnap.connectionState == ConnectionState.waiting ||
+                        quizSnap.connectionState == ConnectionState.waiting ||
+                        assessSnap.connectionState == ConnectionState.waiting ||
+                        appSnap.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final lessons = lessonSnap.data ?? [];
+                    final quizzes = quizSnap.data ?? [];
+                    final assessments = assessSnap.data ?? [];
+                    final applications = appSnap.data ?? [];
+
+                    final bool isEmpty = lessons.isEmpty && quizzes.isEmpty &&
+                        assessments.isEmpty && applications.isEmpty;
+
+                    if (isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.check_circle_rounded, size: 56, color: Colors.green.shade400),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'No Rejected Content',
+                              style: GoogleFonts.outfit(
+                                fontSize: 22, fontWeight: FontWeight.w700,
+                                color: const Color(0xFF2C3E50),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'All submitted content is clean.',
+                              style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        if (lessons.isNotEmpty) ..._buildSection(
+                          context, 'Lessons', Icons.auto_stories_rounded,
+                          lessons.map((l) => _RejectedItem(
+                            title: l.title,
+                            subtitle: 'Lesson',
+                            icon: Icons.description_rounded,
+                            reason: l.rejectionReason,
+                            createdAtStr: l.createdAt != null ? formatDate(l.createdAt!) : 'N/A',
+                            createdByUid: l.createdByUid,
+                            createdByEmail: l.createdByEmail,
+                          )).toList(),
+                        ),
+                        if (quizzes.isNotEmpty) ..._buildSection(
+                          context, 'Quizzes', Icons.quiz_rounded,
+                          quizzes.map((q) => _RejectedItem(
+                            title: q.title,
+                            subtitle: 'Quiz',
+                            icon: Icons.quiz_rounded,
+                            reason: q.rejectionReason,
+                            createdAtStr: q.createdAt != null ? formatDate(q.createdAt!) : 'N/A',
+                            createdByUid: q.createdByUid,
+                            createdByEmail: q.createdByEmail,
+                          )).toList(),
+                        ),
+                        if (assessments.isNotEmpty) ..._buildSection(
+                          context, 'Assessments', Icons.assignment_turned_in_rounded,
+                          assessments.map((a) => _RejectedItem(
+                            title: a.title,
+                            subtitle: 'Assessment',
+                            icon: Icons.assignment_rounded,
+                            reason: a.rejectionReason,
+                            createdAtStr: a.createdAt != null ? formatDate(a.createdAt!) : 'N/A',
+                            createdByUid: a.createdByUid,
+                            createdByEmail: a.createdByEmail,
+                          )).toList(),
+                        ),
+                        if (applications.isNotEmpty) ..._buildSection(
+                          context, 'Applications', Icons.person_off_rounded,
+                          applications.map((a) => _RejectedItem(
+                            title: a.applicantEmail,
+                            subtitle: 'Educator Application',
+                            icon: Icons.person_rounded,
+                            reason: a.rejectionReason,
+                            createdAtStr: a.appliedAt != null ? formatDate(a.appliedAt!) : 'N/A',
+                            createdByUid: null,
+                            createdByEmail: a.applicantEmail,
+                          )).toList(),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  List<Widget> _buildSection(BuildContext ctx, String title, IconData icon, List<Widget> cards) {
+    return [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12, top: 8),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE05050).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: const Color(0xFFE05050), size: 18),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              title,
+              style: GoogleFonts.outfit(
+                fontSize: 17, fontWeight: FontWeight.w700,
+                color: const Color(0xFF2C3E50),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE05050).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${cards.length}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFE05050), fontSize: 11, fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      ...cards,
+      const SizedBox(height: 16),
+    ];
+  }
+}
+
+// A single rejected item card
+class _RejectedItem extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String? reason;
+  final String createdAtStr;
+  final String? createdByUid;
+  final String? createdByEmail;
+
+  const _RejectedItem({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.createdAtStr,
+    this.reason,
+    this.createdByUid,
+    this.createdByEmail,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE05050).withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE05050).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(icon, color: const Color(0xFFE05050), size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w700, fontSize: 15,
+                          color: const Color(0xFF2C3E50),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      AuthorName(
+                        uid: createdByUid,
+                        fallbackEmail: createdByEmail,
+                        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE05050).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE05050).withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.cancel_rounded, size: 11, color: Color(0xFFE05050)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Rejected',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFE05050), fontSize: 10, fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (reason != null && reason!.isNotEmpty) ...([
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3F3),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE05050).withValues(alpha: 0.15)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 14, color: const Color(0xFFE05050).withValues(alpha: 0.7)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'REJECTION REASON',
+                            style: GoogleFonts.inter(
+                              fontSize: 9, fontWeight: FontWeight.w900,
+                              letterSpacing: 1.1,
+                              color: const Color(0xFFE05050).withValues(alpha: 0.7),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            reason!,
+                            style: GoogleFonts.inter(
+                              fontSize: 13, color: const Color(0xFF7A2020), height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            Text(
+              'Submitted: $createdAtStr',
+              style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade400),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+//  _ValidationCredentialThumb — thumbnail tile for credentials
+// ═══════════════════════════════════════════════════════════
+class _ValidationCredentialThumb extends StatelessWidget {
+  final String label;
+  final String url;
+  final IconData fallbackIcon;
+
+  const _ValidationCredentialThumb({
+    required this.label,
+    required this.url,
+    required this.fallbackIcon,
+  });
+
+  bool get _isImage {
+    final lower = url.toLowerCase();
+    final clean = lower.split('?').first;
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].any(
+      (ext) => clean.endsWith('.$ext') || lower.contains('.$ext?') || lower.contains('format=$ext'),
+    );
+  }
+
+  bool get _isVideo {
+    final lower = url.toLowerCase();
+    final clean = lower.split('?').first;
+    return ['mp4', 'mov', 'avi', 'webm', 'm4v', 'mkv', 'ogv'].any(
+      (ext) => clean.endsWith('.$ext') || lower.contains('.$ext?') || lower.contains('/video'),
+    );
+  }
+
+  bool get _isPdf {
+    final lower = url.toLowerCase();
+    final clean = lower.split('?').first;
+    return clean.endsWith('.pdf') || lower.contains('.pdf?') || lower.contains('pdf');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _preview(context),
+      child: Container(
+        width: 170,
+        height: 150,
+        margin: const EdgeInsets.only(right: 14),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade300, width: 1.2),
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _buildContentTile(),
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.12)],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.50),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.open_in_full_rounded, size: 14, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              color: Colors.white,
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1E293B),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContentTile() {
+    if (_isImage) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        loadingBuilder: (ctx, child, progress) =>
+            progress == null ? child : _placeholder(),
+        errorBuilder: (context, error, stackTrace) => _placeholder(),
+      );
+    }
+    if (_isVideo) {
+      return Container(
+        color: const Color(0xFF0F172A),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.play_circle_fill, size: 46, color: Color(0xFF81B655)),
+              SizedBox(height: 6),
+              Text('VIDEO DEMO', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_isPdf) {
+      return Container(
+        color: const Color(0xFFFEF2F2),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.picture_as_pdf_rounded, size: 46, color: Color(0xFFDC2626)),
+              SizedBox(height: 6),
+              Text('PDF DOC', style: TextStyle(color: Color(0xFFDC2626), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+            ],
+          ),
+        ),
+      );
+    }
+    return Container(
+      color: const Color(0xFFF1F5F9),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(fallbackIcon, size: 46, color: Colors.grey.shade400),
+            const SizedBox(height: 6),
+            Text('DOCUMENT', style: TextStyle(color: Colors.grey.shade600, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _placeholder() => Container(
+        color: Colors.grey.shade100,
+        child: Center(
+          child: Icon(fallbackIcon, size: 36, color: Colors.grey.shade300),
+        ),
+      );
+
+  void _preview(BuildContext context) {
+    String ext = 'pdf';
+    if (_isImage) {
+      ext = 'png';
+    } else if (_isVideo) {
+      ext = 'mp4';
+    } else if (_isPdf) {
+      ext = 'pdf';
+    }
+    final fileName = '${label.toLowerCase().replaceAll(' ', '_')}.$ext';
+    showFilePreviewModal(context, url, fileName);
   }
 }

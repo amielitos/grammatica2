@@ -90,7 +90,7 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                     );
 
                 return Scaffold(
-                  backgroundColor: isDark ? const Color(0xFF131812) : AppColors.backgroundBase,
+                  backgroundColor: isDark ? const Color(0xFF181818) : AppColors.backgroundBase,
                   appBar: _buildAppBar(context, notebook, isDark, outputs),
                   body: Stack(
                     children: [
@@ -139,24 +139,33 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
   ) {
     return AppBar(
       elevation: 0,
-      backgroundColor: isDark ? const Color(0xFF182017) : Colors.white,
+      backgroundColor: isDark ? const Color(0xFF222222) : Colors.white,
       title: InkWell(
         onTap: () => _showRenameDialog(context, notebook),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.auto_stories_rounded, color: AppColors.primary, size: 18),
+              ),
+              const SizedBox(width: 10),
               Text(
                 notebook.title,
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   fontWeight: FontWeight.w700,
                   fontSize: 18,
                   color: isDark ? Colors.white : AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Icon(
                 Icons.edit_outlined,
                 size: 16,
@@ -169,7 +178,7 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
       actions: [
         if (outputs.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
             child: ElevatedButton.icon(
               icon: const Icon(Icons.cloud_upload_rounded, size: 16),
               label: Text(
@@ -179,7 +188,7 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),

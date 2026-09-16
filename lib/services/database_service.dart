@@ -64,6 +64,8 @@ class EducatorApplication {
   final String status; // 'pending', 'approved', 'rejected'
   final String applicationType; // 'educator', 'validator'
   final Timestamp? appliedAt;
+  final String? rejectionReason;
+  final String? rejectionDescription;
 
   EducatorApplication({
     required this.id,
@@ -76,6 +78,8 @@ class EducatorApplication {
     required this.status,
     required this.applicationType,
     required this.appliedAt,
+    this.rejectionReason,
+    this.rejectionDescription,
   });
 
   factory EducatorApplication.fromDoc(
@@ -96,6 +100,8 @@ class EducatorApplication {
       status: data['status'] ?? 'pending',
       applicationType: data['applicationType'] ?? 'educator',
       appliedAt: data['appliedAt'] as Timestamp?,
+      rejectionReason: (data['rejectionReason'] as String?)?.isNotEmpty == true ? data['rejectionReason'] as String? : null,
+      rejectionDescription: (data['rejectionDescription'] as String?)?.isNotEmpty == true ? data['rejectionDescription'] as String? : null,
     );
   }
 
@@ -124,7 +130,7 @@ class Lesson {
   final String? createdByEmail;
   final String? attachmentUrl;
   final String? attachmentName;
-  final String validationStatus; // 'approved', 'awaiting_approval'
+  final String validationStatus; // 'approved', 'awaiting_approval', 'rejected'
   final bool isVisible;
   final List<String> visibleTo;
   final bool isMembersOnly;
@@ -132,6 +138,7 @@ class Lesson {
   final String? quizId;
   final String? imageUrl;
   final String? notebookId;
+  final String? rejectionReason;
 
   /// Semantic alias for [notebookId] to identify the unified content bundle.
   String? get bundleId => notebookId;
@@ -154,6 +161,7 @@ class Lesson {
     this.quizId,
     this.imageUrl,
     this.notebookId,
+    this.rejectionReason,
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -180,6 +188,7 @@ class Lesson {
       quizId: (data['quizId'] ?? '') == '' ? null : (data['quizId'] as String?),
       imageUrl: (data['imageUrl'] ?? '').toString() == '' ? null : (data['imageUrl'] as String?),
       notebookId: (data['notebookId'] ?? '') == '' ? null : (data['notebookId'] as String?),
+      rejectionReason: (data['rejectionReason'] as String?)?.isNotEmpty == true ? data['rejectionReason'] as String? : null,
     );
   }
 }
@@ -279,13 +288,14 @@ class Quiz {
   final String? createdByEmail;
   final String? attachmentUrl;
   final String? attachmentName;
-  final String validationStatus; // 'approved', 'awaiting_approval'
+  final String validationStatus; // 'approved', 'awaiting_approval', 'rejected'
   final bool isVisible;
   final List<String> visibleTo;
   final bool isMembersOnly;
   final bool isGrammaticaQuiz;
   final bool isAssessment;
   final String? notebookId;
+  final String? rejectionReason;
 
   /// Semantic alias for [notebookId] to identify the unified content bundle.
   String? get bundleId => notebookId;
@@ -309,6 +319,7 @@ class Quiz {
     this.isGrammaticaQuiz = false,
     this.isAssessment = false,
     this.notebookId,
+    this.rejectionReason,
   });
 
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -339,6 +350,7 @@ class Quiz {
       isGrammaticaQuiz: d['isGrammaticaQuiz'] ?? false,
       isAssessment: d['isAssessment'] ?? false,
       notebookId: (d['notebookId'] ?? '') == '' ? null : (d['notebookId'] as String?),
+      rejectionReason: (d['rejectionReason'] as String?)?.isNotEmpty == true ? d['rejectionReason'] as String? : null,
     );
   }
 }
@@ -1547,14 +1559,66 @@ class DatabaseService {
         );
   }
 
+  Stream<List<Lesson>> streamRejectedLessons() {
+    return _lessons
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(Lesson.fromDoc)
+              .where((l) => l.validationStatus == 'rejected')
+              .toList(),
+        );
+  }
+
+  Stream<List<Quiz>> streamRejectedQuizzes() {
+    return _quizzes
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(Quiz.fromDoc)
+              .where((q) => q.validationStatus == 'rejected' && !q.isAssessment)
+              .toList(),
+        );
+  }
+
+  Stream<List<Quiz>> streamRejectedAssessments() {
+    return _quizzes
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(Quiz.fromDoc)
+              .where((q) => q.validationStatus == 'rejected' && q.isAssessment)
+              .toList(),
+        );
+  }
+
+  Stream<List<EducatorApplication>> streamRejectedApplications() {
+    return _educatorApplications
+        .orderBy('appliedAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(EducatorApplication.fromDoc)
+              .where((a) => a.status == 'rejected')
+              .toList(),
+        );
+  }
+
+
   Future<void> updateContentStatus(
     String collection,
     String id,
-    String status,
-  ) async {
-    await _firestore.collection(collection).doc(id).update({
-      'validationStatus': status,
-    });
+    String status, {
+    String? rejectionReason,
+  }) async {
+    final data = <String, dynamic>{'validationStatus': status};
+    if (rejectionReason != null) {
+      data['rejectionReason'] = rejectionReason;
+    }
+    await _firestore.collection(collection).doc(id).update(data);
   }
 
   Future<List<Map<String, dynamic>>> fetchQuizResults(String quizId) async {

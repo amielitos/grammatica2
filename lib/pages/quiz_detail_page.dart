@@ -353,16 +353,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFCEDA72),
-              Color(0xFFE4EB6F),
-            ],
-          ),
-        ),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF1E1E1E)
+            : AppColors.backgroundBase,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final bool isWide = constraints.maxWidth >= 900;
@@ -466,6 +459,20 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                                       child: _buildQuestionSidePanel(),
                                     ),
                                   ),
+                                if (isWide && !_quizStarted)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 48),
+                                    child: SizedBox(
+                                      width: 320,
+                                      child: LinkedCompanionSidebar(
+                                        user: _effectiveUser,
+                                        notebookId: widget.notebookId ?? widget.quiz.notebookId,
+                                        currentQuiz: widget.quiz,
+                                        currentLesson: widget.lesson,
+                                        activeType: CompanionMediaType.quiz,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -489,20 +496,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             );
           },
         ),
-      ),
-      bottomNavigationBar: LinkedCompanionToolbar(
-        user: _effectiveUser,
-        notebookId: widget.notebookId ?? widget.quiz.notebookId,
-        currentQuiz: widget.quiz,
-        currentLesson: widget.lesson,
-        activeType: CompanionMediaType.quiz,
-        onBeforeNavigate: () async {
-          if (_quizStarted && !_completedLocal && !_previewMode) {
-            final shouldPop = await _showExitConfirmation();
-            return shouldPop == true;
-          }
-          return true;
-        },
       ),
     ),
   );
@@ -642,7 +635,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                       children: [
                         if (isNarrow) ...[
                           _statBox(
-                            color: AppColors.primary.withValues(alpha: 0.1),
+                            color: AppColors.primary.withValues(alpha: 0.08),
                             iconColor: AppColors.primary,
                             icon: Icons.timer_outlined,
                             label: 'Duration',
@@ -651,8 +644,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                           ),
                           const SizedBox(height: 12),
                           _statBox(
-                            color: Colors.blue.withValues(alpha: 0.1),
-                            iconColor: Colors.blue,
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            iconColor: AppColors.primary,
                             icon: Icons.help_outline_rounded,
                             label: 'Questions',
                             value: '${widget.quiz.questions.length}',
@@ -660,8 +653,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                           ),
                           const SizedBox(height: 12),
                           _statBox(
-                            color: Colors.orange.withValues(alpha: 0.1),
-                            iconColor: Colors.orange,
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            iconColor: AppColors.primary,
                             icon: Icons.refresh_rounded,
                             label: 'Attempts',
                             value: '$_attemptsUsed/$maxAttempts',
@@ -672,7 +665,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                             children: [
                               Expanded(
                                 child: _statBox(
-                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  color: AppColors.primary.withValues(alpha: 0.08),
                                   iconColor: AppColors.primary,
                                   icon: Icons.timer_outlined,
                                   label: 'Duration',
@@ -683,8 +676,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: _statBox(
-                                  color: Colors.blue.withValues(alpha: 0.1),
-                                  iconColor: Colors.blue,
+                                  color: AppColors.primary.withValues(alpha: 0.08),
+                                  iconColor: AppColors.primary,
                                   icon: Icons.help_outline_rounded,
                                   label: 'Questions',
                                   value: '${widget.quiz.questions.length}',
@@ -694,8 +687,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                               const SizedBox(width: 16),
                               Expanded(
                                 child: _statBox(
-                                  color: Colors.orange.withValues(alpha: 0.1),
-                                  iconColor: Colors.orange,
+                                  color: AppColors.primary.withValues(alpha: 0.08),
+                                  iconColor: AppColors.primary,
                                   icon: Icons.refresh_rounded,
                                   label: 'Attempts',
                                   value: '$_attemptsUsed/$maxAttempts',

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../models/notebook_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/notebook_service.dart';
@@ -32,222 +32,271 @@ class _NotebookListPageState extends State<NotebookListPage> {
     final currentUid = AuthService.instance.currentUser?.uid ?? '';
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF131812) : AppColors.backgroundBase,
-      body: CustomScrollView(
-        slivers: [
-          // Elegant Header App Bar with Gradient
-          SliverAppBar(
-            expandedHeight: 180.0,
-            pinned: true,
-            backgroundColor: AppColors.primary,
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-              title: Text(
-                'AI Notebooks',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 22,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF4C7530),
-                      Color(0xFF76A34F),
-                      Color(0xFF2E4D1D),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Stack(
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : AppColors.backgroundBase,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 900;
+          return SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              isWide ? 40 : 20, 32, isWide ? 40 : 20, 40,
+            ),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Positioned(
-                      right: -30,
-                      top: -20,
-                      child: Icon(
-                        Icons.auto_stories_rounded,
-                        size: 200,
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                    Positioned(
-                      left: 20,
-                      bottom: 50,
-                      child: Text(
-                        'Upload sources, synthesize notes, and generate study tools',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
+                    // Clean Header Banner Card Harmonized with Grammatica App Design
+                    _buildHeader(context, isDark),
+                    const SizedBox(height: 24),
+
+                    // Search Bar & Action Button
+                    _buildSearchAndActions(context, isDark, currentUid),
+                    const SizedBox(height: 24),
+
+                    // Notebooks Grid or Clean Empty State
+                    _buildNotebooksContent(context, isDark, currentUid, constraints.maxWidth),
                   ],
                 ),
               ),
             ),
-          ),
-
-          // Search and Filter Bar
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E261D) : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.06),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
-                        decoration: InputDecoration(
-                          hintText: 'Search notebooks...',
-                          hintStyle: TextStyle(
-                            color: isDark ? Colors.white38 : AppColors.textSecondary,
-                            fontSize: 14,
-                          ),
-                          prefixIcon: const Icon(Icons.search, color: AppColors.primary),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear, size: 18),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() => _searchQuery = '');
-                                  },
-                                )
-                              : null,
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: () => _showCreateNotebookDialog(context, currentUid),
-                    icon: const Icon(Icons.add, size: 20),
-                    label: const Text('New Notebook'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 0,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Notebooks Stream Grid
-          StreamBuilder<List<Notebook>>(
-            stream: NotebookService.instance.listUserNotebooks(currentUid),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const SliverFillRemaining(
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-                );
-              }
-
-              if (snapshot.hasError) {
-                return SliverFillRemaining(
-                  child: Center(
-                    child: Text(
-                      'Error loading notebooks: ${snapshot.error}',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                );
-              }
-
-              var notebooks = snapshot.data ?? [];
-
-              if (_searchQuery.isNotEmpty) {
-                notebooks = notebooks
-                    .where((nb) =>
-                        nb.title.toLowerCase().contains(_searchQuery) ||
-                        nb.description.toLowerCase().contains(_searchQuery))
-                    .toList();
-              }
-
-              if (notebooks.isEmpty) {
-                return SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: _buildEmptyState(isDark, currentUid),
-                );
-              }
-
-              return SliverPadding(
-                padding: const EdgeInsets.all(20),
-                sliver: SliverMasonryGrid.count(
-                  crossAxisCount: _calculateColumnCount(context),
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  itemBuilder: (context, index) {
-                    final notebook = notebooks[index];
-                    return NotebookCard(
-                      notebook: notebook,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => NotebookDetailPage(notebookId: notebook.id),
-                          ),
-                        );
-                      },
-                      onEdit: () => _showEditNotebookDialog(context, notebook),
-                      onDelete: () => _confirmDeleteNotebook(context, notebook),
-                    );
-                  },
-                  childCount: notebooks.length,
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateNotebookDialog(context, currentUid),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Create Notebook'),
+          );
+        },
       ),
     );
   }
 
-  int _calculateColumnCount(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width > 1200) return 4;
-    if (width > 900) return 3;
-    if (width > 600) return 2;
+  Widget _buildHeader(BuildContext context, bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF262626) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.auto_stories_rounded,
+              color: AppColors.primary,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'AI Notebooks',
+                      style: GoogleFonts.outfit(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.auto_awesome_rounded, size: 12, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'STUDY STUDIO',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Upload sources, synthesize notes, and auto-generate interactive study tools.',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: isDark ? Colors.white60 : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchAndActions(BuildContext context, bool isDark, String currentUid) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF262626) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: isDark ? Colors.white : AppColors.textPrimary,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search your notebooks...',
+                hintStyle: GoogleFonts.inter(
+                  color: isDark ? Colors.white38 : AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 14),
+        ElevatedButton.icon(
+          onPressed: () => _showCreateNotebookDialog(context, currentUid),
+          icon: const Icon(Icons.add_rounded, size: 20),
+          label: Text(
+            'New Notebook',
+            style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 0,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotebooksContent(BuildContext context, bool isDark, String currentUid, double maxAvailableWidth) {
+    if (currentUid.isEmpty) {
+      return _buildEmptyState(isDark, currentUid);
+    }
+
+    return StreamBuilder<List<Notebook>>(
+      stream: NotebookService.instance.listUserNotebooks(currentUid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40.0),
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          );
+        }
+
+        var notebooks = snapshot.data ?? [];
+
+        if (_searchQuery.isNotEmpty) {
+          notebooks = notebooks
+              .where((nb) =>
+                  nb.title.toLowerCase().contains(_searchQuery) ||
+                  nb.description.toLowerCase().contains(_searchQuery))
+              .toList();
+        }
+
+        if (notebooks.isEmpty) {
+          return _buildEmptyState(isDark, currentUid);
+        }
+
+        final columns = _calculateColumnCount(maxAvailableWidth);
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: 1.15,
+          ),
+          itemCount: notebooks.length,
+          itemBuilder: (context, index) {
+            final notebook = notebooks[index];
+            return NotebookCard(
+              notebook: notebook,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => NotebookDetailPage(notebookId: notebook.id),
+                  ),
+                );
+              },
+              onEdit: () => _showEditNotebookDialog(context, notebook),
+              onDelete: () => _confirmDeleteNotebook(context, notebook),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  int _calculateColumnCount(double width) {
+    if (width > 1100) return 4;
+    if (width > 800) return 3;
+    if (width > 500) return 2;
     return 1;
   }
 
