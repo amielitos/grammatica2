@@ -12,7 +12,6 @@ import '../services/notification_service.dart';
 import '../services/web_service.dart';
 import '../services/ai_logic_service.dart';
 import '../models/spelling_word.dart';
-import '../widgets/design_ornaments.dart';
 import '../pages/admin/admin_spelling_words_tab.dart';
 import '../theme/app_colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -537,20 +536,19 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
           ),
         ],
       ),
-      body: _selectedDifficulty == null
-          ? Container(
-              color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF121212) : const Color(0xFFFAFAFA),
+      body: Container(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF1E1E1E)
+            : AppColors.backgroundBase,
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
               child: _buildBody(),
-            )
-          : BackgroundWrapper(
-              imageAssetPath: 'assets/pronunciationbg.png',
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1200),
-                  child: _buildBody(),
-                ),
-              ),
             ),
+          ),
+        ),
+      ),
     ),
   );
 }
@@ -781,95 +779,151 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     );
   }
 
-  Widget _buildStatBox(String title, String value) {
+  Widget _buildStatBox(String title, String value, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: 220,
-      padding: EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF262626) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(title, style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
-          SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: isDark ? Colors.white60 : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: GoogleFonts.outfit(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildGameSession() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final minutes = (_timeLeft / 60).floor().toString().padLeft(2, '0');
     final seconds = (_timeLeft % 60).toString().padLeft(2, '0');
-    
+
     String difficultyText = "";
-    Color difficultyColor = Colors.black;
+    Color difficultyColor = AppColors.primary;
     switch (_selectedDifficulty) {
       case SpellingDifficulty.novice:
         difficultyText = "Novice";
-        difficultyColor = const Color(0xFF8BC34A); // Match mockup color
+        difficultyColor = const Color(0xFFF59E0B);
         break;
       case SpellingDifficulty.amateur:
         difficultyText = "Amateur";
-        difficultyColor = const Color(0xFFA1CC73);
+        difficultyColor = AppColors.primary;
         break;
       case SpellingDifficulty.professional:
         difficultyText = "Professional";
-        difficultyColor = const Color(0xFFE6625B);
+        difficultyColor = const Color(0xFFEF4444);
         break;
       default:
         break;
     }
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(24, 60, 24, 40),
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
       child: Column(
         children: [
-          RichText(
-            textAlign: TextAlign.center,
-            text: TextSpan(
-              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.black),
+          // Header Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: difficultyColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: difficultyColor.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                TextSpan(text: 'Pronunciation - '),
-                TextSpan(text: difficultyText, style: TextStyle(color: difficultyColor)),
+                Icon(Icons.mic_rounded, size: 16, color: difficultyColor),
+                const SizedBox(width: 6),
+                Text(
+                  'PRONUNCIATION • $difficultyText',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: difficultyColor,
+                    letterSpacing: 0.8,
+                  ),
+                ),
               ],
             ),
           ),
-          SizedBox(height: 32),
+          const SizedBox(height: 20),
+
+          // KPI Stats Cards
           Wrap(
             spacing: 16,
             runSpacing: 16,
             alignment: WrapAlignment.center,
             children: [
-              _buildStatBox('Progress:', 'Word ${_currentIndex + 1} of ${_sessionWords.length}'),
-              _buildStatBox('Current Score:', '$_score/${_sessionWords.length}'),
-              _buildStatBox('Time:', '$minutes:$seconds'),
+              _buildStatBox('Progress', '${_currentIndex + 1} / ${_sessionWords.length}', Icons.subtitles_rounded, AppColors.primary),
+              _buildStatBox('Current Score', '$_score / ${_sessionWords.length}', Icons.stars_rounded, const Color(0xFFF59E0B)),
+              _buildStatBox('Time Left', '$minutes:$seconds', Icons.timer_rounded, const Color(0xFFEF4444)),
             ],
           ),
-          SizedBox(height: 48),
+          const SizedBox(height: 36),
+
+          // Main Interactive Card
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 700),
+            constraints: const BoxConstraints(maxWidth: 640),
             child: Container(
               width: double.infinity,
-              padding: EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 40),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF262626) : Colors.white,
                 borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
                     blurRadius: 20,
-                    offset: const Offset(0, 10),
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
@@ -877,12 +931,17 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                 children: [
                   if (_currentIndex < _sessionWords.length)
                     Container(
-                      width: 300,
-                      padding: EdgeInsets.symmetric(vertical: 20),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFF8BC34A), width: 2), // The mockup shows a green border
+                        color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: _isTransitioning
+                              ? (_isLastCorrect == true ? AppColors.primary : AppColors.error)
+                              : (isDark ? Colors.white12 : Colors.grey.shade300),
+                          width: _isTransitioning ? 2 : 1,
+                        ),
                       ),
                       child: Center(
                         child: Column(
@@ -890,161 +949,187 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                           children: [
                             Text(
                               _sessionWords[_currentIndex].word,
-                              style: TextStyle(
-                                fontSize: 48,
-                                fontWeight: FontWeight.normal,
-                                color: _isTransitioning 
-                                  ? (_isLastCorrect == true ? Colors.green : Colors.red) 
-                                  : Colors.black,
+                              style: GoogleFonts.outfit(
+                                fontSize: 42,
+                                fontWeight: FontWeight.bold,
+                                color: _isTransitioning
+                                    ? (_isLastCorrect == true ? AppColors.primary : AppColors.error)
+                                    : (isDark ? Colors.white : AppColors.textPrimary),
+                                letterSpacing: 1.0,
                               ),
                             ),
                             if (_isTransitioning) ...[
-                              SizedBox(height: 8),
-                              Icon(
-                                _isLastCorrect == true ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                                color: _isLastCorrect == true ? Colors.green : Colors.red,
-                                size: 32,
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _isLastCorrect == true ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                                    color: _isLastCorrect == true ? AppColors.primary : AppColors.error,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    _isLastCorrect == true ? "Great Pronunciation!" : "Needs Practice",
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: _isLastCorrect == true ? AppColors.primary : AppColors.error,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ],
                         ),
                       ),
                     ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   Text(
-                    "Press the mic and say the word",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w500,
+                    "Press the mic and say the word clearly",
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white70 : AppColors.textSecondary,
                     ),
                   ),
-                  SizedBox(height: 16),
-                  
-                  // Waveform Mockup based on volume
+                  const SizedBox(height: 20),
+
+                  // Audio Waveform Meter
                   SizedBox(
-                    height: 50,
+                    height: 48,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(31, (index) {
-                        double baseHeight = 10.0 + (index % 5) * 5.0; // static base height pattern
-                        double dynamicHeight = _isRecording ? baseHeight + (_micVolume * 40 * (index % 3 + 1)) : baseHeight;
-                        if (index == 15) dynamicHeight = _isRecording ? 50.0 + _micVolume * 30 : 25.0; // center is highest
-                        
+                        double baseHeight = 8.0 + (index % 5) * 4.0;
+                        double dynamicHeight = _isRecording ? baseHeight + (_micVolume * 36 * (index % 3 + 1)) : baseHeight;
+                        if (index == 15) dynamicHeight = _isRecording ? 48.0 + _micVolume * 24 : 24.0;
+
                         return AnimatedContainer(
-                          duration: const Duration(milliseconds: 100),
-                          margin: EdgeInsets.symmetric(horizontal: 2),
+                          duration: const Duration(milliseconds: 80),
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
                           width: 4,
-                          height: dynamicHeight.clamp(4.0, 50.0),
+                          height: dynamicHeight.clamp(4.0, 48.0),
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.8), // Dark color from the screenshot
+                            color: _isRecording ? AppColors.primary : (isDark ? Colors.white30 : Colors.grey.shade400),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         );
                       }),
                     ),
                   ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   if (_recognizedText.isNotEmpty) ...[
-                    Text(
-                      _recognizedText == "Listening..." ? "Listening..." : "I heard: \"$_recognizedText\"",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: _isTransitioning 
-                          ? (_isLastCorrect == true ? Colors.green : Colors.red) 
-                          : AppColors.primary,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _recognizedText == "Listening..." ? "Listening..." : "I heard: \"$_recognizedText\"",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: _isTransitioning
+                              ? (_isLastCorrect == true ? AppColors.primary : AppColors.error)
+                              : AppColors.primary,
+                        ),
                       ),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 20),
                   ],
-                  SizedBox(height: 16),
 
-                  // Mic Controls
+                  // Mic Controls Bar
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Reset Button
-                      InkWell(
-                        onTap: _resetRecording,
-                        borderRadius: BorderRadius.circular(32),
-                        child: Padding(
-                          padding: EdgeInsets.all(12.0),
-                          child: Column(
-                            children: const [
-                              Icon(Icons.refresh_rounded, size: 28, color: Colors.black54),
-                              SizedBox(height: 4),
-                              Text("Reset", style: TextStyle(fontSize: 12, color: Colors.black54)),
-                            ],
-                          ),
+                      OutlinedButton.icon(
+                        onPressed: _resetRecording,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: Text('Reset', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark ? Colors.white70 : AppColors.textSecondary,
+                          side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
                       ),
-                      SizedBox(width: 40),
+                      const SizedBox(width: 24),
                       // Mic Button
                       GestureDetector(
                         onTap: _isRecording ? _stopRecording : _startRecording,
-                        child: Container(
-                          width: 80,
-                          height: 80,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 72,
+                          height: 72,
                           decoration: BoxDecoration(
-                            color: _isRecording ? Colors.red : const Color(0xFF8BC34A), // Red when recording, Green when idle
+                            color: _isRecording ? AppColors.error : AppColors.primary,
                             shape: BoxShape.circle,
                             boxShadow: [
-                              if (_isRecording)
-                                BoxShadow(
-                                  color: const Color(0xFF8BC34A).withValues(alpha: 0.4),
-                                  blurRadius: 20,
-                                  spreadRadius: 8,
-                                ),
+                              BoxShadow(
+                                color: (_isRecording ? AppColors.error : AppColors.primary).withValues(alpha: 0.35),
+                                blurRadius: 20,
+                                spreadRadius: _isRecording ? 6 : 2,
+                              ),
                             ],
                           ),
                           child: Icon(
                             _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
-                            size: 40,
+                            size: 36,
                             color: Colors.white,
                           ),
                         ),
                       ),
-                      SizedBox(width: 40),
+                      const SizedBox(width: 24),
                       // Submit Button
-                      InkWell(
-                        onTap: _recognizedText.isNotEmpty ? _submitAnswer : null,
-                        borderRadius: BorderRadius.circular(32),
-                        child: Padding(
-                          padding: EdgeInsets.all(12.0),
-                          child: Column(
-                            children: [
-                              Icon(Icons.check_rounded, size: 28, color: _recognizedText.isNotEmpty ? Colors.black54 : Colors.black26),
-                              SizedBox(height: 4),
-                              Text("Submit", style: TextStyle(fontSize: 12, color: _recognizedText.isNotEmpty ? Colors.black54 : Colors.black26)),
-                            ],
-                          ),
+                      ElevatedButton.icon(
+                        onPressed: _recognizedText.isNotEmpty ? _submitAnswer : null,
+                        icon: const Icon(Icons.check_rounded, size: 18),
+                        label: Text('Submit', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 40),
-                  TextButton(
-                    onPressed: _skipWord,
-                    child: Text('Skip this word', style: TextStyle(fontSize: 14, color: Colors.grey)),
-                  ),
-                  SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {
-                      _timer?.cancel();
-                      setState(() => _selectedDifficulty = null);
-                    },
-                    child: Text(
-                      'Cancel Pronunciation',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFFE56B6B),
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.underline,
-                        decorationColor: Color(0xFFE56B6B),
+                  const SizedBox(height: 28),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _skipWord,
+                        icon: const Icon(Icons.skip_next_rounded, size: 16),
+                        label: Text('Skip Word', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark ? Colors.white70 : AppColors.textSecondary,
+                          side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      TextButton.icon(
+                        onPressed: () {
+                          _timer?.cancel();
+                          setState(() => _selectedDifficulty = null);
+                        },
+                        icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
+                        label: Text(
+                          'Quit Session',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

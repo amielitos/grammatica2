@@ -13,7 +13,6 @@ import '../services/web_service.dart';
 import '../models/spelling_word.dart';
 import '../pages/admin/admin_spelling_words_tab.dart';
 import '../theme/app_colors.dart';
-import '../widgets/design_ornaments.dart';
 import '../services/ai_logic_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -319,20 +318,19 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
           ),
         ],
       ),
-      body: _selectedDifficulty == null
-          ? Container(
-              color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF121212) : const Color(0xFFFAFAFA),
+      body: Container(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF1E1E1E)
+            : AppColors.backgroundBase,
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
               child: _buildBody(),
-            )
-          : BackgroundWrapper(
-              imageAssetPath: 'assets/spellingbeebg.png',
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1200),
-                  child: _buildBody(),
-                ),
-              ),
             ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -562,30 +560,61 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     );
   }
 
-  Widget _buildStatBox(String title, String value) {
+  Widget _buildStatBox(String title, String value, IconData icon, Color color) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       width: 220,
-      padding: EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        color: isDark ? const Color(0xFF262626) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? const Color(0xFF334155) : Colors.grey.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(title, style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Colors.grey, fontWeight: FontWeight.w500)),
-          SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black)),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: isDark ? Colors.white60 : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: GoogleFonts.outfit(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -595,169 +624,235 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final minutes = (_timeLeft / 60).floor().toString().padLeft(2, '0');
     final seconds = (_timeLeft % 60).toString().padLeft(2, '0');
-    
+
     String difficultyText = "";
-    Color difficultyColor = Colors.black;
+    Color difficultyColor = AppColors.primary;
     switch (_selectedDifficulty) {
       case SpellingDifficulty.novice:
         difficultyText = "Novice";
-        difficultyColor = const Color(0xFFFCE267);
+        difficultyColor = const Color(0xFFF59E0B);
         break;
       case SpellingDifficulty.amateur:
         difficultyText = "Amateur";
-        difficultyColor = const Color(0xFFA1CC73);
+        difficultyColor = AppColors.primary;
         break;
       case SpellingDifficulty.professional:
         difficultyText = "Professional";
-        difficultyColor = const Color(0xFFE6625B);
+        difficultyColor = const Color(0xFFEF4444);
         break;
       default:
         break;
     }
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(24, 60, 24, 40),
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
       child: Column(
         children: [
-          RichText(
-            textAlign: TextAlign.center,
-            text: TextSpan(
-              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
+          // Header Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: difficultyColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: difficultyColor.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                TextSpan(text: 'Spelling Bee - '),
-                TextSpan(text: difficultyText, style: TextStyle(color: difficultyColor)),
+                Icon(Icons.spellcheck_rounded, size: 16, color: difficultyColor),
+                const SizedBox(width: 6),
+                Text(
+                  'SPELLING BEE • $difficultyText',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: difficultyColor,
+                    letterSpacing: 0.8,
+                  ),
+                ),
               ],
             ),
           ),
-          SizedBox(height: 32),
+          const SizedBox(height: 20),
+
+          // KPI Stats Cards
           Wrap(
             spacing: 16,
             runSpacing: 16,
             alignment: WrapAlignment.center,
             children: [
-              _buildStatBox('Progress:', 'Word ${_currentIndex + 1} of 10'),
-              _buildStatBox('Current Score:', '$_score/10'),
-              _buildStatBox('Time:', '$minutes:$seconds'),
+              _buildStatBox('Progress', '${_currentIndex + 1} / 10', Icons.subtitles_rounded, AppColors.primary),
+              _buildStatBox('Current Score', '$_score / 10', Icons.stars_rounded, const Color(0xFFF59E0B)),
+              _buildStatBox('Time Left', '$minutes:$seconds', Icons.timer_rounded, const Color(0xFFEF4444)),
             ],
           ),
-          SizedBox(height: 48),
+          const SizedBox(height: 36),
+
+          // Main Card
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 700),
+            constraints: const BoxConstraints(maxWidth: 640),
             child: Container(
               width: double.infinity,
-              padding: EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 40),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                color: isDark ? const Color(0xFF262626) : Colors.white,
                 borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
                     blurRadius: 20,
-                    offset: const Offset(0, 10),
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
               child: Column(
                 children: [
-                  GestureDetector(
-                    onTap: _speakWord,
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: difficultyColor,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          if (_isPlaying)
+                  // Speaker Audio Button
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: _speakWord,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          boxShadow: [
                             BoxShadow(
-                              color: difficultyColor.withValues(alpha: 0.4),
-                              blurRadius: 30,
-                              spreadRadius: 8,
+                              color: AppColors.primary.withValues(alpha: _isPlaying ? 0.5 : 0.25),
+                              blurRadius: _isPlaying ? 28 : 16,
+                              spreadRadius: _isPlaying ? 6 : 2,
                             ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.volume_up_rounded,
-                        size: 64,
-                        color: Colors.white,
+                          ],
+                        ),
+                        child: Icon(
+                          _isPlaying ? Icons.volume_up_rounded : Icons.play_arrow_rounded,
+                          size: 48,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
-                  SizedBox(height: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    _isPlaying ? "Listening to word..." : "Tap to replay audio prompt",
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _isPlaying ? AppColors.primary : (isDark ? Colors.white60 : AppColors.textSecondary),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
                   Text(
                     "Listen carefully and spell the word",
-                    style: TextStyle(
+                    style: GoogleFonts.outfit(
                       fontSize: 18,
-                      color: isDark ? Colors.grey[300] : Colors.black87,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   TextField(
                     controller: _answerController,
                     focusNode: _focusNode,
                     autofocus: true,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 20, color: isDark ? Colors.white : Colors.black),
+                    style: GoogleFonts.outfit(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                      letterSpacing: 1.5,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Type your answer here...',
-                      hintStyle: TextStyle(fontSize: 16, color: Colors.grey, fontStyle: FontStyle.italic),
-                      contentPadding: EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+                      hintStyle: GoogleFonts.inter(
+                        fontSize: 15,
+                        color: isDark ? Colors.white38 : Colors.grey.shade400,
+                        fontStyle: FontStyle.italic,
+                        letterSpacing: 0,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.4)),
+                        borderSide: BorderSide(
+                          color: isDark ? Colors.white12 : Colors.grey.shade300,
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.4)),
+                        borderSide: BorderSide(
+                          color: isDark ? Colors.white12 : Colors.grey.shade300,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.8)),
+                        borderSide: const BorderSide(
+                          color: AppColors.primary,
+                          width: 2,
+                        ),
                       ),
                     ),
                     onSubmitted: (_) => _submitAnswer(),
                   ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
+                    height: 52,
+                    child: ElevatedButton.icon(
                       onPressed: _submitAnswer,
+                      icon: const Icon(Icons.check_circle_rounded, size: 20),
+                      label: Text(
+                        'Submit Answer',
+                        style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF81B655), // Match the solid green mockup button
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: Text(
-                        'Submit Answer',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
                     ),
                   ),
-                  SizedBox(height: 24),
-                  TextButton(
-                    onPressed: _skipWord,
-                    child: Text('Skip this word', style: TextStyle(fontSize: 14, color: Colors.grey)),
-                  ),
-                  SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {
-                      _timer?.cancel();
-                      setState(() => _selectedDifficulty = null);
-                    },
-                    child: Text(
-                      'Cancel Spelling Bee',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFFE56B6B),
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.underline,
-                        decorationColor: Color(0xFFE56B6B),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _skipWord,
+                        icon: const Icon(Icons.skip_next_rounded, size: 16),
+                        label: Text('Skip Word', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark ? Colors.white70 : AppColors.textSecondary,
+                          side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      TextButton.icon(
+                        onPressed: () {
+                          _timer?.cancel();
+                          setState(() => _selectedDifficulty = null);
+                        },
+                        icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
+                        label: Text(
+                          'Quit Session',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
