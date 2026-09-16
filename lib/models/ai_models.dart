@@ -45,20 +45,39 @@ enum ContentBlockType {
 class ContentBlock {
   final ContentBlockType type;
   final dynamic data;
+  final String? imageUrl;
 
-  const ContentBlock({required this.type, required this.data});
+  const ContentBlock({
+    required this.type,
+    required this.data,
+    this.imageUrl,
+  });
 
   factory ContentBlock.fromJson(Map<String, dynamic> json) {
     return ContentBlock(
       type: ContentBlockType.fromString(json['type'] as String? ?? 'text'),
       data: json['data'],
+      imageUrl: json['imageUrl'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'type': type.name,
         'data': data,
+        if (imageUrl != null && imageUrl!.isNotEmpty) 'imageUrl': imageUrl,
       };
+
+  ContentBlock copyWith({
+    ContentBlockType? type,
+    dynamic data,
+    String? imageUrl,
+  }) {
+    return ContentBlock(
+      type: type ?? this.type,
+      data: data ?? this.data,
+      imageUrl: imageUrl ?? this.imageUrl,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +169,19 @@ class AILessonResponse {
           buffer.writeln();
           break;
         case ContentBlockType.image:
-          buffer.writeln('[Image Placeholder: ${b.data}]');
+          final effectiveUrl = (b.imageUrl != null && b.imageUrl!.isNotEmpty)
+              ? b.imageUrl
+              : (b.data.toString().startsWith('http') ? b.data.toString() : null);
+          if (effectiveUrl != null) {
+            final alt = (b.data != null &&
+                    b.data.toString().isNotEmpty &&
+                    !b.data.toString().startsWith('http'))
+                ? b.data.toString()
+                : 'Visual Aid';
+            buffer.writeln('![$alt]($effectiveUrl)');
+          } else {
+            buffer.writeln('[Image Placeholder: ${b.data}]');
+          }
           buffer.writeln();
           break;
       }

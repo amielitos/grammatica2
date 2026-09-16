@@ -171,12 +171,13 @@ class _HomePageState extends State<HomePage> {
         user: user,
         userData: widget.userData,
         currentIndex: _tabIndex,
+        navItems: navItems,
         onTap: (index) {
           setState(() {
             _tabIndex = index;
             _persistedTabIndex = index;
           });
-          if (index == 4) {
+          if (index >= 0 && index < navItems.length && navItems[index].icon == Icons.person) {
             _profileKey.currentState?.fetchProfile();
           }
         },

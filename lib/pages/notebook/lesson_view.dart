@@ -1,11 +1,14 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/ai_models.dart';
 import '../../models/notebook_models.dart';
 import '../../services/notebook_service.dart';
+import '../../services/database_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/interactive_markdown.dart';
+import '../../widgets/lesson_image_dropzone.dart';
 import 'publish_content_dialogs.dart';
 
 /// In-Notebook visual workspace and editor for generated interactive lessons.
@@ -35,6 +38,7 @@ class _LessonViewState extends State<LessonView> {
   late AILessonResponse _lesson;
   late TextEditingController _titleCtrl;
   final List<TextEditingController> _blockCtrls = [];
+  final Set<int> _uploadingBlockIndices = {};
   bool _isEditingInline = false;
   bool _hasUnsavedEdits = false;
 
@@ -89,7 +93,11 @@ class _LessonViewState extends State<LessonView> {
           }
           break;
         case ContentBlockType.image:
-          text = '[Image Placeholder: ${block.data}]';
+          if (block.imageUrl != null && block.imageUrl!.isNotEmpty) {
+            text = '![${block.data}](${block.imageUrl})';
+          } else {
+            text = '[Image Placeholder: ${block.data}]';
+          }
           break;
       }
       _blockCtrls.add(TextEditingController(text: text));
@@ -113,13 +121,115 @@ class _LessonViewState extends State<LessonView> {
     return _blockCtrls.map((c) => c.text.trim()).join('\n\n');
   }
 
+  Future<void> _handleImageUpload(int blockIndex, Uint8List bytes, String fileName) async {
+    setState(() => _uploadingBlockIndices.add(blockIndex));
+    try {
+      final folder = 'lesson_images/notebook_${widget.notebookId}';
+      final downloadUrl = await DatabaseService.instance.uploadGeneratedImage(
+        bytes,
+        fileName,
+        folder: folder,
+      );
+
+      final oldBlock = _lesson.content[blockIndex];
+      final updatedBlock = oldBlock.copyWith(
+        type: ContentBlockType.image,
+        imageUrl: downloadUrl,
+      );
+
+      final newContent = List<ContentBlock>.from(_lesson.content);
+      newContent[blockIndex] = updatedBlock;
+
+      final updatedLesson = AILessonResponse(
+        title: _titleCtrl.text.trim().isNotEmpty ? _titleCtrl.text.trim() : _lesson.title,
+        content: newContent,
+      );
+
+      final updatedOutput = widget.output.copyWith(
+        title: updatedLesson.title,
+        data: updatedLesson.toJson(),
+      );
+
+      await NotebookService.instance.updateOutput(widget.notebookId, updatedOutput);
+
+      if (mounted) {
+        setState(() {
+          _lesson = updatedLesson;
+          _uploadingBlockIndices.remove(blockIndex);
+          if (blockIndex < _blockCtrls.length) {
+            _blockCtrls[blockIndex].text = '![${oldBlock.data}]($downloadUrl)';
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Visual aid uploaded and attached to lesson!'),
+            backgroundColor: Color(0xFF10B981),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploadingBlockIndices.remove(blockIndex));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload image: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleRemoveImage(int blockIndex) async {
+    final oldBlock = _lesson.content[blockIndex];
+    final updatedBlock = ContentBlock(
+      type: ContentBlockType.image,
+      data: oldBlock.data,
+      imageUrl: null,
+    );
+
+    final newContent = List<ContentBlock>.from(_lesson.content);
+    newContent[blockIndex] = updatedBlock;
+
+    final updatedLesson = AILessonResponse(
+      title: _titleCtrl.text.trim().isNotEmpty ? _titleCtrl.text.trim() : _lesson.title,
+      content: newContent,
+    );
+
+    final updatedOutput = widget.output.copyWith(
+      title: updatedLesson.title,
+      data: updatedLesson.toJson(),
+    );
+
+    await NotebookService.instance.updateOutput(widget.notebookId, updatedOutput);
+
+    if (mounted) {
+      setState(() {
+        _lesson = updatedLesson;
+        if (blockIndex < _blockCtrls.length) {
+          _blockCtrls[blockIndex].text = '[Image Placeholder: ${oldBlock.data}]';
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image removed from lesson.')),
+      );
+    }
+  }
+
   Future<void> _saveInlineEdits() async {
     final updatedBlocks = <ContentBlock>[];
     for (int i = 0; i < _blockCtrls.length; i++) {
-      updatedBlocks.add(ContentBlock(
-        type: ContentBlockType.text,
-        data: _blockCtrls[i].text.trim(),
-      ));
+      final originalBlock = i < _lesson.content.length ? _lesson.content[i] : null;
+      final editedText = _blockCtrls[i].text.trim();
+
+      if (originalBlock != null && originalBlock.type == ContentBlockType.image) {
+        updatedBlocks.add(originalBlock);
+      } else {
+        updatedBlocks.add(ContentBlock(
+          type: originalBlock?.type ?? ContentBlockType.text,
+          data: editedText,
+        ));
+      }
     }
 
     final updatedLesson = AILessonResponse(
@@ -438,7 +548,7 @@ class _LessonViewState extends State<LessonView> {
               const SizedBox(height: 12),
 
               if (isImage)
-                _buildImageBlockPlaceholder(rawBlock!, isDark)
+                _buildImageBlockPlaceholder(index, rawBlock!, isDark)
               else if (_isEditingInline)
                 TextField(
                   controller: ctrl,
@@ -469,53 +579,16 @@ class _LessonViewState extends State<LessonView> {
     );
   }
 
-  Widget _buildImageBlockPlaceholder(ContentBlock block, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2A3428) : const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? Colors.white12 : Colors.grey.shade300,
-          style: BorderStyle.solid,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.image_rounded, size: 28, color: AppColors.primary),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Visual Placeholder',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: isDark ? Colors.white : AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  block.data.toString(),
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: isDark ? Colors.white60 : AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+  Widget _buildImageBlockPlaceholder(int blockIndex, ContentBlock block, bool isDark) {
+    return LessonImageDropzone(
+      imagePrompt: block.data.toString(),
+      currentImageUrl: block.imageUrl,
+      isUploading: _uploadingBlockIndices.contains(blockIndex),
+      onImageSelected: (bytes, fileName) => _handleImageUpload(blockIndex, bytes, fileName),
+      onRemoveImage: (block.imageUrl != null && block.imageUrl!.isNotEmpty)
+          ? () => _handleRemoveImage(blockIndex)
+          : null,
+      isDark: isDark,
     );
   }
 }

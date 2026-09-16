@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'dart:typed_data';
 import '../../utils/file_helper.dart';
 
@@ -598,72 +599,88 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
       children: [
         _label('Title Page (Cover Image)'),
         const SizedBox(height: 8),
-        InkWell(
-          onTap: _pickTitlePageImage,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            width: double.infinity,
-            height: 140,
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: hasImage ? AppColors.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
-                width: hasImage ? 2 : 1,
+        DropTarget(
+          onDragDone: (detail) async {
+            if (detail.files.isEmpty) return;
+            final file = detail.files.first;
+            final bytes = await file.readAsBytes();
+            setState(() {
+              _pendingTitleImageBytes = Uint8List.fromList(bytes);
+              _pendingTitleImageFileName = file.name;
+            });
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Cover image attached from drop!')),
+              );
+            }
+          },
+          child: InkWell(
+            onTap: _pickTitlePageImage,
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: double.infinity,
+              height: 140,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: hasImage ? AppColors.primary : (isDark ? Colors.white12 : Colors.grey.shade300),
+                  width: hasImage ? 2 : 1,
+                ),
               ),
-            ),
-            child: hasImage
-                ? Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: _pendingTitleImageBytes != null
-                            ? Image.memory(_pendingTitleImageBytes!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
-                            : Image.network(_lessonImageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
-                      ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.black54,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(Icons.close, size: 16, color: Colors.white),
-                            onPressed: () {
-                              setState(() {
-                                _pendingTitleImageBytes = null;
-                                _pendingTitleImageFileName = null;
-                                _lessonImageUrl = null;
-                              });
-                            },
+              child: hasImage
+                  ? Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(15),
+                          child: _pendingTitleImageBytes != null
+                              ? Image.memory(_pendingTitleImageBytes!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+                              : Image.network(_lessonImageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.black54,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(Icons.close, size: 16, color: Colors.white),
+                              onPressed: () {
+                                setState(() {
+                                  _pendingTitleImageBytes = null;
+                                  _pendingTitleImageFileName = null;
+                                  _lessonImageUrl = null;
+                                });
+                              },
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add_photo_alternate_rounded, size: 36, color: isDark ? Colors.white54 : AppColors.primary),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Upload Title Page Image',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : AppColors.textPrimary,
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_photo_alternate_rounded, size: 36, color: isDark ? Colors.white54 : AppColors.primary),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Upload Title Page Image',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : AppColors.textPrimary,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'JPG or PNG recommended',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: isDark ? Colors.white30 : Colors.grey.shade500,
+                        Text(
+                          'Drag and drop photo or click to browse',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: isDark ? Colors.white30 : Colors.grey.shade500,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+            ),
           ),
         ),
       ],
@@ -678,12 +695,8 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
       );
       if (result == null || result.files.isEmpty) return;
       final platformFile = result.files.single;
-      List<int> bytes;
-      if (platformFile.bytes != null) {
-        bytes = platformFile.bytes!;
-      } else if (platformFile.path != null) {
-        bytes = await File(platformFile.path!).readAsBytes();
-      } else {
+      final bytes = await FileHelper.readBytes(platformFile.path, platformFile.bytes);
+      if (bytes == null) {
         throw Exception('Could not read image file data');
       }
       setState(() {
@@ -923,94 +936,112 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                                 ),
                                 const SizedBox(height: 14),
                               ],
-                              InkWell(
-                                onTap: () => _uploadImageForBlock(block),
-                                borderRadius: BorderRadius.circular(16),
-                                child: Container(
-                                  width: double.infinity,
-                                  constraints: const BoxConstraints(minHeight: 160, maxHeight: 280),
-                                  decoration: BoxDecoration(
-                                    color: isDark ? const Color(0xFF252525) : Colors.grey.shade50,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: block.imageUrl != null ? AppColors.primary : (isDark ? Colors.white24 : Colors.grey.shade400),
-                                      width: 2,
+                              DropTarget(
+                                onDragDone: (detail) async {
+                                  if (detail.files.isEmpty) return;
+                                  final file = detail.files.first;
+                                  final bytes = await file.readAsBytes();
+                                  setState(() {
+                                    block.pendingImageBytes = Uint8List.fromList(bytes);
+                                    block.pendingImageFileName = file.name;
+                                  });
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Image cached locally! It will be uploaded when you save the lesson.')),
+                                    );
+                                  }
+                                },
+                                child: InkWell(
+                                  onTap: () => _uploadImageForBlock(block),
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Container(
+                                    width: double.infinity,
+                                    constraints: const BoxConstraints(minHeight: 160, maxHeight: 280),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF252525) : Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: (block.pendingImageBytes != null || (block.imageUrl != null && block.imageUrl!.isNotEmpty))
+                                            ? AppColors.primary
+                                            : (isDark ? Colors.white24 : Colors.grey.shade400),
+                                        width: 2,
+                                      ),
                                     ),
-                                  ),
-                                  child: (block.pendingImageBytes != null || (block.imageUrl != null && block.imageUrl!.isNotEmpty))
-                                      ? Stack(
-                                          alignment: Alignment.center,
-                                          children: [
-                                            Center(
-                                              child: Padding(
-                                                padding: const EdgeInsets.all(12.0),
-                                                child: ClipRRect(
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  child: block.pendingImageBytes != null
-                                                      ? Image.memory(
-                                                          block.pendingImageBytes!,
-                                                          fit: BoxFit.contain,
-                                                          height: 220,
-                                                        )
-                                                      : Image.network(
-                                                          block.imageUrl!,
-                                                          fit: BoxFit.contain,
-                                                          height: 220,
-                                                        ),
+                                    child: (block.pendingImageBytes != null || (block.imageUrl != null && block.imageUrl!.isNotEmpty))
+                                        ? Stack(
+                                            alignment: Alignment.center,
+                                            children: [
+                                              Center(
+                                                child: Padding(
+                                                  padding: const EdgeInsets.all(12.0),
+                                                  child: ClipRRect(
+                                                    borderRadius: BorderRadius.circular(12),
+                                                    child: block.pendingImageBytes != null
+                                                        ? Image.memory(
+                                                            block.pendingImageBytes!,
+                                                            fit: BoxFit.contain,
+                                                            height: 220,
+                                                          )
+                                                        : Image.network(
+                                                            block.imageUrl!,
+                                                            fit: BoxFit.contain,
+                                                            height: 220,
+                                                          ),
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                            Positioned(
-                                              top: 8,
-                                              right: 8,
-                                              child: Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              Positioned(
+                                                top: 8,
+                                                right: 8,
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black.withValues(alpha: 0.7),
+                                                    borderRadius: BorderRadius.circular(20),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(Icons.edit_rounded, size: 14, color: Colors.white),
+                                                      const SizedBox(width: 4),
+                                                      Text('Change', style: GoogleFonts.inter(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(14),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.black.withValues(alpha: 0.7),
-                                                  borderRadius: BorderRadius.circular(20),
+                                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                                  shape: BoxShape.circle,
                                                 ),
-                                                child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    const Icon(Icons.edit_rounded, size: 14, color: Colors.white),
-                                                    const SizedBox(width: 4),
-                                                    Text('Change', style: GoogleFonts.inter(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
-                                                  ],
+                                                child: const Icon(Icons.cloud_upload_outlined, size: 32, color: AppColors.primary),
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                'Drop your image here',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isDark ? Colors.white : const Color(0xFF2A2A2A),
                                                 ),
                                               ),
-                                            ),
-                                          ],
-                                        )
-                                      : Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(14),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.primary.withValues(alpha: 0.1),
-                                                shape: BoxShape.circle,
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'or click to browse from device',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                                ),
                                               ),
-                                              child: const Icon(Icons.cloud_upload_outlined, size: 32, color: AppColors.primary),
-                                            ),
-                                            const SizedBox(height: 12),
-                                            Text(
-                                              'Drop your image here',
-                                              style: GoogleFonts.outfit(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: isDark ? Colors.white : const Color(0xFF2A2A2A),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              'or click to browse from device',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 12,
-                                                color: isDark ? Colors.white54 : Colors.grey.shade600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                            ],
+                                          ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -1334,7 +1365,11 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         case ContentBlockType.image:
           blockType = 'image';
           imgDesc = block.data.toString();
-          blockText = '[Image Placeholder: $imgDesc]';
+          if (block.imageUrl != null && block.imageUrl!.isNotEmpty) {
+            blockText = '![Image](${block.imageUrl})';
+          } else {
+            blockText = '[Image Placeholder: $imgDesc]';
+          }
           break;
       }
 
@@ -1342,6 +1377,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         id: '${DateTime.now().millisecondsSinceEpoch}_$idx',
         type: blockType,
         textCtrl: TextEditingController(text: blockText),
+        imageUrl: blockType == 'image' ? block.imageUrl : null,
         imageDescription: imgDesc,
       ));
     }

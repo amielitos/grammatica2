@@ -11,11 +11,13 @@ import '../../widgets/design_ornaments.dart';
 class EducatorDashboardTab extends StatelessWidget {
   final Map<String, dynamic> userData;
   final Function(int)? onTabChange;
+  final Function(String)? onNamedNavigation;
 
   const EducatorDashboardTab({
     super.key,
     required this.userData,
     this.onTabChange,
+    this.onNamedNavigation,
   });
 
   @override
@@ -94,8 +96,9 @@ class EducatorDashboardTab extends StatelessWidget {
                   color: AppColors.secondary,
                 ),
                 const SizedBox(height: 28),
-                _QuickActionsGrid(
+                QuickActionsGrid(
                   onTabChange: onTabChange,
+                  onNamedNavigation: onNamedNavigation,
                   isPremium: isPremium,
                 ),
                 const SizedBox(height: 80),
@@ -107,7 +110,11 @@ class EducatorDashboardTab extends StatelessWidget {
                   color: AppColors.primary,
                 ),
                 const SizedBox(height: 28),
-                _RecentLessonsList(uid: uid, onTabChange: onTabChange),
+                _RecentLessonsList(
+                  uid: uid,
+                  onTabChange: onTabChange,
+                  onNamedNavigation: onNamedNavigation,
+                ),
 
                 const SizedBox(height: 80),
 
@@ -118,7 +125,11 @@ class EducatorDashboardTab extends StatelessWidget {
                   color: const Color(0xFFF5A623),
                 ),
                 const SizedBox(height: 28),
-                _MyQuizzesSection(uid: uid, onTabChange: onTabChange),
+                _MyQuizzesSection(
+                  uid: uid,
+                  onTabChange: onTabChange,
+                  onNamedNavigation: onNamedNavigation,
+                ),
 
                 const SizedBox(height: 80),
               ],
@@ -304,11 +315,17 @@ class _SectionHeader extends StatelessWidget {
 
 // ─── Quick Actions Grid ───────────────────────────────────────────────────────
 
-class _QuickActionsGrid extends StatelessWidget {
+class QuickActionsGrid extends StatelessWidget {
   final Function(int)? onTabChange;
+  final Function(String)? onNamedNavigation;
   final bool isPremium;
 
-  const _QuickActionsGrid({this.onTabChange, required this.isPremium});
+  const QuickActionsGrid({
+    super.key,
+    this.onTabChange,
+    this.onNamedNavigation,
+    required this.isPremium,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -318,28 +335,52 @@ class _QuickActionsGrid extends StatelessWidget {
         description: 'Create lessons, quizzes & study aids',
         icon: Icons.auto_stories_rounded,
         color: AppColors.primary,
-        onTap: () => onTabChange?.call(4),
+        onTap: () {
+          if (onNamedNavigation != null) {
+            onNamedNavigation!('AI Notebooks');
+          } else {
+            onTabChange?.call(4);
+          }
+        },
       ),
       _ActionItem(
         label: 'My Lessons',
         description: 'View published curriculum lessons',
         icon: Icons.library_books_rounded,
         color: const Color(0xFF4A90E2),
-        onTap: () => onTabChange?.call(1),
+        onTap: () {
+          if (onNamedNavigation != null) {
+            onNamedNavigation!('Lessons');
+          } else {
+            onTabChange?.call(1);
+          }
+        },
       ),
       _ActionItem(
         label: 'Mentorship',
         description: 'Manage student sessions',
         icon: Icons.event_rounded,
         color: const Color(0xFF9B59B6),
-        onTap: () => onTabChange?.call(2),
+        onTap: () {
+          if (onNamedNavigation != null) {
+            onNamedNavigation!('Mentorship');
+          } else {
+            onTabChange?.call(2);
+          }
+        },
       ),
       _ActionItem(
         label: 'Practice & Quizzes',
         description: 'Interactive student practice',
         icon: Icons.auto_awesome_rounded,
         color: const Color(0xFFF5A623),
-        onTap: () => onTabChange?.call(3),
+        onTap: () {
+          if (onNamedNavigation != null) {
+            onNamedNavigation!('Practice');
+          } else {
+            onTabChange?.call(3);
+          }
+        },
       ),
     ];
 
@@ -458,8 +499,13 @@ class _QuickActionCard extends StatelessWidget {
 class _RecentLessonsList extends StatelessWidget {
   final String uid;
   final Function(int)? onTabChange;
+  final Function(String)? onNamedNavigation;
 
-  const _RecentLessonsList({required this.uid, this.onTabChange});
+  const _RecentLessonsList({
+    required this.uid,
+    this.onTabChange,
+    this.onNamedNavigation,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -504,7 +550,16 @@ class _RecentLessonsList extends StatelessWidget {
 
         return Column(
           children: recentLessons
-              .map((l) => _LessonRow(lesson: l, onTap: () => onTabChange?.call(1)))
+              .map((l) => _LessonRow(
+                    lesson: l,
+                    onTap: () {
+                      if (onNamedNavigation != null) {
+                        onNamedNavigation!('Lessons');
+                      } else {
+                        onTabChange?.call(1);
+                      }
+                    },
+                  ))
               .toList(),
         );
       },
@@ -545,7 +600,13 @@ class _RecentLessonsList extends StatelessWidget {
           ),
           const SizedBox(height: 28),
           ElevatedButton.icon(
-            onPressed: () => onTabChange?.call(4),
+            onPressed: () {
+              if (onNamedNavigation != null) {
+                onNamedNavigation!('AI Notebooks');
+              } else {
+                onTabChange?.call(4);
+              }
+            },
             icon: const Icon(Icons.add_rounded),
             label: const Text('Create First Lesson'),
             style: ElevatedButton.styleFrom(
@@ -566,8 +627,13 @@ class _RecentLessonsList extends StatelessWidget {
 class _MyQuizzesSection extends StatelessWidget {
   final String uid;
   final Function(int)? onTabChange;
+  final Function(String)? onNamedNavigation;
 
-  const _MyQuizzesSection({required this.uid, this.onTabChange});
+  const _MyQuizzesSection({
+    required this.uid,
+    this.onTabChange,
+    this.onNamedNavigation,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -629,7 +695,13 @@ class _MyQuizzesSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
-                  onPressed: () => onTabChange?.call(4),
+                  onPressed: () {
+                    if (onNamedNavigation != null) {
+                      onNamedNavigation!('AI Notebooks');
+                    } else {
+                      onTabChange?.call(4);
+                    }
+                  },
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Create Quiz'),
                   style: ElevatedButton.styleFrom(
@@ -719,7 +791,13 @@ class _MyQuizzesSection extends StatelessWidget {
                           ),
                         ),
                         TextButton(
-                          onPressed: () => onTabChange?.call(3),
+                          onPressed: () {
+                            if (onNamedNavigation != null) {
+                              onNamedNavigation!('Practice');
+                            } else {
+                              onTabChange?.call(3);
+                            }
+                          },
                           child: const Text('Practice'),
                         ),
                       ],

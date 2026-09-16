@@ -51,11 +51,11 @@ class UniversalDrawer extends StatelessWidget {
             items.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
           }
 
-          if (isAdminOrSuperAdmin || isEducator) {
-            items.add(const ModernNavItem(icon: Icons.edit_document, label: 'Contents'));
-          }
-
           items.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
+
+          if (isAdminOrSuperAdmin || isEducator) {
+            items.add(const ModernNavItem(icon: Icons.event, label: 'Mentorship'));
+          }
 
           if (isAdminOrSuperAdmin || isEducator) {
             items.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
@@ -68,6 +68,10 @@ class UniversalDrawer extends StatelessWidget {
           // AI Notebooks — Educator & Admin
           if (isAdminOrSuperAdmin || isEducator) {
             items.add(const ModernNavItem(icon: Icons.auto_stories_rounded, label: 'AI Notebooks'));
+          }
+
+          if (isAdminOrSuperAdmin) {
+            items.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
           }
         }
         items.add(ModernNavItem(icon: Icons.person, label: username));
@@ -88,10 +92,11 @@ class UniversalDrawer extends StatelessWidget {
       );
     } else {
       // Logic from HomePage
-      final items = [
+      final items = navItems ?? [
         const ModernNavItem(icon: Icons.book, label: 'Lessons'),
         const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
         if (role != UserRole.learner) const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
+        const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
         ModernNavItem(icon: Icons.person, label: username),
       ];
 

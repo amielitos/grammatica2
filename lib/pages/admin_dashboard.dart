@@ -19,6 +19,9 @@ import 'admin/validator_dashboard_tab.dart';
 import 'admin/educator_dashboard_tab.dart';
 import 'admin/admin_landing_settings_tab.dart';
 import 'notebook/notebook_list_page.dart';
+import 'admin/educator_groups_tab.dart';
+import 'browse_educators_tab.dart';
+import 'admin/admin_lessons_tab.dart';
 
 import 'dart:async';
 
@@ -86,6 +89,29 @@ class _AdminDashboardState extends State<AdminDashboard> {
     super.dispose();
   }
 
+  void _showEditLessonModal(BuildContext context, Lesson lesson, int tabIndex) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog.fullscreen(
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text('Edit Lesson: ${lesson.title}'),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: AdminLessonsTab(
+            initialLesson: lesson,
+            initialTabIndex: tabIndex,
+            onReset: () => Navigator.pop(context),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAdmin =
@@ -132,7 +158,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _initialPracticeSubTab = null;
                 _initialPracticeShowEditor = false;
                 _index = i;
+                _persistedIndex = i;
               });
+            },
+            onNamedNavigation: (label) {
+              final targetIdx = navItems.indexWhere(
+                (item) => item.label.toLowerCase() == label.toLowerCase(),
+              );
+              if (targetIdx != -1) {
+                setState(() {
+                  _initialPracticeSubTab = null;
+                  _initialPracticeShowEditor = false;
+                  _index = targetIdx;
+                  _persistedIndex = targetIdx;
+                });
+              }
             },
           ),
         );
@@ -164,8 +204,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
       }
 
       // Lessons List / Content (Admin / Educator)
-      tabs.add(const LessonsListTab());
+      tabs.add(
+        LessonsListTab(
+          onEdit: (l) => _showEditLessonModal(context, l, 0),
+          onEditQuiz: (l) => _showEditLessonModal(context, l, 1),
+        ),
+      );
       navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
+
+      // Mentorship (Educator & Admin)
+      if (isEducator || isAdmin) {
+        tabs.add(EducatorGroupsTab(user: widget.user));
+        navItems.add(
+          const ModernNavItem(icon: Icons.event, label: 'Mentorship'),
+        );
+      }
 
       // Practice (Admin only) or English Assessment (Educator)
       if (isAdmin) {
@@ -205,6 +258,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
             icon: Icons.auto_stories_rounded,
             label: 'AI Notebooks',
           ),
+        );
+      }
+
+      if (isAdmin) {
+        tabs.add(BrowseEducatorsTab(user: widget.user));
+        navItems.add(
+          const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
         );
       }
     }

@@ -37,6 +37,7 @@ dependencies:
   cloud_firestore: ^6.1.2
   firebase_storage: ^13.0.6
   file_picker: ^10.3.10
+  desktop_drop: ^0.8.4
   intl_phone_field: ^3.2.0
   video_player: ^2.8.2
 
