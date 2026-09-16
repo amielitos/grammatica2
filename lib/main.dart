@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -31,15 +30,7 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  try {
-    await FirebaseAppCheck.instance.activate(
-      providerAndroid: AndroidDebugProvider(),
-      providerApple: AppleDebugProvider(),
-      providerWeb: WebDebugProvider(),
-    );
-  } catch (e) {
-    debugPrint('AppCheck initialization warning: $e');
-  }
+// AppCheck disabled for production to avoid 403 token fetch error without reCAPTCHA setup
 
 
   if (kIsWeb) {

@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../theme/app_colors.dart';
 import '../../services/ai_logic_service.dart';
+import '../../services/role_service.dart';
 import '../../models/ai_models.dart';
 
 /// AI Lesson Generator tab — upload PDF or paste text, generate structured
@@ -120,13 +121,22 @@ class _AiLessonGeneratorTabState extends State<AiLessonGeneratorTab>
 
     try {
       final user = FirebaseAuth.instance.currentUser;
+      UserRole userRole = UserRole.learner;
+      if (user != null) {
+        userRole = await RoleService.instance.getRole(user.uid);
+      }
+      final isAdmin = userRole == UserRole.admin || userRole == UserRole.superadmin;
+
       final lessonData = {
         'title': _generatedLesson!.title,
         'content': _generatedLesson!.content.map((b) => b.toJson()).toList(),
         'createdAt': FieldValue.serverTimestamp(),
         'createdBy': user?.uid ?? 'ai_studio',
+        'createdByUid': user?.uid,
+        'createdByEmail': user?.email,
+        'validationStatus': 'awaiting_approval',
         'isVisible': true,
-        'isGrammaticaLesson': false,
+        'isGrammaticaLesson': isAdmin,
         'source': 'ai_studio',
       };
 

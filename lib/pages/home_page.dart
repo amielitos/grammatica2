@@ -215,6 +215,7 @@ class _LessonsListState extends State<_LessonsList> {
   void initState() {
     super.initState();
     _progressStream = DatabaseService.instance.progressStream(widget.user);
+    DatabaseService.instance.migrateAdminLessonsToGrammaticaOfficial();
   }
 
   @override
@@ -238,15 +239,22 @@ class _LessonsListState extends State<_LessonsList> {
 
         return StreamBuilder<Map<String, Map<String, dynamic>>>(
           stream: _progressStream,
-builder: (context, progressSnap) {
+          builder: (context, progressSnap) {
             final progressMap = progressSnap.data ?? {};
 
             final grammaticaLessons = lessons
-                .where((l) => l.isGrammaticaLesson == true)
+                .where((l) =>
+                    l.isGrammaticaLesson == true ||
+                    (l.createdByEmail != null &&
+                        l.createdByEmail!.toLowerCase().contains('admin')))
                 .toList();
 
             final publicLessons = lessons.where((l) {
               if (l.isGrammaticaLesson) return false;
+              if (l.createdByEmail != null &&
+                  l.createdByEmail!.toLowerCase().contains('admin')) {
+                return false;
+              }
               if (!l.isVisible) return false;
               return true;
             }).toList();
