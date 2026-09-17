@@ -145,7 +145,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
       );
       navItems.add(
-        const ModernNavItem(icon: Icons.verified_user, label: 'Validation'),
+        const ModernNavItem(icon: Icons.verified_user, label: 'Applications'),
       );
     } else {
       // 0: Dashboard (Educator)
@@ -199,7 +199,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         );
         navItems.add(
-          const ModernNavItem(icon: Icons.verified_user, label: 'Validation'),
+          const ModernNavItem(icon: Icons.verified_user, label: 'Applications'),
         );
       }
 

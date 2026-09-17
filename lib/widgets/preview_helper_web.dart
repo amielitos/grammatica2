@@ -31,7 +31,7 @@ class _WebPdfViewerState extends State<_WebPdfViewer> {
 
     ui_web.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
       String finalUrl = widget.url;
-      if (finalUrl.startsWith('http')) {
+      if ((finalUrl.startsWith('http://') || finalUrl.startsWith('https://')) && !finalUrl.contains('blob:')) {
         finalUrl = 'https://docs.google.com/viewer?url=${Uri.encodeComponent(finalUrl)}&embedded=true';
       }
 

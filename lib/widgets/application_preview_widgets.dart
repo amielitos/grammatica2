@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'preview_helper.dart';
 
 class LocalVideoPlayer extends StatefulWidget {
@@ -18,11 +19,7 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
   @override
   void initState() {
     super.initState();
-    if (widget.isNetwork) {
-      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
-    } else {
-      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
-    }
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
     
     _controller.initialize().then((_) {
       if (mounted) {
@@ -44,8 +41,32 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isError) return const Center(child: Text("Error playing video", style: TextStyle(color: Colors.white)));
-    if (!_controller.value.isInitialized) return const Center(child: CircularProgressIndicator(color: Colors.white));
+    if (_isError) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.white54),
+            const SizedBox(height: 16),
+            const Text("Unable to play video directly in viewer", style: TextStyle(color: Colors.white70)),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final uri = Uri.parse(widget.url);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Open Video in Browser'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (!_controller.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator(color: Colors.white));
+    }
 
     return AspectRatio(
       aspectRatio: _controller.value.aspectRatio,
@@ -57,7 +78,11 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
           Positioned(
             bottom: 20,
             child: IconButton(
-              icon: Icon(_controller.value.isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white, size: 40),
+              icon: Icon(
+                _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                color: Colors.white,
+                size: 40,
+              ),
               onPressed: () {
                 setState(() {
                   _controller.value.isPlaying ? _controller.pause() : _controller.play();
@@ -82,9 +107,48 @@ class WebPdfViewer extends StatelessWidget {
 }
 
 void showFilePreviewModal(BuildContext context, String url, String fileName) {
-  final bool isImage = ['jpg', 'jpeg', 'png'].contains(fileName.toLowerCase().split('.').last);
-  final bool isVideo = ['mp4', 'mov', 'avi', 'webm', 'm4v'].contains(fileName.toLowerCase().split('.').last);
-  final bool isPdf = fileName.toLowerCase().endsWith('.pdf');
+  final lowerUrl = url.toLowerCase();
+  final lowerName = fileName.toLowerCase();
+
+  final bool isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].any(
+    (ext) => lowerName.endsWith('.$ext') || lowerUrl.contains('.$ext?') || lowerUrl.contains('/image') || lowerUrl.contains('format=$ext'),
+  );
+
+  final bool isVideo = ['mp4', 'mov', 'avi', 'webm', 'm4v', 'mkv', 'ogv'].any(
+    (ext) => lowerName.endsWith('.$ext') || lowerUrl.contains('.$ext?') || lowerUrl.contains('/video'),
+  );
+
+  Widget body;
+  if (isImage) {
+    body = Image.network(
+      url,
+      fit: BoxFit.contain,
+      errorBuilder: (ctx, err, stack) => Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.broken_image_rounded, size: 80, color: Colors.white38),
+          const SizedBox(height: 16),
+          Text("Failed to load image: $fileName", style: const TextStyle(color: Colors.white70)),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final uri = Uri.parse(url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('Open in Browser'),
+          ),
+        ],
+      ),
+    );
+  } else if (isVideo) {
+    body = LocalVideoPlayer(url: url, isNetwork: true);
+  } else {
+    // Default to PDF / Document viewer (Google Docs Viewer embed on web)
+    body = WebPdfViewer(url: url);
+  }
 
   showDialog(
     context: context,
@@ -111,6 +175,17 @@ void showFilePreviewModal(BuildContext context, String url, String fileName) {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Open in new tab / Download',
+                    icon: const Icon(Icons.open_in_new, color: Colors.white70, size: 22),
+                    onPressed: () async {
+                      final uri = Uri.parse(url);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
                     icon: const Icon(Icons.close, color: Colors.white, size: 28),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -119,20 +194,7 @@ void showFilePreviewModal(BuildContext context, String url, String fileName) {
             ),
             Expanded(
               child: Center(
-                child: isImage
-                    ? Image.network(url, fit: BoxFit.contain)
-                    : isVideo
-                        ? LocalVideoPlayer(url: url, isNetwork: true)
-                        : isPdf
-                            ? WebPdfViewer(url: url)
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.insert_drive_file, size: 100, color: Colors.grey),
-                                  const SizedBox(height: 20),
-                                  Text(fileName, style: const TextStyle(color: Colors.white, fontSize: 18)),
-                                ],
-                              ),
+                child: body,
               ),
             ),
           ],
@@ -141,3 +203,4 @@ void showFilePreviewModal(BuildContext context, String url, String fileName) {
     ),
   );
 }
+

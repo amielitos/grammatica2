@@ -192,21 +192,21 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
 
   Widget _buildFlashcardsDeckView(BuildContext context, FlashcardDeck deck, bool isDark) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E261D) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              color: isDark ? const Color(0xFF262626) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -232,8 +232,8 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
                         children: [
                           Text(
                             deck.title,
-                            style: TextStyle(
-                              fontSize: 18,
+                            style: GoogleFonts.outfit(
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: isDark ? Colors.white : AppColors.textPrimary,
                             ),
@@ -241,7 +241,7 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
                           const SizedBox(height: 4),
                           Text(
                             '${deck.totalCards} Flashcards • Spaced Repetition Practice',
-                            style: TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 13,
                               color: isDark ? Colors.white60 : AppColors.textSecondary,
                             ),
@@ -255,7 +255,7 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
                   const SizedBox(height: 14),
                   Text(
                     deck.description,
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       fontSize: 14,
                       color: isDark ? Colors.white70 : AppColors.textSecondary,
                       height: 1.4,
@@ -277,15 +277,16 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
                             );
                           },
                     icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                    label: const Text(
+                    label: Text(
                       'Launch Spaced Repetition Study',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
                     ),
                   ),
                 ),
@@ -295,7 +296,7 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
           const SizedBox(height: 24),
           Text(
             'All Cards Preview',
-            style: TextStyle(
+            style: GoogleFonts.outfit(
               fontSize: 18,
               fontWeight: FontWeight.bold,
               color: isDark ? Colors.white : AppColors.textPrimary,
@@ -310,13 +311,20 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
               final card = deck.cards[idx];
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E261D) : Colors.white,
+                  color: isDark ? const Color(0xFF262626) : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                    color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,14 +333,14 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.15),
+                            color: AppColors.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             '#${idx + 1}',
-                            style: const TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
@@ -343,7 +351,7 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
                         Expanded(
                           child: Text(
                             card.front,
-                            style: TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: isDark ? Colors.white : AppColors.textPrimary,
@@ -352,10 +360,16 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
                         ),
                       ],
                     ),
-                    const Divider(height: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Divider(
+                        height: 1,
+                        color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                      ),
+                    ),
                     Text(
                       card.back,
-                      style: TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 14,
                         height: 1.4,
                         color: isDark ? Colors.white70 : AppColors.textSecondary,
@@ -378,7 +392,7 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
     final typeIcon = _getTypeIcon(_type);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF131812) : AppColors.backgroundBase,
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : AppColors.backgroundBase,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -457,133 +471,167 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
         ],
       ),
       body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1080),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Hero Banner with metadata
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 900;
+            final effectiveNotebookId = _notebookId.isNotEmpty ? _notebookId : widget.item?.notebookId;
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: isWide ? 32 : 16,
+                vertical: 24,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: typeColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    // Hero Banner with metadata
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Icon(typeIcon, color: typeColor, size: 14),
-                          const SizedBox(width: 5),
-                          Text(
-                            _type.displayName.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                              color: typeColor,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: typeColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(typeIcon, color: typeColor, size: 14),
+                                const SizedBox(width: 5),
+                                Text(
+                                  _type.displayName.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                    color: typeColor,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
+                          if (_isGrammaticaContent)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8B84B).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.verified_rounded, color: Color(0xFFE8B84B), size: 14),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'GRAMMATICA OFFICIAL',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFE8B84B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else if (_authorEmail != null && _authorEmail.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.person_outline_rounded,
+                                      color: isDark ? Colors.white60 : Colors.black54, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'By: $_authorEmail',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? Colors.white70 : AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (_isMembersOnly)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF9B59B6).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.lock_rounded, color: Color(0xFF9B59B6), size: 13),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'MEMBERS ONLY',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF9B59B6),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
                     ),
-                    if (_isGrammaticaContent)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8B84B).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.verified_rounded, color: Color(0xFFE8B84B), size: 14),
-                            SizedBox(width: 4),
-                            Text(
-                              'GRAMMATICA OFFICIAL',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFE8B84B),
+
+                    // Side-by-side or stacked content + bundle sidebar layout
+                    isWide
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: _buildContentWidget(context, isDark),
                               ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else if (_authorEmail != null && _authorEmail.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.person_outline_rounded,
-                                color: isDark ? Colors.white60 : Colors.black54, size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              'By: $_authorEmail',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isDark ? Colors.white70 : AppColors.textSecondary,
+                              const SizedBox(width: 28),
+                              SizedBox(
+                                width: 340,
+                                child: LinkedCompanionSidebar(
+                                  user: _effectiveUser,
+                                  notebookId: effectiveNotebookId,
+                                  currentPublishedItem: widget.item,
+                                  currentContentId: _contentId,
+                                  activeType: CompanionMediaType.publishedItem,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    if (_isMembersOnly)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF9B59B6).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.lock_rounded, color: Color(0xFF9B59B6), size: 13),
-                            SizedBox(width: 4),
-                            Text(
-                              'MEMBERS ONLY',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF9B59B6),
+                            ],
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildContentWidget(context, isDark),
+                              const SizedBox(height: 24),
+                              LinkedCompanionSidebar(
+                                user: _effectiveUser,
+                                notebookId: effectiveNotebookId,
+                                currentPublishedItem: widget.item,
+                                currentContentId: _contentId,
+                                activeType: CompanionMediaType.publishedItem,
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
+                            ],
+                          ),
                   ],
                 ),
               ),
-
-              // Main Viewer Container
-              Expanded(
-                child: _type == NotebookOutputType.mindMap
-                    ? _buildContentWidget(context, isDark)
-                    : SingleChildScrollView(
-                        child: _buildContentWidget(context, isDark),
-                      ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
-      ),
-      bottomNavigationBar: LinkedCompanionToolbar(
-        user: _effectiveUser,
-        notebookId: _notebookId.isNotEmpty ? _notebookId : widget.item?.notebookId,
-        currentPublishedItem: widget.item,
-        currentContentId: _contentId,
-        activeType: CompanionMediaType.publishedItem,
       ),
     );
   }

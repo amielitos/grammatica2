@@ -160,12 +160,6 @@ class _LessonPageState extends State<LessonPage> {
         user: _effectiveUser,
         userData: _userData ?? {},
       ),
-      bottomNavigationBar: LinkedCompanionToolbar(
-        user: _effectiveUser,
-        notebookId: _lesson.notebookId,
-        currentLesson: _lesson,
-        activeType: CompanionMediaType.lesson,
-      ),
       body: Column(
         children: [
           if (!widget.previewMode)
@@ -190,27 +184,51 @@ class _LessonPageState extends State<LessonPage> {
                       alignment: Alignment.topCenter,
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 1200),
-                child: isWide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(flex: 3, child: _buildMainCard(isDark, isWide)),
-                          const SizedBox(width: 28),
-                          SizedBox(width: 320, child: _buildQuizSidebar(isDark)),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildMainCard(isDark, isWide),
-                          const SizedBox(height: 24),
-                          _buildQuizSidebar(isDark),
-                        ],
+                        child: isWide
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(flex: 3, child: _buildMainCard(isDark, isWide)),
+                                  const SizedBox(width: 28),
+                                  SizedBox(
+                                    width: 340,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        _buildQuizSidebar(isDark),
+                                        LinkedCompanionSidebar(
+                                          user: _effectiveUser,
+                                          notebookId: _lesson.notebookId,
+                                          currentLesson: _lesson,
+                                          activeType: CompanionMediaType.lesson,
+                                          excludeLesson: true,
+                                          excludeQuiz: true,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _buildMainCard(isDark, isWide),
+                                  const SizedBox(height: 24),
+                                  _buildQuizSidebar(isDark),
+                                  LinkedCompanionSidebar(
+                                    user: _effectiveUser,
+                                    notebookId: _lesson.notebookId,
+                                    currentLesson: _lesson,
+                                    activeType: CompanionMediaType.lesson,
+                                    excludeLesson: true,
+                                    excludeQuiz: true,
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                   ),
-                ),
-              );
+                );
               },
             ),
           ),

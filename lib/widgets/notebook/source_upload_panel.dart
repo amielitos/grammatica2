@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../models/notebook_models.dart';
 import '../../services/notebook_service.dart';
 import '../../services/source_ingestion_service.dart';
@@ -35,10 +36,10 @@ class _SourceUploadPanelState extends State<SourceUploadPanel> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF182017) : const Color(0xFFF7F9F6),
+        color: isDark ? const Color(0xFF222222) : Colors.white,
         border: Border(
           right: BorderSide(
-            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.08),
           ),
         ),
       ),
@@ -47,14 +48,21 @@ class _SourceUploadPanelState extends State<SourceUploadPanel> {
         children: [
           // Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
             child: Row(
               children: [
-                const Icon(Icons.source_rounded, color: AppColors.primary, size: 22),
-                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.source_rounded, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 10),
                 Text(
                   'Sources',
-                  style: TextStyle(
+                  style: GoogleFonts.outfit(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: isDark ? Colors.white : AppColors.textPrimary,
@@ -69,7 +77,7 @@ class _SourceUploadPanelState extends State<SourceUploadPanel> {
                   ),
                   child: Text(
                     '${widget.sources.length}',
-                    style: const TextStyle(
+                    style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
@@ -233,13 +241,13 @@ class _SourceUploadPanelState extends State<SourceUploadPanel> {
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: isSelected
-            ? AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1)
-            : (isDark ? const Color(0xFF222B21) : Colors.white),
+            ? AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.1)
+            : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF9FAFB)),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isSelected
               ? AppColors.primary
-              : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.06)),
+              : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06)),
           width: isSelected ? 1.5 : 1.0,
         ),
       ),

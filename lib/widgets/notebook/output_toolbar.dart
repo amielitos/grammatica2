@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../models/notebook_models.dart';
 import '../../theme/app_colors.dart';
 
@@ -29,15 +30,15 @@ class OutputToolbar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1B231A) : Colors.white,
+        color: isDark ? const Color(0xFF222222) : Colors.white,
         border: Border(
           top: BorderSide(
-            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.08),
           ),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, -3),
           ),
@@ -159,7 +160,7 @@ class OutputToolbar extends StatelessWidget {
           decoration: BoxDecoration(
             color: isSelected
                 ? color.withValues(alpha: isDark ? 0.25 : 0.12)
-                : (isDark ? const Color(0xFF232C22) : const Color(0xFFF1F5F0)),
+                : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF3F4F6)),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isSelected
@@ -179,7 +180,7 @@ class OutputToolbar extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 label,
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                   color: enabled

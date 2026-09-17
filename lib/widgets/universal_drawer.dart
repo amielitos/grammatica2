@@ -37,7 +37,7 @@ class UniversalDrawer extends StatelessWidget {
 
         if (role == UserRole.validator) {
           items.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
-          items.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
+          items.add(const ModernNavItem(icon: Icons.verified_user, label: 'Applications'));
         } else {
           if (isEducator) {
             items.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
@@ -48,7 +48,7 @@ class UniversalDrawer extends StatelessWidget {
           }
 
           if (isSuperAdmin) {
-            items.add(const ModernNavItem(icon: Icons.verified_user, label: 'Validation'));
+            items.add(const ModernNavItem(icon: Icons.verified_user, label: 'Applications'));
           }
 
           items.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
