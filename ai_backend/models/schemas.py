@@ -8,7 +8,7 @@ These schemas serve a dual purpose:
 
 from __future__ import annotations
 from pydantic import BaseModel, field_validator
-from typing import List, Union, Any
+from typing import List, Any
 from enum import Enum
 
 

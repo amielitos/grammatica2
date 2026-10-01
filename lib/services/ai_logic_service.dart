@@ -679,14 +679,28 @@ $explanationLine
     }
   }
 
-  Future<List<String>> generatePracticeWords(String difficulty, int count) async {
+  Future<List<Map<String, String>>> generatePracticeWords(String difficulty, int count) async {
     final systemPrompt = '''
 You are an expert English teacher.
-Output a valid JSON array of exactly $count English words appropriate for $difficulty difficulty level.
+Output a valid JSON array of exactly $count objects, each with a "word" (an English word appropriate for the $difficulty difficulty level) and a "description" (a brief, simple meaning or definition — 5 to 12 words max. Do NOT include the word itself or its root form in the description).
 Example format:
-["apple", "banana", "cat"]
+[
+  {"word": "ephemeral", "description": "Lasting for a very short time"},
+  {"word": "benevolent", "description": "Well-meaning and kindly; showing goodwill"}
+]
 ''';
-    
+
+    List<Map<String, String>> parseWordList(String rawText) {
+      final parsedList = jsonDecode(rawText) as List<dynamic>;
+      return parsedList.map((e) {
+        final map = Map<String, dynamic>.from(e as Map);
+        return {
+          'word': (map['word'] ?? '').toString(),
+          'description': (map['description'] ?? '').toString(),
+        };
+      }).toList();
+    }
+
     if (AIConfig.mode == AIExecutionMode.directClientSide) {
       final body = jsonEncode({
         'system_instruction': {
@@ -718,8 +732,7 @@ Example format:
 
       final data = jsonDecode(res.body);
       final textResponse = data['candidates'][0]['content']['parts'][0]['text'] as String;
-      final parsedList = jsonDecode(textResponse) as List<dynamic>;
-      return parsedList.map((e) => e.toString()).toList();
+      return parseWordList(textResponse);
     }
 
     try {
@@ -741,8 +754,7 @@ Example format:
         throw Exception('Firebase AI returned empty response.');
       }
 
-      final parsed = jsonDecode(text) as List<dynamic>;
-      return parsed.map((e) => e.toString()).toList();
+      return parseWordList(text);
     } catch (e) {
       debugPrint('Error in generatePracticeWords (Firebase): $e');
       final body = jsonEncode({
@@ -775,8 +787,7 @@ Example format:
 
       final data = jsonDecode(res.body);
       final textResponse = data['candidates'][0]['content']['parts'][0]['text'] as String;
-      final parsedList = jsonDecode(textResponse) as List<dynamic>;
-      return parsedList.map((e) => e.toString()).toList();
+      return parseWordList(textResponse);
     }
   }
 }

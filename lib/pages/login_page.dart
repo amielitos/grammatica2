@@ -24,6 +24,72 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   StreamSubscription<User?>? _authSubscription;
+  bool _isAccountLocked = false;
+  int _lockoutRemainingSeconds = 0;
+  Timer? _lockoutTimer;
+
+  String _formatRemainingTime(int totalSeconds) {
+    if (totalSeconds <= 0) return '0:00';
+    final m = totalSeconds ~/ 60;
+    final s = totalSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  void _startLockoutCountdown(int seconds) {
+    _lockoutTimer?.cancel();
+    setState(() {
+      _isAccountLocked = true;
+      _lockoutRemainingSeconds = seconds > 0 ? seconds : 300;
+    });
+
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_lockoutRemainingSeconds <= 1) {
+        timer.cancel();
+        setState(() {
+          _isAccountLocked = false;
+          _lockoutRemainingSeconds = 0;
+        });
+      } else {
+        setState(() {
+          _lockoutRemainingSeconds -= 1;
+        });
+      }
+    });
+  }
+
+  Future<void> _handleLockoutTriggered(String message) async {
+    final status = await AuthService.instance.getLockoutStatus(_emailController.text.trim());
+    final seconds = status.remainingDuration.inSeconds > 0
+        ? status.remainingDuration.inSeconds
+        : 300;
+    _startLockoutCountdown(seconds);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.shield_outlined, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text(message)),
+            ],
+          ),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'RESET',
+            textColor: Colors.yellowAccent,
+            onPressed: _showForgotPasswordDialog,
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -54,9 +120,19 @@ class _LoginPageState extends State<LoginPage> {
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message ?? 'Login failed')));
+        if (e.code == 'account-locked') {
+          await _handleLockoutTriggered(e.message ?? 'Account is temporarily locked.');
+        } else {
+          final isWarning = e.message?.contains('remaining') == true;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.message ?? 'Login failed'),
+              backgroundColor: isWarning ? Colors.orange.shade800 : Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: isWarning ? 4 : 3),
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) {
@@ -190,6 +266,93 @@ class _LoginPageState extends State<LoginPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          if (_isAccountLocked) ...[
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              margin: const EdgeInsets.only(bottom: 20),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFFCA5A5)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.lock_clock_rounded,
+                                          color: Color(0xFFDC2626), size: 22),
+                                      const SizedBox(width: 10),
+                                      const Expanded(
+                                        child: Text(
+                                          'Account Temporarily Locked',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 14,
+                                            color: Color(0xFF991B1B),
+                                          ),
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFDC2626),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          _formatRemainingTime(_lockoutRemainingSeconds),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '3 consecutive failed login attempts detected. For security, sign-in is temporarily paused.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.red.shade900,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Forgot your password?',
+                                        style: TextStyle(
+                                            fontSize: 12, color: Colors.grey.shade700),
+                                      ),
+                                      TextButton(
+                                        onPressed: _showForgotPasswordDialog,
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 2),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                        child: const Text(
+                                          'Reset to Unlock Now',
+                                          style: TextStyle(
+                                            color: Color(0xFFDC2626),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                            decoration: TextDecoration.underline,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           _buildTextField(
                             hintText: 'Email Address',
                             controller: _emailController,
@@ -266,9 +429,9 @@ class _LoginPageState extends State<LoginPage> {
                               ],
                             ),
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _login,
+                              onPressed: (_isLoading || _isAccountLocked) ? null : _login,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
+                                backgroundColor: _isAccountLocked ? Colors.grey.shade400 : Colors.transparent,
                                 shadowColor: Colors.transparent,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -283,9 +446,11 @@ class _LoginPageState extends State<LoginPage> {
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Text(
-                                      'Sign In',
-                                      style: TextStyle(
+                                  : Text(
+                                      _isAccountLocked
+                                          ? 'Locked (${_formatRemainingTime(_lockoutRemainingSeconds)})'
+                                          : 'Sign In',
+                                      style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,
@@ -449,6 +614,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
+    _lockoutTimer?.cancel();
     _authSubscription?.cancel();
     _emailController.dispose();
     _passwordController.dispose();

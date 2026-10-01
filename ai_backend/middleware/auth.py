@@ -4,7 +4,7 @@ API Key authentication middleware.
 All incoming requests to /api/* must include a valid `X-API-Key` header.
 """
 
-from fastapi import Request, HTTPException, Security
+from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
 from config import settings
 

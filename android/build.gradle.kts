@@ -1,3 +1,7 @@
+import org.gradle.api.file.Directory
+import org.gradle.api.tasks.Delete
+import org.gradle.api.tasks.compile.JavaCompile
+
 allprojects {
     repositories {
         google()

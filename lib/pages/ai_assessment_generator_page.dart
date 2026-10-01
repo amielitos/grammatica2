@@ -63,13 +63,17 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
 
   Widget _buildSelectionView(bool isDark) {
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF8F9FA),
+      backgroundColor: isDark
+          ? const Color(0xFF1A1A1A)
+          : const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded,
-              color: isDark ? Colors.white : AppColors.textPrimary),
+          icon: Icon(
+            Icons.arrow_back_rounded,
+            color: isDark ? Colors.white : AppColors.textPrimary,
+          ),
           onPressed: widget.onBack,
         ),
         title: Text(
@@ -130,8 +134,10 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                                   'General English grammar, vocabulary, and reading comprehension.',
                               icon: Icons.menu_book_rounded,
                               color: const Color(0xFF4A7C59),
-                              onTap: () => setState(() => _selectedMode = 'general'),
-                              onLoadCached: () => _loadCachedAssessment('general'),
+                              onTap: () =>
+                                  setState(() => _selectedMode = 'general'),
+                              onLoadCached: () =>
+                                  _loadCachedAssessment('general'),
                               isDark: isDark,
                             ),
                           ),
@@ -143,8 +149,10 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                                   'IELTS-style reading passages with academic question formats.',
                               icon: Icons.school_rounded,
                               color: const Color(0xFF2E5090),
-                              onTap: () => setState(() => _selectedMode = 'ielts'),
-                              onLoadCached: () => _loadCachedAssessment('ielts'),
+                              onTap: () =>
+                                  setState(() => _selectedMode = 'ielts'),
+                              onLoadCached: () =>
+                                  _loadCachedAssessment('ielts'),
                               isDark: isDark,
                             ),
                           ),
@@ -159,7 +167,8 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                               'General English grammar, vocabulary, and reading comprehension.',
                           icon: Icons.menu_book_rounded,
                           color: const Color(0xFF4A7C59),
-                          onTap: () => setState(() => _selectedMode = 'general'),
+                          onTap: () =>
+                              setState(() => _selectedMode = 'general'),
                           onLoadCached: () => _loadCachedAssessment('general'),
                           isDark: isDark,
                         ),
@@ -191,17 +200,30 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildDifficultySelectionView(bool isDark) {
-    final title = _selectedMode == 'ielts' ? 'IELTS Assessment' : 'English Assessment';
-    final difficulties = ['A1 (Novice)', 'A2 (Novice)', 'B1 (Intermediate)', 'B2 (Intermediate)', 'C1 (Master)', 'C2 (Master)'];
+    final title = _selectedMode == 'ielts'
+        ? 'IELTS Assessment'
+        : 'English Assessment';
+    final difficulties = [
+      'A1 (Novice)',
+      'A2 (Novice)',
+      'B1 (Intermediate)',
+      'B2 (Intermediate)',
+      'C1 (Master)',
+      'C2 (Master)',
+    ];
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF8F9FA),
+      backgroundColor: isDark
+          ? const Color(0xFF1A1A1A)
+          : const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded,
-              color: isDark ? Colors.white : AppColors.textPrimary),
+          icon: Icon(
+            Icons.arrow_back_rounded,
+            color: isDark ? Colors.white : AppColors.textPrimary,
+          ),
           onPressed: () => setState(() {
             _selectedMode = null;
             _selectedDifficulty = null;
@@ -258,16 +280,22 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                         color: isSelected
                             ? Colors.white
                             : (isDark ? Colors.white70 : AppColors.textPrimary),
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                       selectedColor: AppColors.primary,
-                      backgroundColor: isDark ? Colors.grey.shade800 : Colors.white,
+                      backgroundColor: isDark
+                          ? Colors.grey.shade800
+                          : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
                           color: isSelected
                               ? AppColors.primary
-                              : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+                              : (isDark
+                                    ? Colors.grey.shade700
+                                    : Colors.grey.shade300),
                         ),
                       ),
                     );
@@ -278,10 +306,14 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _selectedDifficulty == null ? null : _generateAssessment,
+                    onPressed: _selectedDifficulty == null
+                        ? null
+                        : _generateAssessment,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                      disabledBackgroundColor: AppColors.primary.withValues(
+                        alpha: 0.5,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -310,7 +342,9 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
 
   Widget _buildLoadingView(bool isDark) {
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF8F9FA),
+      backgroundColor: isDark
+          ? const Color(0xFF1A1A1A)
+          : const Color(0xFFF8F9FA),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -395,7 +429,8 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
     try {
       final String customInstructions;
       if (mode == 'ielts') {
-        customInstructions = '''
+        customInstructions =
+            '''
 Generate an IELTS-style reading assessment for $diff difficulty level. Include:
 1. One or two reading passages on academic topics.
 2. For each passage, create questions of mixed types: multiple choice, true/false, identification, and fill-in-the-blank.
@@ -404,7 +439,8 @@ Generate an IELTS-style reading assessment for $diff difficulty level. Include:
 5. Include questions testing skimming, scanning, inference, and vocabulary in context.
 ''';
       } else {
-        customInstructions = '''
+        customInstructions =
+            '''
 Generate a General English assessment for $diff difficulty level. Include:
 1. One or two reading passages on general interest topics.
 2. For each passage, create questions of mixed types: multiple choice, true/false, identification, and fill-in-the-blank.
@@ -482,7 +518,8 @@ Generate a General English assessment for $diff difficulty level. Include:
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('No cached assessment found. Generate one first.')),
+              content: Text('No cached assessment found. Generate one first.'),
+            ),
           );
         }
         return;
@@ -543,7 +580,9 @@ Generate a General English assessment for $diff difficulty level. Include:
 
     return Quiz(
       id: 'ai_${mode}_${DateTime.now().millisecondsSinceEpoch}',
-      title: mode == 'ielts' ? 'IELTS Practice Assessment' : 'English Assessment',
+      title: mode == 'ielts'
+          ? 'IELTS Practice Assessment'
+          : 'English Assessment',
       description: mode == 'ielts'
           ? 'AI-generated IELTS-style reading assessment'
           : 'AI-generated General English assessment',
@@ -563,11 +602,7 @@ Generate a General English assessment for $diff difficulty level. Include:
   void _navigateToQuiz(Quiz quiz) {
     setState(() => _isLoading = false);
 
-    NavigationService.instance.goToQuiz(
-      context,
-      quiz,
-      previewMode: true,
-    );
+    NavigationService.instance.goToQuiz(context, quiz, previewMode: true);
   }
 }
 
@@ -656,7 +691,9 @@ class _AssessmentTypeCard extends StatelessWidget {
                     label: Text(
                       'Generate New',
                       style: GoogleFonts.outfit(
-                          fontSize: 14, fontWeight: FontWeight.w600),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: color,
@@ -678,13 +715,17 @@ class _AssessmentTypeCard extends StatelessWidget {
                     label: Text(
                       'Load Last',
                       style: GoogleFonts.inter(
-                          fontSize: 13, fontWeight: FontWeight.w500),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor:
-                          isDark ? Colors.white60 : AppColors.textSecondary,
+                      foregroundColor: isDark
+                          ? Colors.white60
+                          : AppColors.textSecondary,
                       side: BorderSide(
-                          color: isDark ? Colors.white24 : Colors.grey.shade300),
+                        color: isDark ? Colors.white24 : Colors.grey.shade300,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

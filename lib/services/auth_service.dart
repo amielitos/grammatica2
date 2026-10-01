@@ -6,11 +6,28 @@ import 'package:flutter/material.dart';
 import 'database_service.dart';
 import 'email_sender_service.dart';
 
+class LockoutStatus {
+  final bool isLocked;
+  final int failedCount;
+  final DateTime? lockedUntil;
+  final Duration remainingDuration;
+
+  const LockoutStatus({
+    required this.isLocked,
+    required this.failedCount,
+    this.lockedUntil,
+    this.remainingDuration = Duration.zero,
+  });
+}
+
 class AuthService {
   // 1. Fields and Singleton first
   static final instance = AuthService._();
   static final messengerKey = GlobalKey<ScaffoldMessengerState>();
   static bool justSignedUpWithGoogle = false;
+
+  static const int maxFailedAttempts = 3;
+  static const Duration lockoutDuration = Duration(minutes: 5);
 
   static void showSnackBar(String message, {bool isError = true}) {
     messengerKey.currentState?.showSnackBar(
@@ -49,7 +66,7 @@ class AuthService {
       try {
         final googleAuth = event.user.authentication;
         final idToken = googleAuth.idToken;
-        
+
         if (idToken == null) {
           debugPrint('Google Sign-In Error: ID Token is null');
           return;
@@ -59,7 +76,7 @@ class AuthService {
           idToken: idToken,
         );
         final userCredential = await _auth.signInWithCredential(credential);
-        
+
         // Use userCredential property to detect if it's the first login with this provider
         if (userCredential.additionalUserInfo?.isNewUser ?? false) {
           justSignedUpWithGoogle = true;
@@ -185,7 +202,8 @@ class AuthService {
   static User get liveUser {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      throw StateError('No authenticated user. This should never happen in an authenticated context.');
+      throw StateError(
+          'No authenticated user. This should never happen in an authenticated context.');
     }
     return user;
   }
@@ -197,27 +215,250 @@ class AuthService {
     return await _auth.signInAnonymously();
   }
 
+  String _emailDocId(String email) => email.trim().toLowerCase().replaceAll('/', '_');
+
+  /// Fetches current lockout status for an email
+  Future<LockoutStatus> getLockoutStatus(String email) async {
+    final emailClean = email.trim().toLowerCase();
+    if (emailClean.isEmpty) {
+      return const LockoutStatus(isLocked: false, failedCount: 0);
+    }
+    try {
+      final doc = await _firestore
+          .collection('login_attempts')
+          .doc(_emailDocId(emailClean))
+          .get();
+      if (!doc.exists) {
+        return const LockoutStatus(isLocked: false, failedCount: 0);
+      }
+      final data = doc.data() ?? {};
+      final failedCount = (data['failed_count'] as num?)?.toInt() ?? 0;
+      final lockedUntilTs = data['locked_until'] as Timestamp?;
+
+      if (lockedUntilTs != null) {
+        final lockedUntilDate = lockedUntilTs.toDate();
+        final now = DateTime.now();
+        if (lockedUntilDate.isAfter(now)) {
+          return LockoutStatus(
+            isLocked: true,
+            failedCount: failedCount,
+            lockedUntil: lockedUntilDate,
+            remainingDuration: lockedUntilDate.difference(now),
+          );
+        }
+      }
+      return LockoutStatus(
+        isLocked: false,
+        failedCount: failedCount,
+      );
+    } catch (e) {
+      debugPrint('Error getting lockout status: $e');
+      return const LockoutStatus(isLocked: false, failedCount: 0);
+    }
+  }
+
+  /// Records a failed login attempt. Locks the account for 5 mins if 3 attempts reached.
+  Future<LockoutStatus> _recordFailedAttempt(String email) async {
+    final emailClean = email.trim().toLowerCase();
+    final docRef = _firestore
+        .collection('login_attempts')
+        .doc(_emailDocId(emailClean));
+
+    try {
+      final doc = await docRef.get();
+      int currentCount = 0;
+      if (doc.exists) {
+        final data = doc.data() ?? {};
+        final lockedUntilTs = data['locked_until'] as Timestamp?;
+        // If a previous lock expired, restart counting from 0
+        if (lockedUntilTs != null &&
+            lockedUntilTs.toDate().isBefore(DateTime.now())) {
+          currentCount = 0;
+        } else {
+          currentCount = (data['failed_count'] as num?)?.toInt() ?? 0;
+        }
+      }
+      currentCount += 1;
+
+      if (currentCount >= maxFailedAttempts) {
+        final lockUntil = DateTime.now().add(lockoutDuration);
+        final lockUntilTs = Timestamp.fromDate(lockUntil);
+
+        await docRef.set({
+          'email': emailClean,
+          'failed_count': currentCount,
+          'last_failed_at': FieldValue.serverTimestamp(),
+          'locked_until': lockUntilTs,
+        }, SetOptions(merge: true));
+
+        // Mirror to users collection if user doc exists
+        String recipientName = 'Learner';
+        try {
+          final userQuery = await _firestore
+              .collection('users')
+              .where('email', isEqualTo: emailClean)
+              .limit(1)
+              .get();
+          if (userQuery.docs.isNotEmpty) {
+            final uDoc = userQuery.docs.first;
+            recipientName = (uDoc.data()['username'] ??
+                    uDoc.data()['full_name'] ??
+                    'Learner')
+                .toString();
+            await uDoc.reference.update({
+              'locked_until': lockUntilTs,
+            });
+          }
+        } catch (e) {
+          debugPrint('Error syncing locked_until to user doc: $e');
+        }
+
+        // Send email alert asynchronously
+        EmailSenderService.sendAccountLockedEmail(
+          recipientEmail: emailClean,
+          recipientName: recipientName,
+          lockoutMinutes: lockoutDuration.inMinutes,
+        ).catchError((e) {
+          debugPrint('Error sending account locked email: $e');
+          return false;
+        });
+
+        return LockoutStatus(
+          isLocked: true,
+          failedCount: currentCount,
+          lockedUntil: lockUntil,
+          remainingDuration: lockoutDuration,
+        );
+      } else {
+        await docRef.set({
+          'email': emailClean,
+          'failed_count': currentCount,
+          'last_failed_at': FieldValue.serverTimestamp(),
+          'locked_until': null,
+        }, SetOptions(merge: true));
+
+        return LockoutStatus(
+          isLocked: false,
+          failedCount: currentCount,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error recording failed login attempt: $e');
+      return const LockoutStatus(isLocked: false, failedCount: 0);
+    }
+  }
+
+  /// Clears failed attempts and unlocks account
+  Future<void> resetLoginAttempts(String email, {String? uid}) async {
+    final emailClean = email.trim().toLowerCase();
+    try {
+      final docRef = _firestore
+          .collection('login_attempts')
+          .doc(_emailDocId(emailClean));
+      await docRef.set({
+        'email': emailClean,
+        'failed_count': 0,
+        'locked_until': null,
+        'last_failed_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Also clear on user document
+      if (uid != null && uid.isNotEmpty) {
+        await _firestore.collection('users').doc(uid).update({
+          'locked_until': null,
+        }).catchError((_) {});
+      } else {
+        final query = await _firestore
+            .collection('users')
+            .where('email', isEqualTo: emailClean)
+            .limit(1)
+            .get();
+        if (query.docs.isNotEmpty) {
+          await query.docs.first.reference.update({
+            'locked_until': null,
+          }).catchError((_) {});
+        }
+      }
+    } catch (e) {
+      debugPrint('Error resetting login attempts: $e');
+    }
+  }
+
+  /// Unlocks an account immediately (called by admin or self-unlock via password reset)
+  Future<void> unlockAccount(String email, {String? uid}) async {
+    await resetLoginAttempts(email, uid: uid);
+  }
+
   Future<UserCredential> signInWithEmailPassword({
     required String email,
     required String password,
   }) async {
-    final userCredential = await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    final emailClean = email.trim().toLowerCase();
 
-    // Initial Security Check: check if the user is deactivated
-    final userDoc = await _firestore.collection('users').doc(userCredential.user?.uid).get();
-    final status = (userDoc.data()?['status'] as String?)?.toUpperCase();
-    if (userDoc.exists && status == 'DEACTIVATED') {
-      await _auth.signOut();
+    // Pre-check: Is the account locked?
+    final lockStatus = await getLockoutStatus(emailClean);
+    if (lockStatus.isLocked) {
+      final remaining = lockStatus.remainingDuration;
+      final minutes = remaining.inMinutes;
+      final seconds = remaining.inSeconds % 60;
+      final timeStr = minutes > 0
+          ? '$minutes min ${seconds > 0 ? "$seconds sec" : ""}'
+          : '$seconds seconds';
       throw FirebaseAuthException(
-        code: 'account-deactivated',
-        message: 'Your account has been deactivated. Please contact support.',
+        code: 'account-locked',
+        message:
+            'Your account is temporarily locked due to 3 failed attempts. Please try again in $timeStr, or reset your password.',
       );
     }
 
-    return userCredential;
+    try {
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Initial Security Check: check if the user is deactivated
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(userCredential.user?.uid)
+          .get();
+      final status = (userDoc.data()?['status'] as String?)?.toUpperCase();
+      if (userDoc.exists && status == 'DEACTIVATED') {
+        await _auth.signOut();
+        throw FirebaseAuthException(
+          code: 'account-deactivated',
+          message: 'Your account has been deactivated. Please contact support.',
+        );
+      }
+
+      // Successful login -> Reset attempts & lockout
+      await resetLoginAttempts(emailClean, uid: userCredential.user?.uid);
+
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password' ||
+          e.code == 'invalid-credential' ||
+          e.code == 'user-not-found') {
+        final result = await _recordFailedAttempt(emailClean);
+        if (result.isLocked) {
+          throw FirebaseAuthException(
+            code: 'account-locked',
+            message:
+                'Too many failed login attempts. Your account has been temporarily locked for 5 minutes. A security notification was sent to your email.',
+          );
+        } else {
+          final attemptsRemaining = maxFailedAttempts - result.failedCount;
+          final warning = attemptsRemaining == 1
+              ? 'Invalid email or password. Warning: 1 attempt remaining before your account is locked.'
+              : 'Invalid email or password. $attemptsRemaining attempts remaining.';
+          throw FirebaseAuthException(
+            code: e.code,
+            message: warning,
+          );
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<UserCredential> googleSignIn() async {
@@ -368,6 +609,22 @@ class AuthService {
     await _auth.sendPasswordResetEmail(email: email);
   }
 
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  }
+
+  Future<bool> reloadAndCheckEmailVerified() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await user.reload();
+      return _auth.currentUser?.emailVerified ?? false;
+    }
+    return false;
+  }
+
   Future<bool> isEmailTaken(String email) async {
     try {
       final query = await _firestore
@@ -382,3 +639,4 @@ class AuthService {
     }
   }
 }
+

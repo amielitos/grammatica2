@@ -1,0 +1,11 @@
+[tool.pyrefly]
+# Python interpreter for resolving imports
+python_version = "3.13"
+
+# Directories where Pyrefly should look for modules
+search_path = [
+    ".",
+    "C:\\Python313\\Lib\\site-packages",
+    "C:\\Users\\amiel\\AppData\\Roaming\\Python\\Python313\\site-packages",
+    "C:\\Python313\\Lib",
+]

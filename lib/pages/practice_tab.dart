@@ -148,7 +148,9 @@ class _PracticeToolsHome extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      color: isDark ? const Color(0xFF121212) : const Color(0xFFFAFAFA), // Soft minimalist off-white or dark
+      color: isDark
+          ? const Color(0xFF121212)
+          : const Color(0xFFFAFAFA), // Soft minimalist off-white or dark
       child: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
@@ -160,8 +162,6 @@ class _PracticeToolsHome extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-
-
                 // Main Centered Header
                 Text(
                   'Practice & Master',
@@ -184,7 +184,9 @@ class _PracticeToolsHome extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 15,
-                      color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
+                      color: isDark
+                          ? Colors.grey[400]
+                          : const Color(0xFF64748B),
                       height: 1.55,
                       fontWeight: FontWeight.w400,
                     ),
@@ -387,7 +389,9 @@ class _PracticeCardState extends State<_PracticeCard>
               border: Border.all(
                 color: _hovered
                     ? widget.themeColor.withValues(alpha: 0.5)
-                    : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    : (isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0)),
                 width: _hovered ? 1.8 : 1.0,
               ),
               boxShadow: [

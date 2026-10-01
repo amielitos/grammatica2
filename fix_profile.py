@@ -1,6 +1,3 @@
-import sys
-import re
-
 def main():
     path = "lib/pages/profile_page.dart"
     with open(path, "r", encoding="utf-8") as f:
@@ -11,36 +8,6 @@ def main():
         "body: SingleChildScrollView(",
         "body: BackgroundWrapper(\n            child: SingleChildScrollView("
     )
-    
-    # We need to add an extra ");" to close the BackgroundWrapper at the end of Scaffold.
-    # The Scaffold ends roughly at the "return Scaffold(...);"
-    # It is right before:
-    #   void _showJoinGrammaticaDialog(UserRole currentRole) {
-    # Let's find the closing of the main build method:
-    
-    target_end = """                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showJoinGrammaticaDialog"""
-    
-    replacement_end = """                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showJoinGrammaticaDialog"""
     # Wait, the BackgroundWrapper needs to be closed. Let's see how many `),` or `);` there are.
     # We added `BackgroundWrapper( child: SingleChildScrollView( ...`
     # The original was:

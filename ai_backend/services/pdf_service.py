@@ -3,7 +3,6 @@ PDF text extraction service using PyMuPDF.
 """
 
 import fitz  # PyMuPDF
-from typing import Optional
 
 
 async def extract_text_from_pdf(file_path: str) -> str:

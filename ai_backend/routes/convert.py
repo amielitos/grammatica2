@@ -1,5 +1,8 @@
 import os
 import shutil
+import tempfile
+import uuid
+import traceback
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from markitdown import MarkItDown
 import fitz  # PyMuPDF
@@ -16,7 +19,10 @@ async def convert_to_markdown(file: UploadFile = File(...)):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
-    temp_path = f"temp_{file.filename}"
+    clean_name = os.path.basename(file.filename)
+    unique_id = uuid.uuid4().hex
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, f"temp_{unique_id}_{clean_name}")
     try:
         # Save the uploaded file
         with open(temp_path, "wb") as buffer:
@@ -24,13 +30,13 @@ async def convert_to_markdown(file: UploadFile = File(...)):
 
         try:
             # Attempt direct conversion
-            print(f"Attempting direct MarkItDown conversion for {file.filename}...")
+            print(f"[*] Attempting direct MarkItDown conversion for {file.filename}...")
             result = markitdown.convert(temp_path)
             markdown_output = result.text_content
-            print("✅ Direct conversion successful.")
+            print("[+] Direct conversion successful.")
         except Exception as direct_error:
-            print(f"⚠️ Direct conversion failed: {direct_error}")
-            print("🔄 Falling back to PyMuPDF extraction...")
+            print(f"[!] Direct conversion failed: {direct_error}")
+            print("[*] Falling back to PyMuPDF extraction...")
             
             # Fallback: Extract text using PyMuPDF
             doc = fitz.open(temp_path)
@@ -43,23 +49,22 @@ async def convert_to_markdown(file: UploadFile = File(...)):
                 raise Exception("PyMuPDF fallback extracted no text from the PDF.")
 
             # Now use MarkItDown to convert this text to Markdown
-            temp_text_path = "temp_fallback_text.txt"
+            temp_text_path = os.path.join(temp_dir, f"temp_fallback_{unique_id}.txt")
             with open(temp_text_path, "w", encoding="utf-8") as f:
                 f.write(full_text)
             
             try:
                 result = markitdown.convert(temp_text_path)
                 markdown_output = result.text_content
-                print("✅ Fallback conversion successful.")
+                print("[+] Fallback conversion successful.")
             finally:
                 if os.path.exists(temp_text_path):
                     os.remove(temp_text_path)
         
         return {"markdown": markdown_output}
     except Exception as e:
-        import traceback
         error_msg = traceback.format_exc()
-        print(f"❌ Critical error during conversion:\n{error_msg}")
+        print(f"[-] Critical error during conversion:\n{error_msg}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         # Cleanup

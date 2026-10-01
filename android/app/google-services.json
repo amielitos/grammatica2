@@ -13,7 +13,36 @@
           "package_name": "com.example.grammatica"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "458713583940-78pdr309rci09g893059qggvhtqd2rh7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.grammatica",
+            "certificate_hash": "6e2e0c878604583df8aa1b6393732fc84a69b56c"
+          }
+        },
+        {
+          "client_id": "458713583940-87pksh81jdnp4l7sf7kdc38q76gq9qcv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.grammatica",
+            "certificate_hash": "48c11c99307c1f637151b53e73d6657a5fe31520"
+          }
+        },
+        {
+          "client_id": "458713583940-p4ti2pmsjoqvr9n9cq0cdg1up4a9umdn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.grammatica",
+            "certificate_hash": "036591b40a85b73fa8cc303cbe0847e26f734a0f"
+          }
+        },
+        {
+          "client_id": "458713583940-v6j8pjs8bj4ftmibm8ml78rl1qrm6ib5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyD_wcr5QUTJz8Wy0p7nf348Jr6znxkhzMs"
@@ -21,7 +50,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "458713583940-v6j8pjs8bj4ftmibm8ml78rl1qrm6ib5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

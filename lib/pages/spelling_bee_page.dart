@@ -33,7 +33,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   int _score = 0;
   bool _isPlaying = false;
   bool _isGameOver = false;
-  bool _useAiWords = false;
+
 
   final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -127,33 +127,28 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   Future<void> _startSession(SpellingDifficulty difficulty) async {
     List<SpellingWord> allWords;
 
-    if (_useAiWords) {
-      try {
-        final diffStr = difficulty.toString().split('.').last;
-        final aiWords = await AILogicService.instance.generatePracticeWords(diffStr, 10);
-        
-        allWords = aiWords.map((w) {
-          return SpellingWord(
-            id: DateTime.now().microsecondsSinceEpoch.toString(),
-            word: w,
-            difficulty: difficulty,
-            createdAt: Timestamp.now(),
-            createdByUid: 'ai_generated',
-            audioUrl: null,
-          );
-        }).toList();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('AI generation failed: $e')),
-          );
-        }
-        return;
+    try {
+      final diffStr = difficulty.toString().split('.').last;
+      final aiWords = await AILogicService.instance.generatePracticeWords(diffStr, 10);
+      
+      allWords = aiWords.map((wordData) {
+        return SpellingWord(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          word: wordData['word']!,
+          description: wordData['description'],
+          difficulty: difficulty,
+          createdAt: Timestamp.now(),
+          createdByUid: 'ai_generated',
+          audioUrl: null,
+        );
+      }).toList();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('AI generation failed: $e')),
+        );
       }
-    } else {
-      allWords = await DatabaseService.instance.fetchSpellingWords(
-        difficulty: difficulty,
-      );
+      return;
     }
 
     if (allWords.isEmpty) {
@@ -388,76 +383,6 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 28),
-
-                // AI Word Source Toggle Container
-                Container(
-                  constraints: const BoxConstraints(maxWidth: 500),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _useAiWords
-                              ? Icons.psychology_rounded
-                              : Icons.storage_rounded,
-                          color: isDark ? Colors.blue[300] : const Color(0xFF2E5090),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Word Source:',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SegmentedButton<bool>(
-                          segments: const [
-                            ButtonSegment(
-                              value: false,
-                              label: Text('Database'),
-                              icon: Icon(Icons.storage_rounded, size: 15),
-                            ),
-                            ButtonSegment(
-                              value: true,
-                              label: Text('AI Generated'),
-                              icon: Icon(Icons.auto_awesome_rounded, size: 15),
-                            ),
-                          ],
-                          selected: {_useAiWords},
-                          onSelectionChanged: (val) {
-                            setState(() => _useAiWords = val.first);
-                          },
-                          style: const ButtonStyle(
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
                 const SizedBox(height: 44),
 
                 // Cards Row / Column
@@ -756,6 +681,46 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                       color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
+                  if (_sessionWords.isNotEmpty &&
+                      _currentIndex < _sessionWords.length &&
+                      _sessionWords[_currentIndex].description != null &&
+                      _sessionWords[_currentIndex].description!.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.lightbulb_outline_rounded,
+                            size: 18,
+                            color: isDark ? Colors.amber[300] : const Color(0xFFD97706),
+                          ),
+                          const SizedBox(width: 10),
+                          Flexible(
+                            child: Text(
+                              _sessionWords[_currentIndex].description!,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                                color: isDark ? Colors.white70 : AppColors.textSecondary,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   TextField(
                     controller: _answerController,
@@ -963,6 +928,17 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                               wordObj.word,
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
+                            if (wordObj.description != null && wordObj.description!.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                wordObj.description!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 4),
                             Text(
                               userAnswer?.isEmpty ?? true ? "(No input)" : '"$userAnswer"',

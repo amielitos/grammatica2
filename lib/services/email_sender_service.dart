@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../config/ai_config.dart';
 
 class EmailSenderService {
   static String get _smtpEmail {
@@ -140,6 +141,74 @@ class EmailSenderService {
     );
   }
 
+  static Future<bool> sendAccountLockedEmail({
+    required String recipientEmail,
+    String? recipientName,
+    int lockoutMinutes = 5,
+  }) async {
+    debugPrint('==============================================');
+    debugPrint('🔒 ACCOUNT LOCKED ALERT FOR $recipientEmail ($lockoutMinutes min)');
+    debugPrint('==============================================');
+    final name = recipientName ?? 'Learner';
+    return await sendEmail(
+      toEmail: recipientEmail,
+      subject: 'Security Alert: Your Grammatica Account Has Been Temporarily Locked',
+      body: """
+      <div style="font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 620px; margin: 0 auto; background-color: #f7f9f7; padding: 32px 20px;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <div style="display: inline-block; background: linear-gradient(135deg, #81B655, #5a8e2e); border-radius: 16px; padding: 14px 28px; margin-bottom: 16px;">
+            <span style="color: white; font-size: 28px; font-weight: 900; letter-spacing: -1px;">Grammatica</span>
+          </div>
+          <p style="color: #64748b; font-size: 14px; margin: 0;">Your trusted language learning platform</p>
+        </div>
+
+        <div style="background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.08);">
+          <div style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); height: 6px;"></div>
+
+          <div style="padding: 48px 44px;">
+            <div style="text-align: center; margin-bottom: 32px;">
+              <div style="display: inline-block; background-color: #fef2f2; border-radius: 50%; padding: 20px; border: 2px solid #fecaca;">
+                <span style="font-size: 40px;">🛡️</span>
+              </div>
+            </div>
+
+            <h2 style="color: #0f172a; font-size: 24px; font-weight: 800; text-align: center; margin: 0 0 8px 0; letter-spacing: -0.5px;">Security Alert: Account Temporarily Locked</h2>
+            <p style="color: #64748b; text-align: center; font-size: 15px; margin: 0 0 32px 0;">3 consecutive failed login attempts detected</p>
+
+            <p style="color: #334155; font-size: 16px; line-height: 1.7; margin-bottom: 8px;">Hi <strong style="color: #0f172a;">$name</strong>,</p>
+            <p style="color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">For your protection, your Grammatica account has been temporarily locked for <strong>$lockoutMinutes minutes</strong> due to 3 consecutive unsuccessful password attempts.</p>
+
+            <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; border-radius: 12px; padding: 20px; margin-bottom: 28px;">
+              <p style="margin: 0 0 8px 0; color: #991b1b; font-weight: 700; font-size: 14px;">What happens next?</p>
+              <ul style="margin: 0; padding-left: 20px; color: #7f1d1d; font-size: 13px; line-height: 1.7;">
+                <li>Your account will automatically unlock in <strong>$lockoutMinutes minutes</strong>.</li>
+                <li>You can immediately reset your password on the sign-in page using <strong>Forgot Password</strong> to regain access right away.</li>
+                <li>If an administrator is available, they can also unlock your account manually.</li>
+              </ul>
+            </div>
+
+            <div style="background-color: #f8fafc; border-radius: 12px; padding: 18px 20px; margin-bottom: 28px; border: 1px solid #e2e8f0;">
+              <p style="margin: 0; color: #475569; font-size: 13px; line-height: 1.6;">
+                <strong>Didn't try to log in?</strong> Someone else may have attempted to access your account. We strongly recommend resetting your password immediately once unlocked.
+              </p>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 0 0 24px 0;">
+
+            <p style="color: #94a3b8; font-size: 13px; text-align: center; margin: 0;">
+              Grammatica Security Team
+            </p>
+          </div>
+        </div>
+
+        <p style="text-align: center; color: #cbd5e1; font-size: 12px; margin-top: 24px;">
+          © 2026 Grammatica. All rights reserved.
+        </p>
+      </div>
+      """,
+    );
+  }
+
   static Future<bool> sendMentorshipNotificationEmail({
     required String recipientEmail,
     required String recipientName,
@@ -200,30 +269,35 @@ class EmailSenderService {
     required String body,
   }) async {
     // ==========================================
-    // FLUTTER WEB (CHROME) BYPASS USING LOCAL RELAY
+    // FLUTTER WEB (CHROME) - ROUTE VIA PYTHON BACKEND
+    // Browsers can't open raw SMTP sockets, so we
+    // delegate to the FastAPI /api/v1/email/send endpoint.
     // ==========================================
     if (kIsWeb) {
       try {
+        final backendUrl = AIConfig.pythonBackendUrl;
+        final apiKey = AIConfig.pythonApiKey;
         final response = await http.post(
-          Uri.parse('http://localhost:8081/send-generic'),
-          headers: {'Content-Type': 'application/json'},
+          Uri.parse('$backendUrl/api/v1/email/send'),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey,
+          },
           body: jsonEncode({
-            'smtpEmail': _smtpEmail,
-            'smtpPassword': _smtpPassword,
             'recipientEmail': toEmail,
             'subject': subject,
             'body': body,
           }),
         );
         if (response.statusCode == 200) {
-          debugPrint('HTTP Generic Relay success to $toEmail');
+          debugPrint('Backend email relay success to $toEmail');
           return true;
         } else {
-          debugPrint('HTTP Generic Relay failed: ${response.body}');
+          debugPrint('Backend email relay failed: ${response.body}');
           return false;
         }
       } catch (e) {
-        debugPrint("Local relay error: $e");
+        debugPrint("Backend email relay error: $e");
         return false; 
       }
     }

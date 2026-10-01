@@ -9,7 +9,7 @@ import json
 from google import genai
 from google.genai import types
 from config import settings
-from models.schemas import LessonResponse, QuizResponse, ContentBlock
+from models.schemas import LessonResponse, QuizResponse
 
 
 # ---------------------------------------------------------------------------
@@ -23,6 +23,8 @@ def _get_client() -> genai.Client:
     """Lazy-initialize and return the Gemini client."""
     global _client
     if _client is None:
+        if not settings.GEMINI_API_KEY:
+            raise ValueError("GEMINI_API_KEY is not configured in settings or environment.")
         _client = genai.Client(api_key=settings.GEMINI_API_KEY)
     return _client
 

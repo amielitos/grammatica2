@@ -9,14 +9,20 @@ POST /api/v1/extract-lesson
 
 import os
 import shutil
+import tempfile
 import uuid
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends, Request
+from pydantic import BaseModel
 from middleware.auth import verify_api_key
 from services.pdf_service import extract_text_from_pdf
 from services.gemini_service import generate_lesson
 from services.image_service import generate_placeholder_image
 
 router = APIRouter(prefix="/api/v1", tags=["Lesson"])
+
+
+class GenerateLessonRequest(BaseModel):
+    rawText: str
 
 
 @router.post("/extract-lesson", dependencies=[Depends(verify_api_key)])
@@ -33,7 +39,7 @@ async def extract_lesson(request: Request, file: UploadFile = File(...)):
 
     # Save uploaded file temporarily
     temp_filename = f"temp_{uuid.uuid4().hex}.pdf"
-    temp_path = os.path.join(os.path.dirname(__file__), "..", temp_filename)
+    temp_path = os.path.join(tempfile.gettempdir(), temp_filename)
 
     try:
         with open(temp_path, "wb") as buffer:
@@ -72,12 +78,6 @@ async def extract_lesson(request: Request, file: UploadFile = File(...)):
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
-
-from pydantic import BaseModel
-
-class GenerateLessonRequest(BaseModel):
-    rawText: str
-
 @router.post("/generate-lesson", dependencies=[Depends(verify_api_key)])
 async def generate_lesson_from_text(request_data: GenerateLessonRequest, request: Request):
     """

@@ -5,6 +5,7 @@ enum SpellingDifficulty { novice, amateur, professional }
 class SpellingWord {
   final String id;
   final String word;
+  final String? description;
   final SpellingDifficulty difficulty;
   final Timestamp? createdAt;
   final String? createdByUid;
@@ -13,6 +14,7 @@ class SpellingWord {
   SpellingWord({
     required this.id,
     required this.word,
+    this.description,
     required this.difficulty,
     this.createdAt,
     this.createdByUid,
@@ -24,6 +26,7 @@ class SpellingWord {
     return SpellingWord(
       id: doc.id,
       word: (data['word'] ?? '').toString(),
+      description: data['description'] as String?,
       difficulty: _difficultyFromString(data['difficulty'] as String?),
       createdAt: data['createdAt'] as Timestamp?,
       createdByUid: data['createdByUid'] as String?,
@@ -34,6 +37,7 @@ class SpellingWord {
   Map<String, dynamic> toMap() {
     return {
       'word': word,
+      if (description != null) 'description': description,
       'difficulty': difficulty.name.toUpperCase(),
       'createdAt': createdAt ?? FieldValue.serverTimestamp(),
       'createdByUid': createdByUid,

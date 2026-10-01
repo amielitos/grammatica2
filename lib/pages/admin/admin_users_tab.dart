@@ -4,6 +4,7 @@ import '../../services/role_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../services/database_service.dart';
+import '../../services/auth_service.dart';
 
 class AdminUsersTab extends StatefulWidget {
   const AdminUsersTab({super.key});
@@ -592,6 +593,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final educEnd = u['educatorEndDate'] != null ? _formatTs(u['educatorEndDate']) : 'Present';
     final educDates = role == 'EDUCATOR' ? '$educStart\n$educEnd' : '—';
 
+    final lockedUntilTs = u['locked_until'] as Timestamp?;
+    final isLocked = lockedUntilTs != null && lockedUntilTs.toDate().isAfter(DateTime.now());
+
     final isActive = status.toLowerCase() == 'active';
     final roleColor = _roleColor(role);
 
@@ -672,27 +676,54 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           // ── Status Chip ───────────────────────────────────────────
           Expanded(
             flex: 2,
-            child: Row(
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: isActive ? const Color(0xFF81B655) : Colors.orange,
-                    shape: BoxShape.circle,
+            child: isLocked
+                ? Tooltip(
+                    message: 'Account locked due to 3 failed attempts (until ${_formatTs(lockedUntilTs)})',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lock_rounded, size: 11, color: Colors.red.shade700),
+                          const SizedBox(width: 4),
+                          Text(
+                            'LOCKED',
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              color: Colors.red.shade700,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: isActive ? const Color(0xFF81B655) : Colors.orange,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        status.toUpperCase(),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isActive ? const Color(0xFF81B655) : Colors.orange,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  status.toUpperCase(),
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: isActive ? const Color(0xFF81B655) : Colors.orange,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
           ),
 
           // ── Educ Dates ────────────────────────────────────────────
@@ -724,6 +755,33 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     onPressed: () => _showChangeRoleDialog(uid, username, role),
                   ),
                 ),
+                if (isLocked) ...[
+                  const SizedBox(width: 6),
+                  // Unlock Button
+                  Tooltip(
+                    message: 'Unlock Account (Clear Lockout)',
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.lock_open_rounded, size: 14),
+                      label: Text(
+                        'UNLOCK',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade50,
+                        foregroundColor: Colors.red.shade700,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        side: BorderSide(color: Colors.red.shade300),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => _showUnlockConfirmation(uid, username, email),
+                    ),
+                  ),
+                ],
                 const SizedBox(width: 6),
                 // Status Toggle Button
                 ElevatedButton(
@@ -1046,6 +1104,109 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       ),
                       child: Text(
                         isDeactivating ? 'Deactivate' : 'Activate',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showUnlockConfirmation(
+      String uid, String username, String email) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          width: 380,
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.lock_open_rounded,
+                      color: Color(0xFF81B655),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      'Unlock Account',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Are you sure you want to unlock $username\'s account? This will immediately clear the temporary lockout and reset failed login attempts.',
+                style: GoogleFonts.inter(
+                  color: Colors.grey.shade600,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black54,
+                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await AuthService.instance.unlockAccount(email, uid: uid);
+                        if (mounted) {
+                          AuthService.showSnackBar(
+                            'Account for $username has been unlocked.',
+                            isError: false,
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF81B655),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        'Unlock',
                         style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
                       ),
                     ),

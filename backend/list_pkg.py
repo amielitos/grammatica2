@@ -1,6 +1,5 @@
 
 from markitdown import MarkItDown
-import markitdown.converters
 
 md = MarkItDown()
 print(f"Checking {len(md._converters)} converters...")

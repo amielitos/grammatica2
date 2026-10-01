@@ -1,4 +1,11 @@
 {
     "java.configuration.updateBuildConfiguration": "automatic",
-    "flutter.hotReloadOnSave": "manual"
+    "flutter.hotReloadOnSave": "manual",
+    "gradle.nestedProjects": [
+        "android"
+    ],
+    "python.analysis.extraPaths": [
+        "./ai_backend",
+        "./backend"
+    ]
 }

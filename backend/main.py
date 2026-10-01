@@ -1,3 +1,9 @@
+import sys
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
 from fastapi import FastAPI, HTTPException, File, UploadFile
 from pydantic import BaseModel
 from typing import List
@@ -6,6 +12,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 import os
 import shutil
+import uuid
 import fitz  # PyMuPDF
 from markitdown import MarkItDown
 
@@ -14,25 +21,26 @@ markitdown = MarkItDown()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Grammatica Backend starting up...")
+    print("[*] Grammatica Backend starting up...")
     try:
         # In version 0.1.5, converters are wrapped in ConverterRegistration
         # and PdfConverter is in markitdown.converters._pdf_converter
         found_pdf = False
-        for reg in markitdown._converters:
+        converters = getattr(markitdown, "_converters", [])
+        for reg in converters:
             conv = getattr(reg, "converter", None)
             if conv and "PdfConverter" in type(conv).__name__:
                 found_pdf = True
                 break
         
         if found_pdf:
-            print("✅ PDF Support is ENABLED in MarkItDown.")
+            print("[+] PDF Support is ENABLED in MarkItDown.")
         else:
-            print("❌ PDF Support is DISABLED in MarkItDown. Fallback is ready.")
+            print("[-] PDF Support is DISABLED in MarkItDown. Fallback is ready.")
     except Exception as e:
-        print(f"⚠️ Could not verify PDF support: {e}")
+        print(f"[!] Could not verify PDF support: {e}")
     yield
-    print("🛑 Grammatica Backend shutting down...")
+    print("[*] Grammatica Backend shutting down...")
 
 app = FastAPI(title="Grammatica AI API", lifespan=lifespan)
 
@@ -78,10 +86,12 @@ async def convert_to_markdown(file: UploadFile = File(...)):
     Receives a PDF file and converts it into Markdown using MarkItDown.
     Includes a fallback to PyMuPDF if direct conversion fails.
     """
-    if not file.filename.lower().endswith(".pdf"):
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
-    temp_path = f"temp_{file.filename}"
+    clean_name = os.path.basename(file.filename)
+    unique_id = uuid.uuid4().hex
+    temp_path = f"temp_{unique_id}_{clean_name}"
     try:
         # Save the uploaded file
         with open(temp_path, "wb") as buffer:
@@ -89,13 +99,13 @@ async def convert_to_markdown(file: UploadFile = File(...)):
 
         try:
             # Attempt direct conversion
-            print(f"Attempting direct MarkItDown conversion for {file.filename}...")
+            print(f"[*] Attempting direct MarkItDown conversion for {file.filename}...")
             result = markitdown.convert(temp_path)
             markdown_output = result.text_content
-            print("✅ Direct conversion successful.")
+            print("[+] Direct conversion successful.")
         except Exception as direct_error:
-            print(f"⚠️ Direct conversion failed: {direct_error}")
-            print("🔄 Falling back to PyMuPDF extraction...")
+            print(f"[!] Direct conversion failed: {direct_error}")
+            print("[*] Falling back to PyMuPDF extraction...")
             
             # Fallback: Extract text using PyMuPDF
             doc = fitz.open(temp_path)
@@ -108,14 +118,14 @@ async def convert_to_markdown(file: UploadFile = File(...)):
                 raise Exception("PyMuPDF fallback extracted no text from the PDF.")
 
             # Now use MarkItDown to convert this text to Markdown (text conversion is more reliable)
-            temp_text_path = "temp_fallback_text.txt"
+            temp_text_path = f"temp_fallback_{unique_id}.txt"
             with open(temp_text_path, "w", encoding="utf-8") as f:
                 f.write(full_text)
             
             try:
                 result = markitdown.convert(temp_text_path)
                 markdown_output = result.text_content
-                print("✅ Fallback conversion successful.")
+                print("[+] Fallback conversion successful.")
             finally:
                 if os.path.exists(temp_text_path):
                     os.remove(temp_text_path)
@@ -124,7 +134,7 @@ async def convert_to_markdown(file: UploadFile = File(...)):
     except Exception as e:
         import traceback
         error_msg = traceback.format_exc()
-        print(f"❌ Critical error during conversion:\n{error_msg}")
+        print(f"[-] Critical error during conversion:\n{error_msg}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         # Cleanup
@@ -133,3 +143,4 @@ async def convert_to_markdown(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+

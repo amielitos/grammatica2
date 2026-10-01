@@ -11,7 +11,7 @@ import '../widgets/design_ornaments.dart';
 
 import '../widgets/top_nav_bar.dart';
 import 'otp_verification_page.dart';
-import '../services/email_sender_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/tagline_hero_text.dart';
 
 class SignupPage extends StatefulWidget {
@@ -226,29 +226,50 @@ class _SignupPageState extends State<SignupPage> {
       String fullName = "${_firstNameController.text.trim()} ${_lastNameController.text.trim()}";
       if (_selectedSuffix != null) fullName += " $_selectedSuffix";
 
-      // Generate 6-Digit OTP
-      final generatedOtp = (100000 + (DateTime.now().millisecondsSinceEpoch % 900000)).toString();
-      
-      // SEND REAL OTP WITH TEMPLATE
-      await EmailSenderService.sendOtpEmail(
-        recipientEmail: _emailController.text.trim(),
-        recipientName: _firstNameController.text.trim(),
-        otpCode: generatedOtp,
+      // Register directly via Firebase Authentication
+      final cred = await AuthService.instance.registerWithEmailPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        fullName: fullName,
+        phoneNumber: _completePhoneNumber ?? _phoneController.text.trim(),
+        dateOfBirth: _selectedDate ?? DateTime.now(),
       );
+
+      final user = cred.user;
+      if (user != null) {
+        await NotificationService.instance.sendWelcomeNotification(user.uid);
+      }
 
       if (mounted) {
         setState(() => _isLoading = false);
-        Navigator.push(context, MaterialPageRoute(builder: (_) => OtpVerificationPage(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-          fullName: fullName,
-          phoneNumber: _completePhoneNumber ?? _phoneController.text.trim(),
-          dateOfBirth: _selectedDate ?? DateTime.now(),
-          expectedOtp: generatedOtp,
-        )));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtpVerificationPage(
+              email: _emailController.text.trim(),
+            ),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'Registration failed'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }

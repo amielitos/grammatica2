@@ -8,7 +8,6 @@ POST /api/v1/generate-quiz
     and returns the structured quiz JSON.
 """
 
-import os
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 from middleware.auth import verify_api_key

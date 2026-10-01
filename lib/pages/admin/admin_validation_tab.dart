@@ -54,7 +54,6 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
       );
     }
 
-
     return DefaultTabController(
       length: 5,
       initialIndex: widget.initialTabIndex,
@@ -72,8 +71,14 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
                 indicatorWeight: 3,
                 indicatorSize: TabBarIndicatorSize.label,
                 dividerColor: Colors.transparent,
-                labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 15),
-                unselectedLabelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w500, fontSize: 15),
+                labelStyle: GoogleFonts.outfit(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+                unselectedLabelStyle: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 15,
+                ),
                 tabs: const [
                   Tab(text: 'Lessons'),
                   Tab(text: 'Quizzes'),
@@ -83,7 +88,11 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.block_rounded, size: 14, color: Color(0xFFE05050)),
+                        Icon(
+                          Icons.block_rounded,
+                          size: 14,
+                          color: Color(0xFFE05050),
+                        ),
                         SizedBox(width: 6),
                         Text('Rejected'),
                       ],
@@ -97,17 +106,20 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
                 children: [
                   // ── Pending ──────────────────────────────────────────────
                   _ValidationList(
-                    stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
+                    stream: DatabaseService.instance
+                        .streamAwaitingApprovalLessons(),
                     collection: 'lessons',
                     formatDate: _formatTs,
                   ),
                   _ValidationList(
-                    stream: DatabaseService.instance.streamAwaitingApprovalQuizzes(),
+                    stream: DatabaseService.instance
+                        .streamAwaitingApprovalQuizzes(),
                     collection: 'quizzes',
                     formatDate: _formatTs,
                   ),
                   _ValidationList(
-                    stream: DatabaseService.instance.streamAwaitingApprovalAssessments(),
+                    stream: DatabaseService.instance
+                        .streamAwaitingApprovalAssessments(),
                     collection: 'quizzes',
                     formatDate: _formatTs,
                   ),
@@ -127,9 +139,6 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
     );
   }
 }
-
-
-
 
 class _EducatorApplicationsList extends StatelessWidget {
   final String Function(dynamic) formatDate;
@@ -216,7 +225,10 @@ class _EducatorApplicationsList extends StatelessWidget {
                 children: [
                   // Header section
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 20,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -225,7 +237,11 @@ class _EducatorApplicationsList extends StatelessWidget {
                             CircleAvatar(
                               radius: 24,
                               backgroundColor: Colors.grey.shade200,
-                              child: const Icon(Icons.person, color: Colors.grey, size: 28),
+                              child: const Icon(
+                                Icons.person,
+                                color: Colors.grey,
+                                size: 28,
+                              ),
                             ),
                             const SizedBox(width: 16),
                             Column(
@@ -242,7 +258,10 @@ class _EducatorApplicationsList extends StatelessWidget {
                                 const SizedBox(height: 4),
                                 Text(
                                   'Applied: $appliedAtStr',
-                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ],
                             ),
@@ -254,16 +273,31 @@ class _EducatorApplicationsList extends StatelessWidget {
                               onTap: () => _approveApplication(context, app),
                               borderRadius: BorderRadius.circular(50),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF81B655).withValues(alpha: 0.1),
+                                  color: const Color(
+                                    0xFF81B655,
+                                  ).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(50),
                                 ),
                                 child: const Row(
                                   children: [
-                                    Icon(Icons.check_circle_outline, color: Color(0xFF81B655), size: 20),
+                                    Icon(
+                                      Icons.check_circle_outline,
+                                      color: Color(0xFF81B655),
+                                      size: 20,
+                                    ),
                                     SizedBox(width: 8),
-                                    Text("Approve", style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold)),
+                                    Text(
+                                      "Approve",
+                                      style: TextStyle(
+                                        color: Color(0xFF81B655),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -273,16 +307,31 @@ class _EducatorApplicationsList extends StatelessWidget {
                               onTap: () => _rejectApplication(context, app),
                               borderRadius: BorderRadius.circular(50),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent.withValues(alpha: 0.1),
+                                  color: Colors.redAccent.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(50),
                                 ),
                                 child: const Row(
                                   children: [
-                                    Icon(Icons.highlight_off, color: Colors.redAccent, size: 20),
+                                    Icon(
+                                      Icons.highlight_off,
+                                      color: Colors.redAccent,
+                                      size: 20,
+                                    ),
                                     SizedBox(width: 8),
-                                    Text("Reject", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                                    Text(
+                                      "Reject",
+                                      style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -294,7 +343,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                   ),
                   Divider(height: 1, color: Colors.grey.shade200),
                   // ── Credentials section with thumbnails ─────────────
-                  if (!showRejected) ...[  
+                  if (!showRejected) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                       child: Column(
@@ -320,13 +369,17 @@ class _EducatorApplicationsList extends StatelessWidget {
                                     url: app.cvUrl,
                                     fallbackIcon: Icons.description_rounded,
                                   ),
-                                ...app.certificateUrls.asMap().entries.where((e) => e.value.isNotEmpty).map(
-                                  (e) => _ValidationCredentialThumb(
-                                    label: 'Certificate ${e.key + 1}',
-                                    url: e.value,
-                                    fallbackIcon: Icons.verified_rounded,
-                                  ),
-                                ),
+                                ...app.certificateUrls
+                                    .asMap()
+                                    .entries
+                                    .where((e) => e.value.isNotEmpty)
+                                    .map(
+                                      (e) => _ValidationCredentialThumb(
+                                        label: 'Certificate ${e.key + 1}',
+                                        url: e.value,
+                                        fallbackIcon: Icons.verified_rounded,
+                                      ),
+                                    ),
                                 if (app.videoUrl.isNotEmpty)
                                   _ValidationCredentialThumb(
                                     label: 'Teaching Demo',
@@ -345,12 +398,19 @@ class _EducatorApplicationsList extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ] else ...[  
+                  ] else ...[
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline, size: 15, color: Colors.orange.shade400),
+                          Icon(
+                            Icons.info_outline,
+                            size: 15,
+                            color: Colors.orange.shade400,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Credential files were removed after rejection.',
@@ -371,7 +431,6 @@ class _EducatorApplicationsList extends StatelessWidget {
       },
     );
   }
-
 
   Future<void> _approveApplication(
     BuildContext context,
@@ -672,7 +731,8 @@ class _ValidationList extends StatelessWidget {
                               color: Colors.blue,
                             ),
                             tooltip: 'Review Content',
-                            onPressed: () => _showReviewModal(context, item, collection),
+                            onPressed: () =>
+                                _showReviewModal(context, item, collection),
                           ),
                           IconButton(
                             icon: const Icon(
@@ -701,7 +761,11 @@ class _ValidationList extends StatelessWidget {
     );
   }
 
-  Future<void> _showReviewModal(BuildContext context, dynamic item, String collection) async {
+  Future<void> _showReviewModal(
+    BuildContext context,
+    dynamic item,
+    String collection,
+  ) async {
     final user = AuthService.instance.currentUser;
     if (user == null) return;
 
@@ -713,13 +777,27 @@ class _ValidationList extends StatelessWidget {
           children: [
             Scaffold(
               body: collection == 'lessons'
-                  ? LessonPage(user: user, lesson: item as Lesson, previewMode: true)
-                  : QuizDetailPage(user: user, quiz: item as Quiz, previewMode: true),
+                  ? LessonPage(
+                      user: user,
+                      lesson: item as Lesson,
+                      previewMode: true,
+                    )
+                  : QuizDetailPage(
+                      user: user,
+                      quiz: item as Quiz,
+                      previewMode: true,
+                    ),
               bottomNavigationBar: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5))],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
@@ -770,7 +848,7 @@ class _ValidationList extends StatelessWidget {
         item.id,
         'approved',
       );
-      
+
       // Notify the creator
       if (item.createdByUid != null && item.createdByUid!.isNotEmpty) {
         await NotificationService.instance.sendContentValidationNotification(
@@ -785,7 +863,9 @@ class _ValidationList extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Approved! Notification sent to creator (ID: ${item.createdByUid})'),
+            content: Text(
+              'Approved! Notification sent to creator (ID: ${item.createdByUid})',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -815,7 +895,9 @@ class _ValidationList extends StatelessWidget {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Are you sure you want to reject (delete) this content?'),
+                  const Text(
+                    'Are you sure you want to reject (delete) this content?',
+                  ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: reasonController,
@@ -834,7 +916,9 @@ class _ValidationList extends StatelessWidget {
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
-                  onPressed: isReasonEmpty ? null : () => Navigator.pop(context, true),
+                  onPressed: isReasonEmpty
+                      ? null
+                      : () => Navigator.pop(context, true),
                   style: FilledButton.styleFrom(backgroundColor: Colors.red),
                   child: const Text('Deny & Notify Educator'),
                 ),
@@ -921,8 +1005,11 @@ class _AllRejectedTab extends StatelessWidget {
                     final assessments = assessSnap.data ?? [];
                     final applications = appSnap.data ?? [];
 
-                    final bool isEmpty = lessons.isEmpty && quizzes.isEmpty &&
-                        assessments.isEmpty && applications.isEmpty;
+                    final bool isEmpty =
+                        lessons.isEmpty &&
+                        quizzes.isEmpty &&
+                        assessments.isEmpty &&
+                        applications.isEmpty;
 
                     if (isEmpty) {
                       return Center(
@@ -935,20 +1022,28 @@ class _AllRejectedTab extends StatelessWidget {
                                 color: Colors.green.shade50,
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.check_circle_rounded, size: 56, color: Colors.green.shade400),
+                              child: Icon(
+                                Icons.check_circle_rounded,
+                                size: 56,
+                                color: Colors.green.shade400,
+                              ),
                             ),
                             const SizedBox(height: 24),
                             Text(
                               'No Rejected Content',
                               style: GoogleFonts.outfit(
-                                fontSize: 22, fontWeight: FontWeight.w700,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
                                 color: const Color(0xFF2C3E50),
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               'All submitted content is clean.',
-                              style: GoogleFonts.inter(color: Colors.grey.shade500, fontSize: 14),
+                              style: GoogleFonts.inter(
+                                color: Colors.grey.shade500,
+                                fontSize: 14,
+                              ),
                             ),
                           ],
                         ),
@@ -958,54 +1053,90 @@ class _AllRejectedTab extends StatelessWidget {
                     return ListView(
                       padding: const EdgeInsets.all(16),
                       children: [
-                        if (lessons.isNotEmpty) ..._buildSection(
-                          context, 'Lessons', Icons.auto_stories_rounded,
-                          lessons.map((l) => _RejectedItem(
-                            title: l.title,
-                            subtitle: 'Lesson',
-                            icon: Icons.description_rounded,
-                            reason: l.rejectionReason,
-                            createdAtStr: l.createdAt != null ? formatDate(l.createdAt!) : 'N/A',
-                            createdByUid: l.createdByUid,
-                            createdByEmail: l.createdByEmail,
-                          )).toList(),
-                        ),
-                        if (quizzes.isNotEmpty) ..._buildSection(
-                          context, 'Quizzes', Icons.quiz_rounded,
-                          quizzes.map((q) => _RejectedItem(
-                            title: q.title,
-                            subtitle: 'Quiz',
-                            icon: Icons.quiz_rounded,
-                            reason: q.rejectionReason,
-                            createdAtStr: q.createdAt != null ? formatDate(q.createdAt!) : 'N/A',
-                            createdByUid: q.createdByUid,
-                            createdByEmail: q.createdByEmail,
-                          )).toList(),
-                        ),
-                        if (assessments.isNotEmpty) ..._buildSection(
-                          context, 'Assessments', Icons.assignment_turned_in_rounded,
-                          assessments.map((a) => _RejectedItem(
-                            title: a.title,
-                            subtitle: 'Assessment',
-                            icon: Icons.assignment_rounded,
-                            reason: a.rejectionReason,
-                            createdAtStr: a.createdAt != null ? formatDate(a.createdAt!) : 'N/A',
-                            createdByUid: a.createdByUid,
-                            createdByEmail: a.createdByEmail,
-                          )).toList(),
-                        ),
-                        if (applications.isNotEmpty) ..._buildSection(
-                          context, 'Applications', Icons.person_off_rounded,
-                          applications.map((a) => _RejectedItem(
-                            title: a.applicantEmail,
-                            subtitle: 'Educator Application',
-                            icon: Icons.person_rounded,
-                            reason: a.rejectionReason,
-                            createdAtStr: a.appliedAt != null ? formatDate(a.appliedAt!) : 'N/A',
-                            createdByUid: null,
-                            createdByEmail: a.applicantEmail,
-                          )).toList(),
-                        ),
+                        if (lessons.isNotEmpty)
+                          ..._buildSection(
+                            context,
+                            'Lessons',
+                            Icons.auto_stories_rounded,
+                            lessons
+                                .map(
+                                  (l) => _RejectedItem(
+                                    title: l.title,
+                                    subtitle: 'Lesson',
+                                    icon: Icons.description_rounded,
+                                    reason: l.rejectionReason,
+                                    createdAtStr: l.createdAt != null
+                                        ? formatDate(l.createdAt!)
+                                        : 'N/A',
+                                    createdByUid: l.createdByUid,
+                                    createdByEmail: l.createdByEmail,
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        if (quizzes.isNotEmpty)
+                          ..._buildSection(
+                            context,
+                            'Quizzes',
+                            Icons.quiz_rounded,
+                            quizzes
+                                .map(
+                                  (q) => _RejectedItem(
+                                    title: q.title,
+                                    subtitle: 'Quiz',
+                                    icon: Icons.quiz_rounded,
+                                    reason: q.rejectionReason,
+                                    createdAtStr: q.createdAt != null
+                                        ? formatDate(q.createdAt!)
+                                        : 'N/A',
+                                    createdByUid: q.createdByUid,
+                                    createdByEmail: q.createdByEmail,
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        if (assessments.isNotEmpty)
+                          ..._buildSection(
+                            context,
+                            'Assessments',
+                            Icons.assignment_turned_in_rounded,
+                            assessments
+                                .map(
+                                  (a) => _RejectedItem(
+                                    title: a.title,
+                                    subtitle: 'Assessment',
+                                    icon: Icons.assignment_rounded,
+                                    reason: a.rejectionReason,
+                                    createdAtStr: a.createdAt != null
+                                        ? formatDate(a.createdAt!)
+                                        : 'N/A',
+                                    createdByUid: a.createdByUid,
+                                    createdByEmail: a.createdByEmail,
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        if (applications.isNotEmpty)
+                          ..._buildSection(
+                            context,
+                            'Applications',
+                            Icons.person_off_rounded,
+                            applications
+                                .map(
+                                  (a) => _RejectedItem(
+                                    title: a.applicantEmail,
+                                    subtitle: 'Educator Application',
+                                    icon: Icons.person_rounded,
+                                    reason: a.rejectionReason,
+                                    createdAtStr: a.appliedAt != null
+                                        ? formatDate(a.appliedAt!)
+                                        : 'N/A',
+                                    createdByUid: null,
+                                    createdByEmail: a.applicantEmail,
+                                  ),
+                                )
+                                .toList(),
+                          ),
                       ],
                     );
                   },
@@ -1018,7 +1149,12 @@ class _AllRejectedTab extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildSection(BuildContext ctx, String title, IconData icon, List<Widget> cards) {
+  List<Widget> _buildSection(
+    BuildContext ctx,
+    String title,
+    IconData icon,
+    List<Widget> cards,
+  ) {
     return [
       Padding(
         padding: const EdgeInsets.only(bottom: 12, top: 8),
@@ -1036,7 +1172,8 @@ class _AllRejectedTab extends StatelessWidget {
             Text(
               title,
               style: GoogleFonts.outfit(
-                fontSize: 17, fontWeight: FontWeight.w700,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
                 color: const Color(0xFF2C3E50),
               ),
             ),
@@ -1050,7 +1187,9 @@ class _AllRejectedTab extends StatelessWidget {
               child: Text(
                 '${cards.length}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFE05050), fontSize: 11, fontWeight: FontWeight.w700,
+                  color: const Color(0xFFE05050),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -1090,7 +1229,9 @@ class _RejectedItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE05050).withValues(alpha: 0.15)),
+        border: Border.all(
+          color: const Color(0xFFE05050).withValues(alpha: 0.15),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -1124,7 +1265,8 @@ class _RejectedItem extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.w700, fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
                           color: const Color(0xFF2C3E50),
                         ),
                       ),
@@ -1132,27 +1274,41 @@ class _RejectedItem extends StatelessWidget {
                       AuthorName(
                         uid: createdByUid,
                         fallbackEmail: createdByEmail,
-                        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE05050).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE05050).withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: const Color(0xFFE05050).withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.cancel_rounded, size: 11, color: Color(0xFFE05050)),
+                      const Icon(
+                        Icons.cancel_rounded,
+                        size: 11,
+                        color: Color(0xFFE05050),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'Rejected',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFE05050), fontSize: 10, fontWeight: FontWeight.w700,
+                          color: const Color(0xFFE05050),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
@@ -1160,51 +1316,69 @@ class _RejectedItem extends StatelessWidget {
                 ),
               ],
             ),
-            if (reason != null && reason!.isNotEmpty) ...([
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3F3),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE05050).withValues(alpha: 0.15)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.info_outline_rounded, size: 14, color: const Color(0xFFE05050).withValues(alpha: 0.7)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'REJECTION REASON',
-                            style: GoogleFonts.inter(
-                              fontSize: 9, fontWeight: FontWeight.w900,
-                              letterSpacing: 1.1,
-                              color: const Color(0xFFE05050).withValues(alpha: 0.7),
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            reason!,
-                            style: GoogleFonts.inter(
-                              fontSize: 13, color: const Color(0xFF7A2020), height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
+            if (reason != null && reason!.isNotEmpty)
+              ...([
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3F3),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFFE05050).withValues(alpha: 0.15),
                     ),
-                  ],
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 14,
+                        color: const Color(0xFFE05050).withValues(alpha: 0.7),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'REJECTION REASON',
+                              style: GoogleFonts.inter(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.1,
+                                color: const Color(
+                                  0xFFE05050,
+                                ).withValues(alpha: 0.7),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              reason!,
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: const Color(0xFF7A2020),
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ]),
+              ]),
             const SizedBox(height: 8),
             Text(
               'Submitted: $createdAtStr',
-              style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade400),
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: Colors.grey.shade400,
+              ),
             ),
           ],
         ),
@@ -1212,7 +1386,6 @@ class _RejectedItem extends StatelessWidget {
     );
   }
 }
-
 
 // ═══════════════════════════════════════════════════════════
 //  _ValidationCredentialThumb — thumbnail tile for credentials
@@ -1232,7 +1405,10 @@ class _ValidationCredentialThumb extends StatelessWidget {
     final lower = url.toLowerCase();
     final clean = lower.split('?').first;
     return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].any(
-      (ext) => clean.endsWith('.$ext') || lower.contains('.$ext?') || lower.contains('format=$ext'),
+      (ext) =>
+          clean.endsWith('.$ext') ||
+          lower.contains('.$ext?') ||
+          lower.contains('format=$ext'),
     );
   }
 
@@ -1240,14 +1416,19 @@ class _ValidationCredentialThumb extends StatelessWidget {
     final lower = url.toLowerCase();
     final clean = lower.split('?').first;
     return ['mp4', 'mov', 'avi', 'webm', 'm4v', 'mkv', 'ogv'].any(
-      (ext) => clean.endsWith('.$ext') || lower.contains('.$ext?') || lower.contains('/video'),
+      (ext) =>
+          clean.endsWith('.$ext') ||
+          lower.contains('.$ext?') ||
+          lower.contains('/video'),
     );
   }
 
   bool get _isPdf {
     final lower = url.toLowerCase();
     final clean = lower.split('?').first;
-    return clean.endsWith('.pdf') || lower.contains('.pdf?') || lower.contains('pdf');
+    return clean.endsWith('.pdf') ||
+        lower.contains('.pdf?') ||
+        lower.contains('pdf');
   }
 
   @override
@@ -1285,7 +1466,10 @@ class _ValidationCredentialThumb extends StatelessWidget {
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.12)],
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.12),
+                          ],
                         ),
                       ),
                     ),
@@ -1299,7 +1483,11 @@ class _ValidationCredentialThumb extends StatelessWidget {
                         color: Colors.black.withValues(alpha: 0.50),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.open_in_full_rounded, size: 14, color: Colors.white),
+                      child: const Icon(
+                        Icons.open_in_full_rounded,
+                        size: 14,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],
@@ -1345,7 +1533,15 @@ class _ValidationCredentialThumb extends StatelessWidget {
             children: [
               Icon(Icons.play_circle_fill, size: 46, color: Color(0xFF81B655)),
               SizedBox(height: 6),
-              Text('VIDEO DEMO', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+              Text(
+                'VIDEO DEMO',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
+                ),
+              ),
             ],
           ),
         ),
@@ -1358,9 +1554,21 @@ class _ValidationCredentialThumb extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.picture_as_pdf_rounded, size: 46, color: Color(0xFFDC2626)),
+              Icon(
+                Icons.picture_as_pdf_rounded,
+                size: 46,
+                color: Color(0xFFDC2626),
+              ),
               SizedBox(height: 6),
-              Text('PDF DOC', style: TextStyle(color: Color(0xFFDC2626), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+              Text(
+                'PDF DOC',
+                style: TextStyle(
+                  color: Color(0xFFDC2626),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
+                ),
+              ),
             ],
           ),
         ),
@@ -1374,7 +1582,15 @@ class _ValidationCredentialThumb extends StatelessWidget {
           children: [
             Icon(fallbackIcon, size: 46, color: Colors.grey.shade400),
             const SizedBox(height: 6),
-            Text('DOCUMENT', style: TextStyle(color: Colors.grey.shade600, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+            Text(
+              'DOCUMENT',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.8,
+              ),
+            ),
           ],
         ),
       ),
@@ -1382,11 +1598,11 @@ class _ValidationCredentialThumb extends StatelessWidget {
   }
 
   Widget _placeholder() => Container(
-        color: Colors.grey.shade100,
-        child: Center(
-          child: Icon(fallbackIcon, size: 36, color: Colors.grey.shade300),
-        ),
-      );
+    color: Colors.grey.shade100,
+    child: Center(
+      child: Icon(fallbackIcon, size: 36, color: Colors.grey.shade300),
+    ),
+  );
 
   void _preview(BuildContext context) {
     String ext = 'pdf';
