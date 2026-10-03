@@ -27,11 +27,6 @@ void main() async {
   } catch (e) {
     debugPrint('Dotenv initialization note: $e');
   }
-  if (dotenv.env['GEMINI_API_KEY'] == null || dotenv.env['GEMINI_API_KEY']!.isEmpty) {
-    try {
-      await dotenv.load(fileName: "assets/env");
-    } catch (_) {}
-  }
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
@@ -87,7 +82,7 @@ class GrammaticaApp extends StatelessWidget {
               child: child!,
             );
           },
-          home: _AuthWrapper(),
+          home: const _AuthWrapper(key: ValueKey('grammatica_auth_wrapper')),
           routes: {
             '/login': (context) => const LoginPage(),
             '/register': (context) => const SignupPage(),
@@ -99,6 +94,8 @@ class GrammaticaApp extends StatelessWidget {
 }
 
 class _AuthWrapper extends StatelessWidget {
+  const _AuthWrapper({super.key});
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -201,7 +198,7 @@ class _AuthWrapper extends StatelessWidget {
             }
 
             // Derive role and info status
-            final roleStr = data['role'] as String?;
+            final roleStr = (data['role'] as String?) ?? 'LEARNER';
             final role = roleFromString(roleStr);
 
             final phone = data['phone_number'] as String?;
@@ -209,14 +206,17 @@ class _AuthWrapper extends StatelessWidget {
             final hasMissingInfo =
                 (phone == null || phone.isEmpty) || (dobTimestamp == null);
 
+            // Explicit cast to bool? to prevent TypeError on Flutter Web
+            // where dynamic null throws: 'Null' is not a subtype of 'bool'
             final hasCompletedOnboarding =
-                data['has_completed_onboarding'] ?? true;
+                (data['has_completed_onboarding'] as bool?) ?? true;
 
             if (role == UserRole.admin ||
                 role == UserRole.educator ||
                 role == UserRole.validator ||
                 role == UserRole.superadmin) {
               return AdminDashboard(
+                key: ValueKey('admin_${user.uid}'),
                 user: user,
                 role: role,
                 userData: data,
@@ -224,11 +224,12 @@ class _AuthWrapper extends StatelessWidget {
               );
             }
 
-            if (!hasCompletedOnboarding && role == UserRole.learner) {
+            if (hasCompletedOnboarding == false && role == UserRole.learner) {
               return OnboardingPage(user: user);
             }
 
             return HomePage(
+              key: ValueKey('home_${user.uid}'),
               user: user,
               role: role,
               userData: data,

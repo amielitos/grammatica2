@@ -10,6 +10,7 @@ import '../widgets/subscription_tier_dialog.dart';
 import '../widgets/paymongo_qr_dialog.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
+import '../widgets/universal_drawer.dart';
 
 class EducatorProfilePage extends StatefulWidget {
   final Map<String, dynamic> educator;
@@ -67,6 +68,10 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
             builder: (context) => NotificationsDialog(userId: widget.currentUser.uid),
           );
         },
+      ),
+      drawer: UniversalDrawer(
+        user: widget.currentUser,
+        userData: const {},
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -293,7 +298,10 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                                           .snapshots(),
                                       builder: (context, snapshot) {
                                         final data = snapshot.data?.data() ?? widget.educator;
-                                        final avgRating = (data['averageRating'] ?? 5.0).toDouble();
+                                        final int reviewCount = (data['reviewCount'] as num?)?.toInt() ?? 0;
+                                        final avgRating = reviewCount > 0 
+                                            ? ((data['averageRating'] as num?)?.toDouble() ?? 0.0) 
+                                            : 0.0;
 
                                         return StreamBuilder<Map<String, int>>(
                                           stream: DatabaseService.instance.getTieredSubscriberCounts(uid),

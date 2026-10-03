@@ -95,8 +95,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               return cmp;
             });
 
+            final isMobile = constraints.maxWidth < 600;
+
             return SingleChildScrollView(
-              padding: const EdgeInsets.all(28),
+              padding: EdgeInsets.all(isMobile ? 16 : 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -113,67 +115,57 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                             color: Color(0xFF81B655), size: 22),
                       ),
                       const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'User Management',
-                            style: GoogleFonts.outfit(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.black87,
-                              letterSpacing: -0.5,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'User Management',
+                              style: GoogleFonts.outfit(
+                                fontSize: isMobile ? 18 : 22,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.black87,
+                                letterSpacing: -0.5,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'Manage roles and account status for all users',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              color: Colors.grey.shade500,
+                            Text(
+                              'Manage roles and account status for all users',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
 
-                  // ── Stat Cards (Interactive Role Filters) ─────────────
-                  Row(
-                    children: [
-                      _buildStatCard(
-                        label: 'Admins',
-                        count: adminCount,
-                        icon: Icons.shield_rounded,
-                        color: const Color(0xFF8B5CF6),
-                        roleKey: 'ADMIN',
-                      ),
-                      const SizedBox(width: 16),
-                      _buildStatCard(
-                        label: 'Validators',
-                        count: validatorCount,
-                        icon: Icons.verified_rounded,
-                        color: const Color(0xFF3B82F6),
-                        roleKey: 'VALIDATOR',
-                      ),
-                      const SizedBox(width: 16),
-                      _buildStatCard(
-                        label: 'Educators',
-                        count: educatorCount,
-                        icon: Icons.school_rounded,
-                        color: const Color(0xFF81B655),
-                        roleKey: 'EDUCATOR',
-                      ),
-                      const SizedBox(width: 16),
-                      _buildStatCard(
-                        label: 'Learners',
-                        count: learnerCount,
-                        icon: Icons.person_rounded,
-                        color: const Color(0xFFF59E0B),
-                        roleKey: 'LEARNER',
-                      ),
-                    ],
-                  ),
+                  // ── Stat Cards ─────────────────────────────────────────
+                  if (isMobile)
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        _buildStatCard(label: 'Admins', count: adminCount, icon: Icons.shield_rounded, color: const Color(0xFF8B5CF6), roleKey: 'ADMIN', expanded: false),
+                        _buildStatCard(label: 'Validators', count: validatorCount, icon: Icons.verified_rounded, color: const Color(0xFF3B82F6), roleKey: 'VALIDATOR', expanded: false),
+                        _buildStatCard(label: 'Educators', count: educatorCount, icon: Icons.school_rounded, color: const Color(0xFF81B655), roleKey: 'EDUCATOR', expanded: false),
+                        _buildStatCard(label: 'Learners', count: learnerCount, icon: Icons.person_rounded, color: const Color(0xFFF59E0B), roleKey: 'LEARNER', expanded: false),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        _buildStatCard(label: 'Admins', count: adminCount, icon: Icons.shield_rounded, color: const Color(0xFF8B5CF6), roleKey: 'ADMIN'),
+                        const SizedBox(width: 16),
+                        _buildStatCard(label: 'Validators', count: validatorCount, icon: Icons.verified_rounded, color: const Color(0xFF3B82F6), roleKey: 'VALIDATOR'),
+                        const SizedBox(width: 16),
+                        _buildStatCard(label: 'Educators', count: educatorCount, icon: Icons.school_rounded, color: const Color(0xFF81B655), roleKey: 'EDUCATOR'),
+                        const SizedBox(width: 16),
+                        _buildStatCard(label: 'Learners', count: learnerCount, icon: Icons.person_rounded, color: const Color(0xFFF59E0B), roleKey: 'LEARNER'),
+                      ],
+                    ),
                   const SizedBox(height: 20),
 
                   // ── Segmented Role Filter Tabs ────────────────────────
@@ -222,16 +214,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                               Expanded(
                                 child: TextField(
                                   onChanged: (v) => setState(() => _searchQuery = v),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    color: Colors.black87,
-                                  ),
+                                  style: GoogleFonts.inter(fontSize: 14, color: Colors.black87),
                                   decoration: InputDecoration(
                                     hintText: 'Search users by name or email…',
-                                    hintStyle: GoogleFonts.inter(
-                                      color: Colors.grey.shade400,
-                                      fontSize: 14,
-                                    ),
+                                    hintStyle: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 14),
                                     border: InputBorder.none,
                                   ),
                                 ),
@@ -241,7 +227,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // Filter Button
                       MaterialButton(
                         onPressed: _showFilterDialog,
                         color: Colors.white,
@@ -258,100 +243,94 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // Active filter label
                   Padding(
                     padding: const EdgeInsets.only(left: 4),
                     child: Text(
                       'Sorted by: $_selectedFilter',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.grey.shade400,
-                      ),
+                      style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade400),
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  // ── Table ────────────────────────────────────────────
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 20,
-                          offset: const Offset(0, 6),
+                  // ── User List ─────────────────────────────────────────
+                  if (users.isEmpty)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(48),
+                        child: Column(
+                          children: [
+                            Icon(Icons.person_search_rounded, size: 40, color: Colors.grey.shade300),
+                            const SizedBox(height: 12),
+                            Text('No users found', style: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 14)),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        // Table Header
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 16),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(20),
-                              topRight: Radius.circular(20),
+                      ),
+                    )
+                  else if (isMobile)
+                    // ── Mobile: Card list ──────────────────────────────
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: users.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) => _buildUserCard(users[index]),
+                    )
+                  else
+                    // ── Desktop: Table ────────────────────────────────
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 20,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(20),
+                                topRight: Radius.circular(20),
+                              ),
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              _tableH('Username', 3),
-                              _tableH('Email', 4),
-                              _tableH('Role', 2),
-                              _tableH('Status', 2),
-                              _tableH('Educ. Dates', 3),
-                              _tableH('Action', 3, center: true),
-                            ],
-                          ),
-                        ),
-                        const Divider(height: 1, color: Color(0xFFE2E8F0)),
-
-                        // Table Rows
-                        if (users.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.all(48),
-                            child: Column(
+                            child: Row(
                               children: [
-                                Icon(Icons.person_search_rounded,
-                                    size: 40, color: Colors.grey.shade300),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'No users found',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.grey.shade400,
-                                    fontSize: 14,
-                                  ),
-                                ),
+                                _tableH('Username', 3),
+                                _tableH('Email', 4),
+                                _tableH('Role', 2),
+                                _tableH('Status', 2),
+                                _tableH('Educ. Dates', 3),
+                                _tableH('Action', 3, center: true),
                               ],
                             ),
-                          )
-                        else
+                          ),
+                          const Divider(height: 1, color: Color(0xFFE2E8F0)),
                           ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: users.length,
                             separatorBuilder: (context, index) => const Divider(
-                              height: 1,
-                              color: Color(0xFFF1F5F9),
-                              indent: 24,
-                              endIndent: 24,
+                              height: 1, color: Color(0xFFF1F5F9), indent: 24, endIndent: 24,
                             ),
-                            itemBuilder: (context, index) =>
-                                _buildUserRow(users[index]),
+                            itemBuilder: (context, index) => _buildUserRow(users[index]),
                           ),
-                        const SizedBox(height: 8),
-                      ],
+                          const SizedBox(height: 8),
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             );
+
           },
         );
       },
@@ -413,88 +392,89 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     required IconData icon,
     required Color color,
     required String roleKey,
+    bool expanded = true,
   }) {
     final isSelected = _selectedRoleFilter == roleKey;
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() {
-          _selectedRoleFilter = isSelected ? 'ALL' : roleKey;
-        }),
-        borderRadius: BorderRadius.circular(18),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 18),
-          decoration: BoxDecoration(
-            color: isSelected ? color.withValues(alpha: 0.05) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isSelected ? color : color.withValues(alpha: 0.18),
-              width: isSelected ? 2.5 : 1,
+    final cardWidget = InkWell(
+      onTap: () => setState(() {
+        _selectedRoleFilter = isSelected ? 'ALL' : roleKey;
+      }),
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 18),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.05) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected ? color : color.withValues(alpha: 0.18),
+            width: isSelected ? 2.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: isSelected ? 0.16 : 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 5),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: isSelected ? 0.16 : 0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, color: color, size: 18),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  if (isSelected)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'FILTERED',
-                        style: GoogleFonts.outfit(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
+                  child: Icon(icon, color: color, size: 18),
+                ),
+                if (isSelected)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'FILTERED',
+                      style: GoogleFonts.outfit(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
                       ),
                     ),
-                ],
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              '$count',
+              style: GoogleFonts.outfit(
+                fontSize: 30,
+                fontWeight: FontWeight.w900,
+                color: Colors.black87,
+                height: 1,
               ),
-              const SizedBox(height: 14),
-              Text(
-                '$count',
-                style: GoogleFonts.outfit(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.black87,
-                  height: 1,
-                ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade500,
               ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade500,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
+
+    return expanded ? Expanded(child: cardWidget) : cardWidget;
   }
 
   void _showFilterDialog() {
@@ -809,6 +789,179 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Mobile card view of a single user ─────────────────────────────────────
+  Widget _buildUserCard(Map<String, dynamic> u) {
+    final email = (u['email'] ?? 'N/A') as String;
+    final role = (u['role'] ?? 'N/A') as String;
+    final uid = (u['uid'] ?? 'N/A') as String;
+    final username = (u['username'] ?? 'N/A') as String;
+    final status = (u['status'] ?? 'N/A') as String;
+
+    final lockedUntilTs = u['locked_until'] as Timestamp?;
+    final isLocked = lockedUntilTs != null && lockedUntilTs.toDate().isAfter(DateTime.now());
+    final isActive = status.toLowerCase() == 'active';
+    final roleColor = _roleColor(role);
+
+    final educStart = u['educatorStartDate'] != null ? _formatTs(u['educatorStartDate']) : null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row: avatar + name/email + role badge
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: roleColor.withValues(alpha: 0.15),
+                  backgroundImage: u['photoUrl'] != null
+                      ? NetworkImage(u['photoUrl'] as String)
+                      : null,
+                  child: u['photoUrl'] == null
+                      ? Text(
+                          username.isNotEmpty ? username[0].toUpperCase() : '?',
+                          style: TextStyle(color: roleColor, fontWeight: FontWeight.w700, fontSize: 14),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        username,
+                        style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black87),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        email,
+                        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                // Role badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: roleColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    role,
+                    style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700, color: roleColor),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Status row
+            Row(
+              children: [
+                if (isLocked) ...[
+                  Icon(Icons.lock_rounded, size: 13, color: Colors.red.shade700),
+                  const SizedBox(width: 4),
+                  Text('LOCKED', style: GoogleFonts.inter(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.w700)),
+                ] else ...[
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: isActive ? const Color(0xFF81B655) : Colors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    status.toUpperCase(),
+                    style: GoogleFonts.inter(fontSize: 12, color: isActive ? const Color(0xFF81B655) : Colors.orange, fontWeight: FontWeight.w600),
+                  ),
+                ],
+                if (educStart != null) ...[
+                  const SizedBox(width: 12),
+                  Icon(Icons.school_rounded, size: 13, color: Colors.grey.shade400),
+                  const SizedBox(width: 4),
+                  Text('Since $educStart', style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500)),
+                ],
+              ],
+            ),
+
+            const Divider(height: 20),
+
+            // Action buttons
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                // Change Role
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.manage_accounts_rounded, size: 15),
+                  label: const Text('Change Role'),
+                  onPressed: () => _showChangeRoleDialog(uid, username, role),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF4B49AC),
+                    side: const BorderSide(color: Color(0xFF4B49AC)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                // Unlock (if locked)
+                if (isLocked)
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.lock_open_rounded, size: 15),
+                    label: const Text('Unlock'),
+                    onPressed: () => _showUnlockConfirmation(uid, username, email),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade700,
+                      side: BorderSide(color: Colors.red.shade300),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                // Activate / Deactivate
+                ElevatedButton(
+                  onPressed: () => _showStatusToggleConfirmation(uid, username, status),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isActive ? Colors.orange.shade50 : const Color(0xFF81B655).withValues(alpha: 0.10),
+                    foregroundColor: isActive ? Colors.orange.shade700 : const Color(0xFF81B655),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    side: BorderSide(
+                      color: isActive ? Colors.orange.shade200 : const Color(0xFF81B655).withValues(alpha: 0.3),
+                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+                  ),
+                  child: Text(isActive ? 'DEACTIVATE' : 'ACTIVATE'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

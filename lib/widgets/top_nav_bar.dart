@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class TopNavBar extends StatelessWidget {
   const TopNavBar({super.key});
@@ -10,33 +11,54 @@ class TopNavBar extends StatelessWidget {
 
     return Container(
       height: 80,
-      padding: EdgeInsets.symmetric(horizontal: 48),
+      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 48 : 20),
       alignment: Alignment.center,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Logo + Text Group
+          // Logo + Text Group (Identical to Landing Page Header)
           InkWell(
             onTap: () {
               Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
             },
+            borderRadius: BorderRadius.circular(8),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Image.asset('assets/logo.png', height: 40),
-                const SizedBox(width: 8),
-                Image.asset('assets/logotext.png', height: 28),
+                Image.asset(
+                  'assets/logotext.png',
+                  height: 36,
+                  errorBuilder: (ctx, err, st) => Row(
+                    children: [
+                      const Icon(
+                        Icons.language_rounded,
+                        color: Color(0xFF81B655),
+                        size: 32,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Grammatica',
+                        style: GoogleFonts.outfit(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF0F172A),
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          Spacer(),
+          const Spacer(),
           if (isDesktop) ...[
             _buildNavButton('All About Grammatica'),
-            SizedBox(width: 28),
+            const SizedBox(width: 28),
             _buildNavButton("FAQ's"),
           ],
         ],
@@ -48,13 +70,13 @@ class TopNavBar extends StatelessWidget {
     return TextButton(
       onPressed: () {},
       style: TextButton.styleFrom(
-        padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       child: Text(
         text,
-        style: TextStyle(
+        style: const TextStyle(
           color: Color(0xFF1D1B20),
           fontWeight: FontWeight.w500,
           fontSize: 15,
@@ -64,5 +86,3 @@ class TopNavBar extends StatelessWidget {
     );
   }
 }
-
-

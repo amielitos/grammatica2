@@ -29,7 +29,7 @@ class AdminValidationTab extends StatefulWidget {
   State<AdminValidationTab> createState() => _AdminValidationTabState();
 }
 
-class _AdminValidationTabState extends State<AdminValidationTab> {
+class _AdminValidationTabState extends State<AdminValidationTab> with SingleTickerProviderStateMixin {
   String _formatTs(dynamic ts) {
     if (ts == null) return 'N/A';
     DateTime d;
@@ -43,98 +43,139 @@ class _AdminValidationTabState extends State<AdminValidationTab> {
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
+  static const _tabLabels = ['Lessons', 'Quizzes', 'Assessments', 'Applications', 'Rejected'];
+  int _selectedTab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTab = widget.initialTabIndex.clamp(0, _tabLabels.length - 1);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isSuperAdmin = widget.role == UserRole.superadmin;
-
     if (isSuperAdmin) {
-      return _EducatorApplicationsList(
-        formatDate: _formatTs,
-        type: 'validator',
-      );
+      return _EducatorApplicationsList(formatDate: _formatTs, type: 'validator');
     }
 
-    return DefaultTabController(
-      length: 5,
-      initialIndex: widget.initialTabIndex,
-      child: BackgroundWrapper(
-        child: Column(
-          children: [
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return BackgroundWrapper(
+      child: Column(
+        children: [
+          // ── Navigation: Dropdown on mobile, Tabs on desktop ──────────
+          if (isMobile)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _selectedTab,
+                  isExpanded: true,
+                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  icon: Icon(Icons.keyboard_arrow_down_rounded,
+                      color: AppColors.primary),
+                  items: List.generate(_tabLabels.length, (i) {
+                    final isRejected = i == 4;
+                    return DropdownMenuItem(
+                      value: i,
+                      child: Row(
+                        children: [
+                          if (isRejected) ...[
+                            const Icon(Icons.block_rounded,
+                                size: 14, color: Color(0xFFE05050)),
+                            const SizedBox(width: 8),
+                          ],
+                          Text(
+                            _tabLabels[i],
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: isRejected
+                                  ? const Color(0xFFE05050)
+                                  : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedTab = val);
+                  },
+                ),
+              ),
+            )
+          else
             Container(
               margin: const EdgeInsets.symmetric(vertical: 16),
-              child: TabBar(
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                labelColor: AppColors.primary,
-                unselectedLabelColor: AppColors.textSecondary,
-                indicatorColor: AppColors.primary,
-                indicatorWeight: 3,
-                indicatorSize: TabBarIndicatorSize.label,
-                dividerColor: Colors.transparent,
-                labelStyle: GoogleFonts.outfit(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-                unselectedLabelStyle: GoogleFonts.outfit(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 15,
-                ),
-                tabs: const [
-                  Tab(text: 'Lessons'),
-                  Tab(text: 'Quizzes'),
-                  Tab(text: 'Assessments'),
-                  Tab(text: 'Applications'),
-                  Tab(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.block_rounded,
-                          size: 14,
-                          color: Color(0xFFE05050),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: List.generate(_tabLabels.length, (i) {
+                    final isSelected = _selectedTab == i;
+                    final isRejected = i == 4;
+                    final color = isRejected ? const Color(0xFFE05050) : AppColors.primary;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedTab = i),
+                      child: Container(
+                        margin: const EdgeInsets.only(left: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: isSelected ? color : Colors.transparent,
+                              width: 3,
+                            ),
+                          ),
                         ),
-                        SizedBox(width: 6),
-                        Text('Rejected'),
-                      ],
-                    ),
-                  ),
-                ],
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isRejected) ...[
+                              Icon(Icons.block_rounded, size: 14, color: isSelected ? color : AppColors.textSecondary),
+                              const SizedBox(width: 6),
+                            ],
+                            Text(
+                              _tabLabels[i],
+                              style: GoogleFonts.outfit(
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                fontSize: 15,
+                                color: isSelected ? color : AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ),
               ),
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  // ── Pending ──────────────────────────────────────────────
-                  _ValidationList(
-                    stream: DatabaseService.instance
-                        .streamAwaitingApprovalLessons(),
-                    collection: 'lessons',
-                    formatDate: _formatTs,
-                  ),
-                  _ValidationList(
-                    stream: DatabaseService.instance
-                        .streamAwaitingApprovalQuizzes(),
-                    collection: 'quizzes',
-                    formatDate: _formatTs,
-                  ),
-                  _ValidationList(
-                    stream: DatabaseService.instance
-                        .streamAwaitingApprovalAssessments(),
-                    collection: 'quizzes',
-                    formatDate: _formatTs,
-                  ),
-                  _EducatorApplicationsList(
-                    formatDate: _formatTs,
-                    type: 'educator',
-                    showRejected: false,
-                  ),
-                  // ── All Rejected ──────────────────────────────────────────
-                  _AllRejectedTab(formatDate: _formatTs),
-                ],
-              ),
+
+          // ── Tab Content ──────────────────────────────────────────────
+          Expanded(
+            child: IndexedStack(
+              index: _selectedTab,
+              children: [
+                _ValidationList(stream: DatabaseService.instance.streamAwaitingApprovalLessons(), collection: 'lessons', formatDate: _formatTs),
+                _ValidationList(stream: DatabaseService.instance.streamAwaitingApprovalQuizzes(), collection: 'quizzes', formatDate: _formatTs),
+                _ValidationList(stream: DatabaseService.instance.streamAwaitingApprovalAssessments(), collection: 'quizzes', formatDate: _formatTs),
+                _EducatorApplicationsList(formatDate: _formatTs, type: 'educator', showRejected: false),
+                _AllRejectedTab(formatDate: _formatTs),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -225,120 +266,108 @@ class _EducatorApplicationsList extends StatelessWidget {
                 children: [
                   // Header section
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 20,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isMobile = constraints.maxWidth < 380;
+                        final emailWidget = Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            CircleAvatar(
-                              radius: 24,
-                              backgroundColor: Colors.grey.shade200,
-                              child: const Icon(
-                                Icons.person,
-                                color: Colors.grey,
-                                size: 28,
+                            const CircleAvatar(
+                              radius: 20,
+                              backgroundColor: Color(0xFFE8EBF0),
+                              child: Icon(Icons.person, color: Colors.grey, size: 22),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    email,
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                      color: const Color(0xFF2C3E50),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Applied: $appliedAtStr',
+                                    style: GoogleFonts.inter(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  email,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 18,
-                                    color: Color(0xFF2C3E50),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Applied: $appliedAtStr',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ],
-                        ),
-                        Row(
+                        );
+                        final actions = Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             InkWell(
                               onTap: () => _approveApplication(context, app),
                               borderRadius: BorderRadius.circular(50),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                                 decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFF81B655,
-                                  ).withValues(alpha: 0.1),
+                                  color: const Color(0xFF81B655).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(50),
                                 ),
                                 child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
-                                      Icons.check_circle_outline,
-                                      color: Color(0xFF81B655),
-                                      size: 20,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      "Approve",
-                                      style: TextStyle(
-                                        color: Color(0xFF81B655),
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                                    Icon(Icons.check_circle_outline, color: Color(0xFF81B655), size: 18),
+                                    SizedBox(width: 6),
+                                    Text('Approve', style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold, fontSize: 13)),
                                   ],
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
                             InkWell(
                               onTap: () => _rejectApplication(context, app),
                               borderRadius: BorderRadius.circular(50),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent.withValues(
-                                    alpha: 0.1,
-                                  ),
+                                  color: Colors.redAccent.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(50),
                                 ),
                                 child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
-                                      Icons.highlight_off,
-                                      color: Colors.redAccent,
-                                      size: 20,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      "Reject",
-                                      style: TextStyle(
-                                        color: Colors.redAccent,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                                    Icon(Icons.highlight_off, color: Colors.redAccent, size: 18),
+                                    SizedBox(width: 6),
+                                    Text('Reject', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 13)),
                                   ],
                                 ),
                               ),
                             ),
                           ],
-                        ),
-                      ],
+                        );
+
+                        return isMobile
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  emailWidget,
+                                  const SizedBox(height: 12),
+                                  actions,
+                                ],
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(child: emailWidget),
+                                  const SizedBox(width: 16),
+                                  actions,
+                                ],
+                              );
+                      },
                     ),
                   ),
                   Divider(height: 1, color: Colors.grey.shade200),
@@ -650,108 +679,116 @@ class _ValidationList extends StatelessWidget {
             final createdAtStr = item.createdAt != null
                 ? formatDate(item.createdAt!)
                 : 'N/A';
+            final isMobile = MediaQuery.of(context).size.width < 600;
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+
+            final actionRow = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.visibility, color: Colors.blue),
+                  tooltip: 'Review Content',
+                  onPressed: () => _showReviewModal(context, item, collection),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                  onPressed: () => _approve(context, item),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.highlight_off, color: Colors.red),
+                  onPressed: () => _reject(context, item),
+                ),
+              ],
+            );
+
+            final infoBlock = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                AuthorName(
+                  uid: item.createdByUid,
+                  fallbackEmail: item.createdByEmail,
+                  style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white54 : Colors.grey.shade500),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: item.isMembersOnly
+                            ? Colors.amber.withValues(alpha: 0.12)
+                            : const Color(0xFF81B655).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        item.isMembersOnly ? 'Members Only' : 'Public',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: item.isMembersOnly ? Colors.amber.shade700 : const Color(0xFF81B655),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Submitted: $createdAtStr',
+                      style: GoogleFonts.inter(fontSize: 11, color: isDark ? Colors.white38 : Colors.grey.shade500),
+                    ),
+                  ],
+                ),
+              ],
+            );
 
             return Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(8),
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: InkWell(
                 onTap: () {
                   if (collection == 'lessons') {
-                    NavigationService.instance.goToLesson(
-                      context,
-                      item as Lesson,
-                      previewMode: true,
-                    );
+                    NavigationService.instance.goToLesson(context, item as Lesson, previewMode: true);
                   } else {
-                    NavigationService.instance.goToQuiz(
-                      context,
-                      item as Quiz,
-                      previewMode: true,
-                    );
+                    NavigationService.instance.goToQuiz(context, item as Quiz, previewMode: true);
                   }
                 },
+                borderRadius: BorderRadius.circular(16),
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width - 200,
-                        ),
-                        child: Column(
+                  padding: const EdgeInsets.all(16),
+                  child: isMobile
+                      ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              title,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            AuthorName(
-                              uid: item.createdByUid,
-                              fallbackEmail: item.createdByEmail,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Text(
-                                  item.isMembersOnly
-                                      ? 'Members Only'
-                                      : 'Public',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Submitted: $createdAtStr',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
+                            infoBlock,
+                            const SizedBox(height: 10),
+                            Align(alignment: Alignment.centerRight, child: actionRow),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(child: infoBlock),
+                            actionRow,
                           ],
                         ),
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.visibility,
-                              color: Colors.blue,
-                            ),
-                            tooltip: 'Review Content',
-                            onPressed: () =>
-                                _showReviewModal(context, item, collection),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.check_circle_outline,
-                              color: Colors.green,
-                            ),
-                            onPressed: () => _approve(context, item),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.highlight_off,
-                              color: Colors.red,
-                            ),
-                            onPressed: () => _reject(context, item),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
                 ),
               ),
             );

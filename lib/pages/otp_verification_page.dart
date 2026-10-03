@@ -130,14 +130,12 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     if (_cooldownSeconds > 0 || _isResending) return;
 
     setState(() => _isResending = true);
-    final user = FirebaseAuth.instance.currentUser;
 
     try {
-      if (user != null) {
-        await user.sendEmailVerification();
-      } else {
-        await AuthService.instance.sendEmailVerification();
-      }
+      await AuthService.instance.sendEmailVerification(
+        email: widget.email,
+        fullName: widget.fullName,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -34,7 +34,7 @@ class _SignupPageState extends State<SignupPage> {
   final _lastNameController = TextEditingController();
   final _dobController = TextEditingController();
   String? _selectedSuffix;
-  final List<String> _suffixes = ['Jr.', 'Sr.', 'III', 'IV', 'V'];
+  final List<String> _suffixes = ['None', 'Jr.', 'Sr.', 'III', 'IV', 'V'];
 
   // Step 2 Controllers
   final _emailController = TextEditingController();
@@ -224,7 +224,7 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       String fullName = "${_firstNameController.text.trim()} ${_lastNameController.text.trim()}";
-      if (_selectedSuffix != null) fullName += " $_selectedSuffix";
+      if (_selectedSuffix != null && _selectedSuffix != 'None') fullName += " $_selectedSuffix";
 
       // Register directly via Firebase Authentication
       final cred = await AuthService.instance.registerWithEmailPassword(
@@ -398,7 +398,30 @@ class _SignupPageState extends State<SignupPage> {
       padding: const EdgeInsets.only(top: 32, bottom: 16, left: 32, right: 32),
       child: Column(
         children: [
-          Image.asset('assets/logotext.png', height: 35),
+          Image.asset(
+            'assets/logotext.png',
+            height: 38,
+            errorBuilder: (ctx, err, st) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.language_rounded,
+                  color: Color(0xFF81B655),
+                  size: 32,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Grammatica',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 12),
           Text(
             "Create Account",

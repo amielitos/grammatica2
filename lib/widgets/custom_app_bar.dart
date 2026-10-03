@@ -107,86 +107,87 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    PopupMenuButton<String>(
-                      offset: const Offset(0, 45),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      color: isDark ? const Color(0xFF333333) : Colors.white,
-                      onSelected: (value) {
-                        if (value == 'profile') {
-                          onProfileTap?.call();
-                        } else if (value == 'settings') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => SettingsPage(user: user),
+                    if (screenWidth > 600)
+                      PopupMenuButton<String>(
+                        offset: const Offset(0, 45),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        color: isDark ? const Color(0xFF333333) : Colors.white,
+                        onSelected: (value) {
+                          if (value == 'profile') {
+                            onProfileTap?.call();
+                          } else if (value == 'settings') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => SettingsPage(user: user),
+                              ),
+                            );
+                          } else if (value == 'logout') {
+                            AuthService.instance.signOut();
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'profile',
+                            child: Row(
+                              children: [
+                                Icon(Icons.person_outline, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                                const SizedBox(width: 12),
+                                Text('My Profile', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                              ],
                             ),
-                          );
-                        } else if (value == 'logout') {
-                          AuthService.instance.signOut();
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'profile',
-                          child: Row(
-                            children: [
-                              Icon(Icons.person_outline, size: 20, color: isDark ? Colors.white70 : Colors.black87),
-                              const SizedBox(width: 12),
-                              Text('My Profile', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-                            ],
                           ),
-                        ),
-                        PopupMenuItem(
-                          value: 'settings',
-                          child: Row(
-                            children: [
-                              Icon(Icons.settings_outlined, size: 20, color: isDark ? Colors.white70 : Colors.black87),
-                              const SizedBox(width: 12),
-                              Text('Settings', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-                            ],
+                          PopupMenuItem(
+                            value: 'settings',
+                            child: Row(
+                              children: [
+                                Icon(Icons.settings_outlined, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                                const SizedBox(width: 12),
+                                Text('Settings', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                              ],
+                            ),
                           ),
-                        ),
-                        const PopupMenuDivider(),
-                        PopupMenuItem(
-                          value: 'logout',
-                          child: Row(
-                            children: [
-                              Icon(Icons.logout, size: 20, color: Theme.of(context).colorScheme.error),
-                              const SizedBox(width: 12),
+                          const PopupMenuDivider(),
+                          PopupMenuItem(
+                            value: 'logout',
+                            child: Row(
+                              children: [
+                                Icon(Icons.logout, size: 20, color: Theme.of(context).colorScheme.error),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Sign Out',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (screenWidth > 800)
                               Text(
-                                'Sign Out',
+                                fullName,
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error,
+                                  color: isDark ? Colors.white : Colors.black87,
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (screenWidth > 800)
-                            Text(
-                              fullName,
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.black87,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                            const SizedBox(width: 12),
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: AppColors.primary,
+                              backgroundImage: profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null,
+                              child: profileImageUrl.isEmpty ? const Icon(Icons.person, color: Colors.white, size: 16) : null,
                             ),
-                          const SizedBox(width: 12),
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundColor: AppColors.primary,
-                            backgroundImage: profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null,
-                            child: profileImageUrl.isEmpty ? const Icon(Icons.person, color: Colors.white, size: 16) : null,
-                          ),
-                          Icon(Icons.keyboard_arrow_down, size: 18, color: isDark ? Colors.white54 : Colors.black54),
-                        ],
+                            Icon(Icons.keyboard_arrow_down, size: 18, color: isDark ? Colors.white54 : Colors.black54),
+                          ],
+                        ),
                       ),
-                    ),
                     const SizedBox(width: 16),
                     NotificationIconButton(
                       userId: user.uid,

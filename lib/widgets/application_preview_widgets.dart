@@ -120,45 +120,62 @@ void showFilePreviewModal(BuildContext context, String url, String fileName) {
 
   Widget body;
   if (isImage) {
-    body = Image.network(
-      url,
-      fit: BoxFit.contain,
-      errorBuilder: (ctx, err, stack) => Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.broken_image_rounded, size: 80, color: Colors.white38),
-          const SizedBox(height: 16),
-          Text("Failed to load image: $fileName", style: const TextStyle(color: Colors.white70)),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () async {
-              final uri = Uri.parse(url);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-            icon: const Icon(Icons.open_in_new),
-            label: const Text('Open in Browser'),
+    body = InteractiveViewer(
+      panEnabled: true,
+      minScale: 0.8,
+      maxScale: 4.0,
+      child: Center(
+        child: Image.network(
+          url,
+          fit: BoxFit.contain,
+          errorBuilder: (ctx, err, stack) => Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.broken_image_rounded, size: 80, color: Colors.white38),
+              const SizedBox(height: 16),
+              Text("Failed to load image: $fileName", style: const TextStyle(color: Colors.white70)),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('Open in Browser'),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   } else if (isVideo) {
     body = LocalVideoPlayer(url: url, isNetwork: true);
   } else {
-    // Default to PDF / Document viewer (Google Docs Viewer embed on web)
-    body = WebPdfViewer(url: url);
+    // Default to PDF / Document viewer
+    body = InteractiveViewer(
+      panEnabled: true,
+      minScale: 0.8,
+      maxScale: 3.0,
+      child: WebPdfViewer(url: url),
+    );
   }
+
+  final isMobile = MediaQuery.of(context).size.width < 600;
 
   showDialog(
     context: context,
     builder: (context) => Dialog(
       backgroundColor: Colors.black,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 8 : 20,
+        vertical: isMobile ? 12 : 20,
+      ),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.9,
+        width: MediaQuery.of(context).size.width * (isMobile ? 0.98 : 0.9),
+        height: MediaQuery.of(context).size.height * (isMobile ? 0.92 : 0.9),
         child: Column(
           children: [
             Container(
@@ -203,4 +220,5 @@ void showFilePreviewModal(BuildContext context, String url, String fileName) {
     ),
   );
 }
+
 

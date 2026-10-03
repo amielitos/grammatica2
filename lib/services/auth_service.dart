@@ -125,7 +125,6 @@ class AuthService {
       final chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid O, 0, I, 1 for clarity
       final random = List.generate(6, (index) {
         final randIdx = DateTime.now().microsecondsSinceEpoch % chars.length;
-        // Adding a bit more randomness logic here as simple epoch % can be predictable
         return chars[(randIdx + index) % chars.length];
       }).join();
 
@@ -134,38 +133,11 @@ class AuthService {
       // Update the user's password in Firebase Auth so they can use it to login later
       await user.updatePassword(tempPassword);
 
-      // Send the email with the temporary password
-      await EmailSenderService.sendEmail(
-        toEmail: user.email!,
-        subject: 'Welcome to Grammatica! Your Temporary Password',
-        body: '''
-        <div style="font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f7f9fa; padding: 30px; border-radius: 16px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #81B655; margin: 0; font-size: 36px; font-weight: 800; letter-spacing: -1px;">Grammatica</h1>
-            <p style="color: #64748b; font-size: 16px; margin-top: 5px;">Your ultimate language learning partner</p>
-          </div>
-          
-          <div style="background-color: #ffffff; padding: 45px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); border-top: 5px solid #81B655;">
-            <h2 style="color: #1e293b; margin-top: 0; font-size: 24px; font-weight: 700;">Welcome to the community! 🎉</h2>
-            
-            <p style="color: #475569; font-size: 16px; line-height: 1.7;">Hello <strong style="color: #0f172a;">${user.displayName ?? 'learner'}</strong>,</p>
-            
-            <p style="color: #475569; font-size: 16px; line-height: 1.7;">Thank you for registering your account using Google. To give you full access across all devices, we have generated a secure <strong>Temporary Password</strong> for you. You can use this to easily log in using your email directly in the future.</p>
-            
-            <div style="background: linear-gradient(145deg, #f0fdf4, #e6fced); text-align: center; padding: 30px; margin: 35px 0; border-radius: 16px; border: 1.5px dashed #81B655; box-shadow: inset 0 2px 10px rgba(129, 182, 85, 0.1);">
-              <span style="font-size: 42px; font-weight: 900; color: #81B655; letter-spacing: 12px; display: inline-block;">$tempPassword</span>
-              <p style="margin: 15px 0 0 0; color: #64748b; font-size: 13px; font-weight: 500;">(Case sensitive &middot; Do not share)</p>
-            </div>
-            
-            <p style="color: #64748b; font-size: 14px; line-height: 1.6; border-left: 4px solid #cbd5e1; padding-left: 15px; margin-top: 30px;">
-              <strong>Security Tip:</strong> We recommend logging into your profile and updating this password to something personal and memorable as soon as possible.
-            </p>
-            
-            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 35px 0;">
-            <p style="color: #94a3b8; font-size: 13px; text-align: center; margin: 0;">Happy learning! From the <strong style="color: #81B655;">Grammatica Team</strong></p>
-          </div>
-        </div>
-        ''',
+      // Send the branded email with the temporary password & Grammatica logo
+      await EmailSenderService.sendTempPasswordEmail(
+        recipientEmail: user.email!,
+        recipientName: user.displayName ?? 'Learner',
+        tempPassword: tempPassword,
       );
     } catch (e) {
       debugPrint('Error generating temp password: $e');
@@ -606,13 +578,129 @@ class AuthService {
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
-    await _auth.sendPasswordResetEmail(email: email);
+    final emailClean = email.trim().toLowerCase();
+
+    // 1. Trigger Firebase Auth native password reset email (contains secret oobCode)
+    await _auth.sendPasswordResetEmail(email: emailClean);
+
+    // 2. Auto-unlock account if locked
+    await unlockAccount(emailClean);
+
+    debugPrint('✅ Official Firebase password reset email sent to $emailClean');
   }
 
-  Future<void> sendEmailVerification() async {
+  /// Verifies a 6-digit password reset OTP and updates password
+  Future<bool> verifyAndResetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    final emailClean = email.trim().toLowerCase();
+    final docRef = _firestore.collection('password_resets').doc(_emailDocId(emailClean));
+    final doc = await docRef.get();
+
+    if (!doc.exists) {
+      throw FirebaseAuthException(
+        code: 'invalid-otp',
+        message: 'Invalid verification code. Please request a new code.',
+      );
+    }
+
+    final data = doc.data() ?? {};
+    final storedOtp = data['otp']?.toString();
+    final expiresAtTs = data['expires_at'] as Timestamp?;
+
+    if (storedOtp != otp.trim()) {
+      throw FirebaseAuthException(
+        code: 'invalid-otp',
+        message: 'The 6-digit code you entered is incorrect. Please check your email.',
+      );
+    }
+
+    if (expiresAtTs != null && expiresAtTs.toDate().isBefore(DateTime.now())) {
+      throw FirebaseAuthException(
+        code: 'expired-otp',
+        message: 'This verification code has expired. Please tap Resend Code.',
+      );
+    }
+
+    // 1. Update password in Firebase Auth if current user session exists
+    bool updatedDirectly = false;
     final user = _auth.currentUser;
+    if (user != null && user.email?.toLowerCase() == emailClean) {
+      try {
+        await user.updatePassword(newPassword);
+        updatedDirectly = true;
+        debugPrint('✅ Firebase Auth password updated directly for logged-in session.');
+      } catch (e) {
+        debugPrint('Note on direct password update: $e');
+      }
+    }
+
+    // 2. Save approved reset record in Firestore & unlock account
+    try {
+      await docRef.set({
+        'email': emailClean,
+        'otp_verified': true,
+        'reset_approved': true,
+        'pending_password': newPassword,
+        'updated_directly': updatedDirectly,
+        'expires_at': Timestamp.fromDate(DateTime.now().add(const Duration(minutes: 15))),
+        'updated_at': FieldValue.serverTimestamp(),
+      });
+
+      // Update lockout / user doc
+      await unlockAccount(emailClean);
+      debugPrint('✅ Approved password reset record updated in Firestore.');
+    } catch (e) {
+      debugPrint('Error updating reset record: $e');
+    }
+
+    return true;
+  }
+
+  Future<void> sendEmailVerification({String? email, String? fullName}) async {
+    final user = _auth.currentUser;
+    final targetEmail = (email ?? user?.email ?? '').trim().toLowerCase();
+    if (targetEmail.isEmpty) return;
+
+    String recipientName = fullName ?? user?.displayName ?? 'Learner';
+    if (recipientName == 'Learner' || recipientName.isEmpty) {
+      try {
+        final doc = await _firestore.collection('users').doc(user?.uid).get();
+        if (doc.exists) {
+          final data = doc.data() ?? {};
+          recipientName = (data['username'] ?? data['full_name'] ?? 'Learner').toString();
+        }
+      } catch (_) {}
+    }
+
+    final otpCode = (100000 + (DateTime.now().microsecondsSinceEpoch % 899999)).toString();
+
+    try {
+      await _firestore.collection('email_verifications').doc(_emailDocId(targetEmail)).set({
+        'email': targetEmail,
+        'otp': otpCode,
+        'expires_at': Timestamp.fromDate(DateTime.now().add(const Duration(minutes: 10))),
+        'created_at': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error saving email verification OTP to Firestore: $e');
+    }
+
+    // Send the branded Grammatica Email with logo and OTP!
+    await EmailSenderService.sendOtpEmail(
+      recipientEmail: targetEmail,
+      recipientName: recipientName,
+      otpCode: otpCode,
+    );
+
     if (user != null && !user.emailVerified) {
-      await user.sendEmailVerification();
+      try {
+        await user.sendEmailVerification();
+      } catch (e) {
+        debugPrint('Firebase default email verification trigger: $e');
+      }
     }
   }
 
@@ -637,6 +725,21 @@ class AuthService {
       debugPrint('Error checking if email is taken: $e');
       return false;
     }
+  }
+
+  /// Deactivates the current user's account by marking `is_active: false` and `status: 'deactivated'` in Firestore and signing out.
+  Future<void> deactivateAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final uid = user.uid;
+    await _firestore.collection('users').doc(uid).set({
+      'is_active': false,
+      'status': 'deactivated',
+      'deactivated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await signOut();
   }
 }
 

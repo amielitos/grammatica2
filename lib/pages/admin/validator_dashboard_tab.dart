@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/database_service.dart';
 import '../../widgets/author_name_widget.dart';
-import '../../widgets/design_ornaments.dart';
-import '../../widgets/application_preview_widgets.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/application_preview_widgets.dart';
 
 // ─────────────────────────────────────────────
 //  Status label helpers
@@ -18,7 +17,14 @@ class ValidatorDashboardTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BackgroundWrapper(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? Colors.white : const Color(0xFF2C3E50);
+    final textSecondary = isDark ? Colors.white60 : const Color(0xFF7F8C8D);
+    final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFFAF9F6);
+    final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+
+    return Container(
+      color: bgColor,
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
         child: Center(
@@ -60,7 +66,7 @@ class ValidatorDashboardTab extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontSize: 48,
                     fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
+                    color: textPrimary,
                     letterSpacing: -1.5,
                     height: 1.1,
                   ),
@@ -70,7 +76,7 @@ class ValidatorDashboardTab extends StatelessWidget {
                   'Review and verify educational content to maintain platform quality.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
-                    color: AppColors.textSecondary,
+                    color: textSecondary,
                     fontSize: 18,
                     fontWeight: FontWeight.w400,
                     height: 1.5,
@@ -79,31 +85,31 @@ class ValidatorDashboardTab extends StatelessWidget {
                 const SizedBox(height: 60),
 
                 // ── Stats row (pending + rejected) ─────────────────────
-                _StatsGrid(onReviewRequests: onReviewRequests),
+                _StatsGrid(onReviewRequests: onReviewRequests, isDark: isDark),
 
                 const SizedBox(height: 60),
-                const Divider(),
+                Divider(color: isDark ? Colors.white12 : Colors.black12),
                 const SizedBox(height: 40),
 
                 // ── Pending sections ───────────────────────────────────
-                _buildSectionHeader('Pending Lessons', Icons.auto_stories, _kPending),
+                _buildSectionHeader('Pending Lessons', Icons.auto_stories, _kPending, textPrimary),
                 const SizedBox(height: 16),
-                _buildLessonsList(context, showRejected: false),
+                _buildLessonsList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary, textSecondary: textSecondary),
                 const SizedBox(height: 40),
 
-                _buildSectionHeader('Pending Quizzes', Icons.quiz_rounded, const Color(0xFF4A90E2)),
+                _buildSectionHeader('Pending Quizzes', Icons.quiz_rounded, const Color(0xFF4A90E2), textPrimary),
                 const SizedBox(height: 16),
-                _buildQuizzesList(context, showRejected: false),
+                _buildQuizzesList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary, textSecondary: textSecondary),
                 const SizedBox(height: 40),
 
-                _buildSectionHeader('Pending Assessments', Icons.assignment_turned_in_rounded, Colors.purple),
+                _buildSectionHeader('Pending Assessments', Icons.assignment_turned_in_rounded, Colors.purple, textPrimary),
                 const SizedBox(height: 16),
-                _buildAssessmentsList(context, showRejected: false),
+                _buildAssessmentsList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary, textSecondary: textSecondary),
                 const SizedBox(height: 40),
 
-                _buildSectionHeader('Pending Educator Applications', Icons.how_to_reg, Colors.teal),
+                _buildSectionHeader('Pending Educator Applications', Icons.how_to_reg, Colors.teal, textPrimary),
                 const SizedBox(height: 16),
-                _buildApplicationsList(context, showRejected: false),
+                _buildApplicationsList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary),
 
                 const SizedBox(height: 80),
               ],
@@ -115,7 +121,7 @@ class ValidatorDashboardTab extends StatelessWidget {
   }
 
   // ── Section header ─────────────────────────────────────────────────────────
-  Widget _buildSectionHeader(String title, IconData icon, Color color) {
+  Widget _buildSectionHeader(String title, IconData icon, Color color, Color textColor) {
     return Row(
       children: [
         Container(
@@ -132,7 +138,7 @@ class ValidatorDashboardTab extends StatelessWidget {
           style: GoogleFonts.outfit(
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: textColor,
           ),
         ),
       ],
@@ -140,7 +146,7 @@ class ValidatorDashboardTab extends StatelessWidget {
   }
 
   // ── Content lists ──────────────────────────────────────────────────────────
-  Widget _buildLessonsList(BuildContext context, {required bool showRejected}) {
+  Widget _buildLessonsList(BuildContext context, {required bool showRejected, required Color cardColor, required Color textPrimary, required Color textSecondary}) {
     final stream = showRejected
         ? DatabaseService.instance.streamRejectedLessons()
         : DatabaseService.instance.streamAwaitingApprovalLessons();
@@ -154,6 +160,7 @@ class ValidatorDashboardTab extends StatelessWidget {
             showRejected ? 'No rejected lessons' : 'No pending lessons to validate',
             showRejected ? Icons.check_circle_outlined : Icons.done_all_rounded,
             showRejected ? _kRejected : _kPending,
+            textSecondary,
           );
         }
         return Column(
@@ -163,19 +170,21 @@ class ValidatorDashboardTab extends StatelessWidget {
             subtitleWidget: AuthorName(
               uid: l.createdByUid,
               fallbackEmail: l.createdByEmail,
-              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+              style: GoogleFonts.inter(fontSize: 13, color: textSecondary),
             ),
             icon: Icons.description_rounded,
             iconColor: showRejected ? _kRejected : _kPending,
             status: showRejected ? 'rejected' : 'pending',
             onTap: () => onReviewRequests?.call(showRejected ? 4 : 0),
+            cardColor: cardColor,
+            textPrimary: textPrimary,
           )).toList(),
         );
       },
     );
   }
 
-  Widget _buildQuizzesList(BuildContext context, {required bool showRejected}) {
+  Widget _buildQuizzesList(BuildContext context, {required bool showRejected, required Color cardColor, required Color textPrimary, required Color textSecondary}) {
     final stream = showRejected
         ? DatabaseService.instance.streamRejectedQuizzes()
         : DatabaseService.instance.streamAwaitingApprovalQuizzes();
@@ -189,6 +198,7 @@ class ValidatorDashboardTab extends StatelessWidget {
             showRejected ? 'No rejected quizzes' : 'No pending quizzes to validate',
             showRejected ? Icons.check_circle_outlined : Icons.done_all_rounded,
             showRejected ? _kRejected : const Color(0xFF4A90E2),
+            textSecondary,
           );
         }
         return Column(
@@ -198,19 +208,21 @@ class ValidatorDashboardTab extends StatelessWidget {
             subtitleWidget: AuthorName(
               uid: q.createdByUid,
               fallbackEmail: q.createdByEmail,
-              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+              style: GoogleFonts.inter(fontSize: 13, color: textSecondary),
             ),
             icon: Icons.quiz_rounded,
             iconColor: showRejected ? _kRejected : const Color(0xFF4A90E2),
             status: showRejected ? 'rejected' : 'pending',
             onTap: () => onReviewRequests?.call(showRejected ? 5 : 1),
+            cardColor: cardColor,
+            textPrimary: textPrimary,
           )).toList(),
         );
       },
     );
   }
 
-  Widget _buildAssessmentsList(BuildContext context, {required bool showRejected}) {
+  Widget _buildAssessmentsList(BuildContext context, {required bool showRejected, required Color cardColor, required Color textPrimary, required Color textSecondary}) {
     final stream = showRejected
         ? DatabaseService.instance.streamRejectedAssessments()
         : DatabaseService.instance.streamAwaitingApprovalAssessments();
@@ -224,6 +236,7 @@ class ValidatorDashboardTab extends StatelessWidget {
             showRejected ? 'No rejected assessments' : 'No pending assessments to validate',
             showRejected ? Icons.check_circle_outlined : Icons.done_all_rounded,
             showRejected ? _kRejected : Colors.purple,
+            textSecondary,
           );
         }
         return Column(
@@ -233,19 +246,21 @@ class ValidatorDashboardTab extends StatelessWidget {
             subtitleWidget: AuthorName(
               uid: q.createdByUid,
               fallbackEmail: q.createdByEmail,
-              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+              style: GoogleFonts.inter(fontSize: 13, color: textSecondary),
             ),
             icon: Icons.assignment_turned_in_rounded,
             iconColor: showRejected ? _kRejected : Colors.purple,
             status: showRejected ? 'rejected' : 'pending',
             onTap: () => onReviewRequests?.call(showRejected ? 6 : 2),
+            cardColor: cardColor,
+            textPrimary: textPrimary,
           )).toList(),
         );
       },
     );
   }
 
-  Widget _buildApplicationsList(BuildContext context, {required bool showRejected}) {
+  Widget _buildApplicationsList(BuildContext context, {required bool showRejected, required Color cardColor, required Color textPrimary}) {
     final stream = showRejected
         ? DatabaseService.instance.streamRejectedApplications()
         : DatabaseService.instance.streamEducatorApplications(type: 'educator');
@@ -259,6 +274,7 @@ class ValidatorDashboardTab extends StatelessWidget {
             showRejected ? 'No rejected applications' : 'No pending educator applications',
             showRejected ? Icons.check_circle_outlined : Icons.verified_user_rounded,
             showRejected ? _kRejected : Colors.teal,
+            textPrimary,
           );
         }
         return Column(
@@ -267,6 +283,8 @@ class ValidatorDashboardTab extends StatelessWidget {
             app: a,
             showRejected: showRejected,
             onTap: () => onReviewRequests?.call(showRejected ? 7 : 3),
+            cardColor: cardColor,
+            textPrimary: textPrimary,
           )).toList(),
         );
       },
@@ -282,16 +300,18 @@ class ValidatorDashboardTab extends StatelessWidget {
     required Color iconColor,
     required String status,
     required VoidCallback onTap,
+    required Color cardColor,
+    required Color textPrimary,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
+        color: cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: status == 'rejected'
               ? _kRejected.withValues(alpha: 0.2)
-              : Colors.white,
+              : cardColor,
           width: 1.5,
         ),
         boxShadow: [
@@ -331,7 +351,7 @@ class ValidatorDashboardTab extends StatelessWidget {
                         style: GoogleFonts.outfit(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: AppColors.textPrimary,
+                          color: textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -357,16 +377,18 @@ class ValidatorDashboardTab extends StatelessWidget {
     required EducatorApplication app,
     required bool showRejected,
     VoidCallback? onTap,
+    required Color cardColor,
+    required Color textPrimary,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: showRejected
               ? _kRejected.withValues(alpha: 0.18)
-              : Colors.grey.shade100,
+              : cardColor,
           width: 1.5,
         ),
         boxShadow: [
@@ -409,7 +431,7 @@ class ValidatorDashboardTab extends StatelessWidget {
                             style: GoogleFonts.outfit(
                               fontWeight: FontWeight.w700,
                               fontSize: 16,
-                              color: AppColors.textPrimary,
+                              color: textPrimary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -465,7 +487,7 @@ class ValidatorDashboardTab extends StatelessWidget {
   }
 
   // ── Empty state ────────────────────────────────────────────────────────────
-  Widget _buildEmptyState(String msg, IconData icon, Color color) {
+  Widget _buildEmptyState(String msg, IconData icon, Color color, Color textSecondary) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
       width: double.infinity,
@@ -482,7 +504,7 @@ class ValidatorDashboardTab extends StatelessWidget {
             msg,
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
-              color: AppColors.textSecondary,
+              color: textSecondary,
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
@@ -498,7 +520,8 @@ class ValidatorDashboardTab extends StatelessWidget {
 // ─────────────────────────────────────────────
 class _StatsGrid extends StatelessWidget {
   final Function(int)? onReviewRequests;
-  const _StatsGrid({this.onReviewRequests});
+  final bool isDark;
+  const _StatsGrid({this.onReviewRequests, this.isDark = false});
 
   @override
   Widget build(BuildContext context) {
@@ -580,13 +603,17 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textPrimary = isDark ? Colors.white : AppColors.textPrimary;
+    final textSecondary = isDark ? Colors.white60 : AppColors.textSecondary;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 200,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
@@ -610,7 +637,7 @@ class _StatCard extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 40,
                 fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary,
+                color: textPrimary,
                 height: 1,
               ),
             ),
@@ -619,7 +646,7 @@ class _StatCard extends StatelessWidget {
               label.toUpperCase(),
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
-                color: AppColors.textSecondary,
+                color: textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.1,

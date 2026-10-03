@@ -264,7 +264,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                         return SliverGrid(
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: isWide ? 2 : 1,
-                            childAspectRatio: isWide ? 2.2 : 2.8,
+                            childAspectRatio: isWide ? 1.85 : 1.45,
                             crossAxisSpacing: 20,
                             mainAxisSpacing: 20,
                           ),
@@ -522,7 +522,7 @@ class _LessonCardState extends State<_LessonCard> {
           onTap: widget.onTap,
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(22),
+            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -591,19 +591,19 @@ class _LessonCardState extends State<_LessonCard> {
                   ],
                 ),
                 if (widget.lesson.imageUrl != null && widget.lesson.imageUrl!.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Image.network(
                       widget.lesson.imageUrl!,
-                      height: 110,
+                      height: 90,
                       width: double.infinity,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
                     ),
                   ),
                 ],
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
 
                 // ── Title ──
                 Text(
@@ -611,28 +611,28 @@ class _LessonCardState extends State<_LessonCard> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.outfit(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     height: 1.2,
                     color: widget.isDark ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // ── Prompt preview ──
                 Expanded(
                   child: Text(
-                    widget.lesson.prompt,
+                    widget.lesson.prompt.isNotEmpty ? widget.lesson.prompt : 'No description provided.',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      fontSize: 13,
-                      height: 1.5,
+                      fontSize: 12,
+                      height: 1.4,
                       color: AppColors.textSecondary,
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
 
                 // ── Bottom Row: author + date ──
                 Row(

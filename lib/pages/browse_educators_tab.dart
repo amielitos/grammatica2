@@ -28,140 +28,140 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
 
     return Container(
       color: isDark ? const Color(0xFF0F172A) : const Color(0xFFFAFAFA),
-      child: Column(
-        children: [
-          // ─── Hero Header ──────────────────────────────────────────────
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(48, 60, 48, 32),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Section label pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF81B655).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        'SUBSCRIPTION',
-                        style: GoogleFonts.outfit(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF81B655),
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Browse Educators',
-                      style: GoogleFonts.outfit(
-                        fontSize: 36,
-                        fontWeight: FontWeight.w900,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        height: 1.15,
-                        letterSpacing: -1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Subscribe to verified educators for exclusive lessons, quizzes, and personalized mentorship.',
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                        height: 1.55,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    // ─── Search Bar ──────────────────────────────────────
-                    Container(
-                      constraints: const BoxConstraints(maxWidth: 600),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 14,
-                            offset: const Offset(0, 4),
+      child: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: DatabaseService.instance.streamEducators(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          final allEducators = snapshot.data ?? [];
+          final filtered = allEducators.where((e) {
+            final uid = e['uid'] as String? ?? '';
+            if (uid == widget.user.uid) return false;
+            final name = (e['username'] as String? ?? '').toLowerCase();
+            return name.contains(_searchQuery);
+          }).toList();
+
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                // ─── Hero Header & Search Bar ─────────────────────────────────
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1200),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'SUBSCRIPTION',
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF81B655),
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Browse Educators',
+                            style: GoogleFonts.outfit(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w900,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              height: 1.15,
+                              letterSpacing: -1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Subscribe to verified educators for exclusive lessons, quizzes, and personalized mentorship.',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                              height: 1.55,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          // Search Bar
+                          Container(
+                            constraints: const BoxConstraints(maxWidth: 600),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: TextField(
+                              controller: _searchCtrl,
+                              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+                              style: TextStyle(
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                fontSize: 14,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: 'Search educators by name…',
+                                hintStyle: TextStyle(
+                                  color: isDark ? Colors.white38 : Colors.grey.shade400,
+                                  fontSize: 14,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.search_rounded,
+                                  color: isDark ? Colors.white38 : const Color(0xFF81B655),
+                                  size: 20,
+                                ),
+                                suffixIcon: _searchQuery.isNotEmpty
+                                    ? IconButton(
+                                        icon: Icon(
+                                          Icons.cancel_rounded,
+                                          color: isDark ? Colors.white38 : Colors.grey.shade400,
+                                          size: 18,
+                                        ),
+                                        onPressed: () {
+                                          _searchCtrl.clear();
+                                          setState(() => _searchQuery = '');
+                                        },
+                                      )
+                                    : null,
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      child: TextField(
-                        controller: _searchCtrl,
-                        onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
-                        style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Search educators by name…',
-                          hintStyle: TextStyle(
-                            color: isDark ? Colors.white38 : Colors.grey.shade400,
-                            fontSize: 14,
-                          ),
-                          prefixIcon: Icon(
-                            Icons.search_rounded,
-                            color: isDark ? Colors.white38 : const Color(0xFF81B655),
-                            size: 20,
-                          ),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: Icon(
-                                    Icons.cancel_rounded,
-                                    color: isDark ? Colors.white38 : Colors.grey.shade400,
-                                    size: 18,
-                                  ),
-                                  onPressed: () {
-                                    _searchCtrl.clear();
-                                    setState(() => _searchQuery = '');
-                                  },
-                                )
-                              : null,
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 16,
-                          ),
-                        ),
-                      ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          ),
 
-          // ─── Grid ────────────────────────────────────────────────────
-          Expanded(
-            child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: DatabaseService.instance.streamEducators(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-
-                final allEducators = snapshot.data ?? [];
-                final filtered = allEducators.where((e) {
-                  final uid = e['uid'] as String? ?? '';
-                  if (uid == widget.user.uid) return false;
-                  final name = (e['username'] as String? ?? '').toLowerCase();
-                  return name.contains(_searchQuery);
-                }).toList();
-
-                if (filtered.isEmpty) {
-                  return Center(
+                // ─── Grid / Empty State ───────────────────────────────────────
+                if (filtered.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -196,36 +196,37 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                         ),
                       ],
                     ),
-                  );
-                }
-
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1200),
-                    child: GridView.builder(
-                      padding: const EdgeInsets.fromLTRB(48, 0, 48, 64),
-                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 300,
-                        childAspectRatio: 0.68,
-                        crossAxisSpacing: 20,
-                        mainAxisSpacing: 20,
+                  )
+                else
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1200),
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 64),
+                        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 300,
+                          childAspectRatio: MediaQuery.of(context).size.width <= 600 ? 0.72 : 0.68,
+                          crossAxisSpacing: 20,
+                          mainAxisSpacing: 20,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          final educator = filtered[index];
+                          return _EducatorCard(
+                            educator: educator,
+                            currentUser: widget.user,
+                            isDark: isDark,
+                          );
+                        },
                       ),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final educator = filtered[index];
-                        return _EducatorCard(
-                          educator: educator,
-                          currentUser: widget.user,
-                          isDark: isDark,
-                        );
-                      },
                     ),
                   ),
-                );
-              },
+              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -277,8 +278,11 @@ class _EducatorCardState extends State<_EducatorCard>
     final name = widget.educator['username'] as String? ?? 'Educator';
     String bio = widget.educator['bio'] as String? ?? '';
     if (bio.trim().isEmpty) bio = 'Educator & Content Creator';
-    final double rating =
-        (widget.educator['averageRating'] as num?)?.toDouble() ?? 5.0;
+    
+    final int reviewCount = (widget.educator['reviewCount'] as num?)?.toInt() ?? 0;
+    final double rating = reviewCount > 0 
+        ? ((widget.educator['averageRating'] as num?)?.toDouble() ?? 0.0) 
+        : 0.0;
     final isDark = widget.isDark;
 
     return MouseRegion(
@@ -307,10 +311,10 @@ class _EducatorCardState extends State<_EducatorCard>
               Transform.scale(scale: _scale.value, child: child),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: _hovered
                     ? const Color(0xFF81B655).withValues(alpha: 0.5)
@@ -322,122 +326,126 @@ class _EducatorCardState extends State<_EducatorCard>
                   color: _hovered
                       ? const Color(0xFF81B655).withValues(alpha: 0.12)
                       : Colors.black.withValues(alpha: isDark ? 0.0 : 0.04),
-                  blurRadius: _hovered ? 28 : 14,
-                  offset: const Offset(0, 8),
+                  blurRadius: _hovered ? 24 : 12,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // ── Avatar ─────────────────────────────────────────────
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _hovered
-                          ? const Color(0xFF81B655)
-                          : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                      width: 2,
-                    ),
-                  ),
-                  child: CircleAvatar(
-                    radius: 44,
-                    backgroundColor: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFF1F5F9),
-                    backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-                        ? NetworkImage(photoUrl)
-                        : null,
-                    child: (photoUrl == null || photoUrl.isEmpty)
-                        ? Icon(
-                            Icons.person_rounded,
-                            size: 40,
-                            color: isDark ? Colors.white24 : Colors.grey.shade400,
-                          )
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ── Name ───────────────────────────────────────────────
-                Text(
-                  name,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-
-                // ── Bio ────────────────────────────────────────────────
-                Text(
-                  bio,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 12.5,
-                    color: isDark ? Colors.white38 : const Color(0xFF64748B),
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ── Divider ────────────────────────────────────────────
-                Divider(
-                  color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-                  height: 1,
-                ),
-                const SizedBox(height: 14),
-
-                // ── Rating ─────────────────────────────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    ...List.generate(
-                      5,
-                      (i) => Icon(
-                        i < rating.round()
-                            ? Icons.star_rounded
-                            : Icons.star_outline_rounded,
-                        color: Colors.amber,
-                        size: 15,
+                    // ── Avatar ─────────────────────────────────────────────
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _hovered
+                              ? const Color(0xFF81B655)
+                              : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 36,
+                        backgroundColor: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFF1F5F9),
+                        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+                            ? NetworkImage(photoUrl)
+                            : null,
+                        child: (photoUrl == null || photoUrl.isEmpty)
+                            ? Icon(
+                                Icons.person_rounded,
+                                size: 32,
+                                color: isDark ? Colors.white24 : Colors.grey.shade400,
+                              )
+                            : null,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(height: 10),
+
+                    // ── Name ───────────────────────────────────────────────
                     Text(
-                      rating.toStringAsFixed(1),
+                      name,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.outfit(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white70 : const Color(0xFF0F172A),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        height: 1.2,
                       ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    // ── Bio ────────────────────────────────────────────────
+                    Text(
+                      bio,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isDark ? Colors.white38 : const Color(0xFF64748B),
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // ── Divider & Rating ───────────────────────────────────
+                    Divider(
+                      color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                      height: 1,
+                    ),
+                    const SizedBox(height: 8),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ...List.generate(
+                          5,
+                          (i) => Icon(
+                            i < rating.round()
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: Colors.amber,
+                            size: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating > 0 ? rating.toStringAsFixed(1) : '0.0',
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white70 : const Color(0xFF0F172A),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
 
-                const Spacer(),
+                const SizedBox(height: 10),
 
                 // ── CTA Button ─────────────────────────────────────────
                 SizedBox(
                   width: double.infinity,
-                  height: 44,
+                  height: 38,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
                       color: _hovered
                           ? const Color(0xFF81B655)
                           : const Color(0xFF81B655).withValues(alpha: 0.09),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: _hovered
                             ? Colors.transparent

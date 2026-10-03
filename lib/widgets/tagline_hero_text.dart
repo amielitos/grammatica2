@@ -8,8 +8,13 @@ class TaglineHeroText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Padding(
-      padding: const EdgeInsets.only(left: 60.0, right: 30.0), // Better left placement spacing
+      padding: EdgeInsets.only(
+        left: isMobile ? 20.0 : 60.0,
+        right: isMobile ? 20.0 : 30.0,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -18,7 +23,7 @@ class TaglineHeroText extends StatelessWidget {
           Text(
             title,
             style: GoogleFonts.tiroDevanagariHindi(
-              fontSize: 76,
+              fontSize: isMobile ? 42 : 76,
               fontWeight: FontWeight.bold,
               color: const Color(0xFF2d5a27), // Deep elegant green matching design
               height: 1.1,
@@ -32,11 +37,11 @@ class TaglineHeroText extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           Text(
             "Smarter Grammar.",
             style: GoogleFonts.tiroDevanagariHindi(
-              fontSize: 46,
+              fontSize: isMobile ? 30 : 46,
               fontWeight: FontWeight.w500,
               color: Colors.white,
               height: 1.1,
@@ -49,11 +54,11 @@ class TaglineHeroText extends StatelessWidget {
               ],
             ),
           ),
-          
+
           Text(
             "Stronger Voice",
             style: GoogleFonts.tiroDevanagariHindi(
-              fontSize: 46,
+              fontSize: isMobile ? 30 : 46,
               fontWeight: FontWeight.w500,
               color: Colors.white,
               height: 1.1,
@@ -66,24 +71,25 @@ class TaglineHeroText extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 48),
-          
+          SizedBox(height: isMobile ? 24 : 48),
+
           // Feature Chips
           Wrap(
-            spacing: 16,
-            runSpacing: 16,
+            spacing: isMobile ? 10 : 16,
+            runSpacing: isMobile ? 10 : 16,
             children: [
               _buildFeatureChip(
-                icon: Icons.school_rounded, 
-                iconColor: const Color(0xFF4A90E2), 
+                icon: Icons.school_rounded,
+                iconColor: const Color(0xFF4A90E2),
                 label: 'Interactive Lessons',
+                isMobile: isMobile,
               ),
               _buildFeatureChip(
-                icon: Icons.auto_awesome, 
-                iconColor: const Color(0xFFFFB300), 
+                icon: Icons.auto_awesome,
+                iconColor: const Color(0xFFFFB300),
                 label: 'Grammar Mastery',
+                isMobile: isMobile,
               ),
-          
             ],
           )
         ],
@@ -91,9 +97,17 @@ class TaglineHeroText extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureChip({required IconData icon, required Color iconColor, required String label}) {
+  Widget _buildFeatureChip({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    bool isMobile = false,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16 : 24,
+        vertical: isMobile ? 10 : 14,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
@@ -109,14 +123,17 @@ class TaglineHeroText extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: iconColor, size: 26),
-          const SizedBox(width: 12),
-          Text(
-            label,
-            style: GoogleFonts.tiroDevanagariHindi(
-              fontSize: 20, 
-              fontWeight: FontWeight.w600, 
-              color: const Color(0xFF2C3E50),
+          Icon(icon, color: iconColor, size: isMobile ? 20 : 26),
+          SizedBox(width: isMobile ? 8 : 12),
+          Flexible(
+            child: Text(
+              label,
+              style: GoogleFonts.tiroDevanagariHindi(
+                fontSize: isMobile ? 15 : 20,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF2C3E50),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -124,3 +141,4 @@ class TaglineHeroText extends StatelessWidget {
     );
   }
 }
+

@@ -20,7 +20,6 @@ import 'admin/educator_dashboard_tab.dart';
 import 'admin/admin_landing_settings_tab.dart';
 import 'notebook/notebook_list_page.dart';
 import 'admin/educator_groups_tab.dart';
-import 'browse_educators_tab.dart';
 import 'admin/admin_lessons_tab.dart';
 
 import 'dart:async';
@@ -212,8 +211,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
       );
       navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
 
-      // Mentorship (Educator & Admin)
-      if (isEducator || isAdmin) {
+      // Mentorship (Educator only)
+      if (isEducator) {
         tabs.add(EducatorGroupsTab(user: widget.user));
         navItems.add(
           const ModernNavItem(icon: Icons.event, label: 'Mentorship'),
@@ -261,12 +260,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
       }
 
-      if (isAdmin) {
-        tabs.add(BrowseEducatorsTab(user: widget.user));
-        navItems.add(
-          const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
-        );
-      }
+      // Subscription tab removed from admin dashboard
     }
 
     // Profile (All)

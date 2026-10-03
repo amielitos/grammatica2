@@ -606,56 +606,95 @@ class _LessonsListState extends State<_LessonsList> {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: filters.map((filter) {
-            final isSelected = _selectedFilter == filter;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedFilter = filter),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF81B655)
-                        : (isDark
-                            ? const Color(0xFF1E293B)
-                            : Colors.white),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected
-                          ? Colors.transparent
-                          : (isDark ? Colors.white24 : Colors.black12),
-                    ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFF81B655)
-                                  .withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            )
-                          ]
-                        : [],
-                  ),
-                  child: Text(
-                    filterLabels[filter]!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected
-                          ? Colors.white
-                          : (isDark ? Colors.white70 : Colors.black87),
-                    ),
-                  ),
-                ),
+        if (MediaQuery.of(context).size.width <= 600)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDark ? Colors.white24 : Colors.black12,
               ),
-            );
-          }).toList(),
-        ),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedFilter,
+                isExpanded: true,
+                dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+                icon: const Icon(Icons.filter_list_rounded, color: Color(0xFF81B655)),
+                items: filters.map((filter) {
+                  return DropdownMenuItem<String>(
+                    value: filter,
+                    child: Text(filterLabels[filter]!),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedFilter = val);
+                  }
+                },
+              ),
+            ),
+          )
+        else
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: filters.map((filter) {
+                final isSelected = _selectedFilter == filter;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedFilter = filter),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF81B655)
+                            : (isDark
+                                ? const Color(0xFF1E293B)
+                                : Colors.white),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected
+                              ? Colors.transparent
+                              : (isDark ? Colors.white24 : Colors.black12),
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFF81B655)
+                                      .withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                )
+                              ]
+                            : [],
+                      ),
+                      child: Text(
+                        filterLabels[filter]!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark ? Colors.white70 : Colors.black87),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
       ],
     );
   }

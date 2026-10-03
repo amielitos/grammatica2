@@ -236,7 +236,27 @@ class _LoginPageState extends State<LoginPage> {
                       children: [
                         Image.asset(
                           'assets/logotext.png',
-                          height: 40,
+                          height: 38,
+                          errorBuilder: (ctx, err, st) => Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.language_rounded,
+                                color: Color(0xFF81B655),
+                                size: 32,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Grammatica',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: const Color(0xFF0F172A),
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 24),
                         Text(

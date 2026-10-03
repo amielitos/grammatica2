@@ -113,6 +113,11 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
   Widget build(BuildContext context) {
     final startOfWeek = _getStartOfWeek(_focusedDate);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isMobile = MediaQuery.of(context).size.width <= 768;
+
+    if (isMobile) {
+      return _buildMSTeamsMobileCalendar(isDark);
+    }
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
@@ -136,6 +141,233 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                   Expanded(child: _buildAgendaView(isDark)),
                 ],
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMSTeamsMobileCalendar(bool isDark) {
+    final startOfWeek = _getStartOfWeek(_focusedDate);
+    const primaryPurple = Color(0xFF5B5FC7);
+
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: primaryPurple,
+        onPressed: () => _showBookingModal(context),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+      ),
+      body: Column(
+        children: [
+          // Month Header & Navigation
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Text(
+                  DateFormat('MMMM yyyy').format(_focusedDate),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  onPressed: () => setState(() => _focusedDate = _focusedDate.subtract(const Duration(days: 7))),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.today_rounded),
+                  onPressed: () => setState(() => _focusedDate = DateTime.now()),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  onPressed: () => setState(() => _focusedDate = _focusedDate.add(const Duration(days: 7))),
+                ),
+              ],
+            ),
+          ),
+          // MS Teams 7-Day Horizontal Strip
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              border: Border(
+                bottom: BorderSide(color: isDark ? Colors.white12 : Colors.black12),
+              ),
+            ),
+            child: Row(
+              children: List.generate(7, (i) {
+                final day = startOfWeek.add(Duration(days: i));
+                final isSelected = day.day == _focusedDate.day && day.month == _focusedDate.month && day.year == _focusedDate.year;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _focusedDate = day),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          DateFormat('E').format(day).toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: isSelected ? primaryPurple : (isDark ? Colors.white54 : Colors.grey.shade600),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: isSelected ? primaryPurple : Colors.transparent,
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            day.day.toString(),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.white : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          // Agenda List of Sessions for Selected Date
+          Expanded(
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: DatabaseService.instance.streamEducatorMentorshipSessions(widget.user.uid),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final sessions = snapshot.data ?? [];
+                final selectedDaySessions = sessions.where((s) {
+                  final start = (s['startTime'] as Timestamp).toDate();
+                  return start.day == _focusedDate.day && start.month == _focusedDate.month && start.year == _focusedDate.year;
+                }).toList();
+
+                if (selectedDaySessions.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.event_available_rounded, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No events on this day',
+                          style: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade600, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: selectedDaySessions.length,
+                  itemBuilder: (context, index) {
+                    final s = selectedDaySessions[index];
+                    final start = (s['startTime'] as Timestamp).toDate();
+                    final end = (s['endTime'] as Timestamp).toDate();
+                    final timeStr = '${DateFormat('h:mm a').format(start)} - ${DateFormat('h:mm a').format(end)}';
+                    final meetingLink = s['meetingLink']?.toString() ?? '';
+                    final app = s['conferenceApp']?.toString() ?? 'google_meet';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 80,
+                            decoration: const BoxDecoration(
+                              color: primaryPurple,
+                              borderRadius: BorderRadius.horizontal(left: Radius.circular(16)),
+                            ),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        s['meetingTitle'] ?? s['studentName'] ?? 'Mentorship Session',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      buildConferenceAppBadge(app, compact: true),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    timeStr,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: isDark ? Colors.white70 : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  if (meetingLink.isNotEmpty) ...[
+                                    const SizedBox(height: 10),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () async {
+                                          final uri = Uri.parse(meetingLink);
+                                          if (await canLaunchUrl(uri)) {
+                                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                          }
+                                        },
+                                        icon: const Icon(Icons.video_call_rounded, size: 16),
+                                        label: const Text('Join'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: primaryPurple,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                          elevation: 0,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],

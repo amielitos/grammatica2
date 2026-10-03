@@ -750,36 +750,38 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             ),
           ),
           if (isActive) ...[
-            ElevatedButton.icon(
-              icon: const Icon(Icons.video_call_rounded, size: 16),
-              label: Text(
-                'Schedule Meeting',
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF81B655),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => LearnerMentorshipBookingModal(
-                    user: widget.user,
-                    initialEducatorUid: eduUid,
-                    initialEducatorName: username,
+            if (_isEducator) ...[
+              ElevatedButton.icon(
+                icon: const Icon(Icons.video_call_rounded, size: 16),
+                label: Text(
+                  'Schedule Meeting',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
                   ),
-                );
-              },
-            ),
-            const SizedBox(width: 8),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF81B655),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => LearnerMentorshipBookingModal(
+                      user: widget.user,
+                      initialEducatorUid: eduUid,
+                      initialEducatorName: username,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
             OutlinedButton.icon(
               icon: const Icon(Icons.cancel_outlined, size: 16),
               label: Text(

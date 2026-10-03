@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -52,7 +54,7 @@ class ProfilePageState extends State<ProfilePage> {
   // Local state for profile data
   bool _isEditing = false;
   String _displayName = 'User';
-  String _displayEmail = '';
+  String _roleStr = 'LEARNER';
   String? _photoUrl;
   Timestamp? _dob;
   String? _phoneNumber;
@@ -61,7 +63,6 @@ class ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    _displayEmail = widget.user.email ?? 'no-email';
     _photoUrl = widget.user.photoURL;
     _displayName = widget.user.displayName ?? 'User';
     fetchProfile();
@@ -107,6 +108,7 @@ class ProfilePageState extends State<ProfilePage> {
       final fetchedBio = (data?['bio'] as String?)?.trim() ?? '';
       final fetchedPhone = (data?['phone_number'] as String?);
       final fetchedDob = (data?['date_of_birth'] as Timestamp?);
+      final fetchedRole = (data?['role'] as String?) ?? 'LEARNER';
 
       if (mounted) {
         setState(() {
@@ -118,6 +120,7 @@ class ProfilePageState extends State<ProfilePage> {
           _usernameCtrl.text = _displayName; // Set username field to current name
           _phoneNumber = fetchedPhone;
           _dob = fetchedDob;
+          _roleStr = fetchedRole;
           if (_phoneNumber != null) {
             String phoneText = _phoneNumber!;
             if (phoneText.startsWith('+63')) {
@@ -372,6 +375,7 @@ class ProfilePageState extends State<ProfilePage> {
   Widget _buildLeftColumn() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accentColor = const Color(0xFF81B655);
+    final roleStr = _roleStr;
 
     return _buildCard(
       child: Column(
@@ -410,93 +414,176 @@ class ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 40),
           
-          // Header Section
-          Row(
-            children: [
-              Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: accentColor.withValues(alpha: 0.2), width: 4),
-                    ),
-                    child: CircleAvatar(
-                      radius: 48,
-                      backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
-                      child: (_photoUrl != null && _photoUrl!.isNotEmpty)
-                          ? ClipOval(
-                              child: Image.network(
-                                _photoUrl!,
-                                width: 96,
-                                height: 96,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => Icon(Icons.person, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
-                              ),
-                            )
-                          : Icon(Icons.person, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
+          // STI ELMS Header Card Style
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Top Banner
+                Container(
+                  height: 100,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    gradient: LinearGradient(
+                      colors: isDark
+                          ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                          : [const Color(0xFF81B655), const Color(0xFF4A8A24)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
                   ),
-                  if (_isEditing)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: () async {
-                          try {
-                            final pick = await FilePicker.platform.pickFiles(
-                              type: FileType.image,
-                              withData: true,
-                            );
-                            if (pick == null || pick.files.isEmpty || !mounted) return;
-                            
-                            final file = pick.files.first;
-                            if (file.bytes == null) return;
-
-                            final confirmed = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => _PhotoAdjustmentDialog(imageBytes: file.bytes!),
-                            );
-
-                            if (confirmed == true && mounted) {
-                              final url = await DatabaseService.instance.uploadProfilePhotoWithBytes(
-                                widget.user, 
-                                file.bytes!, 
-                                file.name
-                              );
-                              if (url != null && mounted) {
-                                setState(() => _photoUrl = url);
-                                _showSnack('Profile photo updated');
-                              }
-                            }
-                          } catch (e) {
-                            _showSnack('Photo update failed', error: true);
-                          }
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                          child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 24),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_displayName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: isDark ? Colors.white : Colors.black87)),
-                    const SizedBox(height: 4),
-                    Text(_displayEmail, style: TextStyle(fontSize: 14, color: isDark ? Colors.white54 : Colors.grey.shade600)),
-                    if (_phoneNumber != null && !_isEditing) ...[
-                       const SizedBox(height: 8),
-                       Text(_phoneNumber!, style: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : Colors.grey.shade500)),
-                    ]
-                  ],
                 ),
-              ),
-            ],
+                Transform.translate(
+                  offset: const Offset(0, -45),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      children: [
+                        Stack(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: isDark ? const Color(0xFF1E293B) : Colors.white, width: 4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 10,
+                                  ),
+                                ],
+                              ),
+                              child: CircleAvatar(
+                                radius: 46,
+                                backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                                child: (_photoUrl != null && _photoUrl!.isNotEmpty)
+                                    ? ClipOval(
+                                        child: Image.network(
+                                          _photoUrl!,
+                                          width: 92,
+                                          height: 92,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, _, _) => Icon(Icons.person, size: 46, color: isDark ? Colors.white24 : Colors.grey.shade400),
+                                        ),
+                                      )
+                                    : Icon(Icons.person, size: 46, color: isDark ? Colors.white24 : Colors.grey.shade400),
+                              ),
+                            ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: GestureDetector(
+                                onTap: () async {
+                                  try {
+                                    final pick = await FilePicker.platform.pickFiles(
+                                      type: FileType.image,
+                                      withData: true,
+                                    );
+                                    if (pick == null || pick.files.isEmpty || !mounted) return;
+                                    
+                                    final file = pick.files.first;
+                                    if (file.bytes == null) return;
+
+                                    final adjustedBytes = await showDialog<Uint8List>(
+                                      context: context,
+                                      builder: (context) => _PhotoAdjustmentDialog(imageBytes: file.bytes!),
+                                    );
+
+                                    if (adjustedBytes != null && mounted) {
+                                      final url = await DatabaseService.instance.uploadProfilePhotoWithBytes(
+                                        widget.user, 
+                                        adjustedBytes, 
+                                        'profile_${DateTime.now().millisecondsSinceEpoch}.png',
+                                      );
+                                      if (url != null && mounted) {
+                                        setState(() => _photoUrl = url);
+                                        _showSnack('Profile photo updated');
+                                      }
+                                    }
+                                  } catch (e) {
+                                    _showSnack('Photo update failed', error: true);
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: const Color(0xFF81B655), width: 1.5),
+                                  ),
+                                  child: const Icon(Icons.settings_outlined, size: 16, color: Color(0xFF81B655)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _displayName,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            roleStr.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Grammatica Learning Platform',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF81B655),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => setState(() => _isEditing = !_isEditing),
+                          icon: Icon(_isEditing ? Icons.close : Icons.edit_outlined, size: 16),
+                          label: Text(_isEditing ? 'Cancel Edit' : 'Edit'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF81B655),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                            elevation: 0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           
           const SizedBox(height: 40),
@@ -779,27 +866,27 @@ class ProfilePageState extends State<ProfilePage> {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (c) => AlertDialog(
-                        title: const Text('Delete Account?'),
-                        content: const Text('This action cannot be undone.'),
+                        title: const Text('Deactivate Account?'),
+                        content: const Text('Your account will be deactivated and you will be signed out.'),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
                           FilledButton(
-                            style: FilledButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDF3F32), foregroundColor: Colors.white),
                             onPressed: () => Navigator.pop(c, true),
-                            child: const Text('Delete'),
+                            child: const Text('Deactivate'),
                           ),
                         ],
                       ),
                     );
                     if (confirm == true) {
                       try {
-                        await AuthService.instance.deleteAccount();
+                        await AuthService.instance.deactivateAccount();
                       } catch (e) {
-                        _showSnack('Delete failed: $e', error: true);
+                        _showSnack('Deactivation failed: $e', error: true);
                       }
                     }
                   },
-                  child: const Text('Delete Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: const Text('Deactivate Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
             ),
@@ -1044,7 +1131,23 @@ class _PhotoAdjustmentDialog extends StatefulWidget {
 
 class _PhotoAdjustmentDialogState extends State<_PhotoAdjustmentDialog> {
   final TransformationController _controller = TransformationController();
+  final GlobalKey _previewKey = GlobalKey();
   double _currentScale = 1.0;
+  bool _isSaving = false;
+
+  Future<Uint8List?> _renderAdjustedBytes() async {
+    try {
+      final boundary = _previewKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return widget.imageBytes;
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (e) {
+      debugPrint('Error cropping photo: $e');
+      return widget.imageBytes;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1066,18 +1169,21 @@ class _PhotoAdjustmentDialogState extends State<_PhotoAdjustmentDialog> {
               color: isDark ? Colors.black26 : Colors.grey.shade100,
               shape: BoxShape.circle,
             ),
-            child: ClipOval(
-              child: InteractiveViewer(
-                transformationController: _controller,
-                boundaryMargin: const EdgeInsets.all(100),
-                minScale: 0.5,
-                maxScale: 4.0,
-                onInteractionUpdate: (details) {
-                   setState(() {
-                     _currentScale = _controller.value.getMaxScaleOnAxis();
-                   });
-                },
-                child: Image.memory(widget.imageBytes, fit: BoxFit.cover),
+            child: RepaintBoundary(
+              key: _previewKey,
+              child: ClipOval(
+                child: InteractiveViewer(
+                  transformationController: _controller,
+                  boundaryMargin: const EdgeInsets.all(100),
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  onInteractionUpdate: (details) {
+                     setState(() {
+                       _currentScale = _controller.value.getMaxScaleOnAxis();
+                     });
+                  },
+                  child: Image.memory(widget.imageBytes, fit: BoxFit.cover),
+                ),
               ),
             ),
           ),
@@ -1106,17 +1212,30 @@ class _PhotoAdjustmentDialogState extends State<_PhotoAdjustmentDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context, false),
+          onPressed: _isSaving ? null : () => Navigator.pop(context, null),
           child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
         ),
         ElevatedButton(
-          onPressed: () => Navigator.pop(context, true),
+          onPressed: _isSaving
+              ? null
+              : () async {
+                  final nav = Navigator.of(context);
+                  setState(() => _isSaving = true);
+                  final bytes = await _renderAdjustedBytes();
+                  if (mounted) nav.pop(bytes);
+                },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF81B655),
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          child: const Text('Set as Profile'),
+          child: _isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('Set as Profile'),
         ),
       ],
     );
