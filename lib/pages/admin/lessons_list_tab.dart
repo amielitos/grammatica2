@@ -6,6 +6,8 @@ import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../../services/navigation_service.dart';
 import '../../theme/app_colors.dart';
+import '../../services/notification_service.dart';
+import '../../widgets/content_denial_dialog.dart';
 
 class LessonsListTab extends StatefulWidget {
   final Function(Lesson)? onEdit;
@@ -384,6 +386,50 @@ class _LessonsListTabState extends State<LessonsListTab> {
   }
 
   Future<void> _confirmDelete(BuildContext context, Lesson lesson) async {
+    final user = AuthService.instance.currentUser;
+    final isOwner = user != null && lesson.createdByUid == user.uid;
+
+    if (!isOwner) {
+      // Admin/Validator deleting content created by another author -> use overhauled denial dialog
+      final result = await showContentDenialDialog(
+        context,
+        contentTitle: lesson.title,
+        authorName: lesson.createdByEmail,
+        isPermanentDeletion: true,
+      );
+
+      if (result != null) {
+        try {
+          await DatabaseService.instance.permanentlyDeleteLessonPackage(lesson: lesson);
+
+          if (lesson.createdByUid != null && lesson.createdByUid!.isNotEmpty) {
+            await NotificationService.instance.sendContentDeletedNotification(
+              uid: lesson.createdByUid!,
+              title: lesson.title,
+              reasonCategory: result.category,
+              explanation: result.explanation,
+            );
+          }
+
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Lesson deleted and author notified.'),
+                backgroundColor: Color(0xFFD32F2F),
+              ),
+            );
+          }
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error deleting lesson: $e'), backgroundColor: Colors.red),
+            );
+          }
+        }
+      }
+      return;
+    }
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final ok = await showDialog<bool>(
       context: context,
@@ -433,10 +479,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
 
     if (ok == true) {
       try {
-        await DatabaseService.instance.deleteLesson(lesson.id);
-        if (lesson.quizId != null) {
-          await DatabaseService.instance.deleteQuiz(lesson.quizId!);
-        }
+        await DatabaseService.instance.permanentlyDeleteLessonPackage(lesson: lesson);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Lesson deleted successfully')),

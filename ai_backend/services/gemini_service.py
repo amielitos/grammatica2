@@ -69,20 +69,14 @@ Rules:
      "questions": [<array of question objects>]
    }
 2. Each question object has:
-   - "questionType": one of "multiple_choice", "true_false", "short_answer", \
-"fill_in_the_blank", "matching"
-   - "content": an array of content blocks (same types as lessons: text, image, \
-list, table). Use this to build the question body. You can include images \
-(as descriptive prompt strings) when a visual diagram or illustration would \
-enhance the question.
-   - "options": array of strings (required for multiple_choice and true_false, \
-empty for short_answer)
-   - "correctAnswer": string with the correct answer
-3. Generate a mix of question types.
-4. For true_false questions, options MUST be exactly ["True", "False"].
-5. For multiple_choice, provide 3-4 options.
-6. Make questions that test comprehension, not just memorization.
-7. Output ONLY the JSON object, nothing else.
+   - "questionType": "multiple_choice" or "true_false"
+   - "content": an array of content blocks (types: text, image, list, table). Use this to build the question body.
+   - "options": array of 4 distinct strings for multiple_choice (or ["True", "False"] for true_false). NEVER omit options.
+   - "correctAnswer": string matching the exact text of the correct option
+3. All questions MUST be multiple choice or true/false so they can be automatically checked. Strictly DO NOT use short_answer, textboxes, or fill_in_the_blank questions.
+4. For multiple_choice, provide exactly 4 plausible options with 1 correct answer.
+5. Make questions that test comprehension, not just memorization.
+6. Output ONLY the JSON object, nothing else.
 """
 
 

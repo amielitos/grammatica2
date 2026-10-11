@@ -166,6 +166,7 @@ class NotificationService {
     required String title,
     required bool approved,
     String? reason,
+    String? description,
   }) async {
     await sendNotification(
       uid: uid,
@@ -175,7 +176,23 @@ class NotificationService {
           : 'Your content "$title" was not approved.',
       type: approved ? NotificationType.general : NotificationType.appRejected,
       rejectionReason: reason,
-      rejectionDescription: approved ? null : 'The validator determined that your content needs revision or does not meet our guidelines.',
+      rejectionDescription: description ?? (approved ? null : 'The validator determined that your content needs revision or does not meet our guidelines.'),
+    );
+  }
+
+  Future<void> sendContentDeletedNotification({
+    required String uid,
+    required String title,
+    required String reasonCategory,
+    required String explanation,
+  }) async {
+    await sendNotification(
+      uid: uid,
+      title: 'Content Removed from Site',
+      message: 'Your lesson "$title" was permanently deleted from the platform.',
+      type: NotificationType.appRejected,
+      rejectionReason: reasonCategory,
+      rejectionDescription: explanation,
     );
   }
 

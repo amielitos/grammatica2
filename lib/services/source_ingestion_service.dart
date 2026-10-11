@@ -334,23 +334,28 @@ class SourceIngestionService {
   }
 
   Future<String> _transcribeMediaFirebase(List<int> bytes, String mimeType) async {
-    final model = FirebaseAI.googleAI().generativeModel(
-      model: AIConfig.firebaseAIModel,
-      systemInstruction: Content.system(NotebookPrompts.audioTranscriptionPrompt),
-    );
+    try {
+      final model = FirebaseAI.googleAI().generativeModel(
+        model: AIConfig.firebaseAIModel,
+        systemInstruction: Content.system(NotebookPrompts.audioTranscriptionPrompt),
+      );
 
-    final response = await model.generateContent([
-      Content.multi([
-        TextPart('Transcribe this recording completely and accurately. Provide the transcript text:'),
-        InlineDataPart(mimeType, Uint8List.fromList(bytes)),
-      ]),
-    ]);
+      final response = await model.generateContent([
+        Content.multi([
+          TextPart('Transcribe this recording completely and accurately. Provide the transcript text:'),
+          InlineDataPart(mimeType, Uint8List.fromList(bytes)),
+        ]),
+      ]);
 
-    final text = response.text;
-    if (text == null || text.trim().isEmpty) {
-      throw Exception('Firebase AI returned an empty transcription.');
+      final text = response.text;
+      if (text == null || text.trim().isEmpty) {
+        throw Exception('Firebase AI returned an empty transcription.');
+      }
+      return text.trim();
+    } catch (e) {
+      debugPrint('Firebase AI media transcription error: $e, falling back to direct REST');
+      return _transcribeMediaDirect(bytes, mimeType);
     }
-    return text.trim();
   }
 
   Future<String> _transcribeMediaDirect(List<int> bytes, String mimeType) async {

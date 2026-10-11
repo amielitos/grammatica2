@@ -25,8 +25,11 @@ if BASE_DIR not in sys.path:
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
 from fastapi.staticfiles import StaticFiles
+# pyrefly: ignore [missing-import]
 import uvicorn
 
 try:

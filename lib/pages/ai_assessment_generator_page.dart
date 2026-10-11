@@ -431,31 +431,30 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
       if (mode == 'ielts') {
         customInstructions =
             '''
-Generate an IELTS-style reading assessment for $diff difficulty level. Include:
-1. One or two reading passages on academic topics.
-2. For each passage, create questions of mixed types: multiple choice, true/false, identification, and fill-in-the-blank.
-3. Structure the output as passage-type questions with nested questions underneath.
-4. Use formal academic English appropriate for the $diff band/level.
-5. Include questions testing skimming, scanning, inference, and vocabulary in context.
+Generate an IELTS-style reading assessment for $diff difficulty level.
+MANDATORY RULES:
+1. Provide a comprehensive academic reading passage (350-500 words) on a science, technology, history, or social issue topic. Put the complete passage text in the "passage" field.
+2. ALL questions MUST be multiple-choice questionnaires based directly on this passage.
+3. Every question MUST provide exactly 4 distinct options (e.g. A, B, C, D) and exactly 1 correct answer matching one of the options.
+4. DO NOT generate textboxes, short-answer, fill-in-the-blank, or identification questions as textboxes cannot be automatically graded. Stick purely to multiple-choice questionnaires.
+5. Provide helpful hints and clear explanations for each question.
 ''';
       } else {
         customInstructions =
             '''
-Generate a General English assessment for $diff difficulty level. Include:
-1. One or two reading passages on general interest topics.
-2. For each passage, create questions of mixed types: multiple choice, true/false, identification, and fill-in-the-blank.
-3. Structure the output as passage-type questions with nested questions underneath.
-4. Test grammar, vocabulary, reading comprehension, and inference skills.
-5. Ensure the language complexity targets exactly the $diff level.
+Generate a General English reading assessment for $diff difficulty level.
+MANDATORY RULES:
+1. Provide a comprehensive reading passage (300-450 words) on an engaging general interest topic. Put the complete passage text in the "passage" field.
+2. ALL questions MUST be multiple-choice questionnaires based directly on this passage.
+3. Every question MUST provide exactly 4 distinct options (e.g. A, B, C, D) and exactly 1 correct answer matching one of the options.
+4. DO NOT generate textboxes, short-answer, fill-in-the-blank, or identification questions as textboxes cannot be automatically graded. Stick purely to multiple-choice questionnaires.
+5. Test grammar, vocabulary, skimming, scanning, and reading comprehension.
 ''';
       }
 
       final config = QuizGenerationConfig(
         questionTypes: [
           'multiple_choice',
-          'true_false',
-          'identification',
-          'fill_in_the_blank',
         ],
         difficulty: diff,
         customInstructions: customInstructions,
@@ -469,7 +468,7 @@ Generate a General English assessment for $diff difficulty level. Include:
 
       final aiResponse = await _aiService.generateQuiz(
         contextText,
-        numQuestions: 50,
+        numQuestions: 20,
         config: config,
       );
 
@@ -481,7 +480,7 @@ Generate a General English assessment for $diff difficulty level. Include:
 
       if (!mounted) return;
 
-      // Navigate to QuizDetailPage in preview mode
+      // Navigate directly into active quiz mode (not stuck in preview)
       _navigateToQuiz(quiz);
     } catch (e) {
       if (mounted) {
@@ -546,37 +545,7 @@ Generate a General English assessment for $diff difficulty level. Include:
   // ─────────────────────────────────────────────────────────────────────────
 
   Quiz _convertToNativeQuiz(AIQuizResponse aiResponse, String mode) {
-    final nativeQuestions = aiResponse.questions.map((q) {
-      final questionText = q.content
-          .where((b) => b.type == ContentBlockType.text)
-          .map((b) => b.data.toString())
-          .join('\n');
-
-      String nativeType;
-      switch (q.questionType) {
-        case QuizQuestionType.multipleChoice:
-        case QuizQuestionType.trueFalse:
-          nativeType = 'multiple_choice';
-          break;
-        case QuizQuestionType.shortAnswer:
-        case QuizQuestionType.fillInTheBlank:
-        case QuizQuestionType.matching:
-          nativeType = 'text';
-          break;
-        case QuizQuestionType.passage:
-          nativeType = 'passage';
-          break;
-      }
-
-      return QuizQuestion(
-        question: questionText,
-        answer: q.correctAnswer,
-        type: nativeType,
-        options: q.options.isNotEmpty ? q.options : null,
-        hint: q.hint,
-        explanation: q.explanation,
-      );
-    }).toList();
+    final nativeQuestions = aiResponse.toQuizQuestions();
 
     return Quiz(
       id: 'ai_${mode}_${DateTime.now().millisecondsSinceEpoch}',
@@ -586,6 +555,7 @@ Generate a General English assessment for $diff difficulty level. Include:
       description: mode == 'ielts'
           ? 'AI-generated IELTS-style reading assessment'
           : 'AI-generated General English assessment',
+      passage: aiResponse.passage,
       questions: nativeQuestions,
       duration: 30,
       maxAttempts: 1000000, // Unlimited for practice
@@ -602,7 +572,13 @@ Generate a General English assessment for $diff difficulty level. Include:
   void _navigateToQuiz(Quiz quiz) {
     setState(() => _isLoading = false);
 
-    NavigationService.instance.goToQuiz(context, quiz, previewMode: true);
+    // Start directly without getting stuck in preview mode
+    NavigationService.instance.goToQuiz(
+      context,
+      quiz,
+      previewMode: false,
+      autoStart: true,
+    );
   }
 }
 

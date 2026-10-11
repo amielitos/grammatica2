@@ -92,19 +92,9 @@ class ValidatorDashboardTab extends StatelessWidget {
                 const SizedBox(height: 40),
 
                 // ── Pending sections ───────────────────────────────────
-                _buildSectionHeader('Pending Lessons', Icons.auto_stories, _kPending, textPrimary),
+                _buildSectionHeader('Pending Lessons & Material Packages', Icons.auto_stories, _kPending, textPrimary),
                 const SizedBox(height: 16),
                 _buildLessonsList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary, textSecondary: textSecondary),
-                const SizedBox(height: 40),
-
-                _buildSectionHeader('Pending Quizzes', Icons.quiz_rounded, const Color(0xFF4A90E2), textPrimary),
-                const SizedBox(height: 16),
-                _buildQuizzesList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary, textSecondary: textSecondary),
-                const SizedBox(height: 40),
-
-                _buildSectionHeader('Pending Assessments', Icons.assignment_turned_in_rounded, Colors.purple, textPrimary),
-                const SizedBox(height: 16),
-                _buildAssessmentsList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary, textSecondary: textSecondary),
                 const SizedBox(height: 40),
 
                 _buildSectionHeader('Pending Educator Applications', Icons.how_to_reg, Colors.teal, textPrimary),
@@ -175,83 +165,7 @@ class ValidatorDashboardTab extends StatelessWidget {
             icon: Icons.description_rounded,
             iconColor: showRejected ? _kRejected : _kPending,
             status: showRejected ? 'rejected' : 'pending',
-            onTap: () => onReviewRequests?.call(showRejected ? 4 : 0),
-            cardColor: cardColor,
-            textPrimary: textPrimary,
-          )).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildQuizzesList(BuildContext context, {required bool showRejected, required Color cardColor, required Color textPrimary, required Color textSecondary}) {
-    final stream = showRejected
-        ? DatabaseService.instance.streamRejectedQuizzes()
-        : DatabaseService.instance.streamAwaitingApprovalQuizzes();
-    return StreamBuilder<List<Quiz>>(
-      stream: stream,
-      builder: (ctx, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return const _LoadingShimmer();
-        final items = snap.data ?? [];
-        if (items.isEmpty) {
-          return _buildEmptyState(
-            showRejected ? 'No rejected quizzes' : 'No pending quizzes to validate',
-            showRejected ? Icons.check_circle_outlined : Icons.done_all_rounded,
-            showRejected ? _kRejected : const Color(0xFF4A90E2),
-            textSecondary,
-          );
-        }
-        return Column(
-          children: items.map((q) => _buildContentCard(
-            context,
-            title: q.title,
-            subtitleWidget: AuthorName(
-              uid: q.createdByUid,
-              fallbackEmail: q.createdByEmail,
-              style: GoogleFonts.inter(fontSize: 13, color: textSecondary),
-            ),
-            icon: Icons.quiz_rounded,
-            iconColor: showRejected ? _kRejected : const Color(0xFF4A90E2),
-            status: showRejected ? 'rejected' : 'pending',
-            onTap: () => onReviewRequests?.call(showRejected ? 5 : 1),
-            cardColor: cardColor,
-            textPrimary: textPrimary,
-          )).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildAssessmentsList(BuildContext context, {required bool showRejected, required Color cardColor, required Color textPrimary, required Color textSecondary}) {
-    final stream = showRejected
-        ? DatabaseService.instance.streamRejectedAssessments()
-        : DatabaseService.instance.streamAwaitingApprovalAssessments();
-    return StreamBuilder<List<Quiz>>(
-      stream: stream,
-      builder: (ctx, snap) {
-        if (snap.connectionState == ConnectionState.waiting) return const _LoadingShimmer();
-        final items = snap.data ?? [];
-        if (items.isEmpty) {
-          return _buildEmptyState(
-            showRejected ? 'No rejected assessments' : 'No pending assessments to validate',
-            showRejected ? Icons.check_circle_outlined : Icons.done_all_rounded,
-            showRejected ? _kRejected : Colors.purple,
-            textSecondary,
-          );
-        }
-        return Column(
-          children: items.map((q) => _buildContentCard(
-            context,
-            title: q.title,
-            subtitleWidget: AuthorName(
-              uid: q.createdByUid,
-              fallbackEmail: q.createdByEmail,
-              style: GoogleFonts.inter(fontSize: 13, color: textSecondary),
-            ),
-            icon: Icons.assignment_turned_in_rounded,
-            iconColor: showRejected ? _kRejected : Colors.purple,
-            status: showRejected ? 'rejected' : 'pending',
-            onTap: () => onReviewRequests?.call(showRejected ? 6 : 2),
+            onTap: () => onReviewRequests?.call(showRejected ? 2 : 0),
             cardColor: cardColor,
             textPrimary: textPrimary,
           )).toList(),
@@ -282,7 +196,7 @@ class ValidatorDashboardTab extends StatelessWidget {
             context,
             app: a,
             showRejected: showRejected,
-            onTap: () => onReviewRequests?.call(showRejected ? 7 : 3),
+            onTap: () => onReviewRequests?.call(showRejected ? 2 : 1),
             cardColor: cardColor,
             textPrimary: textPrimary,
           )).toList(),
@@ -528,53 +442,29 @@ class _StatsGrid extends StatelessWidget {
     return StreamBuilder<List<Lesson>>(
       stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
       builder: (ctx, lessonSnap) {
-        return StreamBuilder<List<Quiz>>(
-          stream: DatabaseService.instance.streamAwaitingApprovalQuizzes(),
-          builder: (ctx, quizSnap) {
-            return StreamBuilder<List<Quiz>>(
-              stream: DatabaseService.instance.streamAwaitingApprovalAssessments(),
-              builder: (ctx, assSnap) {
-                return StreamBuilder<List<EducatorApplication>>(
-                  stream: DatabaseService.instance.streamEducatorApplications(type: 'educator'),
-                  builder: (ctx, appSnap) {
-                    return Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        _StatCard(
-                          label: 'Pending Lessons',
-                          value: lessonSnap.data?.length ?? 0,
-                          icon: Icons.menu_book_rounded,
-                          color: _kPending,
-                          onTap: () => onReviewRequests?.call(0),
-                        ),
-                        _StatCard(
-                          label: 'Pending Quizzes',
-                          value: quizSnap.data?.length ?? 0,
-                          icon: Icons.quiz_rounded,
-                          color: const Color(0xFF4A90E2),
-                          onTap: () => onReviewRequests?.call(1),
-                        ),
-                        _StatCard(
-                          label: 'Pending Assessments',
-                          value: assSnap.data?.length ?? 0,
-                          icon: Icons.assignment_turned_in_rounded,
-                          color: Colors.purple,
-                          onTap: () => onReviewRequests?.call(2),
-                        ),
-                        _StatCard(
-                          label: 'Pending Applications',
-                          value: appSnap.data?.length ?? 0,
-                          icon: Icons.how_to_reg_rounded,
-                          color: Colors.teal,
-                          onTap: () => onReviewRequests?.call(3),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
+        return StreamBuilder<List<EducatorApplication>>(
+          stream: DatabaseService.instance.streamEducatorApplications(type: 'educator'),
+          builder: (ctx, appSnap) {
+            return Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              alignment: WrapAlignment.center,
+              children: [
+                _StatCard(
+                  label: 'Pending Lessons & Materials',
+                  value: lessonSnap.data?.length ?? 0,
+                  icon: Icons.auto_stories_rounded,
+                  color: _kPending,
+                  onTap: () => onReviewRequests?.call(0),
+                ),
+                _StatCard(
+                  label: 'Pending Educator Applications',
+                  value: appSnap.data?.length ?? 0,
+                  icon: Icons.how_to_reg_rounded,
+                  color: Colors.teal,
+                  onTap: () => onReviewRequests?.call(1),
+                ),
+              ],
             );
           },
         );

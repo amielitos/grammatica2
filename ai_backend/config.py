@@ -16,7 +16,7 @@ class Settings:
     PORT: int = int(os.getenv("PORT", "8001"))
 
     # Gemini model to use
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
     # Static files directory for generated/uploaded images
     STATIC_DIR: str = os.path.join(os.path.dirname(__file__), "static")

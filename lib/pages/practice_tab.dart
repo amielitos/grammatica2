@@ -6,7 +6,7 @@ import 'pronunciation_quiz_page.dart';
 import '../services/role_service.dart';
 import 'admin/admin_assessments_tab.dart';
 import 'ai_assessment_generator_page.dart';
-import 'notebook/learner_decks_page.dart';
+
 
 class PracticeTab extends StatefulWidget {
   final int? initialSubTab;
@@ -120,12 +120,7 @@ class _PracticeTabState extends State<PracticeTab> {
             ],
           );
         }
-        if (_selectedSubTab == 3) {
-          return LearnerDecksPage(
-            user: user,
-            onBack: () => setState(() => _selectedSubTab = null),
-          );
-        }
+
 
         return _PracticeToolsHome(
           onSelectTool: (index) => setState(() => _selectedSubTab = index),
@@ -233,18 +228,6 @@ class _PracticeToolsHome extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: _PracticeCard(
-                                    title: 'AI Study Decks',
-                                    subtitle:
-                                        'Practice active recall with SM-2 spaced repetition decks shared by your educators.',
-                                    tag: 'SPACED REPETITION',
-                                    icon: Icons.style_rounded,
-                                    themeColor: const Color(0xFF3B82F6),
-                                    onTap: () => onSelectTool(3),
-                                  ),
-                                ),
-                                const SizedBox(width: 24),
-                                Expanded(
-                                  child: _PracticeCard(
                                     title: 'English Assessment',
                                     subtitle:
                                         'Comprehensive grammar tests with instant evaluation & certificates.',
@@ -254,6 +237,8 @@ class _PracticeToolsHome extends StatelessWidget {
                                     onTap: () => onSelectTool(2),
                                   ),
                                 ),
+                                const SizedBox(width: 24),
+                                const Expanded(child: SizedBox()),
                               ],
                             ),
                           ],
@@ -278,16 +263,6 @@ class _PracticeToolsHome extends StatelessWidget {
                               icon: Icons.graphic_eq_rounded,
                               themeColor: const Color(0xFF81B655),
                               onTap: () => onSelectTool(1),
-                            ),
-                            const SizedBox(height: 20),
-                            _PracticeCard(
-                              title: 'AI Study Decks',
-                              subtitle:
-                                  'Practice active recall with SM-2 spaced repetition decks shared by your educators.',
-                              tag: 'SPACED REPETITION',
-                              icon: Icons.style_rounded,
-                              themeColor: const Color(0xFF3B82F6),
-                              onTap: () => onSelectTool(3),
                             ),
                             const SizedBox(height: 20),
                             _PracticeCard(

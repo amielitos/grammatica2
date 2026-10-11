@@ -300,6 +300,7 @@ class AIQuizQuestion {
 class AIQuizResponse {
   final String? title;
   final String? description;
+  final String? passage;
   final List<AIQuizQuestion> questions;
   final int? durationMinutes;
   final bool isAssessment;
@@ -307,6 +308,7 @@ class AIQuizResponse {
   const AIQuizResponse({
     this.title,
     this.description,
+    this.passage,
     required this.questions,
     this.durationMinutes,
     this.isAssessment = false,
@@ -317,9 +319,15 @@ class AIQuizResponse {
             ?.map((q) => AIQuizQuestion.fromJson(Map<String, dynamic>.from(q)))
             .toList() ??
         [];
+    final passageStr = (json['passage'] ??
+            json['readingPassage'] ??
+            json['reading_passage'] ??
+            json['passageText'] ??
+            json['context']) as String?;
     return AIQuizResponse(
       title: json['title'] as String?,
       description: json['description'] as String?,
+      passage: passageStr,
       questions: qs,
       durationMinutes: json['durationMinutes'] as int?,
       isAssessment: json['isAssessment'] as bool? ?? false,
@@ -329,6 +337,7 @@ class AIQuizResponse {
   Map<String, dynamic> toJson() => {
         if (title != null) 'title': title,
         if (description != null) 'description': description,
+        if (passage != null) 'passage': passage,
         'questions': questions.map((q) => q.toJson()).toList(),
         if (durationMinutes != null) 'durationMinutes': durationMinutes,
         'isAssessment': isAssessment,
@@ -365,20 +374,93 @@ class AIQuizResponse {
   }
 
   /// Maps AI quiz questions into native DatabaseService QuizQuestion objects.
+  /// Automatically nests comprehension questions following a reading passage under
+  /// that passage's [nestedQuestions] so they appear co-located during quiz execution.
   List<QuizQuestion> toQuizQuestions() {
-    return questions.map((q) {
+    final List<QuizQuestion> result = [];
+    QuizQuestion? currentPassage;
+    final List<QuizQuestion> currentNested = [];
+
+    // If a top-level passage is present and no passage question is in the questions list,
+    // initialize currentPassage with it.
+    final bool hasExplicitPassageQuestion = questions.any(
+      (q) => q.questionType == QuizQuestionType.passage,
+    );
+    if (!hasExplicitPassageQuestion && passage != null && passage!.trim().isNotEmpty) {
+      currentPassage = QuizQuestion(
+        question: passage!.trim(),
+        answer: '',
+        type: 'passage',
+      );
+    }
+
+    void flushPassage() {
+      if (currentPassage != null) {
+        result.add(QuizQuestion(
+          question: currentPassage!.question,
+          answer: currentPassage!.answer,
+          type: 'passage',
+          options: currentPassage!.options,
+          nestedQuestions: currentNested.isNotEmpty ? List.from(currentNested) : null,
+          hint: currentPassage!.hint,
+          explanation: currentPassage!.explanation,
+        ));
+        currentPassage = null;
+        currentNested.clear();
+      }
+    }
+
+    for (final q in questions) {
       final qText = q.content
           .where((b) => b.type == ContentBlockType.text)
           .map((b) => b.data.toString())
           .join('\n');
-      return QuizQuestion(
-        question: qText.isEmpty ? 'Question' : qText,
+      final cleanText = qText.isEmpty ? 'Question' : qText;
+
+      List<String>? effectiveOptions =
+          q.options.isNotEmpty ? List<String>.from(q.options) : null;
+      String effectiveType = q.questionType.toJsonString();
+      if (q.questionType != QuizQuestionType.passage) {
+        effectiveType = 'multiple_choice';
+        if (effectiveOptions == null || effectiveOptions.isEmpty) {
+          final ans = q.correctAnswer.trim();
+          if (ans.toLowerCase() == 'true' || ans.toLowerCase() == 'false') {
+            effectiveOptions = ['True', 'False'];
+          } else if (ans.isNotEmpty) {
+            effectiveOptions = [
+              ans,
+              'Cannot be determined from the passage',
+              'Not stated in the text',
+              'Contradicts the passage'
+            ];
+          } else {
+            effectiveOptions = ['Option A', 'Option B', 'Option C', 'Option D'];
+          }
+        }
+      }
+
+      final converted = QuizQuestion(
+        question: cleanText,
         answer: q.correctAnswer,
-        type: q.questionType.toJsonString(),
-        options: q.options.isNotEmpty ? q.options : null,
+        type: effectiveType,
+        options: effectiveOptions,
         hint: q.hint,
         explanation: q.explanation,
       );
-    }).toList();
+
+      if (q.questionType == QuizQuestionType.passage) {
+        flushPassage();
+        currentPassage = converted;
+      } else {
+        if (currentPassage != null) {
+          currentNested.add(converted);
+        } else {
+          result.add(converted);
+        }
+      }
+    }
+    flushPassage();
+
+    return result;
   }
 }

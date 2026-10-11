@@ -139,9 +139,13 @@ class Lesson {
   final String? imageUrl;
   final String? notebookId;
   final String? rejectionReason;
+  final String? rejectionDescription;
 
   /// Semantic alias for [notebookId] to identify the unified content bundle.
   String? get bundleId => notebookId;
+
+  /// Semantic alias for the lesson's rich markdown text stored in [answer].
+  String get markdown => answer;
 
   Lesson({
     required this.id,
@@ -162,6 +166,7 @@ class Lesson {
     this.imageUrl,
     this.notebookId,
     this.rejectionReason,
+    this.rejectionDescription,
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -189,6 +194,7 @@ class Lesson {
       imageUrl: (data['imageUrl'] ?? '').toString() == '' ? null : (data['imageUrl'] as String?),
       notebookId: (data['notebookId'] ?? '') == '' ? null : (data['notebookId'] as String?),
       rejectionReason: (data['rejectionReason'] as String?)?.isNotEmpty == true ? data['rejectionReason'] as String? : null,
+      rejectionDescription: (data['rejectionDescription'] as String?)?.isNotEmpty == true ? data['rejectionDescription'] as String? : null,
     );
   }
 }
@@ -280,6 +286,7 @@ class Quiz {
   final String id;
   final String title;
   final String description;
+  final String? passage;
   final List<QuizQuestion> questions;
   final int duration; // in minutes
   final int maxAttempts;
@@ -304,6 +311,7 @@ class Quiz {
     required this.id,
     required this.title,
     required this.description,
+    this.passage,
     required this.questions,
     this.duration = 0,
     this.maxAttempts = 1,
@@ -329,6 +337,7 @@ class Quiz {
       id: doc.id,
       title: (d['title'] ?? '').toString(),
       description: (d['description'] ?? '').toString(),
+      passage: d['passage'] as String?,
       questions: questionsData
           .map((q) => QuizQuestion.fromMap(Map<String, dynamic>.from(q)))
           .toList(),
@@ -444,6 +453,9 @@ class DatabaseService {
       _firestore.collection('users').doc(uid).collection('progress');
   CollectionReference<Map<String, dynamic>> _userQuizProgress(String uid) =>
       _firestore.collection('users').doc(uid).collection('quizProgress');
+  DocumentReference<Map<String, dynamic>> _userStatsSummaryDoc(String uid) =>
+      _firestore.collection('users').doc(uid).collection('stats').doc('summary');
+  final Map<String, Stream<Map<String, dynamic>>> _userStatsSummaryCache = {};
   CollectionReference<Map<String, dynamic>> get _spellingWords =>
       _firestore.collection('spelling_words');
 
@@ -911,6 +923,63 @@ class DatabaseService {
     await _lessons.doc(id).delete();
   }
 
+  /// Permanently purges a lesson and all of its associated content from the site database,
+  /// including the primary quiz, companion quizzes, and companion published items (flashcards, mind maps, etc.).
+  Future<void> permanentlyDeleteLessonPackage({
+    required Lesson lesson,
+  }) async {
+    // 1. Purge the main lesson
+    await deleteLesson(lesson.id);
+
+    // 2. Cascade purge primary linked quiz if not already deleted
+    if (lesson.quizId != null && lesson.quizId!.isNotEmpty) {
+      try {
+        await deleteQuiz(lesson.quizId!);
+      } catch (e) {
+        debugPrint('Error deleting linked quiz: $e');
+      }
+    }
+
+    // 3. Purge any companion quizzes and published items linked via notebookId or lesson.id
+    final nbId = lesson.notebookId ?? lesson.id;
+    if (nbId.isNotEmpty) {
+      try {
+        final quizzesSnap = await _quizzes.where('notebookId', isEqualTo: nbId).get();
+        for (final doc in quizzesSnap.docs) {
+          await deleteQuiz(doc.id);
+        }
+      } catch (e) {
+        debugPrint('Error deleting companion quizzes: $e');
+      }
+
+      try {
+        final publishedSnap = await _publishedContent.where('notebookId', isEqualTo: nbId).get();
+        for (final doc in publishedSnap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (e) {
+        debugPrint('Error deleting companion published items: $e');
+      }
+    }
+  }
+
+  /// Streams the entire collection of all lessons across the platform for the Admin Lesson Database.
+  /// Does not enforce creator or status filters, ensuring all platform lessons are displayed.
+  Stream<List<Lesson>> streamAllLessonsDatabase() {
+    return _lessons.snapshots().map((snapshot) {
+      final list = snapshot.docs.map(Lesson.fromDoc).toList();
+      list.sort((a, b) {
+        final tsA = a.createdAt;
+        final tsB = b.createdAt;
+        if (tsA == null && tsB == null) return 0;
+        if (tsA == null) return 1;
+        if (tsB == null) return -1;
+        return tsB.compareTo(tsA);
+      });
+      return list;
+    });
+  }
+
   Future<Lesson?> getLessonById(String id) async {
     final doc = await _lessons.doc(id).get();
     if (!doc.exists) return null;
@@ -997,6 +1066,8 @@ class DatabaseService {
         map[d.id] = {
           'completed': data['completed'] == true,
           'completedAt': data['completedAt'],
+          'lastReadAt': data['lastReadAt'] ?? data['completedAt'],
+          'progress': (data['progress'] as num?)?.toDouble() ?? 0.0,
         };
       }
       return map;
@@ -1005,9 +1076,119 @@ class DatabaseService {
     return stream;
   }
 
+  static String? lastViewedLessonId;
+
+  Future<void> recordLessonViewed({
+    required User user,
+    required String lessonId,
+  }) async {
+    lastViewedLessonId = lessonId;
+    try {
+      await _userProgress(user.uid).doc(lessonId).set({
+        'lastReadAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await _firestore.collection('users').doc(user.uid).set({
+        'lastViewedLessonId': lessonId,
+        'lastViewedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error recording lesson viewed: $e');
+    }
+  }
+
   Future<Map<String, dynamic>?> getLessonProgress(String uid, String lessonId) async {
     final doc = await _userProgress(uid).doc(lessonId).get();
     return doc.data();
+  }
+
+  Stream<Map<String, dynamic>> userStatsSummaryStream(String uid) {
+    if (_userStatsSummaryCache.containsKey(uid)) {
+      return _userStatsSummaryCache[uid]!;
+    }
+    final stream = _userStatsSummaryDoc(uid).snapshots().map((doc) {
+      if (!doc.exists || doc.data() == null) {
+        return <String, dynamic>{
+          'totalLessonsCompleted': 0,
+          'totalQuizzesTaken': 0,
+          'averageQuizScore': 0.0,
+          'flashcardsMastered': 0,
+          'flashcardsReviewed': 0,
+          'studyStreakDays': 0,
+          'lastActiveDate': null,
+        };
+      }
+      return doc.data()!;
+    }).asBroadcastStream();
+    _userStatsSummaryCache[uid] = stream;
+    return stream;
+  }
+
+  Future<void> updateUserStatsSummary({
+    required String uid,
+    int incrementLessons = 0,
+    int incrementQuizzes = 0,
+    double? newQuizScore,
+    int incrementFlashcardsReviewed = 0,
+    int incrementFlashcardsMastered = 0,
+  }) async {
+    try {
+      final docRef = _userStatsSummaryDoc(uid);
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final yesterday = now.subtract(const Duration(days: 1));
+      final yesterdayStr = '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+
+      await _firestore.runTransaction((transaction) async {
+        final snap = await transaction.get(docRef);
+        final data = snap.data() ?? {};
+
+        int lessons = (data['totalLessonsCompleted'] as num?)?.toInt() ?? 0;
+        int quizzes = (data['totalQuizzesTaken'] as num?)?.toInt() ?? 0;
+        double avgScore = (data['averageQuizScore'] as num?)?.toDouble() ?? 0.0;
+        int fcReviewed = (data['flashcardsReviewed'] as num?)?.toInt() ?? 0;
+        int fcMastered = (data['flashcardsMastered'] as num?)?.toInt() ?? 0;
+        int streak = (data['studyStreakDays'] as num?)?.toInt() ?? 0;
+        String? lastDate = data['lastActiveDate'] as String?;
+
+        lessons += incrementLessons;
+
+        if (incrementQuizzes > 0 && newQuizScore != null) {
+          final totalPrev = quizzes;
+          quizzes += incrementQuizzes;
+          avgScore = ((avgScore * totalPrev) + newQuizScore) / quizzes;
+        } else if (incrementQuizzes > 0) {
+          quizzes += incrementQuizzes;
+        }
+
+        fcReviewed += incrementFlashcardsReviewed;
+        fcMastered += incrementFlashcardsMastered;
+
+        // Calculate Streak
+        if (lastDate == todayStr) {
+          if (streak == 0) streak = 1;
+        } else if (lastDate == yesterdayStr) {
+          streak += 1;
+        } else {
+          streak = 1;
+        }
+
+        final updateData = <String, dynamic>{
+          'totalLessonsCompleted': lessons,
+          'totalQuizzesTaken': quizzes,
+          'averageQuizScore': double.parse(avgScore.toStringAsFixed(1)),
+          'flashcardsReviewed': fcReviewed,
+          'flashcardsMastered': fcMastered,
+          'studyStreakDays': streak,
+          'lastActiveDate': todayStr,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+
+        transaction.set(docRef, updateData, SetOptions(merge: true));
+      });
+    } catch (e) {
+      debugPrint('Error updating user stats summary: $e');
+    }
   }
 
   Future<void> markLessonCompleted({
@@ -1015,10 +1196,25 @@ class DatabaseService {
     required String lessonId,
     bool completed = true,
   }) async {
+    lastViewedLessonId = lessonId;
     await _userProgress(user.uid).doc(lessonId).set({
       'completed': completed,
       'completedAt': completed ? FieldValue.serverTimestamp() : null,
+      'lastReadAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+
+    try {
+      await _firestore.collection('users').doc(user.uid).set({
+        'lastViewedLessonId': lessonId,
+        'lastViewedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error updating lastViewedLessonId on user doc: $e');
+    }
+
+    if (completed) {
+      updateUserStatsSummary(uid: user.uid, incrementLessons: 1);
+    }
   }
 
   Future<void> markContentCompleted({
@@ -1178,13 +1374,19 @@ class DatabaseService {
           nbId = localNbId;
         }
       }
+      // Fallback 3: Use lesson.id as bundle anchor
+      if (nbId == null || nbId.isEmpty) {
+        nbId = lesson.id;
+      }
     }
 
-    // Fallback 3: If quiz was provided without notebookId or lesson
+    // Fallback 4: If quiz was provided without notebookId or lesson
     if ((nbId == null || nbId.isEmpty) && quiz != null) {
       final localNbId = NotebookService.instance.findNotebookIdForLesson(quiz.id);
       if (localNbId != null && localNbId.isNotEmpty) {
         nbId = localNbId;
+      } else {
+        nbId = quiz.id;
       }
     }
 
@@ -1225,6 +1427,17 @@ class DatabaseService {
             debugPrint('Error fetching companion quiz: $e');
           }
         }
+        if (quiz == null && lesson != null && lesson.id.isNotEmpty) {
+          try {
+            final quizSnap =
+                await _quizzes.where('lessonId', isEqualTo: lesson.id).limit(1).get();
+            if (quizSnap.docs.isNotEmpty) {
+              quiz = Quiz.fromDoc(quizSnap.docs.first);
+            }
+          } catch (e) {
+            debugPrint('Error fetching companion quiz by lessonId: $e');
+          }
+        }
       }
 
       // 3. Fetch published content items for this notebook
@@ -1234,6 +1447,21 @@ class DatabaseService {
         items = pubSnap.docs.map(PublishedContentItem.fromDoc).toList();
       } catch (e) {
         debugPrint('Error fetching companion published items: $e');
+      }
+
+      // Also check if published items were stored with lesson.id as notebookId
+      if (lesson != null && lesson.id.isNotEmpty && lesson.id != nbId) {
+        try {
+          final lessonPubSnap =
+              await _publishedContent.where('notebookId', isEqualTo: lesson.id).get();
+          for (final doc in lessonPubSnap.docs) {
+            if (!items.any((i) => i.id == doc.id)) {
+              items.add(PublishedContentItem.fromDoc(doc));
+            }
+          }
+        } catch (e) {
+          debugPrint('Error fetching companion items by lessonId: $e');
+        }
       }
 
       // 4. Merge companion items from local session that were generated for this notebook
@@ -1306,15 +1534,26 @@ class DatabaseService {
     required String lessonId,
     required double progress,
   }) async {
+    lastViewedLessonId = lessonId;
     final isCompleted = progress >= 1.0;
     final updateData = <String, dynamic>{
       'progress': progress,
+      'lastReadAt': FieldValue.serverTimestamp(),
     };
     if (isCompleted) {
       updateData['completed'] = true;
       updateData['completedAt'] = FieldValue.serverTimestamp();
     }
     await _userProgress(user.uid).doc(lessonId).set(updateData, SetOptions(merge: true));
+
+    try {
+      await _firestore.collection('users').doc(user.uid).set({
+        'lastViewedLessonId': lessonId,
+        'lastViewedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error updating lastViewedLessonId on user doc: $e');
+    }
   }
 
   Future<Lesson?> getLessonByQuizId(String quizId) async {
@@ -1613,12 +1852,91 @@ class DatabaseService {
     String id,
     String status, {
     String? rejectionReason,
+    String? rejectionDescription,
   }) async {
     final data = <String, dynamic>{'validationStatus': status};
     if (rejectionReason != null) {
       data['rejectionReason'] = rejectionReason;
     }
+    if (rejectionDescription != null) {
+      data['rejectionDescription'] = rejectionDescription;
+    }
     await _firestore.collection(collection).doc(id).update(data);
+  }
+
+  /// Atomically updates a lesson and all of its linked content
+  /// (linked quiz and companion published items) to the given status ('approved' or 'rejected').
+  Future<void> updateLessonPackageStatus({
+    required Lesson lesson,
+    required String status,
+    String? rejectionReason,
+    String? rejectionDescription,
+  }) async {
+    final batch = _firestore.batch();
+
+    // 1. Update the lesson document
+    final lessonRef = _lessons.doc(lesson.id);
+    final lessonData = <String, dynamic>{
+      'validationStatus': status,
+      'reviewedAt': FieldValue.serverTimestamp(),
+    };
+    if (rejectionReason != null) {
+      lessonData['rejectionReason'] = rejectionReason;
+    }
+    if (rejectionDescription != null) {
+      lessonData['rejectionDescription'] = rejectionDescription;
+    }
+    batch.update(lessonRef, lessonData);
+
+    // 2. Cascade to primary linked quiz
+    if (lesson.quizId != null && lesson.quizId!.isNotEmpty) {
+      final quizRef = _quizzes.doc(lesson.quizId);
+      final quizData = <String, dynamic>{
+        'validationStatus': status,
+        'reviewedAt': FieldValue.serverTimestamp(),
+      };
+      if (rejectionReason != null) quizData['rejectionReason'] = rejectionReason;
+      if (rejectionDescription != null) quizData['rejectionDescription'] = rejectionDescription;
+      batch.update(quizRef, quizData);
+    }
+
+    // 3. Cascade to any companion quizzes and published items linked via notebookId or lesson.id
+    final nbId = lesson.notebookId ?? lesson.id;
+    if (nbId.isNotEmpty) {
+      try {
+        final quizzesSnap = await _quizzes.where('notebookId', isEqualTo: nbId).get();
+        for (final doc in quizzesSnap.docs) {
+          if (doc.id != lesson.quizId) {
+            final qData = <String, dynamic>{
+              'validationStatus': status,
+              'reviewedAt': FieldValue.serverTimestamp(),
+            };
+            if (rejectionReason != null) qData['rejectionReason'] = rejectionReason;
+            if (rejectionDescription != null) qData['rejectionDescription'] = rejectionDescription;
+            batch.update(doc.reference, qData);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error finding companion quizzes to update status: $e');
+      }
+
+      try {
+        final publishedSnap = await _publishedContent.where('notebookId', isEqualTo: nbId).get();
+        for (final doc in publishedSnap.docs) {
+          final pData = <String, dynamic>{
+            'validationStatus': status,
+            'reviewedAt': FieldValue.serverTimestamp(),
+          };
+          if (rejectionReason != null) pData['rejectionReason'] = rejectionReason;
+          if (rejectionDescription != null) pData['rejectionDescription'] = rejectionDescription;
+          batch.update(doc.reference, pData);
+        }
+      } catch (e) {
+        debugPrint('Error finding published companion items to update status: $e');
+      }
+    }
+
+    await batch.commit();
   }
 
   Future<List<Map<String, dynamic>>> fetchQuizResults(String quizId) async {
@@ -1671,6 +1989,15 @@ class DatabaseService {
     }
 
     await docRef.set(updateData, SetOptions(merge: true));
+
+    final quizPct = (totalQuestions != null && totalQuestions > 0 && score != null)
+        ? (score / totalQuestions * 100).toDouble()
+        : null;
+    updateUserStatsSummary(
+      uid: user.uid,
+      incrementQuizzes: 1,
+      newQuizScore: quizPct,
+    );
   }
 
   Future<void> completeQuizAndLesson({
@@ -1714,6 +2041,16 @@ class DatabaseService {
     }
 
     await batch.commit();
+
+    final quizPct = (totalQuestions != null && totalQuestions > 0 && score != null)
+        ? (score / totalQuestions * 100).toDouble()
+        : null;
+    updateUserStatsSummary(
+      uid: user.uid,
+      incrementQuizzes: 1,
+      newQuizScore: quizPct,
+      incrementLessons: (passed && lessonId != null) ? 1 : 0,
+    );
   }
 
   Stream<Map<String, Map<String, dynamic>>> quizProgressStream(User user) {

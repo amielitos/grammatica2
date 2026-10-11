@@ -73,15 +73,16 @@ ${difficulty != null ? 'Target difficulty level: $difficulty.' : ''}
 ${customInstructions != null && customInstructions.isNotEmpty ? 'Special Instructions: $customInstructions' : ''}
 
 Rules:
-1. Provide a comprehensive reading passage based directly on the provided texts.
+1. Provide a comprehensive academic reading passage (350-500 words) based directly on the provided texts, placed in the "passage" field.
 2. Generate $count analytical comprehension questions testing inference, main ideas, factual details, and vocabulary in context.
-3. Include questionType: "multiple_choice" or "short_answer".
+3. Every single question MUST be "multiple_choice" with exactly 4 distinct options. Strictly do NOT use short_answer, textboxes, or fill-in-the-blank questions as answers cannot be automatically checked.
 4. Include helpful hints and thorough explanations for why the correct answer is correct.
 
 Return ONLY a valid JSON object strictly matching this schema:
 {
   "title": "Formal Reading Assessment Title",
   "description": "Comprehensive passage-based assessment evaluating comprehension and critical analysis.",
+  "passage": "Full 350-500 word reading passage containing the necessary context, facts, and source material...",
   "questions": [
     {
       "questionType": "multiple_choice",
@@ -106,8 +107,8 @@ ${difficulty != null ? 'Target difficulty level: $difficulty.' : ''}
 ${customInstructions != null && customInstructions.isNotEmpty ? 'Special Instructions: $customInstructions' : ''}
 
 Rules:
-1. Questions should span multiple-choice, true/false, and short-answer formats.
-2. For multiple_choice, provide 4 plausible options with exactly 1 correct answer.
+1. All questions MUST be multiple-choice questionnaires with 4 plausible options (or true/false with ["True", "False"]). Strictly do NOT use short-answer, open-ended, or textbox questions.
+2. For multiple_choice, provide 4 plausible options with exactly 1 correct answer matching one of the options.
 3. For true_false, provide options ["True", "False"].
 4. Provide actionable hints and thorough explanations for each question.
 

@@ -29,6 +29,7 @@ class QuizDetailPage extends StatefulWidget {
   final User user;
   final Quiz quiz;
   final bool previewMode;
+  final bool autoStart;
   final String? notebookId;
   final Lesson? lesson;
 
@@ -37,6 +38,7 @@ class QuizDetailPage extends StatefulWidget {
     required this.user,
     required this.quiz,
     this.previewMode = false,
+    this.autoStart = false,
     this.notebookId,
     this.lesson,
   });
@@ -68,11 +70,39 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   late ConfettiController _confettiController;
 
   bool _isReviewing = false;
+  bool _passageExpanded = true;
   bool get _previewMode => widget.previewMode;
   Map<String, dynamic>? _userData;
 
   /// Live user object to preserve auth session continuity.
   User get _effectiveUser => AuthService.maybeLiveUser ?? widget.user;
+
+  String? _resolveCurrentPassage(_RenderableQuestion renderable) {
+    if (renderable.parentPassage != null &&
+        renderable.parentPassage!.question.trim().isNotEmpty) {
+      return renderable.parentPassage!.question.trim();
+    }
+    if (widget.quiz.passage != null &&
+        widget.quiz.passage!.trim().isNotEmpty) {
+      return widget.quiz.passage!.trim();
+    }
+    for (final q in widget.quiz.questions) {
+      if (q.type == 'passage' && q.question.trim().isNotEmpty) {
+        return q.question.trim();
+      }
+    }
+    for (final rq in _shuffledQuestions) {
+      if (rq.question.type == 'passage' &&
+          rq.question.question.trim().isNotEmpty) {
+        return rq.question.question.trim();
+      }
+    }
+    final desc = widget.quiz.description.trim();
+    if (desc.length > 150 && (desc.contains('\n') || desc.contains('. '))) {
+      return desc;
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -80,19 +110,63 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     _fetchUserData();
     
     // Flatten hierarchical questions (Passages with nested questions)
-    List<_RenderableQuestion> flattened = [];
-    final originalQuestions = List<QuizQuestion>.from(widget.quiz.questions);
-    
-    // We only shuffle the top-level items to keep passages and their questions together
-    originalQuestions.shuffle();
-    
-    for (var q in originalQuestions) {
+    // First normalize: if a passage is present in a flat list or top-level quiz, nest subsequent questions under it
+    final List<QuizQuestion> normalizedQuestions = [];
+    QuizQuestion? activePassage;
+    final List<QuizQuestion> activeNested = [];
+
+    void flushPassageGroup() {
+      if (activePassage != null) {
+        normalizedQuestions.add(QuizQuestion(
+          question: activePassage!.question,
+          answer: activePassage!.answer,
+          type: 'passage',
+          options: activePassage!.options,
+          nestedQuestions: activeNested.isNotEmpty
+              ? List.from(activeNested)
+              : activePassage!.nestedQuestions,
+          hint: activePassage!.hint,
+          explanation: activePassage!.explanation,
+          imageUrl: activePassage!.imageUrl,
+          imageDescription: activePassage!.imageDescription,
+        ));
+        activePassage = null;
+        activeNested.clear();
+      }
+    }
+
+    final bool hasExplicitPassage = widget.quiz.questions.any((q) => q.type == 'passage');
+    final String? quizPassage = widget.quiz.passage;
+    if (!hasExplicitPassage && quizPassage != null && quizPassage.trim().isNotEmpty) {
+      activePassage = QuizQuestion(
+        question: quizPassage.trim(),
+        answer: '',
+        type: 'passage',
+      );
+    }
+
+    for (final q in widget.quiz.questions) {
       if (q.type == 'passage') {
-        // Only add as a standalone slide if there are NO nested questions
-        if (q.nestedQuestions == null || q.nestedQuestions!.isEmpty) {
-          flattened.add(_RenderableQuestion(question: q));
+        flushPassageGroup();
+        if (q.nestedQuestions != null && q.nestedQuestions!.isNotEmpty) {
+          normalizedQuestions.add(q);
         } else {
-          // Add nested questions directly
+          activePassage = q;
+        }
+      } else {
+        if (activePassage != null) {
+          activeNested.add(q);
+        } else {
+          normalizedQuestions.add(q);
+        }
+      }
+    }
+    flushPassageGroup();
+
+    List<_RenderableQuestion> flattened = [];
+    for (var q in normalizedQuestions) {
+      if (q.type == 'passage') {
+        if (q.nestedQuestions != null && q.nestedQuestions!.isNotEmpty) {
           for (int i = 0; i < q.nestedQuestions!.length; i++) {
             flattened.add(_RenderableQuestion(
               question: q.nestedQuestions![i],
@@ -100,6 +174,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
               nestedIndex: i,
             ));
           }
+        } else {
+          flattened.add(_RenderableQuestion(question: q));
         }
       } else {
         flattened.add(_RenderableQuestion(question: q));
@@ -114,7 +190,23 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     _secondsRemaining = widget.quiz.duration * 60;
     _quizProgressStream = DatabaseService.instance.quizProgressStream(_effectiveUser);
     _confettiController = ConfettiController(duration: const Duration(seconds: 5));
+    
+    if (!widget.quiz.isMembersOnly ||
+        widget.quiz.createdByUid == _effectiveUser.uid ||
+        widget.quiz.isAssessment) {
+      _checkingSubscription = false;
+    }
     _checkSubscription();
+
+    if (widget.autoStart || (widget.quiz.isAssessment && !widget.previewMode)) {
+      _quizStarted = true;
+      _startTime = DateTime.now();
+      _completedLocal = false;
+      _isReviewing = false;
+      if (widget.quiz.duration > 0) {
+        _startTimer();
+      }
+    }
   }
 
   Future<void> _fetchUserData() async {
@@ -840,95 +932,139 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     }
     final renderable = _shuffledQuestions[_currentQuestionIndex];
     final question = renderable.question;
-    final isMultipleChoice = question.type == 'multiple_choice';
-    final isNested = renderable.parentPassage != null;
+    final passageText = _resolveCurrentPassage(renderable);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(40),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 30,
-                offset: const Offset(0, 10),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 850;
+        final paddingAmount = constraints.maxWidth < 600 ? 20.0 : 40.0;
+
+        Widget buildPassageDropdown() {
+          if (passageText == null || passageText.trim().isEmpty) {
+            return const SizedBox.shrink();
+          }
+          return Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF262626) : const Color(0xFFF7FAF5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.35),
+                width: 1.5,
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Question ${_currentQuestionIndex + 1} of ${_shuffledQuestions.length}',
-                    style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 1.0),
-                  ),
-                  if (widget.quiz.duration > 0 && !_isReviewing) _buildTimerBadge(),
-                ],
-              ),
-              const SizedBox(height: 24),
-              
-              if (isNested) ...[
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.menu_book_rounded, size: 18, color: AppColors.primary),
-                            const SizedBox(width: 10),
-                            Text(
-                              'REFERENCE PASSAGE',
-                              style: GoogleFonts.inter(
-                                fontSize: 12, 
-                                fontWeight: FontWeight.bold, 
-                                color: AppColors.primary, 
-                                letterSpacing: 1.2
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: SelectableText(
-                          renderable.parentPassage!.question,
-                          style: GoogleFonts.inter(
-                            fontSize: 16, 
-                            height: 1.6, 
-                            color: isDark ? Colors.white70 : Colors.black87,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                InkWell(
+                  onTap: () => setState(() => _passageExpanded = !_passageExpanded),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.menu_book_rounded,
+                            size: 20,
+                            color: AppColors.primary,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Reading Passage Reference',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _passageExpanded
+                                    ? 'Tap to collapse passage text'
+                                    : 'Tap to expand full reading passage',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white60 : AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          _passageExpanded
+                              ? Icons.keyboard_arrow_up_rounded
+                              : Icons.keyboard_arrow_down_rounded,
+                          color: AppColors.primary,
+                          size: 26,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                if (_passageExpanded) ...[
+                  Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: isDark ? Colors.white12 : AppColors.primary.withValues(alpha: 0.15),
+                  ),
+                  Container(
+                    constraints: BoxConstraints(maxHeight: isWide ? 400 : 250),
+                    padding: const EdgeInsets.all(20),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        passageText,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          height: 1.65,
+                          color: isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF2D3748),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
+            ),
+          );
+        }
 
-              if (!isNested && question.type == 'passage') ...[
+        Widget buildQuestionBody() {
+          List<String> effectiveOptions = [];
+          if (question.options != null && question.options!.isNotEmpty) {
+            effectiveOptions = question.options!;
+          } else if (question.type != 'passage') {
+            final ans = question.answer.trim();
+            if (ans.toLowerCase() == 'true' || ans.toLowerCase() == 'false') {
+              effectiveOptions = const ['True', 'False'];
+            } else if (ans.isNotEmpty) {
+              effectiveOptions = [
+                ans,
+                'Cannot be determined from the passage',
+                'Not stated in the text',
+                'Contradicts the passage'
+              ];
+            } else {
+              effectiveOptions = const ['Option A', 'Option B', 'Option C', 'Option D'];
+            }
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (question.type == 'passage') ...[
                 Text(
                   'Reading Passage',
                   style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.bold, color: textColor),
@@ -939,10 +1075,13 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   style: GoogleFonts.inter(fontSize: 18, height: 1.6, color: textColor),
                 ),
               ] else ...[
+                if (passageText != null && passageText.isNotEmpty) ...[
+                  buildPassageDropdown(),
+                ],
                 Text(
                   question.question,
                   style: GoogleFonts.outfit(
-                    fontSize: 28, 
+                    fontSize: isWide ? 26 : 22, 
                     fontWeight: FontWeight.w600, 
                     color: textColor, 
                     height: 1.4,
@@ -990,13 +1129,30 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                 ],
               ],
 
-              const SizedBox(height: 40),
-              if (isMultipleChoice)
-                ...question.options!.map((opt) {
+              const SizedBox(height: 32),
+              if (question.type == 'passage')
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF333333) : AppColors.primary.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isDark ? Colors.white12 : AppColors.primary.withValues(alpha: 0.1)),
+                  ),
+                  child: SelectableText(
+                    question.question,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      height: 1.6,
+                      color: textColor,
+                    ),
+                  ),
+                )
+              else
+                ...effectiveOptions.map((opt) {
                   final normalizedOpt = opt.trim();
                   final currentVal = _answerCtrls[_currentQuestionIndex].text.trim();
                   final isSelected = currentVal == normalizedOpt;
-                  final isCorrectAnswer = normalizedOpt == question.answer.trim();
+                  final isCorrectAnswer = normalizedOpt.toLowerCase() == question.answer.trim().toLowerCase();
 
                   Color borderColor = isDark ? Colors.white12 : Colors.black12;
                   Color bgColor = isDark ? const Color(0xFF333333) : Colors.white;
@@ -1020,7 +1176,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                       borderRadius: BorderRadius.circular(16),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           color: bgColor,
                           borderRadius: BorderRadius.circular(16),
@@ -1039,9 +1195,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                                   ? Center(child: Container(width: 12, height: 12, decoration: BoxDecoration(shape: BoxShape.circle, color: borderColor)))
                                   : null,
                             ),
-                            const SizedBox(width: 20),
+                            const SizedBox(width: 16),
                             Expanded(
-                              child: Text(normalizedOpt, style: GoogleFonts.inter(fontSize: 16, color: textColor, fontWeight: FontWeight.w500)),
+                              child: Text(normalizedOpt, style: GoogleFonts.inter(fontSize: 15, color: textColor, fontWeight: FontWeight.w500)),
                             ),
                             if (_isReviewing && isCorrectAnswer)
                               const Icon(Icons.check_circle_rounded, color: AppColors.primary),
@@ -1052,73 +1208,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                       ),
                     ),
                   );
-                })
-              else if (question.type == 'passage')
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF333333) : AppColors.primary.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: isDark ? Colors.white12 : AppColors.primary.withValues(alpha: 0.1)),
-                  ),
-                  child: SelectableText(
-                    question.question,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      height: 1.6,
-                      color: textColor,
-                    ),
-                  ),
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      controller: _answerCtrls[_currentQuestionIndex],
-                      enabled: !_isReviewing,
-                      autofocus: true,
-                      maxLines: 6,
-                      style: GoogleFonts.inter(fontSize: 16, color: textColor),
-                      decoration: InputDecoration(
-                        hintText: 'Type your answer here...',
-                        hintStyle: GoogleFonts.inter(color: isDark ? Colors.white30 : Colors.black38),
-                        fillColor: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
-                        filled: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.all(24),
-                      ),
-                      onChanged: (v) => setState(() {}),
-                    ),
-                    if (_isReviewing)
-                      Container(
-                        margin: const EdgeInsets.only(top: 24),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1), 
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.primary),
-                                const SizedBox(width: 8),
-                                Text('CORRECT ANSWER', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary, letterSpacing: 1)),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(question.answer, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
+                }),
                 
               if (_isReviewing && (question.hint != null || question.explanation != null))
                 Container(
@@ -1151,46 +1241,68 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   ),
                 ),
             ],
-          ),
-        ),
-        const SizedBox(height: 32),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_currentQuestionIndex > 0)
-              SizedBox(
-                width: 160,
-                child: OutlinedButton.icon(
-                  onPressed: () => setState(() => _currentQuestionIndex--),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary, width: 2),
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            Container(
+              padding: EdgeInsets.all(paddingAmount),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
                   ),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 20),
-                  label: Text('Previous', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
+                ],
               ),
-            if (_currentQuestionIndex > 0) const SizedBox(width: 16),
-            SizedBox(
-              width: 160,
-              child: (_currentQuestionIndex < _shuffledQuestions.length - 1)
-                  ? ElevatedButton.icon(
-                      onPressed: () => setState(() => _currentQuestionIndex++),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Question ${_currentQuestionIndex + 1} of ${_shuffledQuestions.length}',
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 1.0),
+                      ),
+                      if (widget.quiz.duration > 0 && !_isReviewing) _buildTimerBadge(),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  buildQuestionBody(),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (_currentQuestionIndex > 0)
+                  SizedBox(
+                    width: 160,
+                    child: OutlinedButton.icon(
+                      onPressed: () => setState(() => _currentQuestionIndex--),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary, width: 2),
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
                       ),
-                      icon: const Icon(Icons.arrow_forward_rounded, size: 20),
-                      label: Text('Next', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
-                    )
-                  : (!_isReviewing)
-                      ? ElevatedButton(
-                          onPressed: (_submitting || !_allAnswered) ? null : () => _confirmSubmission(maxAttempts),
+                      icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                      label: Text('Previous', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                if (_currentQuestionIndex > 0) const SizedBox(width: 16),
+                SizedBox(
+                  width: 160,
+                  child: (_currentQuestionIndex < _shuffledQuestions.length - 1)
+                      ? ElevatedButton.icon(
+                          onPressed: () => setState(() => _currentQuestionIndex++),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
@@ -1198,24 +1310,39 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 0,
                           ),
-                          child: _submitting
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : Text('Finish Quiz', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
+                          icon: const Icon(Icons.arrow_forward_rounded, size: 20),
+                          label: Text('Next', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
                         )
-                      : const SizedBox(),
+                      : (!_isReviewing)
+                          ? ElevatedButton(
+                              onPressed: (_submitting || !_allAnswered) ? null : () => _confirmSubmission(maxAttempts),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                              child: _submitting
+                                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : Text('Finish Quiz', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
+                            )
+                          : const SizedBox(),
+                ),
+              ],
             ),
+            if (!_isReviewing && !_allAnswered && _currentQuestionIndex == _shuffledQuestions.length - 1)
+              Padding(
+                padding: const EdgeInsets.only(top: 24.0),
+                child: Text(
+                  'Please answer all questions to submit your quiz.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(color: AppColors.secondary, fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
           ],
-        ),
-        if (!_isReviewing && !_allAnswered && _currentQuestionIndex == _shuffledQuestions.length - 1)
-          Padding(
-            padding: const EdgeInsets.only(top: 24.0),
-            child: Text(
-              'Please answer all questions to submit your quiz.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(color: AppColors.secondary, fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-          ),
-      ],
+        );
+      },
     );
   }
 

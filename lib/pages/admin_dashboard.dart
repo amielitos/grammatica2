@@ -21,6 +21,7 @@ import 'admin/admin_landing_settings_tab.dart';
 import 'notebook/notebook_list_page.dart';
 import 'admin/educator_groups_tab.dart';
 import 'admin/admin_lessons_tab.dart';
+import 'admin/admin_lesson_database_tab.dart';
 
 import 'dart:async';
 
@@ -210,6 +211,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ),
       );
       navItems.add(const ModernNavItem(icon: Icons.book, label: 'Lessons'));
+
+      // Lesson Database (Admin only - entire platform collection)
+      if (isAdmin) {
+        tabs.add(const AdminLessonDatabaseTab());
+        navItems.add(
+          const ModernNavItem(
+            icon: Icons.table_chart_rounded,
+            label: 'Lesson Database',
+          ),
+        );
+      }
 
       // Mentorship (Educator only)
       if (isEducator) {

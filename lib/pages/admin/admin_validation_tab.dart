@@ -15,6 +15,7 @@ import '../../services/notification_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/design_ornaments.dart';
+import '../../widgets/content_denial_dialog.dart';
 
 class AdminValidationTab extends StatefulWidget {
   final UserRole role;
@@ -43,7 +44,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
-  static const _tabLabels = ['Lessons', 'Quizzes', 'Assessments', 'Applications', 'Rejected'];
+  static const _tabLabels = ['Lessons & Packages', 'Educator Applications', 'Rejected'];
   int _selectedTab = 0;
 
   @override
@@ -85,7 +86,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                   icon: Icon(Icons.keyboard_arrow_down_rounded,
                       color: AppColors.primary),
                   items: List.generate(_tabLabels.length, (i) {
-                    final isRejected = i == 4;
+                    final isRejected = i == 2;
                     return DropdownMenuItem(
                       value: i,
                       child: Row(
@@ -123,7 +124,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                 child: Row(
                   children: List.generate(_tabLabels.length, (i) {
                     final isSelected = _selectedTab == i;
-                    final isRejected = i == 4;
+                    final isRejected = i == 2;
                     final color = isRejected ? const Color(0xFFE05050) : AppColors.primary;
                     return GestureDetector(
                       onTap: () => setState(() => _selectedTab = i),
@@ -168,8 +169,6 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
               index: _selectedTab,
               children: [
                 _ValidationList(stream: DatabaseService.instance.streamAwaitingApprovalLessons(), collection: 'lessons', formatDate: _formatTs),
-                _ValidationList(stream: DatabaseService.instance.streamAwaitingApprovalQuizzes(), collection: 'quizzes', formatDate: _formatTs),
-                _ValidationList(stream: DatabaseService.instance.streamAwaitingApprovalAssessments(), collection: 'quizzes', formatDate: _formatTs),
                 _EducatorApplicationsList(formatDate: _formatTs, type: 'educator', showRejected: false),
                 _AllRejectedTab(formatDate: _formatTs),
               ],
@@ -532,82 +531,32 @@ class _EducatorApplicationsList extends StatelessWidget {
     BuildContext context,
     EducatorApplication app,
   ) async {
-    final reasonController = TextEditingController();
-    final descController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reject Application'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Please provide a reason for rejecting this application.',
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Reason',
-                  hintText: 'e.g., Incomplete documentation',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: descController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  hintText: 'Provide more details...',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
+    final result = await showContentDenialDialog(
+      context,
+      contentTitle: '${app.applicationType == 'validator' ? 'Validator' : 'Educator'} Application (${app.applicantEmail})',
+      authorName: app.applicantEmail,
+      isPermanentDeletion: false,
     );
 
-    if (confirm == true) {
+    if (result != null) {
       try {
         await DatabaseService.instance.rejectEducatorApplication(
           app,
-          reason: reasonController.text,
-          description: descController.text,
+          reason: result.category,
+          description: result.explanation,
         );
         // Send notification to the user
         await NotificationService.instance.sendRejectionNotification(
           uid: app.applicantUid,
-          reason: reasonController.text,
-          description: descController.text,
+          reason: result.category,
+          description: result.explanation,
         );
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Application rejected and user notified'),
+              content: Text('Application rejected and applicant notified.'),
+              backgroundColor: Color(0xFFE05050),
             ),
           );
         }
@@ -880,11 +829,18 @@ class _ValidationList extends StatelessWidget {
 
   Future<void> _approve(BuildContext context, dynamic item) async {
     try {
-      await DatabaseService.instance.updateContentStatus(
-        collection,
-        item.id,
-        'approved',
-      );
+      if (item is Lesson) {
+        await DatabaseService.instance.updateLessonPackageStatus(
+          lesson: item,
+          status: 'approved',
+        );
+      } else {
+        await DatabaseService.instance.updateContentStatus(
+          collection,
+          item.id,
+          'approved',
+        );
+      }
 
       // Notify the creator
       if (item.createdByUid != null && item.createdByUid!.isNotEmpty) {
@@ -920,77 +876,52 @@ class _ValidationList extends StatelessWidget {
   }
 
   Future<void> _reject(BuildContext context, dynamic item) async {
-    final reasonController = TextEditingController();
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            final isReasonEmpty = reasonController.text.trim().isEmpty;
-            return AlertDialog(
-              title: const Text('Reject Content'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Are you sure you want to reject (delete) this content?',
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: reasonController,
-                    onChanged: (_) => setState(() {}),
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Reason for rejection (Required)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: isReasonEmpty
-                      ? null
-                      : () => Navigator.pop(context, true),
-                  style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text('Deny & Notify Educator'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    final String contentTitle = (item.title as String?) ?? 'Untitled Content';
+    final String? authorEmail = (item is Lesson) ? item.createdByEmail : null;
+
+    final result = await showContentDenialDialog(
+      context,
+      contentTitle: contentTitle,
+      authorName: authorEmail,
+      isPermanentDeletion: false,
     );
 
-    if (confirm == true) {
+    if (result != null) {
       try {
-        if (item.createdByUid != null && item.createdByUid!.isNotEmpty) {
+        if (item.createdByUid != null && (item.createdByUid as String).isNotEmpty) {
           await NotificationService.instance.sendContentValidationNotification(
             uid: item.createdByUid!,
-            title: item.title,
+            title: contentTitle,
             approved: false,
-            reason: reasonController.text,
+            reason: result.category,
+            description: result.explanation,
           );
         } else {
           debugPrint('CANNOT NOTIFY: createdByUid is null for item ${item.id}');
         }
 
-        // Mark as rejected — preserves content for audit trail
-        await DatabaseService.instance.updateContentStatus(
-          collection,
-          item.id,
-          'rejected',
-          rejectionReason: reasonController.text.trim(),
-        );
+        if (item is Lesson) {
+          await DatabaseService.instance.updateLessonPackageStatus(
+            lesson: item,
+            status: 'rejected',
+            rejectionReason: result.category,
+            rejectionDescription: result.explanation,
+          );
+        } else {
+          // Mark as rejected — preserves content for audit trail
+          await DatabaseService.instance.updateContentStatus(
+            collection,
+            item.id,
+            'rejected',
+            rejectionReason: result.category,
+            rejectionDescription: result.explanation,
+          );
+        }
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Content rejected. Educator has been notified.'),
+              content: Text('Content rejected. Author has been notified with the specified reason.'),
               backgroundColor: Color(0xFFE05050),
             ),
           );
@@ -1021,164 +952,106 @@ class _AllRejectedTab extends StatelessWidget {
     return StreamBuilder<List<Lesson>>(
       stream: DatabaseService.instance.streamRejectedLessons(),
       builder: (ctx, lessonSnap) {
-        return StreamBuilder<List<Quiz>>(
-          stream: DatabaseService.instance.streamRejectedQuizzes(),
-          builder: (ctx, quizSnap) {
-            return StreamBuilder<List<Quiz>>(
-              stream: DatabaseService.instance.streamRejectedAssessments(),
-              builder: (ctx, assessSnap) {
-                return StreamBuilder<List<EducatorApplication>>(
-                  stream: DatabaseService.instance.streamRejectedApplications(),
-                  builder: (ctx, appSnap) {
-                    if (lessonSnap.connectionState == ConnectionState.waiting ||
-                        quizSnap.connectionState == ConnectionState.waiting ||
-                        assessSnap.connectionState == ConnectionState.waiting ||
-                        appSnap.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+        return StreamBuilder<List<EducatorApplication>>(
+          stream: DatabaseService.instance.streamRejectedApplications(),
+          builder: (ctx, appSnap) {
+            if (lessonSnap.connectionState == ConnectionState.waiting ||
+                appSnap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-                    final lessons = lessonSnap.data ?? [];
-                    final quizzes = quizSnap.data ?? [];
-                    final assessments = assessSnap.data ?? [];
-                    final applications = appSnap.data ?? [];
+            final lessons = lessonSnap.data ?? [];
+            final applications = appSnap.data ?? [];
 
-                    final bool isEmpty =
-                        lessons.isEmpty &&
-                        quizzes.isEmpty &&
-                        assessments.isEmpty &&
-                        applications.isEmpty;
+            final bool isEmpty = lessons.isEmpty && applications.isEmpty;
 
-                    if (isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade50,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.check_circle_rounded,
-                                size: 56,
-                                color: Colors.green.shade400,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'No Rejected Content',
-                              style: GoogleFonts.outfit(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF2C3E50),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'All submitted content is clean.',
-                              style: GoogleFonts.inter(
-                                color: Colors.grey.shade500,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
+            if (isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check_circle_rounded,
+                        size: 56,
+                        color: Colors.green.shade400,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'No Rejected Content',
+                      style: GoogleFonts.outfit(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF2C3E50),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'All submitted content is clean.',
+                      style: GoogleFonts.inter(
+                        color: Colors.grey.shade500,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
 
-                    return ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        if (lessons.isNotEmpty)
-                          ..._buildSection(
-                            context,
-                            'Lessons',
-                            Icons.auto_stories_rounded,
-                            lessons
-                                .map(
-                                  (l) => _RejectedItem(
-                                    title: l.title,
-                                    subtitle: 'Lesson',
-                                    icon: Icons.description_rounded,
-                                    reason: l.rejectionReason,
-                                    createdAtStr: l.createdAt != null
-                                        ? formatDate(l.createdAt!)
-                                        : 'N/A',
-                                    createdByUid: l.createdByUid,
-                                    createdByEmail: l.createdByEmail,
-                                  ),
-                                )
-                                .toList(),
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (lessons.isNotEmpty)
+                  ..._buildSection(
+                    context,
+                    'Lessons & Packages',
+                    Icons.auto_stories_rounded,
+                    lessons
+                        .map(
+                          (l) => _RejectedItem(
+                            title: l.title,
+                            subtitle: 'Lesson Package',
+                            icon: Icons.description_rounded,
+                            reason: l.rejectionReason,
+                            description: l.rejectionDescription,
+                            createdAtStr: l.createdAt != null
+                                ? formatDate(l.createdAt!)
+                                : 'N/A',
+                            createdByUid: l.createdByUid,
+                            createdByEmail: l.createdByEmail,
                           ),
-                        if (quizzes.isNotEmpty)
-                          ..._buildSection(
-                            context,
-                            'Quizzes',
-                            Icons.quiz_rounded,
-                            quizzes
-                                .map(
-                                  (q) => _RejectedItem(
-                                    title: q.title,
-                                    subtitle: 'Quiz',
-                                    icon: Icons.quiz_rounded,
-                                    reason: q.rejectionReason,
-                                    createdAtStr: q.createdAt != null
-                                        ? formatDate(q.createdAt!)
-                                        : 'N/A',
-                                    createdByUid: q.createdByUid,
-                                    createdByEmail: q.createdByEmail,
-                                  ),
-                                )
-                                .toList(),
+                        )
+                        .toList(),
+                  ),
+                if (applications.isNotEmpty)
+                  ..._buildSection(
+                    context,
+                    'Applications',
+                    Icons.person_off_rounded,
+                    applications
+                        .map(
+                          (a) => _RejectedItem(
+                            title: a.applicantEmail,
+                            subtitle: 'Educator Application',
+                            icon: Icons.person_rounded,
+                            reason: a.rejectionReason,
+                            description: a.rejectionDescription,
+                            createdAtStr: a.appliedAt != null
+                                ? formatDate(a.appliedAt!)
+                                : 'N/A',
+                            createdByUid: null,
+                            createdByEmail: a.applicantEmail,
                           ),
-                        if (assessments.isNotEmpty)
-                          ..._buildSection(
-                            context,
-                            'Assessments',
-                            Icons.assignment_turned_in_rounded,
-                            assessments
-                                .map(
-                                  (a) => _RejectedItem(
-                                    title: a.title,
-                                    subtitle: 'Assessment',
-                                    icon: Icons.assignment_rounded,
-                                    reason: a.rejectionReason,
-                                    createdAtStr: a.createdAt != null
-                                        ? formatDate(a.createdAt!)
-                                        : 'N/A',
-                                    createdByUid: a.createdByUid,
-                                    createdByEmail: a.createdByEmail,
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        if (applications.isNotEmpty)
-                          ..._buildSection(
-                            context,
-                            'Applications',
-                            Icons.person_off_rounded,
-                            applications
-                                .map(
-                                  (a) => _RejectedItem(
-                                    title: a.applicantEmail,
-                                    subtitle: 'Educator Application',
-                                    icon: Icons.person_rounded,
-                                    reason: a.rejectionReason,
-                                    createdAtStr: a.appliedAt != null
-                                        ? formatDate(a.appliedAt!)
-                                        : 'N/A',
-                                    createdByUid: null,
-                                    createdByEmail: a.applicantEmail,
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                      ],
-                    );
-                  },
-                );
-              },
+                        )
+                        .toList(),
+                  ),
+              ],
             );
           },
         );
@@ -1245,6 +1118,7 @@ class _RejectedItem extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final String? reason;
+  final String? description;
   final String createdAtStr;
   final String? createdByUid;
   final String? createdByEmail;
@@ -1255,6 +1129,7 @@ class _RejectedItem extends StatelessWidget {
     required this.icon,
     required this.createdAtStr,
     this.reason,
+    this.description,
     this.createdByUid,
     this.createdByEmail,
   });
@@ -1353,7 +1228,8 @@ class _RejectedItem extends StatelessWidget {
                 ),
               ],
             ),
-            if (reason != null && reason!.isNotEmpty)
+            if ((reason != null && reason!.isNotEmpty) ||
+                (description != null && description!.isNotEmpty))
               ...([
                 const SizedBox(height: 12),
                 Container(
@@ -1382,26 +1258,36 @@ class _RejectedItem extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'REJECTION REASON',
-                              style: GoogleFonts.inter(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.1,
-                                color: const Color(
-                                  0xFFE05050,
-                                ).withValues(alpha: 0.7),
+                            if (reason != null && reason!.isNotEmpty) ...[
+                              Text(
+                                'REASON CATEGORY: ${reason!.toUpperCase()}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                  color: const Color(0xFFB71C1C),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              reason!,
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: const Color(0xFF7A2020),
-                                height: 1.4,
+                              const SizedBox(height: 4),
+                            ],
+                            if (description != null && description!.isNotEmpty)
+                              Text(
+                                description!,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: const Color(0xFF7A2020),
+                                  height: 1.4,
+                                ),
+                              )
+                            else if (reason != null && reason!.isNotEmpty)
+                              Text(
+                                reason!,
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: const Color(0xFF7A2020),
+                                  height: 1.4,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),

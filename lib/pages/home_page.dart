@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/database_service.dart';
+import '../services/navigation_service.dart';
 
 import 'quizzes_page.dart';
 import 'lesson_folder_page.dart';
-import 'lesson_page.dart';
 import 'profile_page.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../widgets/modern_bottom_nav.dart';
@@ -280,12 +281,56 @@ class _LessonsListState extends State<_LessonsList> {
               );
             }
 
-            // Find next uncompleted lesson for "Continue Learning"
+            // Workaround: Display the 'last lesson' the user viewed instead of attempting
+            // to compute an uncompleted/current lesson (which incorrectly reported legacy
+            // content without modern progress records as pending).
             Lesson? nextLesson;
-            for (var l in lessons) {
-              if (progressMap[l.id]?['completed'] != true) {
-                nextLesson = l;
-                break;
+
+            // 1. In-memory active session match
+            if (DatabaseService.lastViewedLessonId != null) {
+              final match = lessons
+                  .where((l) => l.id == DatabaseService.lastViewedLessonId)
+                  .toList();
+              if (match.isNotEmpty) {
+                nextLesson = match.first;
+              }
+            }
+
+            // 2. Most recent activity from progress history (sorted by latest timestamp descending)
+            if (nextLesson == null) {
+              final lessonsWithHistory = lessons.where((l) {
+                final p = progressMap[l.id];
+                return p != null &&
+                    (p['lastReadAt'] != null || p['completedAt'] != null);
+              }).toList();
+
+              if (lessonsWithHistory.isNotEmpty) {
+                lessonsWithHistory.sort((a, b) {
+                  final dynamic tsA = progressMap[a.id]?['lastReadAt'] ??
+                      progressMap[a.id]?['completedAt'];
+                  final dynamic tsB = progressMap[b.id]?['lastReadAt'] ??
+                      progressMap[b.id]?['completedAt'];
+                  if (tsA == null && tsB == null) return 0;
+                  if (tsA == null) return 1;
+                  if (tsB == null) return -1;
+                  if (tsA is Timestamp && tsB is Timestamp) {
+                    return tsB.compareTo(tsA);
+                  }
+                  return 0;
+                });
+                // Strictly use the most recently viewed lesson
+                nextLesson = lessonsWithHistory.first;
+              }
+            }
+
+            // 3. User profile persistent record
+            if (nextLesson == null) {
+              final lastId = widget.userData['lastViewedLessonId'] as String?;
+              if (lastId != null && lastId.isNotEmpty) {
+                final match = lessons.where((l) => l.id == lastId).toList();
+                if (match.isNotEmpty) {
+                  nextLesson = match.first;
+                }
               }
             }
 
@@ -306,6 +351,14 @@ class _LessonsListState extends State<_LessonsList> {
                       _buildHeroHeader(context, username: username),
                       const SizedBox(height: 16),
 
+                      // Real-time Reactive Stats Overview (Option B Local-First + Aggregated Sync)
+                      _buildLiveStatsOverview(
+                        context,
+                        isDark: isDark,
+                        fallbackLessonsCompleted: grammaticaCompleted + publicCompleted,
+                      ),
+                      const SizedBox(height: 16),
+
                       // 2. Upcoming Mentorship Session Banner
                       _buildUpcomingSessionBanner(context),
 
@@ -315,7 +368,7 @@ class _LessonsListState extends State<_LessonsList> {
 
                       // 4. Continue Learning Card
                       if (nextLesson != null && _searchQuery.isEmpty && _selectedFilter == 'All') ...[
-                        _buildContinueLearningCard(context, nextLesson),
+                        _buildContinueLearningCard(context, nextLesson, progressMap[nextLesson.id]),
                         const SizedBox(height: 24),
                       ],
 
@@ -545,6 +598,162 @@ class _LessonsListState extends State<_LessonsList> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLiveStatsOverview(
+    BuildContext context, {
+    required bool isDark,
+    required int fallbackLessonsCompleted,
+  }) {
+    return StreamBuilder<Map<String, dynamic>>(
+      stream: DatabaseService.instance.userStatsSummaryStream(widget.user.uid),
+      builder: (context, snapshot) {
+        final stats = snapshot.data ?? {};
+        final lessons = (stats['totalLessonsCompleted'] as num?)?.toInt() ?? fallbackLessonsCompleted;
+        final quizzes = (stats['totalQuizzesTaken'] as num?)?.toInt() ?? 0;
+        final avgScore = (stats['averageQuizScore'] as num?)?.toDouble() ?? 0.0;
+        final fcMastered = (stats['flashcardsMastered'] as num?)?.toInt() ?? 0;
+        final streak = (stats['studyStreakDays'] as num?)?.toInt() ?? (lessons > 0 ? 1 : 0);
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 650;
+
+            Widget buildStatItem({
+              required IconData icon,
+              required Color color,
+              required String label,
+              required String value,
+              String? subValue,
+            }) {
+              return Expanded(
+                flex: isNarrow ? 0 : 1,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(icon, color: color, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              value,
+                              style: GoogleFonts.outfit(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              label,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white60 : Colors.black54,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (subValue != null) ...[
+                              const SizedBox(height: 1),
+                              Text(
+                                subValue,
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  color: color,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final items = [
+              buildStatItem(
+                icon: Icons.menu_book_rounded,
+                color: const Color(0xFF10B981),
+                label: 'Lessons Done',
+                value: '$lessons',
+              ),
+              buildStatItem(
+                icon: Icons.quiz_rounded,
+                color: const Color(0xFF3B82F6),
+                label: 'Quizzes Taken',
+                value: '$quizzes',
+                subValue: quizzes > 0 ? '${avgScore.toStringAsFixed(0)}% avg' : null,
+              ),
+              buildStatItem(
+                icon: Icons.style_rounded,
+                color: const Color(0xFF8B5CF6),
+                label: 'Cards Mastered',
+                value: '$fcMastered',
+              ),
+              buildStatItem(
+                icon: Icons.local_fire_department_rounded,
+                color: const Color(0xFFF59E0B),
+                label: 'Daily Streak',
+                value: '$streak ${streak == 1 ? 'day' : 'days'}',
+              ),
+            ];
+
+            if (isNarrow) {
+              return GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 2.1,
+                children: items,
+              );
+            }
+
+            return Row(
+              children: [
+                items[0],
+                const SizedBox(width: 12),
+                items[1],
+                const SizedBox(width: 12),
+                items[2],
+                const SizedBox(width: 12),
+                items[3],
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -834,12 +1043,13 @@ class _LessonsListState extends State<_LessonsList> {
     );
   }
 
-  Widget _buildContinueLearningCard(BuildContext context, Lesson lesson) {
+  Widget _buildContinueLearningCard(BuildContext context, Lesson lesson, Map<String, dynamic>? progressInfo) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final double progress = (progressInfo?['progress'] as num?)?.toDouble() ?? 0.0;
+    final bool isCompleted = progressInfo?['completed'] == true;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -855,78 +1065,126 @@ class _LessonsListState extends State<_LessonsList> {
           width: 1.5,
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF81B655).withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.play_circle_fill_rounded,
-              color: Color(0xFF81B655),
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            NavigationService.instance.goToLesson(context, lesson);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            child: Row(
               children: [
-                const Text(
-                  'CONTINUE LEARNING',
-                  style: TextStyle(
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF81B655).withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.play_circle_fill_rounded,
                     color: Color(0xFF81B655),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.0,
+                    size: 28,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  lesson.title,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'LAST VIEWED LESSON',
+                            style: TextStyle(
+                              color: Color(0xFF81B655),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          if (progress > 0.0 && !isCompleted) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '${(progress * 100).toInt()}% COMPLETED',
+                                style: const TextStyle(
+                                  color: Color(0xFF81B655),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ] else if (isCompleted) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'COMPLETED',
+                                style: TextStyle(
+                                  color: Color(0xFF81B655),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        lesson.title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'By ${lesson.createdByEmail ?? "Grammatica"}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white54 : Colors.black45,
+                        ),
+                      ),
+                    ],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  'By ${lesson.createdByEmail ?? "Grammatica"}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.white54 : Colors.black45,
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    NavigationService.instance.goToLesson(context, lesson);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF81B655),
+                    foregroundColor: Colors.white,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
                   ),
+                  child: Text(isCompleted ? 'Review' : 'Resume',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => LessonPage(user: widget.user, lesson: lesson),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF81B655),
-              foregroundColor: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            child: const Text('Resume',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-          ),
-        ],
+        ),
       ),
     );
   }

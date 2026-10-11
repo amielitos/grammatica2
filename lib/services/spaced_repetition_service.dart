@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/flashcard_models.dart';
+import 'database_service.dart';
 
 /// Service implementing the SuperMemo 2 (SM-2) Spaced Repetition algorithm
 /// along with offline caching and progress synchronization.
@@ -94,7 +95,52 @@ class SpacedRepetitionService {
     // Cache locally
     await _cacheProgress(userId, deckId, cardId, updated);
 
+    // Aggregate stats summary
+    await DatabaseService.instance.updateUserStatsSummary(
+      uid: userId,
+      incrementFlashcardsReviewed: 1,
+      incrementFlashcardsMastered: (updated.repetitions >= 3 || updated.interval >= 6) ? 1 : 0,
+    );
+
     return updated;
+  }
+
+  /// Commits a batch of card reviews atomically to Firestore and syncs to local cache.
+  /// Also logs the study session and aggregates progress to users/{uid}/stats/summary.
+  Future<void> commitSessionReviews({
+    required String userId,
+    required String deckId,
+    required List<FlashcardProgress> reviews,
+    StudySession? session,
+  }) async {
+    if (reviews.isEmpty && session == null) return;
+
+    final batch = _firestore.batch();
+
+    int masteredCount = 0;
+    for (final rev in reviews) {
+      final docId = '${deckId}_${rev.cardId}';
+      batch.set(_userProgressCol(userId).doc(docId), rev.toMap(), SetOptions(merge: true));
+      if (rev.repetitions >= 3 || rev.interval >= 6) {
+        masteredCount++;
+      }
+      // Cache locally
+      await _cacheProgress(userId, deckId, rev.cardId, rev);
+    }
+
+    if (session != null) {
+      final sessionRef = _userSessionsCol(userId).doc(session.id);
+      batch.set(sessionRef, session.toMap());
+    }
+
+    await batch.commit();
+
+    // Update aggregated stats summary
+    await DatabaseService.instance.updateUserStatsSummary(
+      uid: userId,
+      incrementFlashcardsReviewed: reviews.length,
+      incrementFlashcardsMastered: masteredCount,
+    );
   }
 
   // ---------------------------------------------------------------------------

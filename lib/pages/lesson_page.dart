@@ -54,6 +54,10 @@ class _LessonPageState extends State<LessonPage> {
 
   Future<void> _initProgress() async {
     if (widget.previewMode) return;
+    DatabaseService.instance.recordLessonViewed(
+      user: _effectiveUser,
+      lessonId: widget.lesson.id,
+    );
     final data = await DatabaseService.instance.getLessonProgress(_effectiveUser.uid, widget.lesson.id);
     if (data != null && mounted) {
       setState(() {
@@ -202,7 +206,7 @@ class _LessonPageState extends State<LessonPage> {
                                           currentLesson: _lesson,
                                           activeType: CompanionMediaType.lesson,
                                           excludeLesson: true,
-                                          excludeQuiz: true,
+                                          excludeQuiz: _lesson.quizId != null && _lesson.quizId!.isNotEmpty,
                                         ),
                                       ],
                                     ),
@@ -221,7 +225,7 @@ class _LessonPageState extends State<LessonPage> {
                                     currentLesson: _lesson,
                                     activeType: CompanionMediaType.lesson,
                                     excludeLesson: true,
-                                    excludeQuiz: true,
+                                    excludeQuiz: _lesson.quizId != null && _lesson.quizId!.isNotEmpty,
                                   ),
                                 ],
                               ),
@@ -581,9 +585,13 @@ class _LessonPageState extends State<LessonPage> {
   }
 
   Widget _buildQuizSidebar(bool isDark) {
-    final isValidator = _userData?['role'] == 'VALIDATOR';
-    if (_previewMode || _lesson.quizId == null || isValidator) {
+    if (_lesson.quizId == null || _lesson.quizId!.isEmpty) {
       return const SizedBox.shrink();
+    }
+
+    final isValidator = _userData?['role'] == 'VALIDATOR';
+    if (_previewMode || isValidator) {
+      return _buildPreviewQuizCard(isDark);
     }
 
     return StreamBuilder<Map<String, Map<String, dynamic>>>(
@@ -599,6 +607,102 @@ class _LessonPageState extends State<LessonPage> {
 
         return _buildTakeQuizCard(isDark);
       },
+    );
+  }
+
+  Widget _buildPreviewQuizCard(bool isDark) {
+    final cardColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF81B655), Color(0xFF6A9943)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.quiz_rounded, size: 32, color: Colors.white),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Knowledge Quiz',
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Linked assessment for validation preview.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.85),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: _isLoadingQuiz ? null : _previewQuizAction,
+                icon: _isLoadingQuiz
+                    ? const SizedBox(
+                        height: 18, width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.visibility_rounded, size: 20),
+                label: Text(
+                  'Preview Quiz',
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -705,7 +809,44 @@ class _LessonPageState extends State<LessonPage> {
     );
   }
 
+  Future<void> _previewQuizAction() async {
+    if (_lesson.quizId == null || _lesson.quizId!.isEmpty) return;
+    setState(() => _isLoadingQuiz = true);
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('quizzes')
+          .doc(_lesson.quizId)
+          .get();
+
+      if (doc.exists && mounted) {
+        final quiz = Quiz.fromDoc(doc);
+        NavigationService.instance.goToQuiz(
+          context,
+          quiz,
+          notebookId: _lesson.notebookId,
+          lesson: _lesson,
+          replace: false,
+          previewMode: true,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading quiz: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingQuiz = false);
+      }
+    }
+  }
+
   Future<void> _takeQuizAction() async {
+    if (_previewMode) {
+      await _previewQuizAction();
+      return;
+    }
     setState(() => _isLoadingQuiz = true);
     try {
       await DatabaseService.instance.markLessonCompleted(

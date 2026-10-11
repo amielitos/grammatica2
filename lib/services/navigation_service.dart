@@ -25,6 +25,14 @@ class NavigationService {
     bool replace = false,
     bool previewMode = false,
   }) async {
+    if (!previewMode) {
+      DatabaseService.lastViewedLessonId = lesson.id;
+      DatabaseService.instance.recordLessonViewed(
+        user: _liveUser,
+        lessonId: lesson.id,
+      );
+    }
+
     final page = LessonPage(
       user: _liveUser,
       lesson: lesson,
@@ -52,6 +60,7 @@ class NavigationService {
     Lesson? lesson,
     bool replace = false,
     bool previewMode = false,
+    bool autoStart = false,
   }) async {
     final page = QuizDetailPage(
       user: _liveUser,
@@ -59,6 +68,7 @@ class NavigationService {
       notebookId: notebookId ?? quiz.notebookId,
       lesson: lesson,
       previewMode: previewMode,
+      autoStart: autoStart,
     );
 
     if (replace) {

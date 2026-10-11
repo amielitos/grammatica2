@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -42,8 +43,8 @@ class LessonFolderPage extends StatefulWidget {
 
 class _LessonFolderPageState extends State<LessonFolderPage> {
   String _searchQuery = '';
-  final String _selectedFilter = 'Name'; // Default
-  String _selectedMediaFilter = 'All'; // Media filter: All, Lessons, Flashcards, etc.
+  String _selectedDateFilter = 'All Time'; // Date filter: All Time, Past 7 Days, Past 30 Days, This Year
+  bool _sortNewestFirst = true;
 
 
 
@@ -283,127 +284,167 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     );
   }
 
-  Widget _buildMediaFilterChips(bool isDark) {
+  Widget _buildDateFilterChips(bool isDark) {
     final filters = [
-      'All',
-      'Lessons',
-      'Flashcards',
-      'Mind Maps',
-      'Study Guides',
-      'Timelines',
-      'Briefings',
-      'FAQs',
+      'All Time',
+      'Past 7 Days',
+      'Past 30 Days',
+      'This Year',
     ];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 6),
       child: Row(
-        children: filters.map((filter) {
-          final isSelected = _selectedMediaFilter == filter;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedMediaFilter = filter),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary
-                      : (isDark ? const Color(0xFF1E293B) : Colors.white),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
+        children: [
+          ...filters.map((filter) {
+            final isSelected = _selectedDateFilter == filter;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedDateFilter = filter),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
                     color: isSelected
-                        ? Colors.transparent
-                        : (isDark
-                            ? const Color(0xFF334155)
-                            : const Color(0xFFE2E8F0)),
+                        ? AppColors.primary
+                        : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? Colors.transparent
+                          : (isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0)),
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.25),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            )
+                          ]
+                        : null,
                   ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.25),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          )
-                        ]
-                      : null,
-                ),
-                child: Text(
-                  filter,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected
-                        ? Colors.white
-                        : (isDark ? Colors.white70 : AppColors.textPrimary),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isSelected) ...[
+                        const Icon(Icons.check_rounded, size: 14, color: Colors.white),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        filter,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark ? Colors.white70 : AppColors.textPrimary),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+            );
+          }),
+          const SizedBox(width: 4),
+          // Sort toggle
+          GestureDetector(
+            onTap: () => setState(() => _sortNewestFirst = !_sortNewestFirst),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _sortNewestFirst ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                    size: 13,
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _sortNewestFirst ? 'Newest' : 'Oldest',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white70 : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          );
-        }).toList(),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildLessonListBody(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final now = DateTime.now();
 
     final filteredLessons = widget.lessons.where((l) {
-      if (_searchQuery.isEmpty) return true;
-      final q = _searchQuery.toLowerCase();
-      return l.title.toLowerCase().contains(q) ||
-          (l.createdByEmail ?? '').toLowerCase().contains(q);
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final matches = l.title.toLowerCase().contains(q) ||
+            (l.createdByEmail ?? '').toLowerCase().contains(q) ||
+            l.prompt.toLowerCase().contains(q);
+        if (!matches) return false;
+      }
+      if (_selectedDateFilter == 'All Time') return true;
+      if (l.createdAt == null) return false;
+      final lessonDate = l.createdAt!.toDate();
+      final diff = now.difference(lessonDate).inDays;
+      if (_selectedDateFilter == 'Past 7 Days') return diff <= 7;
+      if (_selectedDateFilter == 'Past 30 Days') return diff <= 30;
+      if (_selectedDateFilter == 'This Year') return lessonDate.year == now.year;
+      return true;
     }).toList();
 
     final filteredPublished = widget.publishedItems.where((item) {
-      if (_searchQuery.isEmpty) return true;
-      final q = _searchQuery.toLowerCase();
-      return item.title.toLowerCase().contains(q) ||
-          (item.createdByEmail ?? '').toLowerCase().contains(q);
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final matches = item.title.toLowerCase().contains(q) ||
+            (item.createdByEmail ?? '').toLowerCase().contains(q);
+        if (!matches) return false;
+      }
+      if (_selectedDateFilter == 'All Time') return true;
+      if (item.createdAt == null) return false;
+      final itemDate = item.createdAt!.toDate();
+      final diff = now.difference(itemDate).inDays;
+      if (_selectedDateFilter == 'Past 7 Days') return diff <= 7;
+      if (_selectedDateFilter == 'Past 30 Days') return diff <= 30;
+      if (_selectedDateFilter == 'This Year') return itemDate.year == now.year;
+      return true;
     }).toList();
 
     filteredLessons.sort((a, b) {
-      int cmp = 0;
-      if (_selectedFilter == 'Name') {
-        cmp = a.title.toLowerCase().compareTo(b.title.toLowerCase());
-      } else if (_selectedFilter == 'Create Date') {
-        final tsA = a.createdAt;
-        final tsB = b.createdAt;
-        cmp = tsA == null && tsB == null
-            ? 0
-            : tsA == null
-                ? 1
-                : tsB == null
-                    ? -1
-                    : tsB.compareTo(tsA);
-      }
-      return cmp == 0
-          ? a.title.toLowerCase().compareTo(b.title.toLowerCase())
-          : cmp;
+      final tsA = a.createdAt;
+      final tsB = b.createdAt;
+      if (tsA == null && tsB == null) return a.title.compareTo(b.title);
+      if (tsA == null) return 1;
+      if (tsB == null) return -1;
+      return _sortNewestFirst ? tsB.compareTo(tsA) : tsA.compareTo(tsB);
     });
 
     filteredPublished.sort((a, b) {
-      int cmp = 0;
-      if (_selectedFilter == 'Name') {
-        cmp = a.title.toLowerCase().compareTo(b.title.toLowerCase());
-      } else if (_selectedFilter == 'Create Date') {
-        final tsA = a.createdAt;
-        final tsB = b.createdAt;
-        cmp = tsA == null && tsB == null
-            ? 0
-            : tsA == null
-                ? 1
-                : tsB == null
-                    ? -1
-                    : tsB.compareTo(tsA);
-      }
-      return cmp == 0
-          ? a.title.toLowerCase().compareTo(b.title.toLowerCase())
-          : cmp;
+      final tsA = a.createdAt;
+      final tsB = b.createdAt;
+      if (tsA == null && tsB == null) return a.title.compareTo(b.title);
+      if (tsA == null) return 1;
+      if (tsB == null) return -1;
+      return _sortNewestFirst ? tsB.compareTo(tsA) : tsA.compareTo(tsB);
     });
 
     final flashcards = filteredPublished
@@ -425,28 +466,13 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
         .where((p) => p.type == NotebookOutputType.faq)
         .toList();
 
-    final showLessons =
-        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Lessons';
-    final showFlashcards =
-        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Flashcards';
-    final showMindMaps =
-        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Mind Maps';
-    final showStudyGuides =
-        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Study Guides';
-    final showTimelines =
-        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Timelines';
-    final showBriefings =
-        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'Briefings';
-    final showFaqs =
-        _selectedMediaFilter == 'All' || _selectedMediaFilter == 'FAQs';
-
-    final hasAnyItems = (showLessons && filteredLessons.isNotEmpty) ||
-        (showFlashcards && flashcards.isNotEmpty) ||
-        (showMindMaps && mindMaps.isNotEmpty) ||
-        (showStudyGuides && studyGuides.isNotEmpty) ||
-        (showTimelines && timelines.isNotEmpty) ||
-        (showBriefings && briefings.isNotEmpty) ||
-        (showFaqs && faqs.isNotEmpty);
+    final hasAnyItems = filteredLessons.isNotEmpty ||
+        flashcards.isNotEmpty ||
+        mindMaps.isNotEmpty ||
+        studyGuides.isNotEmpty ||
+        timelines.isNotEmpty ||
+        briefings.isNotEmpty ||
+        faqs.isNotEmpty;
 
     return StreamBuilder<Map<String, Map<String, dynamic>>>(
       stream: _progressStream,
@@ -514,7 +540,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     style:
                         TextStyle(color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
-                      hintText: 'Search materials, lessons, flashcards...',
+                      hintText: 'search lessons',
                       hintStyle: TextStyle(
                           color: isDark
                               ? Colors.white70
@@ -545,7 +571,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     ),
                   ),
                 ),
-                _buildMediaFilterChips(isDark),
+                _buildDateFilterChips(isDark),
                 const SizedBox(height: 8),
               ],
             );
@@ -589,7 +615,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (showLessons && filteredLessons.isNotEmpty)
+                        if (filteredLessons.isNotEmpty)
                           buildSection(
                             'Lessons (${filteredLessons.length})',
                             filteredLessons.map((l) {
@@ -603,7 +629,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                               );
                             }).toList(),
                           ),
-                        if (showFlashcards && flashcards.isNotEmpty)
+                        if (flashcards.isNotEmpty)
                           buildSection(
                             'Flashcard Decks (${flashcards.length})',
                             flashcards.map((f) {
@@ -617,7 +643,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                               );
                             }).toList(),
                           ),
-                        if (showMindMaps && mindMaps.isNotEmpty)
+                        if (mindMaps.isNotEmpty)
                           buildSection(
                             'Mind Maps (${mindMaps.length})',
                             mindMaps.map((m) {
@@ -631,7 +657,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                               );
                             }).toList(),
                           ),
-                        if (showStudyGuides && studyGuides.isNotEmpty)
+                        if (studyGuides.isNotEmpty)
                           buildSection(
                             'Study Guides (${studyGuides.length})',
                             studyGuides.map((g) {
@@ -645,7 +671,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                               );
                             }).toList(),
                           ),
-                        if (showTimelines && timelines.isNotEmpty)
+                        if (timelines.isNotEmpty)
                           buildSection(
                             'Timelines (${timelines.length})',
                             timelines.map((t) {
@@ -659,7 +685,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                               );
                             }).toList(),
                           ),
-                        if (showBriefings && briefings.isNotEmpty)
+                        if (briefings.isNotEmpty)
                           buildSection(
                             'Briefing Documents (${briefings.length})',
                             briefings.map((b) {
@@ -673,7 +699,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                               );
                             }).toList(),
                           ),
-                        if (showFaqs && faqs.isNotEmpty)
+                        if (faqs.isNotEmpty)
                           buildSection(
                             'Frequently Asked Questions (${faqs.length})',
                             faqs.map((q) {
@@ -748,8 +774,8 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     }
 
     return SizedBox(
-      width: 200,
-      height: 280,
+      width: 290,
+      height: 300,
       child: GestureDetector(
         onTap: () {
           NavigationService.instance.goToLesson(context, lesson);
@@ -789,7 +815,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                     else
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: iconColor.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(6),
@@ -806,17 +832,55 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       ),
                   ],
                 ),
-                const Spacer(),
+                const SizedBox(height: 14),
                 Text(
                   lesson.title,
                   style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: isDark ? Colors.white : AppColors.textPrimary),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
+                if (lesson.prompt.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    lesson.prompt,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: isDark ? Colors.white60 : AppColors.textSecondary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const Spacer(),
+                Divider(
+                  height: 16,
+                  color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                ),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today_rounded,
+                      size: 12,
+                      color: isDark ? Colors.white38 : Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      lesson.createdAt != null
+                          ? DateFormat.yMMMd().format(lesson.createdAt!.toDate().toLocal())
+                          : 'Grammatica Official',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white54 : Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
                 Text(
                   'by: ${authorLabel ?? lesson.createdByEmail ?? 'Unknown'}',
                   style: TextStyle(

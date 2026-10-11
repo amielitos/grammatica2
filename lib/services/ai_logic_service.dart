@@ -168,27 +168,32 @@ $explanationLine
   }
 
   Future<AILessonResponse> _generateLessonFirebase(String rawText) async {
-    final model = FirebaseAI.googleAI().generativeModel(
-      model: AIConfig.firebaseAIModel,
-      systemInstruction: Content.system(_lessonSystemPrompt),
-      generationConfig: GenerationConfig(
-        responseMimeType: 'application/json',
-        temperature: 0.7,
-      ),
-    );
+    try {
+      final model = FirebaseAI.googleAI().generativeModel(
+        model: AIConfig.firebaseAIModel,
+        systemInstruction: Content.system(_lessonSystemPrompt),
+        generationConfig: GenerationConfig(
+          responseMimeType: 'application/json',
+          temperature: 0.7,
+        ),
+      );
 
-    final response = await model.generateContent([
-      Content.text(
-          'Generate a summarized lesson from the following content:\n\n$rawText'),
-    ]);
+      final response = await model.generateContent([
+        Content.text(
+            'Generate a summarized lesson from the following content:\n\n$rawText'),
+      ]);
 
-    final text = response.text;
-    if (text == null || text.isEmpty) {
-      throw Exception('Empty response.');
+      final text = response.text;
+      if (text == null || text.isEmpty) {
+        throw Exception('Empty response.');
+      }
+
+      final parsed = jsonDecode(text) as Map<String, dynamic>;
+      return AILessonResponse.fromJson(parsed);
+    } catch (e) {
+      debugPrint('Firebase AI lesson error: $e, falling back to direct REST');
+      return _generateLessonDirect(rawText);
     }
-
-    final parsed = jsonDecode(text) as Map<String, dynamic>;
-    return AILessonResponse.fromJson(parsed);
   }
 
   Future<AILessonResponse> _generateLessonDirect(String rawText) async {
@@ -340,27 +345,32 @@ $explanationLine
 
   Future<AIQuizResponse> _generateQuizFirebase(
       String lessonText, int numQuestions, QuizGenerationConfig config) async {
-    final systemPrompt = _buildQuizSystemPrompt(config);
-    final model = FirebaseAI.googleAI().generativeModel(
-      model: AIConfig.firebaseAIModel,
-      systemInstruction: Content.system(systemPrompt),
-      generationConfig: GenerationConfig(
-        responseMimeType: 'application/json',
-        temperature: 0.8,
-      ),
-    );
+    try {
+      final systemPrompt = _buildQuizSystemPrompt(config);
+      final model = FirebaseAI.googleAI().generativeModel(
+        model: AIConfig.firebaseAIModel,
+        systemInstruction: Content.system(systemPrompt),
+        generationConfig: GenerationConfig(
+          responseMimeType: 'application/json',
+          temperature: 0.8,
+        ),
+      );
 
-    final response = await model.generateContent([
-      Content.text(_buildQuizUserPrompt(lessonText, numQuestions)),
-    ]);
+      final response = await model.generateContent([
+        Content.text(_buildQuizUserPrompt(lessonText, numQuestions)),
+      ]);
 
-    final text = response.text;
-    if (text == null || text.isEmpty) {
-      throw Exception('Empty response.');
+      final text = response.text;
+      if (text == null || text.isEmpty) {
+        throw Exception('Empty response.');
+      }
+
+      final parsed = jsonDecode(text) as Map<String, dynamic>;
+      return AIQuizResponse.fromJson(parsed);
+    } catch (e) {
+      debugPrint('Firebase AI quiz error: $e, falling back to direct REST');
+      return _generateQuizDirect(lessonText, numQuestions, config);
     }
-
-    final parsed = jsonDecode(text) as Map<String, dynamic>;
-    return AIQuizResponse.fromJson(parsed);
   }
 
   Future<AIQuizResponse> _generateQuizDirect(

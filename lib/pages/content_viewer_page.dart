@@ -414,8 +414,9 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          // Completion status button synced with Firestore progress
-          StreamBuilder<Map<String, Map<String, dynamic>>>(
+          // Completion status button synced with Firestore progress (omitted for flashcards which use SM-2 spaced repetition progress)
+          if (_type != NotebookOutputType.flashcards)
+            StreamBuilder<Map<String, Map<String, dynamic>>>(
             stream: DatabaseService.instance.progressStream(_effectiveUser),
             builder: (context, snapshot) {
               final progressMap = snapshot.data ?? {};

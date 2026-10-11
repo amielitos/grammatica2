@@ -31,6 +31,20 @@ class _FlashcardStudyPageState extends State<FlashcardStudyPage> {
   int _cardsCorrect = 0;
   double _totalQuality = 0;
   bool _isSessionFinished = false;
+  final List<FlashcardProgress> _sessionReviews = [];
+
+  @override
+  void dispose() {
+    if (_sessionReviews.isNotEmpty) {
+      final uid = AuthService.instance.currentUser?.uid ?? '';
+      SpacedRepetitionService.instance.commitSessionReviews(
+        userId: uid,
+        deckId: widget.deck.id,
+        reviews: List.from(_sessionReviews),
+      );
+    }
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -276,7 +290,6 @@ class _FlashcardStudyPageState extends State<FlashcardStudyPage> {
   }
 
   Future<void> _handleRating(int quality) async {
-    final uid = AuthService.instance.currentUser?.uid ?? '';
     final card = widget.deck.cards[_currentIndex];
     final currentProg = _progressMap[card.id];
 
@@ -284,16 +297,15 @@ class _FlashcardStudyPageState extends State<FlashcardStudyPage> {
     if (quality >= 3) _cardsCorrect++;
     _totalQuality += quality;
 
-    // Save SM-2 progress asynchronously
-    SpacedRepetitionService.instance.reviewCard(
+    // Fast 0ms local compute
+    final updated = SpacedRepetitionService.computeNextProgress(
       cardId: card.id,
       deckId: widget.deck.id,
-      userId: uid,
       quality: quality,
       currentProgress: currentProg,
-    ).then((updated) {
-      _progressMap[card.id] = updated;
-    });
+    );
+    _progressMap[card.id] = updated;
+    _sessionReviews.add(updated);
 
     if (_currentIndex + 1 < widget.deck.cards.length) {
       setState(() {
@@ -318,7 +330,14 @@ class _FlashcardStudyPageState extends State<FlashcardStudyPage> {
       averageQuality: _cardsStudied > 0 ? _totalQuality / _cardsStudied : 0.0,
     );
 
-    SpacedRepetitionService.instance.logStudySession(session);
+    // Commit all card reviews and study session atomically in 1 single batch write
+    SpacedRepetitionService.instance.commitSessionReviews(
+      userId: uid,
+      deckId: widget.deck.id,
+      reviews: List.from(_sessionReviews),
+      session: session,
+    );
+    _sessionReviews.clear();
 
     setState(() {
       _isSessionFinished = true;
