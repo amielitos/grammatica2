@@ -851,49 +851,132 @@ class ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: SizedBox(
-                height: 56,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF333333) : Colors.white,
-                    foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-                    side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.transparent : Colors.black, width: Theme.of(context).brightness == Brightness.dark ? 0 : 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (c) => AlertDialog(
-                        title: const Text('Deactivate Account?'),
-                        content: const Text('Your account will be deactivated and you will be signed out.'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                          FilledButton(
-                            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDF3F32), foregroundColor: Colors.white),
-                            onPressed: () => Navigator.pop(c, true),
-                            child: const Text('Deactivate'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirm == true) {
-                      try {
-                        await AuthService.instance.deactivateAccount();
-                      } catch (e) {
-                        _showSnack('Deactivation failed: $e', error: true);
+            if (role != UserRole.admin && role != UserRole.superadmin) ...[
+              const SizedBox(width: 16),
+              Expanded(
+                child: SizedBox(
+                  height: 56,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF333333) : Colors.white,
+                      foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+                      side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.transparent : Colors.black, width: Theme.of(context).brightness == Brightness.dark ? 0 : 2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (c) => AlertDialog(
+                          title: const Text('Deactivate Account?'),
+                          content: const Text('Your account will be deactivated and you will be signed out.'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                            FilledButton(
+                              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDF3F32), foregroundColor: Colors.white),
+                              onPressed: () => Navigator.pop(c, true),
+                              child: const Text('Deactivate'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        try {
+                          await AuthService.instance.deactivateAccount();
+                        } catch (e) {
+                          _showSnack('Deactivation failed: $e', error: true);
+                        }
                       }
-                    }
-                  },
-                  child: const Text('Deactivate Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    },
+                    child: const Text('Deactivate Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
+
+        if (role != UserRole.admin && role != UserRole.superadmin) ...[
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF2A1515)
+                    : const Color(0xFFFFF1F0),
+                foregroundColor: const Color(0xFFDF3F32),
+                side: const BorderSide(color: Color(0xFFDF3F32), width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(Icons.delete_forever_rounded, color: Color(0xFFDF3F32), size: 22),
+              label: const Text(
+                'Delete Account',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              onPressed: _confirmDeleteAccount,
+            ),
+          ),
+        ] else ...[
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFF2C2416)
+                  : const Color(0xFFFEF9C3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.amber.shade700.withValues(alpha: 0.5)
+                    : Colors.amber.shade400,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.admin_panel_settings_rounded,
+                  color: Colors.amber.shade700,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Administrator accounts are protected and cannot be deleted or deactivated.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.amber.shade200
+                          : Colors.amber.shade900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    final deleted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => _DeleteAccountDialog(user: widget.user),
+    );
+
+    if (deleted == true && mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your account has been deleted permanently.'),
+          backgroundColor: Color(0xFF81B655),
+        ),
+      );
+    }
   }
 
   @override
@@ -1335,6 +1418,225 @@ class _ReauthDialogState extends State<_ReauthDialog> {
           style: FilledButton.styleFrom(foregroundColor: Colors.white),
           onPressed: loading ? null : onConfirm,
           child: const Text('Confirm'),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeleteAccountDialog extends StatefulWidget {
+  final User user;
+  const _DeleteAccountDialog({required this.user});
+
+  @override
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
+}
+
+class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  final _passwordCtrl = TextEditingController();
+  bool _obscurePassword = true;
+  bool _isLoading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleDelete() async {
+    final isGoogleUser = widget.user.providerData.any(
+      (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
+    );
+    final isPasswordUser = widget.user.providerData.any(
+      (p) => p.providerId == EmailAuthProvider.PROVIDER_ID,
+    );
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // 1. Re-authenticate if password user
+      if (isPasswordUser) {
+        final pwd = _passwordCtrl.text.trim();
+        if (pwd.isEmpty) {
+          setState(() {
+            _isLoading = false;
+            _error = 'Please enter your password to confirm.';
+          });
+          return;
+        }
+        await AuthService.instance.reauthenticateWithPassword(pwd);
+      }
+
+      // 2. Perform account deletion
+      try {
+        await AuthService.instance.deleteAccount();
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'requires-recent-login' && isGoogleUser) {
+          await AuthService.instance.reauthenticateWithGoogle();
+          await AuthService.instance.deleteAccount();
+        } else {
+          rethrow;
+        }
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.message ?? 'Failed to delete account (${e.code}).';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Failed to delete account: $e';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isPasswordUser = widget.user.providerData.any(
+      (p) => p.providerId == EmailAuthProvider.PROVIDER_ID,
+    );
+    final isGoogleUser = widget.user.providerData.any(
+      (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
+    );
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: isDark ? const Color(0xFF262626) : Colors.white,
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFDF3F32).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDF3F32), size: 24),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Delete Account',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete your account? This action is permanent and cannot be undone.',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? Colors.white70 : Colors.black87,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDF3F32).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFDF3F32).withValues(alpha: 0.2)),
+              ),
+              child: const Text(
+                'All your progress, quizzes, notes, subscriptions, and profile data will be permanently removed.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFFDF3F32),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (isPasswordUser) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Enter your password to confirm:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _passwordCtrl,
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  hintText: 'Enter your password',
+                  prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      size: 20,
+                    ),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+              ),
+            ] else if (isGoogleUser) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'You are signed in with Google. You may be prompted to re-authenticate with Google.',
+                      style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: const TextStyle(color: Color(0xFFDF3F32), fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFDF3F32),
+            foregroundColor: Colors.white,
+          ),
+          onPressed: _isLoading ? null : _handleDelete,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('Delete Account'),
         ),
       ],
     );

@@ -2607,6 +2607,15 @@ class DatabaseService {
 
   Future<void> deleteUserAccount(String uid) async {
     try {
+      // Guard: Administrator accounts are strictly protected and cannot be deleted
+      final userDocSnap = await _firestore.collection('users').doc(uid).get();
+      if (userDocSnap.exists) {
+        final role = (userDocSnap.data()?['role'] as String?)?.toUpperCase();
+        if (role == 'ADMIN' || role == 'SUPERADMIN') {
+          throw Exception('Administrator accounts cannot be deleted.');
+        }
+      }
+
       // 1. Delete all user content (Lessons)
       final lessonSnap = await _lessons
           .where('createdByUid', isEqualTo: uid)

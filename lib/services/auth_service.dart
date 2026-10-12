@@ -601,6 +601,18 @@ class AuthService {
 
     final uid = user.uid;
 
+    // Guard: Administrator and Superadmin accounts cannot be deleted
+    final userDoc = await _firestore.collection('users').doc(uid).get();
+    if (userDoc.exists) {
+      final role = (userDoc.data()?['role'] as String?)?.toUpperCase();
+      if (role == 'ADMIN' || role == 'SUPERADMIN') {
+        throw FirebaseAuthException(
+          code: 'admin-account-deletion-forbidden',
+          message: 'Administrator accounts cannot be deleted.',
+        );
+      }
+    }
+
     try {
       // 1. Delete all Firestore and Storage data
       await DatabaseService.instance.deleteUserAccount(uid);
@@ -613,6 +625,45 @@ class AuthService {
       debugPrint('Error deleting account: $e');
       rethrow;
     }
+  }
+
+  /// Reauthenticates current user using password (for Email/Password accounts)
+  Future<void> reauthenticateWithPassword(String password) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'No authenticated user found.',
+      );
+    }
+    final cred = EmailAuthProvider.credential(
+      email: user.email!,
+      password: password,
+    );
+    await user.reauthenticateWithCredential(cred);
+  }
+
+  /// Reauthenticates current user with Google (for Google Sign-In accounts)
+  Future<void> reauthenticateWithGoogle() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'No authenticated user found.',
+      );
+    }
+    await ensureGoogleSignInInitialized();
+    final googleUser = await _googleSignIn.authenticate();
+    final googleAuth = googleUser.authentication;
+    final String? idToken = googleAuth.idToken;
+    if (idToken == null) {
+      throw FirebaseAuthException(
+        code: 'ERROR_MISSING_ID_TOKEN',
+        message: 'Google re-authentication failed: Missing ID Token',
+      );
+    }
+    final cred = GoogleAuthProvider.credential(idToken: idToken);
+    await user.reauthenticateWithCredential(cred);
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
@@ -771,6 +822,19 @@ class AuthService {
     if (user == null) return;
 
     final uid = user.uid;
+
+    // Guard: Administrator accounts cannot be deactivated
+    final userDoc = await _firestore.collection('users').doc(uid).get();
+    if (userDoc.exists) {
+      final role = (userDoc.data()?['role'] as String?)?.toUpperCase();
+      if (role == 'ADMIN' || role == 'SUPERADMIN') {
+        throw FirebaseAuthException(
+          code: 'admin-deactivation-forbidden',
+          message: 'Administrator accounts cannot be deactivated.',
+        );
+      }
+    }
+
     await _firestore.collection('users').doc(uid).set({
       'is_active': false,
       'status': 'deactivated',
