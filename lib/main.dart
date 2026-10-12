@@ -114,16 +114,6 @@ class _AuthWrapper extends StatelessWidget {
           return Theme(data: AppTheme.lightTheme, child: const LandingPage());
         }
 
-        // Enforce email verification confirmation for non-Google users
-        final isGoogleUser = user.providerData.any(
-          (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
-        );
-        if (!isGoogleUser && !user.emailVerified) {
-          return OtpVerificationPage(
-            email: user.email ?? '',
-          );
-        }
-
         // Single Firestore listener for the user's document
         return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
@@ -140,7 +130,9 @@ class _AuthWrapper extends StatelessWidget {
                     p?['date_of_birth'] == c?['date_of_birth'] &&
                     p?['photoUrl'] == c?['photoUrl'] &&
                     p?['username'] == c?['username'] &&
-                    p?['status'] == c?['status'];
+                    p?['status'] == c?['status'] &&
+                    p?['requires_email_verification'] ==
+                        c?['requires_email_verification'];
               }),
           builder: (context, userDocSnap) {
             if (userDocSnap.connectionState == ConnectionState.waiting) {
@@ -192,6 +184,18 @@ class _AuthWrapper extends StatelessWidget {
               return Theme(
                 data: AppTheme.lightTheme,
                 child: const LandingPage(),
+              );
+            }
+
+            // Email verification check: ONLY applies to new users starting now.
+            // Legacy / current users bypass email verification.
+            final isGoogleUser = user.providerData.any(
+              (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
+            );
+            final bool requiresEmailVerification = (data['requires_email_verification'] == true);
+            if (!isGoogleUser && requiresEmailVerification && !user.emailVerified) {
+              return OtpVerificationPage(
+                email: user.email ?? '',
               );
             }
 

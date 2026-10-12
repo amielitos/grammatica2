@@ -399,36 +399,42 @@ class AuthService {
         password: password,
       );
 
-      // Security Check: enforce email verification for non-Google users
+      // Check user document and verification policy
       final user = userCredential.user;
       if (user != null) {
-        await user.reload();
-        final refreshedUser = _auth.currentUser ?? user;
-        final isGoogleUser = refreshedUser.providerData.any(
-          (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
-        );
-        if (!isGoogleUser && !refreshedUser.emailVerified) {
+        // Initial Security Check: check if the user is deactivated
+        final userDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        final userData = userDoc.data();
+        final status = (userData?['status'] as String?)?.toUpperCase();
+        if (userDoc.exists && status == 'DEACTIVATED') {
           await _auth.signOut();
           throw FirebaseAuthException(
-            code: 'email-not-verified',
-            message:
-                'Your email has not been verified yet. Please check your inbox and confirm your identity before signing in.',
+            code: 'account-deactivated',
+            message: 'Your account has been deactivated. Please contact support.',
           );
         }
-      }
 
-      // Initial Security Check: check if the user is deactivated
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(userCredential.user?.uid)
-          .get();
-      final status = (userDoc.data()?['status'] as String?)?.toUpperCase();
-      if (userDoc.exists && status == 'DEACTIVATED') {
-        await _auth.signOut();
-        throw FirebaseAuthException(
-          code: 'account-deactivated',
-          message: 'Your account has been deactivated. Please contact support.',
-        );
+        // Email verification check: ONLY applies to new users starting now.
+        // Legacy or current users (where requires_email_verification != true) bypass verification.
+        final bool requiresEmailVerification = (userData?['requires_email_verification'] == true);
+        if (requiresEmailVerification) {
+          await user.reload();
+          final refreshedUser = _auth.currentUser ?? user;
+          final isGoogleUser = refreshedUser.providerData.any(
+            (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
+          );
+          if (!isGoogleUser && !refreshedUser.emailVerified) {
+            await _auth.signOut();
+            throw FirebaseAuthException(
+              code: 'email-not-verified',
+              message:
+                  'Your email has not been verified yet. Please check your inbox and confirm your identity before signing in.',
+            );
+          }
+        }
       }
 
       // Successful login -> Reset attempts & lockout
@@ -567,6 +573,7 @@ class AuthService {
       'photoUrl': '', // Initialize with empty photo URL
       'has_completed_onboarding': false,
       'theme_preference': 'light',
+      'requires_email_verification': true, // Only new users starting now require verification
     });
 
     if (!user.emailVerified) {
@@ -790,6 +797,27 @@ class AuthService {
       } catch (e) {
         debugPrint('Firebase default email verification trigger: $e');
       }
+    }
+  }
+
+  /// Checks whether a user is required to verify their email before accessing the application.
+  /// Only new users registered with requires_email_verification: true are subject to verification.
+  /// Legacy/current users bypass this requirement.
+  Future<bool> userRequiresEmailVerification(User user) async {
+    final isGoogleUser = user.providerData.any(
+      (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
+    );
+    if (isGoogleUser || user.emailVerified) {
+      return false;
+    }
+
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (!doc.exists) return false;
+      return doc.data()?['requires_email_verification'] == true;
+    } catch (e) {
+      debugPrint('Error checking userRequiresEmailVerification: $e');
+      return false;
     }
   }
 

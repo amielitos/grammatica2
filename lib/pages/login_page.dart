@@ -94,13 +94,20 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    _authSubscription = AuthService.instance.authStateChanges().listen((user) {
+    _authSubscription = AuthService.instance.authStateChanges().listen((user) async {
       if (user != null && mounted) {
         final isGoogleUser = user.providerData.any(
           (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
         );
         if (isGoogleUser || user.emailVerified) {
           Navigator.of(context).popUntil((route) => route.isFirst);
+        } else {
+          // Check if this user is a legacy user who bypasses verification
+          final requiresVerification =
+              await AuthService.instance.userRequiresEmailVerification(user);
+          if (!requiresVerification && mounted) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
         }
       }
     });

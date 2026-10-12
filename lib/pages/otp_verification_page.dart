@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import '../services/email_sender_service.dart';
 import '../widgets/design_ornaments.dart';
@@ -189,6 +190,13 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
   void _onVerificationSuccess() {
     final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'requires_email_verification': false,
+      }).catchError((e) {
+        debugPrint('Error updating requires_email_verification: $e');
+      });
+    }
     final targetEmail = widget.email.isNotEmpty ? widget.email : (user?.email ?? '');
     final targetName = widget.fullName ?? user?.displayName ?? 'Learner';
     if (targetEmail.isNotEmpty) {
