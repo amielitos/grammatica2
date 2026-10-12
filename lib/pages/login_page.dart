@@ -96,7 +96,12 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     _authSubscription = AuthService.instance.authStateChanges().listen((user) {
       if (user != null && mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        final isGoogleUser = user.providerData.any(
+          (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
+        );
+        if (isGoogleUser || user.emailVerified) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
       }
     });
   }
@@ -122,6 +127,8 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         if (e.code == 'account-locked') {
           await _handleLockoutTriggered(e.message ?? 'Account is temporarily locked.');
+        } else if (e.code == 'email-not-verified') {
+          _showEmailNotVerifiedDialog(_emailController.text.trim());
         } else {
           final isWarning = e.message?.contains('remaining') == true;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -141,6 +148,111 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     }
+  }
+
+  void _showEmailNotVerifiedDialog(String email) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.mark_email_unread_rounded, color: Color(0xFFF59E0B), size: 28),
+            SizedBox(width: 10),
+            Text(
+              "Verify Your Email",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Your account has not been verified yet. For your security, you must confirm your identity through Firebase email verification before you can sign in to Grammatica.",
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.5),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Color(0xFFB45309), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      email,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF92400E),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text("Close", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              try {
+                await AuthService.instance.sendEmailVerification(email: email);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Row(
+                        children: [
+                          Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              "Verification link resent! Please check your inbox and verify before signing in.",
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: const Color(0xFF81B655),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                }
+              } catch (err) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Failed to resend verification email: $err"),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: const Text("Resend Verification Email"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF81B655),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showForgotPasswordDialog() {

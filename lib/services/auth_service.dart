@@ -174,6 +174,7 @@ class AuthService {
   }
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
+  Stream<User?> userChanges() => _auth.userChanges();
 
   User? get currentUser => _auth.currentUser;
 
@@ -397,6 +398,24 @@ class AuthService {
         email: email,
         password: password,
       );
+
+      // Security Check: enforce email verification for non-Google users
+      final user = userCredential.user;
+      if (user != null) {
+        await user.reload();
+        final refreshedUser = _auth.currentUser ?? user;
+        final isGoogleUser = refreshedUser.providerData.any(
+          (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
+        );
+        if (!isGoogleUser && !refreshedUser.emailVerified) {
+          await _auth.signOut();
+          throw FirebaseAuthException(
+            code: 'email-not-verified',
+            message:
+                'Your email has not been verified yet. Please check your inbox and confirm your identity before signing in.',
+          );
+        }
+      }
 
       // Initial Security Check: check if the user is deactivated
       final userDoc = await _firestore

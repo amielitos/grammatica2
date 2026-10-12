@@ -61,7 +61,12 @@ class _SignupPageState extends State<SignupPage> {
     _emailController.addListener(_validateEmailRealTime);
     _authSubscription = AuthService.instance.authStateChanges().listen((user) {
       if (user != null && mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        final isGoogleUser = user.providerData.any(
+          (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
+        );
+        if (isGoogleUser) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
       }
     });
   }

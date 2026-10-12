@@ -18,6 +18,7 @@ import 'pages/signup_page.dart';
 import 'pages/admin_dashboard.dart';
 import 'pages/home_page.dart';
 import 'pages/onboarding_page.dart';
+import 'pages/otp_verification_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -99,7 +100,7 @@ class _AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: AuthService.instance.authStateChanges(),
+      stream: AuthService.instance.userChanges(),
       builder: (context, authSnap) {
         if (authSnap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -111,6 +112,16 @@ class _AuthWrapper extends StatelessWidget {
         final user = authSnap.data;
         if (user == null) {
           return Theme(data: AppTheme.lightTheme, child: const LandingPage());
+        }
+
+        // Enforce email verification confirmation for non-Google users
+        final isGoogleUser = user.providerData.any(
+          (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
+        );
+        if (!isGoogleUser && !user.emailVerified) {
+          return OtpVerificationPage(
+            email: user.email ?? '',
+          );
         }
 
         // Single Firestore listener for the user's document
