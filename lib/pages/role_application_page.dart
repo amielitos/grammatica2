@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/database_service.dart';
 import '../widgets/custom_app_bar.dart';
@@ -24,6 +25,9 @@ class RoleApplicationPage extends StatefulWidget {
 }
 
 class _RoleApplicationPageState extends State<RoleApplicationPage> {
+  static const List<String> _videoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'webm'];
+  static const List<String> _docExtensions = ['pdf', 'jpg', 'png', 'jpeg'];
+
   int _currentStep = 0;
   PlatformFile? _cvFile;
   final List<PlatformFile> _certificateFiles = [];
@@ -31,6 +35,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
   PlatformFile? _syllabusFile;
 
   bool _isUploading = false;
+  bool _isDragging = false;
   String? _error;
   Map<String, dynamic>? _userData;
 
@@ -57,11 +62,20 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
     if (step == 1) {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'png', 'jpeg'],
+        allowedExtensions: _docExtensions,
         withData: true,
         allowMultiple: true,
       );
       if (result != null) {
+        final invalid = result.files.any((f) {
+          final ext = (f.extension ?? f.name.split('.').last).toLowerCase();
+          return !_docExtensions.contains(ext);
+        });
+        if (invalid) {
+          setState(() => _error =
+              'Please select valid PDF or image files (${_docExtensions.map((e) => e.toUpperCase()).join(', ')}).');
+          return;
+        }
         setState(() {
           _certificateFiles.addAll(result.files);
           _error = null;
@@ -70,17 +84,34 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
       return;
     }
 
+    final isVideoStep = step == 2;
     final result = await FilePicker.platform.pickFiles(
-      type: step == 2 ? FileType.video : FileType.custom,
-      allowedExtensions: step == 2 ? null : ['pdf', 'jpg', 'png', 'jpeg'],
+      type: FileType.custom,
+      allowedExtensions: isVideoStep ? _videoExtensions : _docExtensions,
       withData: true,
     );
     if (result != null) {
       final file = result.files.first;
-      if (step == 2 && file.size > 200 * 1024 * 1024) {
-        setState(() => _error = 'Video file size must be less than 200MB');
-        return;
+      final ext = (file.extension ?? file.name.split('.').last).toLowerCase();
+
+      if (isVideoStep) {
+        if (!_videoExtensions.contains(ext)) {
+          setState(() => _error =
+              'The teaching demo section only accepts video formats (${_videoExtensions.map((e) => e.toUpperCase()).join(', ')}). PNG and image formats are not allowed.');
+          return;
+        }
+        if (file.size > 200 * 1024 * 1024) {
+          setState(() => _error = 'Video file size must be less than 200MB');
+          return;
+        }
+      } else {
+        if (!_docExtensions.contains(ext)) {
+          setState(() => _error =
+              'Please select a valid document or image (${_docExtensions.map((e) => e.toUpperCase()).join(', ')}).');
+          return;
+        }
       }
+
       setState(() {
         if (step == 0) _cvFile = file;
         if (step == 2) _videoFile = file;
@@ -88,6 +119,79 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         _error = null;
       });
     }
+  }
+
+  Future<void> _handleDropDone(DropDoneDetails detail) async {
+    setState(() => _isDragging = false);
+    if (_isUploading || detail.files.isEmpty) return;
+
+    if (_currentStep == 1) {
+      // Step 1: Certificates (can accept multiple)
+      final newFiles = <PlatformFile>[];
+      for (final dropped in detail.files) {
+        final ext = dropped.name.split('.').last.toLowerCase();
+        if (!_docExtensions.contains(ext)) {
+          setState(() => _error =
+              'Certificates must be in ${_docExtensions.map((e) => e.toUpperCase()).join(', ')} format. Rejected: ${dropped.name}');
+          return;
+        }
+        final bytes = await dropped.readAsBytes();
+        newFiles.add(PlatformFile(
+          name: dropped.name,
+          size: bytes.length,
+          bytes: bytes,
+        ));
+      }
+      setState(() {
+        _certificateFiles.addAll(newFiles);
+        _error = null;
+      });
+      return;
+    }
+
+    final dropped = detail.files.first;
+    final ext = dropped.name.split('.').last.toLowerCase();
+
+    if (_currentStep == 2) {
+      // Step 2: Teaching Demo Video - ONLY Video allowed, reject PNG / other images!
+      if (!_videoExtensions.contains(ext)) {
+        setState(() => _error =
+            'The teaching demo section only accepts video formats (${_videoExtensions.map((e) => e.toUpperCase()).join(', ')}). PNG and image formats are not allowed.');
+        return;
+      }
+      final bytes = await dropped.readAsBytes();
+      if (bytes.length > 200 * 1024 * 1024) {
+        setState(() => _error = 'Video file size must be less than 200MB');
+        return;
+      }
+      setState(() {
+        _videoFile = PlatformFile(
+          name: dropped.name,
+          size: bytes.length,
+          bytes: bytes,
+        );
+        _error = null;
+      });
+      return;
+    }
+
+    // Step 0 (CV) or Step 3 (Syllabus)
+    if (!_docExtensions.contains(ext)) {
+      setState(() => _error =
+          'Please upload a PDF or image file (${_docExtensions.map((e) => e.toUpperCase()).join(', ')}).');
+      return;
+    }
+    final bytes = await dropped.readAsBytes();
+    final platformFile = PlatformFile(
+      name: dropped.name,
+      size: bytes.length,
+      bytes: bytes,
+    );
+    setState(() {
+      if (_currentStep == 0) _cvFile = platformFile;
+      if (_currentStep == 3) _syllabusFile = platformFile;
+      _error = null;
+    });
   }
 
   void _showLocalFilePreview(PlatformFile file) {
@@ -122,6 +226,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         if (ext == 'mov') return 'video/quicktime';
         if (ext == 'avi') return 'video/x-msvideo';
         if (ext == 'webm') return 'video/webm';
+        if (ext == 'mkv') return 'video/x-matroska';
         return 'application/octet-stream';
       }
 
@@ -146,6 +251,11 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
       }
 
       if (_videoFile?.bytes == null) throw Exception('Video file data not loaded');
+      final videoExt = (_videoFile!.extension ?? _videoFile!.name.split('.').last).toLowerCase();
+      if (!_videoExtensions.contains(videoExt)) {
+        throw Exception(
+            'The video demo file must be a valid video format (${_videoExtensions.map((e) => e.toUpperCase()).join(', ')}). PNG and image formats are not allowed.');
+      }
       final videoUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
         fileBytes: _videoFile!.bytes!,
@@ -567,70 +677,79 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
           const SizedBox(height: 32),
 
           // Upload Area Dropzone
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTap: () => _pickFile(_currentStep),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: const Color(0xFF81B655).withValues(alpha: 0.4),
-                    width: 1.5,
+          DropTarget(
+            onDragEntered: (_) => setState(() => _isDragging = true),
+            onDragExited: (_) => setState(() => _isDragging = false),
+            onDragDone: _handleDropDone,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () => _pickFile(_currentStep),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: _isDragging
+                        ? const Color(0xFF81B655).withValues(alpha: isDark ? 0.22 : 0.12)
+                        : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _isDragging
+                          ? const Color(0xFF81B655)
+                          : const Color(0xFF81B655).withValues(alpha: 0.4),
+                      width: _isDragging ? 2.2 : 1.5,
+                    ),
                   ),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                          ),
-                        ],
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.cloud_upload_rounded,
+                          size: 32,
+                          color: Color(0xFF81B655),
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.cloud_upload_rounded,
-                        size: 32,
-                        color: Color(0xFF81B655),
+                      const SizedBox(height: 14),
+                      Text(
+                        _currentStep == 1
+                            ? (_certificateFiles.isNotEmpty
+                                ? "${_certificateFiles.length} file(s) selected"
+                                : "Click or Drop to Select Files")
+                            : (currentFile != null
+                                ? currentFile.name
+                                : "Click or Drop to Upload File"),
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: (_currentStep == 1 && _certificateFiles.isNotEmpty) ||
+                                  currentFile != null
+                              ? const Color(0xFF81B655)
+                              : textColor,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      _currentStep == 1
-                          ? (_certificateFiles.isNotEmpty
-                              ? "${_certificateFiles.length} file(s) selected"
-                              : "Click to Select Files")
-                          : (currentFile != null
-                              ? currentFile.name
-                              : "Click to Upload File"),
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        color: (_currentStep == 1 && _certificateFiles.isNotEmpty) ||
-                                currentFile != null
-                            ? const Color(0xFF81B655)
-                            : textColor,
+                      const SizedBox(height: 4),
+                      Text(
+                        _currentStep == 2
+                            ? "Supports MP4, MOV, AVI, MKV, WEBM up to 200MB (Video only, no PNG/images)"
+                            : "Supports PDF, PNG, JPG format",
+                        style: GoogleFonts.inter(
+                          color: subtitleColor,
+                          fontSize: 12,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _currentStep == 2
-                          ? "Supports MP4, MOV, AVI up to 200MB"
-                          : "Supports PDF, PNG, JPG format",
-                      style: GoogleFonts.inter(
-                        color: subtitleColor,
-                        fontSize: 12,
-                      ),
-                    ),
                     if (_currentStep != 1 && currentFile != null) ...[
                       const SizedBox(height: 6),
                       Container(
@@ -655,6 +774,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
               ),
             ),
           ),
+        ),
 
           // File List for Step 1 (Certificates)
           if (_currentStep == 1 && _certificateFiles.isNotEmpty)

@@ -247,6 +247,7 @@ class _SignupPageState extends State<SignupPage> {
           MaterialPageRoute(
             builder: (_) => OtpVerificationPage(
               email: _emailController.text.trim(),
+              fullName: fullName,
             ),
           ),
         );

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../services/email_sender_service.dart';
 import '../widgets/design_ornaments.dart';
 
 /// Firebase-native Email Verification Page.
@@ -187,6 +188,19 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   }
 
   void _onVerificationSuccess() {
+    final user = FirebaseAuth.instance.currentUser;
+    final targetEmail = widget.email.isNotEmpty ? widget.email : (user?.email ?? '');
+    final targetName = widget.fullName ?? user?.displayName ?? 'Learner';
+    if (targetEmail.isNotEmpty) {
+      EmailSenderService.sendWelcomeEmail(
+        recipientEmail: targetEmail,
+        recipientName: targetName,
+      ).catchError((e) {
+        debugPrint('Error sending welcome confirmation email: $e');
+        return false;
+      });
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,

@@ -77,13 +77,22 @@ class AuthService {
         );
         final userCredential = await _auth.signInWithCredential(credential);
 
-        // Use userCredential property to detect if it's the first login with this provider
-        if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+        // Check if first-time sign up with Google
+        final isNew = (userCredential.additionalUserInfo?.isNewUser ?? false);
+        final isNewDoc = await _ensureUserDocumentExists(userCredential.user);
+        if (isNew || isNewDoc) {
           justSignedUpWithGoogle = true;
           _generateAndSendTempPassword(userCredential.user!);
+          if (userCredential.user?.email != null) {
+            EmailSenderService.sendWelcomeEmail(
+              recipientEmail: userCredential.user!.email!,
+              recipientName: userCredential.user!.displayName ?? 'Learner',
+            ).catchError((e) {
+              debugPrint('Error sending welcome confirmation email: $e');
+              return false;
+            });
+          }
         }
-
-        await _ensureUserDocumentExists(userCredential.user);
       } catch (e) {
         debugPrint('Error handling Google Sign-In event: $e');
         AuthService.messengerKey.currentState?.showSnackBar(
@@ -479,9 +488,19 @@ class AuthService {
       }
 
       bool isNewUser = await _ensureUserDocumentExists(userCredential.user);
-      if (isNewUser) {
+      final isNewAuthUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+      if (isNewUser || isNewAuthUser) {
         justSignedUpWithGoogle = true;
         await _generateAndSendTempPassword(userCredential.user!);
+        if (userCredential.user?.email != null) {
+          EmailSenderService.sendWelcomeEmail(
+            recipientEmail: userCredential.user!.email!,
+            recipientName: userCredential.user!.displayName ?? 'Learner',
+          ).catchError((e) {
+            debugPrint('Error sending welcome confirmation email: $e');
+            return false;
+          });
+        }
       }
       return userCredential;
     } on GoogleSignInException catch (e) {
