@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/database_service.dart';
 import '../services/navigation_service.dart';
+import '../services/agora_service.dart';
+import 'conference_page.dart';
 
 import 'quizzes_page.dart';
 import 'lesson_folder_page.dart';
@@ -1220,8 +1221,8 @@ class _LessonsListState extends State<_LessonsList> {
         final title = (next['meetingTitle'] as String? ?? '').isNotEmpty
             ? next['meetingTitle'] as String
             : 'Mentorship Session';
-        final app = next['conferenceApp'] as String? ?? 'google_meet';
-        final link = next['meetingLink'] as String? ?? '';
+        final agoraChannel = next['agoraChannel'] as String? ?? '';
+        final sessionId = next['id'] as String? ?? '';
         final startTime = (next['startTime'] as Timestamp).toDate();
         final endTime = (next['endTime'] as Timestamp?)?.toDate();
         final dateStr = DateFormat('EEE, MMM d, yyyy').format(startTime);
@@ -1230,22 +1231,9 @@ class _LessonsListState extends State<_LessonsList> {
             : DateFormat('h:mm a').format(startTime);
         final educatorId = next['educatorId'] as String? ?? '';
 
-        Color appColor;
-        IconData appIcon;
-        String appLabel;
-        if (app.contains('zoom')) {
-          appColor = const Color(0xFF2D8CFF);
-          appIcon = Icons.videocam_rounded;
-          appLabel = 'Zoom';
-        } else if (app.contains('team')) {
-          appColor = const Color(0xFF5B5FC7);
-          appIcon = Icons.groups_rounded;
-          appLabel = 'MS Teams';
-        } else {
-          appColor = const Color(0xFF00832D);
-          appIcon = Icons.video_call_rounded;
-          appLabel = 'Google Meet';
-        }
+        const appColor = Color(0xFF81B655);
+        const appIcon = Icons.video_call_rounded;
+        const appLabel = 'Agora';
 
         return Column(
           children: [
@@ -1371,33 +1359,44 @@ class _LessonsListState extends State<_LessonsList> {
                           )),
                     ],
                   ),
-                  if (link.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 40,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                        label: Text('Join on $appLabel',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w800, fontSize: 13)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3B82F6),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                        onPressed: () async {
-                          final uri = Uri.parse(link);
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri,
-                                mode: LaunchMode.externalApplication);
-                          }
-                        },
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.video_call_rounded, size: 16),
+                      label: const Text('Join Conference',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 13)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF81B655),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
+                      onPressed: () {
+                        final channel = agoraChannel.isNotEmpty
+                            ? agoraChannel
+                            : AgoraService.instance.channelFromSessionId(
+                                sessionId.isNotEmpty ? sessionId : 'session',
+                              );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ConferencePage(
+                              channelName: channel,
+                              sessionId: sessionId,
+                              sessionTitle: title,
+                              otherParticipantName: 'Educator',
+                              isHost: false,
+                              currentUser: widget.user,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),

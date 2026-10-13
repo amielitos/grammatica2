@@ -588,11 +588,11 @@ class DatabaseService {
     required String studentName,
     required DateTime startTime,
     required DateTime endTime,
-    required String meetingLink,
-    String conferenceApp = 'google_meet',
+    String meetingLink = '',
+    String conferenceApp = 'agora',
     String meetingTitle = '',
   }) async {
-    await _firestore.collection('mentorship_sessions').add({
+    final docRef = await _firestore.collection('mentorship_sessions').add({
       'educatorId': educatorId,
       'studentId': studentId,
       'studentName': studentName,
@@ -602,8 +602,16 @@ class DatabaseService {
       'conferenceApp': conferenceApp,
       'meetingTitle': meetingTitle,
       'status': 'scheduled',
+      // agoraChannel is set after doc creation (uses doc ID for uniqueness)
+      'agoraChannel': '',
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    // Set the Agora channel name to a deterministic, safe string based on doc ID
+    final channelName = docRef.id.length > 32
+        ? docRef.id.substring(0, 32)
+        : docRef.id;
+    await docRef.update({'agoraChannel': channelName});
 
     try {
       final educatorDoc = await getUserDoc(educatorId);
@@ -630,8 +638,8 @@ class DatabaseService {
           educatorName: educatorName,
           meetingTitle: titleStr,
           timeStr: dateStr,
-          conferenceApp: conferenceApp,
-          meetingLink: meetingLink,
+          conferenceApp: 'agora',
+          meetingLink: '',
         );
       }
     } catch (e) {
@@ -660,8 +668,8 @@ class DatabaseService {
     required String studentName,
     required DateTime startTime,
     required DateTime endTime,
-    required String meetingLink,
-    String conferenceApp = 'google_meet',
+    String meetingLink = '',
+    String conferenceApp = 'agora',
     String meetingTitle = '',
   }) async {
     await _firestore.collection('mentorship_sessions').doc(sessionId).update({

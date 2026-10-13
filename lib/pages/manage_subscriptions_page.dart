@@ -3,11 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/database_service.dart';
+import '../services/agora_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
 import '../widgets/universal_drawer.dart';
+import 'conference_page.dart';
 
 class ManageSubscriptionsPage extends StatefulWidget {
   final User user;
@@ -445,9 +446,10 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     Color subtitleColor,
   ) {
     final title = session['meetingTitle'] as String? ?? 'Mentorship Session';
-    final app = session['conferenceApp'] as String? ?? 'google_meet';
-    final meetingLink = session['meetingLink'] as String? ?? '';
+    final agoraChannel = session['agoraChannel'] as String? ?? '';
+    final sessionId = session['id'] as String? ?? '';
     final educatorId = session['educatorId'] as String? ?? '';
+    final isCurrentUserEducator = widget.user.uid == educatorId;
 
     final startTime = (session['startTime'] as Timestamp?)?.toDate();
     final endTime = (session['endTime'] as Timestamp?)?.toDate();
@@ -508,7 +510,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                   ],
                 ),
               ),
-              _buildConferenceBadge(app),
+              _buildConferenceBadge(),
             ],
           ),
           const SizedBox(height: 14),
@@ -526,80 +528,77 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               ),
             ],
           ),
-          if (meetingLink.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                label: Text(
-                  'Join Meeting',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                  ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.video_call_rounded, size: 18),
+              label: Text(
+                'Join Conference',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3B82F6),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () async {
-                  final uri = Uri.parse(meetingLink);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  }
-                },
               ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF81B655),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () {
+                // Determine the channel to use
+                final channel = agoraChannel.isNotEmpty
+                    ? agoraChannel
+                    : AgoraService.instance.channelFromSessionId(
+                        sessionId.isNotEmpty ? sessionId : 'session',
+                      );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ConferencePage(
+                      channelName: channel,
+                      sessionId: sessionId,
+                      sessionTitle: title,
+                      otherParticipantName: isCurrentUserEducator
+                          ? (session['studentName'] as String? ?? 'Student')
+                          : 'Educator',
+                      isHost: isCurrentUserEducator,
+                      currentUser: widget.user,
+                    ),
+                  ),
+                );
+              },
             ),
-          ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildConferenceBadge(String app) {
-    final normApp = app.toLowerCase();
-    String name;
-    Color bg;
-    IconData icon;
-
-    if (normApp.contains('zoom')) {
-      name = 'Zoom';
-      bg = const Color(0xFF2D8CFF);
-      icon = Icons.videocam_rounded;
-    } else if (normApp.contains('team')) {
-      name = 'MS Teams';
-      bg = const Color(0xFF5B5FC7);
-      icon = Icons.groups_rounded;
-    } else {
-      name = 'Google Meet';
-      bg = const Color(0xFF00832D);
-      icon = Icons.video_call_rounded;
-    }
-
+  Widget _buildConferenceBadge() {
+    const brand = Color(0xFF81B655);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: bg.withValues(alpha: 0.12),
+        color: brand.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: bg.withValues(alpha: 0.3)),
+        border: Border.all(color: brand.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: bg),
+          const Icon(Icons.video_call_rounded, size: 16, color: brand),
           const SizedBox(width: 6),
           Text(
-            name,
+            'Agora',
             style: GoogleFonts.outfit(
               fontSize: 12,
               fontWeight: FontWeight.w800,
-              color: bg,
+              color: brand,
             ),
           ),
         ],
@@ -898,13 +897,13 @@ class LearnerMentorshipBookingModal extends StatefulWidget {
   });
 
   @override
-  State<LearnerMentorshipBookingModal> createState() => _LearnerMentorshipBookingModalState();
+  State<LearnerMentorshipBookingModal> createState() =>
+      _LearnerMentorshipBookingModalState();
 }
 
-class _LearnerMentorshipBookingModalState extends State<LearnerMentorshipBookingModal> {
+class _LearnerMentorshipBookingModalState
+    extends State<LearnerMentorshipBookingModal> {
   final _titleController = TextEditingController();
-  final _linkController = TextEditingController();
-  String _conferenceApp = 'google_meet';
   DateTime _date = DateTime.now();
   TimeOfDay _time = const TimeOfDay(hour: 9, minute: 0);
   int _duration = 60;
@@ -919,9 +918,31 @@ class _LearnerMentorshipBookingModalState extends State<LearnerMentorshipBooking
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AlertDialog(
-      title: Text('Schedule Mentorship Session', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF81B655).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.video_call_rounded,
+                color: Color(0xFF81B655), size: 20),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            'Schedule via Agora',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+        ],
+      ),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
         child: SingleChildScrollView(
@@ -929,32 +950,86 @@ class _LearnerMentorshipBookingModalState extends State<LearnerMentorshipBooking
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Meeting Title / Topic', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              // Agora info banner
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF81B655).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF81B655).withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded,
+                        color: Color(0xFF81B655), size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'The conference will be held in-app via Agora. Both participants tap "Join Conference" to start.',
+                        style: GoogleFonts.inter(
+                          color: isDark
+                              ? Colors.white70
+                              : const Color(0xFF334155),
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Text('Session Title / Topic',
+                  style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey)),
               const SizedBox(height: 8),
               TextField(
                 controller: _titleController,
+                style: GoogleFonts.inter(
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
                 decoration: InputDecoration(
                   hintText: 'e.g. Grammar Consultation & Practice',
                   filled: true,
-                  fillColor: Colors.grey.withValues(alpha: 0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                  fillColor: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.grey.withValues(alpha: 0.05),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none),
                 ),
               ),
               const SizedBox(height: 16),
 
-              Text('Select Educator', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              Text('Select Educator',
+                  style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey)),
               const SizedBox(height: 8),
               StreamBuilder<List<Map<String, dynamic>>>(
-                stream: DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid),
+                stream: DatabaseService.instance
+                    .streamLearnerSubscriptions(widget.user.uid),
                 builder: (context, snapshot) {
-                  final activeSubs = (snapshot.data ?? []).where((s) => s['status'] == 'active').toList();
+                  final activeSubs = (snapshot.data ?? [])
+                      .where((s) => s['status'] == 'active')
+                      .toList();
                   if (activeSubs.isEmpty) {
-                    return const Text('No active educator subscriptions found.', style: TextStyle(color: Colors.grey, fontSize: 13));
+                    return const Text(
+                        'No active educator subscriptions found.',
+                        style: TextStyle(color: Colors.grey, fontSize: 13));
                   }
 
-                  final initialVal = activeSubs.any((s) => s['educatorUid'] == _selectedEduUid)
-                      ? _selectedEduUid
-                      : activeSubs.first['educatorUid'] as String;
+                  final initialVal =
+                      activeSubs.any((s) =>
+                              s['educatorUid'] == _selectedEduUid)
+                          ? _selectedEduUid
+                          : activeSubs.first['educatorUid'] as String;
 
                   _selectedEduUid ??= initialVal;
 
@@ -963,44 +1038,37 @@ class _LearnerMentorshipBookingModalState extends State<LearnerMentorshipBooking
                     isExpanded: true,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey.withValues(alpha: 0.05),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                      fillColor: isDark
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.grey.withValues(alpha: 0.05),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none),
                     ),
                     items: activeSubs.map((s) {
                       final eduUid = s['educatorUid'] as String;
-                      final eduData = s['educatorData'] as Map<String, dynamic>? ?? {};
-                      final eduName = eduData['username'] as String? ?? 'Educator';
+                      final eduData =
+                          s['educatorData'] as Map<String, dynamic>? ?? {};
+                      final eduName =
+                          eduData['username'] as String? ?? 'Educator';
                       return DropdownMenuItem<String>(
                         value: eduUid,
                         child: Text(eduName),
                       );
                     }).toList(),
                     onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _selectedEduUid = val;
-                        });
-                      }
+                      if (val != null) setState(() => _selectedEduUid = val);
                     },
                   );
                 },
               ),
               const SizedBox(height: 16),
 
-              Text('Conference App', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: _buildAppChip('google_meet', 'Google Meet', Icons.video_call_rounded, const Color(0xFF00832D))),
-                  const SizedBox(width: 8),
-                  Expanded(child: _buildAppChip('zoom', 'Zoom', Icons.videocam_rounded, const Color(0xFF2D8CFF))),
-                  const SizedBox(width: 8),
-                  Expanded(child: _buildAppChip('teams', 'MS Teams', Icons.groups_rounded, const Color(0xFF5B5FC7))),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              Text('Schedule', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              Text('Schedule',
+                  style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey)),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -1010,10 +1078,11 @@ class _LearnerMentorshipBookingModalState extends State<LearnerMentorshipBooking
                       label: Text(DateFormat('MM/dd/yyyy').format(_date)),
                       onPressed: () async {
                         final picked = await showDatePicker(
-                          context: context, 
-                          initialDate: _date, 
-                          firstDate: DateTime.now(), 
-                          lastDate: DateTime.now().add(const Duration(days: 365))
+                          context: context,
+                          initialDate: _date,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now()
+                              .add(const Duration(days: 365)),
                         );
                         if (picked != null) setState(() => _date = picked);
                       },
@@ -1025,7 +1094,8 @@ class _LearnerMentorshipBookingModalState extends State<LearnerMentorshipBooking
                       icon: const Icon(Icons.access_time, size: 16),
                       label: Text(_time.format(context)),
                       onPressed: () async {
-                        final picked = await showTimePicker(context: context, initialTime: _time);
+                        final picked = await showTimePicker(
+                            context: context, initialTime: _time);
                         if (picked != null) setState(() => _time = picked);
                       },
                     ),
@@ -1033,29 +1103,28 @@ class _LearnerMentorshipBookingModalState extends State<LearnerMentorshipBooking
                 ],
               ),
               const SizedBox(height: 16),
-              Text('Duration', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              Text('Duration',
+                  style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey)),
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
                 initialValue: _duration,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Colors.grey.withValues(alpha: 0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                  fillColor: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.grey.withValues(alpha: 0.05),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none),
                 ),
-                items: [30, 45, 60, 90, 120].map((m) => DropdownMenuItem(value: m, child: Text('$m mins'))).toList(),
+                items: [30, 45, 60, 90, 120]
+                    .map((m) =>
+                        DropdownMenuItem(value: m, child: Text('$m mins')))
+                    .toList(),
                 onChanged: (val) => setState(() => _duration = val!),
-              ),
-              const SizedBox(height: 16),
-              Text('Meeting link (Optional)', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _linkController,
-                decoration: InputDecoration(
-                  hintText: 'https://meet.google.com/... or leave blank',
-                  filled: true,
-                  fillColor: Colors.grey.withValues(alpha: 0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                ),
               ),
             ],
           ),
@@ -1063,82 +1132,53 @@ class _LearnerMentorshipBookingModalState extends State<LearnerMentorshipBooking
       ),
       actions: [
         TextButton(
-          onPressed: _isSubmitting ? null : () => Navigator.pop(context), 
-          child: const Text('Cancel', style: TextStyle(color: Colors.grey))
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF81B655),
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8)),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
           onPressed: _isSubmitting ? null : _handleSchedule,
-          child: _isSubmitting 
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Schedule Meeting'),
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
+              : Text('Schedule',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
         ),
       ],
-    );
-  }
-
-  Widget _buildAppChip(String appKey, String label, IconData icon, Color color) {
-    final selected = _conferenceApp == appKey;
-    return InkWell(
-      onTap: () => setState(() => _conferenceApp = appKey),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.15) : Colors.grey.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? color : Colors.grey.shade300, width: selected ? 2 : 1),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: selected ? color : Colors.grey, size: 20),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                color: selected ? color : Colors.grey.shade700,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Future<void> _handleSchedule() async {
     final eduUid = _selectedEduUid;
     if (eduUid == null || eduUid.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select an educator')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select an educator')));
       return;
     }
-    
+
     setState(() => _isSubmitting = true);
-    
+
     try {
-      final start = DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute);
+      final start = DateTime(
+          _date.year, _date.month, _date.day, _time.hour, _time.minute);
       final end = start.add(Duration(minutes: _duration));
-      
-      final studentDoc = await DatabaseService.instance.getUserDoc(widget.user.uid);
-      final studentName = studentDoc?['username'] ?? widget.user.displayName ?? widget.user.email ?? 'Learner';
-      
-      String link = _linkController.text.trim();
-      if (link.isEmpty) {
-        if (_conferenceApp == 'zoom') {
-          link = 'https://zoom.us/join';
-        } else if (_conferenceApp == 'teams') {
-          link = 'https://teams.microsoft.com/';
-        } else {
-          link = 'https://meet.google.com/new';
-        }
-      }
+
+      final studentDoc =
+          await DatabaseService.instance.getUserDoc(widget.user.uid);
+      final studentName = studentDoc?['username'] ??
+          widget.user.displayName ??
+          widget.user.email ??
+          'Learner';
 
       await DatabaseService.instance.createMentorshipSession(
         educatorId: eduUid,
@@ -1146,18 +1186,19 @@ class _LearnerMentorshipBookingModalState extends State<LearnerMentorshipBooking
         studentName: studentName,
         startTime: start,
         endTime: end,
-        meetingLink: link,
-        conferenceApp: _conferenceApp,
-        meetingTitle: _titleController.text.trim().isNotEmpty ? _titleController.text.trim() : 'Mentorship Consultation',
+        conferenceApp: 'agora',
+        meetingTitle: _titleController.text.trim().isNotEmpty
+            ? _titleController.text.trim()
+            : 'Mentorship Consultation',
       );
-      
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Mentorship meeting scheduled successfully!'),
-            backgroundColor: Colors.green,
-          )
+            content: Text('Mentorship session scheduled successfully! Tap "Join Conference" when ready.'),
+            backgroundColor: Color(0xFF81B655),
+          ),
         );
       }
     } catch (e) {
@@ -1167,7 +1208,7 @@ class _LearnerMentorshipBookingModalState extends State<LearnerMentorshipBooking
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: Colors.red,
-          )
+          ),
         );
       }
     }
@@ -1176,7 +1217,6 @@ class _LearnerMentorshipBookingModalState extends State<LearnerMentorshipBooking
   @override
   void dispose() {
     _titleController.dispose();
-    _linkController.dispose();
     super.dispose();
   }
 }
