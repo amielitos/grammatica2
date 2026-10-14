@@ -143,7 +143,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (isRejected) ...[
-                              Icon(Icons.block_rounded, size: 14, color: isSelected ? color : AppColors.textSecondary),
+                              Icon(Icons.block_rounded, size: 14, color: isSelected ? color : (isDark ? Colors.white60 : AppColors.textSecondary)),
                               const SizedBox(width: 6),
                             ],
                             Text(
@@ -151,7 +151,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                               style: GoogleFonts.outfit(
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                                 fontSize: 15,
-                                color: isSelected ? color : AppColors.textSecondary,
+                                color: isSelected ? color : (isDark ? Colors.white70 : AppColors.textSecondary),
                               ),
                             ),
                           ],
@@ -228,12 +228,23 @@ class _EducatorApplicationsList extends StatelessWidget {
         }
         final items = snapshot.data ?? [];
         if (items.isEmpty) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           final typeStr = type == 'validator' ? 'validator' : 'educator';
           final msg = showRejected
               ? 'No rejected $typeStr applications.'
               : 'No $typeStr applications pending.';
-          return Center(child: Text(msg));
+          return Center(
+            child: Text(
+              msg,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                color: isDark ? Colors.white70 : AppColors.textSecondary,
+              ),
+            ),
+          );
         }
+
+        final isDark = Theme.of(context).brightness == Brightness.dark;
 
         return ListView.separated(
           padding: const EdgeInsets.all(16),
@@ -249,16 +260,18 @@ class _EducatorApplicationsList extends StatelessWidget {
             return Container(
               margin: const EdgeInsets.only(bottom: 24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
                 ],
-                border: Border.all(color: Colors.grey.shade100),
+                border: Border.all(
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -272,10 +285,10 @@ class _EducatorApplicationsList extends StatelessWidget {
                         final emailWidget = Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            const CircleAvatar(
+                            CircleAvatar(
                               radius: 20,
-                              backgroundColor: Color(0xFFE8EBF0),
-                              child: Icon(Icons.person, color: Colors.grey, size: 22),
+                              backgroundColor: isDark ? Colors.white12 : const Color(0xFFE8EBF0),
+                              child: Icon(Icons.person, color: isDark ? Colors.white70 : Colors.grey, size: 22),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -287,7 +300,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                                     style: GoogleFonts.outfit(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 14,
-                                      color: const Color(0xFF2C3E50),
+                                      color: isDark ? Colors.white : const Color(0xFF2C3E50),
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -295,7 +308,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                                   Text(
                                     'Applied: $appliedAtStr',
                                     style: GoogleFonts.inter(
-                                      color: Colors.grey.shade600,
+                                      color: isDark ? Colors.white60 : Colors.grey.shade600,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -369,7 +382,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                       },
                     ),
                   ),
-                  Divider(height: 1, color: Colors.grey.shade200),
+                  Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
                   // ── Credentials section with thumbnails ─────────────
                   if (!showRejected) ...[
                     Padding(
@@ -383,7 +396,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                               fontSize: 11,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 1.2,
-                              color: Colors.grey.shade500,
+                              color: isDark ? Colors.white60 : Colors.grey.shade500,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -615,7 +628,16 @@ class _ValidationList extends StatelessWidget {
         }
         final items = snapshot.data ?? [];
         if (items.isEmpty) {
-          return const Center(child: Text('No items awaiting approval.'));
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return Center(
+            child: Text(
+              'No items awaiting approval.',
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                color: isDark ? Colors.white70 : AppColors.textSecondary,
+              ),
+            ),
+          );
         }
 
         return ListView.separated(
@@ -776,7 +798,9 @@ class _ValidationList extends StatelessWidget {
               bottomNavigationBar: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF1E293B)
+                      : Colors.white,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.05),
@@ -966,6 +990,7 @@ class _AllRejectedTab extends StatelessWidget {
             final bool isEmpty = lessons.isEmpty && applications.isEmpty;
 
             if (isEmpty) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -973,13 +998,15 @@ class _AllRejectedTab extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: Colors.green.shade50,
+                        color: isDark
+                            ? Colors.green.shade900.withValues(alpha: 0.3)
+                            : Colors.green.shade50,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.check_circle_rounded,
                         size: 56,
-                        color: Colors.green.shade400,
+                        color: isDark ? const Color(0xFF81B655) : Colors.green.shade400,
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -988,14 +1015,14 @@ class _AllRejectedTab extends StatelessWidget {
                       style: GoogleFonts.outfit(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF2C3E50),
+                        color: isDark ? Colors.white : const Color(0xFF2C3E50),
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'All submitted content is clean.',
                       style: GoogleFonts.inter(
-                        color: Colors.grey.shade500,
+                        color: isDark ? Colors.white60 : Colors.grey.shade500,
                         fontSize: 14,
                       ),
                     ),
@@ -1065,6 +1092,7 @@ class _AllRejectedTab extends StatelessWidget {
     IconData icon,
     List<Widget> cards,
   ) {
+    final isDark = Theme.of(ctx).brightness == Brightness.dark;
     return [
       Padding(
         padding: const EdgeInsets.only(bottom: 12, top: 8),
@@ -1073,7 +1101,7 @@ class _AllRejectedTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFFE05050).withValues(alpha: 0.08),
+                color: const Color(0xFFE05050).withValues(alpha: isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: const Color(0xFFE05050), size: 18),
@@ -1084,20 +1112,20 @@ class _AllRejectedTab extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF2C3E50),
+                color: isDark ? Colors.white : const Color(0xFF2C3E50),
               ),
             ),
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFFE05050).withValues(alpha: 0.1),
+                color: const Color(0xFFE05050).withValues(alpha: isDark ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 '${cards.length}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFE05050),
+                  color: isDark ? const Color(0xFFFF8A80) : const Color(0xFFE05050),
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1136,17 +1164,26 @@ class _RejectedItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final reasonBg = isDark ? const Color(0xFF2E1717) : const Color(0xFFFFF3F3);
+    final reasonBorder = const Color(0xFFE05050).withValues(alpha: isDark ? 0.35 : 0.15);
+    final textTitleColor = isDark ? Colors.white : const Color(0xFF2C3E50);
+    final textSubColor = isDark ? Colors.white60 : Colors.grey.shade500;
+    final categoryTextColor = isDark ? const Color(0xFFFF8A80) : const Color(0xFFB71C1C);
+    final descTextColor = isDark ? const Color(0xFFFFCDD2) : const Color(0xFF7A2020);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFE05050).withValues(alpha: 0.15),
+          color: const Color(0xFFE05050).withValues(alpha: isDark ? 0.25 : 0.15),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -1162,7 +1199,7 @@ class _RejectedItem extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(9),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE05050).withValues(alpha: 0.08),
+                    color: const Color(0xFFE05050).withValues(alpha: isDark ? 0.15 : 0.08),
                     borderRadius: BorderRadius.circular(11),
                   ),
                   child: Icon(icon, color: const Color(0xFFE05050), size: 18),
@@ -1179,7 +1216,7 @@ class _RejectedItem extends StatelessWidget {
                         style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
-                          color: const Color(0xFF2C3E50),
+                          color: textTitleColor,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -1188,7 +1225,7 @@ class _RejectedItem extends StatelessWidget {
                         fallbackEmail: createdByEmail,
                         style: GoogleFonts.inter(
                           fontSize: 12,
-                          color: Colors.grey.shade500,
+                          color: textSubColor,
                         ),
                       ),
                     ],
@@ -1200,10 +1237,10 @@ class _RejectedItem extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE05050).withValues(alpha: 0.08),
+                    color: const Color(0xFFE05050).withValues(alpha: isDark ? 0.18 : 0.08),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: const Color(0xFFE05050).withValues(alpha: 0.2),
+                      color: const Color(0xFFE05050).withValues(alpha: isDark ? 0.4 : 0.2),
                     ),
                   ),
                   child: Row(
@@ -1218,7 +1255,7 @@ class _RejectedItem extends StatelessWidget {
                       Text(
                         'Rejected',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFE05050),
+                          color: isDark ? const Color(0xFFFF8A80) : const Color(0xFFE05050),
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1239,10 +1276,10 @@ class _RejectedItem extends StatelessWidget {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3F3),
+                    color: reasonBg,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: const Color(0xFFE05050).withValues(alpha: 0.15),
+                      color: reasonBorder,
                     ),
                   ),
                   child: Row(
@@ -1251,7 +1288,7 @@ class _RejectedItem extends StatelessWidget {
                       Icon(
                         Icons.info_outline_rounded,
                         size: 14,
-                        color: const Color(0xFFE05050).withValues(alpha: 0.7),
+                        color: isDark ? const Color(0xFFFF8A80) : const Color(0xFFE05050).withValues(alpha: 0.7),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -1265,7 +1302,7 @@ class _RejectedItem extends StatelessWidget {
                                   fontSize: 10,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.8,
-                                  color: const Color(0xFFB71C1C),
+                                  color: categoryTextColor,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -1275,7 +1312,7 @@ class _RejectedItem extends StatelessWidget {
                                 description!,
                                 style: GoogleFonts.inter(
                                   fontSize: 13,
-                                  color: const Color(0xFF7A2020),
+                                  color: descTextColor,
                                   height: 1.4,
                                 ),
                               )
@@ -1284,7 +1321,7 @@ class _RejectedItem extends StatelessWidget {
                                 reason!,
                                 style: GoogleFonts.inter(
                                   fontSize: 13,
-                                  color: const Color(0xFF7A2020),
+                                  color: descTextColor,
                                   height: 1.4,
                                 ),
                               ),
@@ -1300,7 +1337,7 @@ class _RejectedItem extends StatelessWidget {
               'Submitted: $createdAtStr',
               style: GoogleFonts.inter(
                 fontSize: 11,
-                color: Colors.grey.shade400,
+                color: isDark ? Colors.white54 : Colors.grey.shade400,
               ),
             ),
           ],
@@ -1356,6 +1393,11 @@ class _ValidationCredentialThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : Colors.grey.shade300;
+    final labelTextColor = isDark ? Colors.white : const Color(0xFF1E293B);
+
     return GestureDetector(
       onTap: () => _preview(context),
       child: Container(
@@ -1365,8 +1407,8 @@ class _ValidationCredentialThumb extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade300, width: 1.2),
-          color: Colors.white,
+          border: Border.all(color: borderColor, width: 1.2),
+          color: cardBg,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
@@ -1382,7 +1424,7 @@ class _ValidationCredentialThumb extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _buildContentTile(),
+                  _buildContentTile(isDark),
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
@@ -1418,7 +1460,7 @@ class _ValidationCredentialThumb extends StatelessWidget {
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              color: Colors.white,
+              color: cardBg,
               child: Text(
                 label,
                 textAlign: TextAlign.center,
@@ -1427,7 +1469,7 @@ class _ValidationCredentialThumb extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E293B),
+                  color: labelTextColor,
                 ),
               ),
             ),
@@ -1437,14 +1479,14 @@ class _ValidationCredentialThumb extends StatelessWidget {
     );
   }
 
-  Widget _buildContentTile() {
+  Widget _buildContentTile(bool isDark) {
     if (_isImage) {
       return Image.network(
         url,
         fit: BoxFit.cover,
         loadingBuilder: (ctx, child, progress) =>
-            progress == null ? child : _placeholder(),
-        errorBuilder: (context, error, stackTrace) => _placeholder(),
+            progress == null ? child : _placeholder(isDark),
+        errorBuilder: (context, error, stackTrace) => _placeholder(isDark),
       );
     }
     if (_isVideo) {
@@ -1472,7 +1514,7 @@ class _ValidationCredentialThumb extends StatelessWidget {
     }
     if (_isPdf) {
       return Container(
-        color: const Color(0xFFFEF2F2),
+        color: isDark ? const Color(0xFF2C1515) : const Color(0xFFFEF2F2),
         child: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1498,17 +1540,17 @@ class _ValidationCredentialThumb extends StatelessWidget {
       );
     }
     return Container(
-      color: const Color(0xFFF1F5F9),
+      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(fallbackIcon, size: 46, color: Colors.grey.shade400),
+            Icon(fallbackIcon, size: 46, color: isDark ? Colors.white38 : Colors.grey.shade400),
             const SizedBox(height: 6),
             Text(
               'DOCUMENT',
               style: TextStyle(
-                color: Colors.grey.shade600,
+                color: isDark ? Colors.white60 : Colors.grey.shade600,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.8,
@@ -1520,10 +1562,10 @@ class _ValidationCredentialThumb extends StatelessWidget {
     );
   }
 
-  Widget _placeholder() => Container(
-    color: Colors.grey.shade100,
+  Widget _placeholder(bool isDark) => Container(
+    color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
     child: Center(
-      child: Icon(fallbackIcon, size: 36, color: Colors.grey.shade300),
+      child: Icon(fallbackIcon, size: 36, color: isDark ? Colors.white30 : Colors.grey.shade300),
     ),
   );
 

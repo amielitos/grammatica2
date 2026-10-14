@@ -217,6 +217,7 @@ class ValidatorDashboardTab extends StatelessWidget {
     required Color cardColor,
     required Color textPrimary,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -225,12 +226,12 @@ class ValidatorDashboardTab extends StatelessWidget {
         border: Border.all(
           color: status == 'rejected'
               ? _kRejected.withValues(alpha: 0.2)
-              : cardColor,
+              : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -294,6 +295,7 @@ class ValidatorDashboardTab extends StatelessWidget {
     required Color cardColor,
     required Color textPrimary,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -302,12 +304,12 @@ class ValidatorDashboardTab extends StatelessWidget {
         border: Border.all(
           color: showRejected
               ? _kRejected.withValues(alpha: 0.18)
-              : cardColor,
+              : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -371,7 +373,7 @@ class ValidatorDashboardTab extends StatelessWidget {
 
           // Credential thumbnails (only for pending, since URLs are cleared on rejection)
           if (!showRejected) ...[
-            Divider(height: 1, color: Colors.grey.shade100),
+            Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade100),
             Padding(
               padding: const EdgeInsets.all(16),
               child: _CredentialThumbnailRow(app: app),
@@ -639,6 +641,11 @@ class _CredentialThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : Colors.grey.shade300;
+    final labelTextColor = isDark ? Colors.white : AppColors.textPrimary;
+
     return GestureDetector(
       onTap: () => _previewFile(context),
       child: Container(
@@ -646,12 +653,12 @@ class _CredentialThumbnail extends StatelessWidget {
         height: 150,
         margin: const EdgeInsets.only(right: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade300, width: 1.2),
+          border: Border.all(color: borderColor, width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -666,7 +673,7 @@ class _CredentialThumbnail extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _buildContentTile(),
+                  _buildContentTile(isDark),
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
@@ -696,7 +703,7 @@ class _CredentialThumbnail extends StatelessWidget {
             // Label
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              color: Colors.white,
+              color: cardBg,
               child: Text(
                 label,
                 textAlign: TextAlign.center,
@@ -705,7 +712,7 @@ class _CredentialThumbnail extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: labelTextColor,
                 ),
               ),
             ),
@@ -715,14 +722,14 @@ class _CredentialThumbnail extends StatelessWidget {
     );
   }
 
-  Widget _buildContentTile() {
+  Widget _buildContentTile(bool isDark) {
     if (_isImage) {
       return Image.network(
         url,
         fit: BoxFit.cover,
         loadingBuilder: (ctx, child, progress) =>
-            progress == null ? child : _placeholder(),
-        errorBuilder: (context, error, stackTrace) => _placeholder(),
+            progress == null ? child : _placeholder(isDark),
+        errorBuilder: (context, error, stackTrace) => _placeholder(isDark),
       );
     }
     if (_isVideo) {
@@ -742,7 +749,7 @@ class _CredentialThumbnail extends StatelessWidget {
     }
     if (_isPdf) {
       return Container(
-        color: const Color(0xFFFEF2F2),
+        color: isDark ? const Color(0xFF2C1515) : const Color(0xFFFEF2F2),
         child: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -756,24 +763,24 @@ class _CredentialThumbnail extends StatelessWidget {
       );
     }
     return Container(
-      color: const Color(0xFFF1F5F9),
+      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(fallbackIcon, size: 46, color: Colors.grey.shade400),
+            Icon(fallbackIcon, size: 46, color: isDark ? Colors.white38 : Colors.grey.shade400),
             const SizedBox(height: 6),
-            Text('DOCUMENT', style: TextStyle(color: Colors.grey.shade600, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+            Text('DOCUMENT', style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
           ],
         ),
       ),
     );
   }
 
-  Widget _placeholder() => Container(
-        color: Colors.grey.shade100,
+  Widget _placeholder(bool isDark) => Container(
+        color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
         child: Center(
-          child: Icon(fallbackIcon, size: 36, color: Colors.grey.shade300),
+          child: Icon(fallbackIcon, size: 36, color: isDark ? Colors.white30 : Colors.grey.shade300),
         ),
       );
 
@@ -854,12 +861,13 @@ class _LoadingShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: List.generate(2, (_) => Container(
         margin: const EdgeInsets.only(bottom: 12),
         height: 72,
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
+          color: isDark ? Colors.white10 : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(20),
         ),
       )),

@@ -40,16 +40,8 @@ class ProfilePageState extends State<ProfilePage> {
 
   final _usernameCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
-  final _currentPasswordCtrl = TextEditingController();
-  final _newPasswordCtrl = TextEditingController();
-  final _confirmPasswordCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _phoneFocus = FocusNode();
-  String? _info;
-  String? _error;
-  final bool _obscureCurrentPassword = true;
-  final bool _obscureNewPassword = true;
-  final bool _obscureConfirmPassword = true;
 
   // Local state for profile data
   bool _isEditing = false;
@@ -72,9 +64,6 @@ class ProfilePageState extends State<ProfilePage> {
   void dispose() {
     _usernameCtrl.dispose();
     _bioCtrl.dispose();
-    _currentPasswordCtrl.dispose();
-    _newPasswordCtrl.dispose();
-    _confirmPasswordCtrl.dispose();
     _phoneCtrl.dispose();
     _phoneFocus.dispose();
     super.dispose();
@@ -261,24 +250,35 @@ class ProfilePageState extends State<ProfilePage> {
     }
   }
 
-    InputDecoration _customInputDecoration({required String hint}) {
-    // Inputs remain white even in dark mode based on the mock-up
+  InputDecoration _customInputDecoration({
+    required String hint,
+    Widget? suffixIcon,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(fontSize: 14, color: Colors.black54),
+      hintStyle: TextStyle(
+        fontSize: 14,
+        color: isDark ? Colors.white54 : Colors.black54,
+      ),
+      suffixIcon: suffixIcon,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: isDark ? const Color(0xFF22262B) : Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.grey),
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: isDark ? const Color(0xFF384350) : Colors.grey.shade300,
+        ),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.grey),
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: isDark ? const Color(0xFF384350) : Colors.grey.shade300,
+        ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: Color(0xFF81B655), width: 2),
       ),
     );
@@ -631,7 +631,7 @@ class ProfilePageState extends State<ProfilePage> {
             _buildEditLabel('Username'),
             TextField(
               controller: _usernameCtrl,
-              style: const TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
               decoration: _customInputDecoration(hint: 'New Username'),
             ),
             const SizedBox(height: 24),
@@ -641,7 +641,7 @@ class ProfilePageState extends State<ProfilePage> {
               controller: _bioCtrl,
               maxLength: 300,
               maxLines: 3,
-              style: const TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
               decoration: _customInputDecoration(hint: 'Tell us about yourself...'),
             ),
             const SizedBox(height: 24),
@@ -651,6 +651,8 @@ class ProfilePageState extends State<ProfilePage> {
               controller: _phoneCtrl,
               focusNode: _phoneFocus,
               initialCountryCode: 'PH',
+              style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+              dropdownTextStyle: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
               decoration: _customInputDecoration(hint: 'Phone Number'),
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
@@ -666,7 +668,7 @@ class ProfilePageState extends State<ProfilePage> {
                 decoration: _customInputDecoration(hint: ''),
                 child: Text(
                   _dob != null ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}' : 'Select Date of Birth',
-                  style: TextStyle(fontSize: 14, color: _dob != null ? Colors.black : Colors.black54),
+                  style: TextStyle(fontSize: 14, color: _dob != null ? (isDark ? Colors.white : Colors.black) : (isDark ? Colors.white54 : Colors.black54)),
                 ),
               ),
             ),
@@ -723,6 +725,7 @@ class ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildRightColumn(UserRole role, {required bool isWide}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -734,63 +737,7 @@ class ProfilePageState extends State<ProfilePage> {
               child: _buildThemeToggle(),
             ),
           ),
-          
-        _buildCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Change Password', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _currentPasswordCtrl,
-                obscureText: _obscureCurrentPassword,
-                style: const TextStyle(fontSize: 14),
-                decoration: _customInputDecoration(hint: 'Current Password'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _newPasswordCtrl,
-                obscureText: _obscureNewPassword,
-                style: const TextStyle(fontSize: 14),
-                decoration: _customInputDecoration(hint: 'New Password'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _confirmPasswordCtrl,
-                obscureText: _obscureConfirmPassword,
-                style: const TextStyle(fontSize: 14),
-                decoration: _customInputDecoration(hint: 'Confirm New Password'),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: Colors.red)),
-              ],
-              if (_info != null) ...[
-                const SizedBox(height: 12),
-                Text(_info!, style: const TextStyle(color: Color(0xFF81B655))),
-              ],
-              const SizedBox(height: 24),
-              _buildGreenButton('Update Password', () async {
-                setState(() { _info = null; _error = null; });
-                final email = widget.user.email;
-                final current = _currentPasswordCtrl.text;
-                final newPass = _newPasswordCtrl.text;
-                final confirm = _confirmPasswordCtrl.text;
-                if (email == null) { setState(() => _error = 'No email on account.'); return; }
-                if (newPass != confirm) { setState(() => _error = 'New passwords do not match.'); return; }
-                try {
-                  final cred = EmailAuthProvider.credential(email: email, password: current);
-                  await widget.user.reauthenticateWithCredential(cred);
-                  await widget.user.updatePassword(newPass);
-                  setState(() => _info = 'Password updated');
-                  _currentPasswordCtrl.clear(); _newPasswordCtrl.clear(); _confirmPasswordCtrl.clear();
-                } catch (e) {
-                  setState(() => _error = 'Failed to update password. Check current password.');
-                }
-              }),
-            ],
-          ),
-        ),
+        _ChangePasswordCard(user: widget.user),
 
         if (role != UserRole.educator && role != UserRole.validator)
           _buildCard(
@@ -834,14 +781,53 @@ class ProfilePageState extends State<ProfilePage> {
             ),
           ),
 
-        Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 56,
+        if (isWide)
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 56,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDF3F32), // EXACT mockup Red
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () => AuthService.instance.signOut(),
+                    child: const Text('Sign out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                ),
+              ),
+              if (role != UserRole.admin && role != UserRole.superadmin) ...[
+                const SizedBox(width: 16),
+                Expanded(
+                  child: SizedBox(
+                    height: 56,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: isDark ? const Color(0xFF333333) : Colors.white,
+                        foregroundColor: isDark ? Colors.white : Colors.black,
+                        side: BorderSide(color: isDark ? Colors.transparent : Colors.black, width: isDark ? 0 : 2),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => _confirmDeactivateAccount(),
+                      child: const Text('Deactivate Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          )
+        else
+          Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                height: 52,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFDF3F32), // EXACT mockup Red
+                    backgroundColor: const Color(0xFFDF3F32),
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -850,50 +836,25 @@ class ProfilePageState extends State<ProfilePage> {
                   child: const Text('Sign out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
-            ),
-            if (role != UserRole.admin && role != UserRole.superadmin) ...[
-              const SizedBox(width: 16),
-              Expanded(
-                child: SizedBox(
-                  height: 56,
+              if (role != UserRole.admin && role != UserRole.superadmin) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
-                      backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF333333) : Colors.white,
-                      foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
-                      side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.transparent : Colors.black, width: Theme.of(context).brightness == Brightness.dark ? 0 : 2),
+                      backgroundColor: isDark ? const Color(0xFF333333) : Colors.white,
+                      foregroundColor: isDark ? Colors.white : Colors.black,
+                      side: BorderSide(color: isDark ? Colors.transparent : Colors.black, width: isDark ? 0 : 2),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (c) => AlertDialog(
-                          title: const Text('Deactivate Account?'),
-                          content: const Text('Your account will be deactivated and you will be signed out.'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                            FilledButton(
-                              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDF3F32), foregroundColor: Colors.white),
-                              onPressed: () => Navigator.pop(c, true),
-                              child: const Text('Deactivate'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirm == true) {
-                        try {
-                          await AuthService.instance.deactivateAccount();
-                        } catch (e) {
-                          _showSnack('Deactivation failed: $e', error: true);
-                        }
-                      }
-                    },
+                    onPressed: () => _confirmDeactivateAccount(),
                     child: const Text('Deactivate Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
                 ),
-              ),
+              ],
             ],
-          ],
-        ),
+          ),
 
         if (role != UserRole.admin && role != UserRole.superadmin) ...[
           const SizedBox(height: 16),
@@ -959,6 +920,36 @@ class ProfilePageState extends State<ProfilePage> {
         ],
       ],
     );
+  }
+
+  Future<void> _confirmDeactivateAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Deactivate Account?'),
+        content: const Text(
+            'Your account will be deactivated and you will be signed out.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDF3F32),
+                foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Deactivate'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        await AuthService.instance.deactivateAccount();
+      } catch (e) {
+        _showSnack('Deactivation failed: $e', error: true);
+      }
+    }
   }
 
   Future<void> _confirmDeleteAccount() async {
@@ -1642,3 +1633,334 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
     );
   }
 }
+
+class _ChangePasswordCard extends StatefulWidget {
+  final User user;
+  const _ChangePasswordCard({required this.user});
+
+  @override
+  State<_ChangePasswordCard> createState() => _ChangePasswordCardState();
+}
+
+class _ChangePasswordCardState extends State<_ChangePasswordCard> {
+  final _currentPasswordCtrl = TextEditingController();
+  final _newPasswordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
+  String? _info;
+  String? _error;
+  bool _obscureCurrentPassword = true;
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _currentPasswordCtrl.dispose();
+    _newPasswordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _inputDecoration({
+    required BuildContext context,
+    required String hint,
+    Widget? suffixIcon,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(
+        fontSize: 14,
+        color: isDark ? Colors.white54 : Colors.black54,
+      ),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: isDark ? const Color(0xFF22262B) : Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: isDark ? const Color(0xFF384350) : Colors.grey.shade300,
+        ),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: isDark ? const Color(0xFF384350) : Colors.grey.shade300,
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF81B655), width: 2),
+      ),
+    );
+  }
+
+  Future<void> _updatePassword() async {
+    setState(() {
+      _info = null;
+      _error = null;
+    });
+    final email = widget.user.email;
+    final current = _currentPasswordCtrl.text;
+    final newPass = _newPasswordCtrl.text;
+    final confirm = _confirmPasswordCtrl.text;
+
+    if (email == null) {
+      setState(() => _error = 'No email on account.');
+      return;
+    }
+    if (current.isEmpty) {
+      setState(() => _error = 'Please enter your current password.');
+      return;
+    }
+    if (newPass.length < 6) {
+      setState(() => _error = 'Password must be at least 6 characters.');
+      return;
+    }
+    if (newPass != confirm) {
+      setState(() => _error = 'New passwords do not match.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final cred = EmailAuthProvider.credential(email: email, password: current);
+      await widget.user.reauthenticateWithCredential(cred);
+      await widget.user.updatePassword(newPass);
+      if (mounted) {
+        setState(() {
+          _info = 'Password updated successfully!';
+          _isLoading = false;
+        });
+        _currentPasswordCtrl.clear();
+        _newPasswordCtrl.clear();
+        _confirmPasswordCtrl.clear();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to update password. Check current password.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hasNewPass = _newPasswordCtrl.text.isNotEmpty;
+    final hasConfirmPass = _confirmPasswordCtrl.text.isNotEmpty;
+    final bool passwordsMatch = hasNewPass &&
+        hasConfirmPass &&
+        (_newPasswordCtrl.text == _confirmPasswordCtrl.text);
+    final bool hasMinLength = _newPasswordCtrl.text.length >= 6;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF333333) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Change Password',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+          ),
+          const SizedBox(height: 24),
+          TextField(
+            controller: _currentPasswordCtrl,
+            obscureText: _obscureCurrentPassword,
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            decoration: _inputDecoration(
+              context: context,
+              hint: 'Current Password',
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureCurrentPassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  size: 20,
+                ),
+                onPressed: () => setState(
+                  () => _obscureCurrentPassword = !_obscureCurrentPassword,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _newPasswordCtrl,
+            obscureText: _obscureNewPassword,
+            onChanged: (_) => setState(() {}),
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            decoration: _inputDecoration(
+              context: context,
+              hint: 'New Password',
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureNewPassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  size: 20,
+                ),
+                onPressed: () => setState(
+                  () => _obscureNewPassword = !_obscureNewPassword,
+                ),
+              ),
+            ),
+          ),
+          if (hasNewPass) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  hasMinLength
+                      ? Icons.check_circle_rounded
+                      : Icons.info_outline_rounded,
+                  size: 15,
+                  color: hasMinLength
+                      ? const Color(0xFF81B655)
+                      : Colors.orange,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  hasMinLength
+                      ? 'At least 6 characters met'
+                      : 'Password must be at least 6 characters',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: hasMinLength
+                        ? const Color(0xFF81B655)
+                        : Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 16),
+          TextField(
+            controller: _confirmPasswordCtrl,
+            obscureText: _obscureConfirmPassword,
+            onChanged: (_) => setState(() {}),
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+            decoration: _inputDecoration(
+              context: context,
+              hint: 'Confirm New Password',
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureConfirmPassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  size: 20,
+                ),
+                onPressed: () => setState(
+                  () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                ),
+              ),
+            ),
+          ),
+          if (hasConfirmPass) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  passwordsMatch
+                      ? Icons.check_circle_rounded
+                      : Icons.cancel_rounded,
+                  size: 15,
+                  color: passwordsMatch
+                      ? const Color(0xFF81B655)
+                      : Colors.redAccent,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  passwordsMatch
+                      ? 'Passwords match'
+                      : 'Passwords do not match',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: passwordsMatch
+                        ? const Color(0xFF81B655)
+                        : Colors.redAccent,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+          ],
+          if (_info != null) ...[
+            const SizedBox(height: 12),
+            Text(_info!, style: const TextStyle(color: Color(0xFF81B655))),
+          ],
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _updatePassword,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF81B655),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Update Password',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

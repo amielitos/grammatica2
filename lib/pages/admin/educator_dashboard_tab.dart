@@ -26,6 +26,8 @@ class EducatorDashboardTab extends StatelessWidget {
     final username = (userData['username'] as String?)?.split(' ').first ?? 'Educator';
     final isPremium = (userData['subscription'] as String?)?.toLowerCase() == 'premium';
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return BackgroundWrapper(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
@@ -39,7 +41,7 @@ class EducatorDashboardTab extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
+                    color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1),
                     borderRadius: BorderRadius.circular(100),
                   ),
                   child: Row(
@@ -68,7 +70,7 @@ class EducatorDashboardTab extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontSize: 48,
                     fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
                     letterSpacing: -1.5,
                     height: 1.1,
                   ),
@@ -78,7 +80,7 @@ class EducatorDashboardTab extends StatelessWidget {
                   'Track your lessons, ratings, and teaching impact in one place.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
-                    color: AppColors.textSecondary,
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
                     fontSize: 18,
                     height: 1.5,
                   ),
@@ -222,16 +224,19 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 300,
       padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF242C35) : Colors.white,
         borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: color.withValues(alpha: 0.06)),
+        border: Border.all(
+          color: isDark ? color.withValues(alpha: 0.25) : color.withValues(alpha: 0.06),
+        ),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.08),
+            color: isDark ? Colors.black26 : color.withValues(alpha: 0.08),
             blurRadius: 30,
             offset: const Offset(0, 15),
           ),
@@ -242,7 +247,7 @@ class _StatCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: color.withValues(alpha: isDark ? 0.2 : 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 40),
@@ -253,7 +258,7 @@ class _StatCard extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 56,
               fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
+              color: isDark ? Colors.white : AppColors.textPrimary,
               height: 1,
             ),
           ),
@@ -262,7 +267,7 @@ class _StatCard extends StatelessWidget {
             label.toUpperCase(),
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
-              color: AppColors.textSecondary,
+              color: isDark ? Colors.white70 : AppColors.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.5,
@@ -289,12 +294,13 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
+            color: color.withValues(alpha: isDark ? 0.2 : 0.1),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(icon, color: color, size: 22),
@@ -305,7 +311,7 @@ class _SectionHeader extends StatelessWidget {
           style: GoogleFonts.outfit(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+            color: isDark ? Colors.white : AppColors.textPrimary,
           ),
         ),
       ],
@@ -426,14 +432,18 @@ class _QuickActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
+        color: isDark ? const Color(0xFF242C35) : Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: item.color.withValues(alpha: 0.12), width: 1.5),
+        border: Border.all(
+          color: item.color.withValues(alpha: isDark ? 0.35 : 0.12),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: item.color.withValues(alpha: 0.06),
+            color: isDark ? Colors.black26 : item.color.withValues(alpha: 0.06),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -452,7 +462,7 @@ class _QuickActionCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: item.color.withValues(alpha: 0.1),
+                    color: item.color.withValues(alpha: isDark ? 0.2 : 0.1),
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Icon(item.icon, color: item.color, size: 30),
@@ -467,7 +477,7 @@ class _QuickActionCard extends StatelessWidget {
                         style: GoogleFonts.outfit(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: isDark ? Colors.white : AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -475,7 +485,7 @@ class _QuickActionCard extends StatelessWidget {
                         item.description,
                         style: GoogleFonts.inter(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: isDark ? Colors.white70 : AppColors.textSecondary,
                           height: 1.4,
                         ),
                       ),
@@ -567,25 +577,29 @@ class _RecentLessonsList extends StatelessWidget {
   }
 
   Widget _buildEmptyLessons(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.6),
+        color: isDark ? const Color(0xFF242C35) : Colors.white.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.white, width: 2),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : Colors.white,
+          width: 2,
+        ),
       ),
       child: Column(
         children: [
           Icon(Icons.menu_book_rounded,
-              size: 56, color: AppColors.primary.withValues(alpha: 0.2)),
+              size: 56, color: AppColors.primary.withValues(alpha: isDark ? 0.35 : 0.2)),
           const SizedBox(height: 20),
           Text(
             'No approved lessons yet',
             style: GoogleFonts.outfit(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: AppColors.textSecondary,
+              color: isDark ? Colors.white : AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
@@ -593,7 +607,7 @@ class _RecentLessonsList extends StatelessWidget {
             'Start sharing your knowledge — create your first lesson!',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
-              color: AppColors.textSecondary,
+              color: isDark ? Colors.white70 : AppColors.textSecondary,
               fontSize: 15,
               height: 1.5,
             ),
@@ -663,25 +677,29 @@ class _MyQuizzesSection extends StatelessWidget {
         }
 
         if (myQuizzes.isEmpty) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           return Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.6),
+              color: isDark ? const Color(0xFF242C35) : Colors.white.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: Colors.white, width: 2),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : Colors.white,
+                width: 2,
+              ),
             ),
             child: Column(
               children: [
                 Icon(Icons.quiz_rounded,
-                    size: 56, color: const Color(0xFFF5A623).withValues(alpha: 0.3)),
+                    size: 56, color: const Color(0xFFF5A623).withValues(alpha: isDark ? 0.4 : 0.3)),
                 const SizedBox(height: 16),
                 Text(
                   'No Quizzes Found',
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textSecondary,
+                    color: isDark ? Colors.white : AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -689,7 +707,7 @@ class _MyQuizzesSection extends StatelessWidget {
                   'Create interactive quizzes to test student comprehension.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
-                    color: AppColors.textSecondary,
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
                     fontSize: 14,
                   ),
                 ),
@@ -716,6 +734,7 @@ class _MyQuizzesSection extends StatelessWidget {
           );
         }
 
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Wrap(
           spacing: 20,
           runSpacing: 20,
@@ -725,12 +744,14 @@ class _MyQuizzesSection extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: isDark ? const Color(0xFF242C35) : Colors.white.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFF5A623).withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: const Color(0xFFF5A623).withValues(alpha: isDark ? 0.35 : 0.2),
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
+                      color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.03),
                       blurRadius: 15,
                       offset: const Offset(0, 8),
                     ),
@@ -744,7 +765,7 @@ class _MyQuizzesSection extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF5A623).withValues(alpha: 0.1),
+                            color: const Color(0xFFF5A623).withValues(alpha: isDark ? 0.2 : 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(Icons.quiz_rounded,
@@ -759,7 +780,7 @@ class _MyQuizzesSection extends StatelessWidget {
                             style: GoogleFonts.outfit(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: isDark ? Colors.white : AppColors.textPrimary,
                             ),
                           ),
                         ),
@@ -774,7 +795,7 @@ class _MyQuizzesSection extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: isDark ? Colors.white70 : AppColors.textSecondary,
                         height: 1.4,
                       ),
                     ),
@@ -861,15 +882,19 @@ class _LessonRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
+        color: isDark ? const Color(0xFF242C35) : Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white, width: 1.5),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : Colors.white,
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.03),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -888,7 +913,7 @@ class _LessonRow extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
+                    color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(Icons.description_rounded,
@@ -908,7 +933,7 @@ class _LessonRow extends StatelessWidget {
                         style: GoogleFonts.outfit(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: isDark ? Colors.white : AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -931,7 +956,7 @@ class _LessonRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Icon(Icons.chevron_right_rounded,
-                    color: AppColors.divider, size: 32),
+                    color: isDark ? Colors.white38 : AppColors.divider, size: 32),
               ],
             ),
           ),

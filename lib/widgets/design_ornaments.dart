@@ -10,8 +10,19 @@ class BackgroundWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark
+        ? Theme.of(context).scaffoldBackgroundColor
+        : AppColors.backgroundBase;
+    final blob1Color = isDark
+        ? AppColors.primary.withValues(alpha: 0.12)
+        : AppColors.blobLightGreen;
+    final blob2Color = isDark
+        ? AppColors.secondary.withValues(alpha: 0.08)
+        : AppColors.blobLightYellow;
+
     return Container(
-      color: AppColors.backgroundBase,
+      color: backgroundColor,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -24,42 +35,42 @@ class BackgroundWrapper extends StatelessWidget {
             )
           else ...[
             // Background Blob 1
-          Positioned(
-            top: -100,
-            left: -50,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: const BoxDecoration(
-                color: AppColors.blobLightGreen,
-                shape: BoxShape.circle,
+            Positioned(
+              top: -100,
+              left: -50,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  color: blob1Color,
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-          ),
-          // Background Blob 2
-          Positioned(
-            bottom: -50,
-            right: -100,
-            child: Container(
-              width: 350,
-              height: 350,
-              decoration: const BoxDecoration(
-                color: AppColors.blobLightYellow,
-                shape: BoxShape.circle,
+            // Background Blob 2
+            Positioned(
+              bottom: -50,
+              right: -100,
+              child: Container(
+                width: 350,
+                height: 350,
+                decoration: BoxDecoration(
+                  color: blob2Color,
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-          ),
-          // Blur Effect Layer
-          Positioned.fill(
-            child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-                child: Container(
-                color: Colors.transparent,
+            // Blur Effect Layer
+            Positioned.fill(
+              child: ClipRect(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+                  child: Container(
+                    color: Colors.transparent,
+                  ),
+                ),
+              ),
             ),
-          ),
-          ),
-          ),
           ],
           // Content
           SafeArea(child: child),

@@ -458,7 +458,9 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
       stream: DatabaseService.instance.isSubscribedStream(uid),
       builder: (context, subSnap) {
         final isSubscribed = subSnap.data ?? false;
-        return Row(
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
           children: [
             SizedBox(
               height: 44,
@@ -654,8 +656,8 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
 
         return GridView.builder(
           gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 340,
-            childAspectRatio: 1.15,
+            maxCrossAxisExtent: 360,
+            mainAxisExtent: 245,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),

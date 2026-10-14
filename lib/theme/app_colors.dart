@@ -29,6 +29,8 @@ class AppColors {
   static const Color onSurfaceVariant = Color(0xFF70787D);
 
   static Color getTextColor(BuildContext context) {
-    return textPrimary;
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : textPrimary;
   }
 }

@@ -151,7 +151,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             ),
           ),
         Padding(
-          padding: EdgeInsets.symmetric(vertical: widget.onBack != null ? 24 : 100, horizontal: 24),
+          padding: EdgeInsets.symmetric(
+            vertical: widget.onBack != null ? 16 : 24,
+            horizontal: 24,
+          ),
           child: Align(
             alignment: Alignment.centerLeft,
             child: ConstrainedBox(
@@ -172,8 +175,8 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             padding: const EdgeInsets.all(24),
             child: Center(
               child: Wrap(
-                spacing: 24,
-                runSpacing: 24,
+                spacing: 20,
+                runSpacing: 20,
                 alignment: WrapAlignment.center,
                 children: filteredAuthors.map((authorUid) {
                   final lessons = authorLessons[authorUid] ?? [];
@@ -182,16 +185,19 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       ? lessons.first.createdByEmail
                       : (published.isNotEmpty ? published.first.createdByEmail : null);
                   final totalCount = lessons.length + published.length;
+                  final isMobile = MediaQuery.of(context).size.width < 650;
 
                   return SizedBox(
-                    width: 260,
-                    height: 300,
+                    width: isMobile ? double.infinity : 280,
+                    height: 290,
                     child: Card(
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
-                        side: BorderSide(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        side: BorderSide(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        ),
                       ),
                       child: InkWell(
                         onTap: () {
@@ -519,7 +525,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                   ),
                 Padding(
                   padding: EdgeInsets.fromLTRB(
-                      28, widget.onBack != null ? 16 : 100, 28, 0),
+                      28, widget.onBack != null ? 16 : 32, 28, 0),
                   child: Center(
                     child: Text(
                       widget.title,
@@ -730,7 +736,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       children: [
                         Expanded(flex: 6, child: contentBlock),
                         SizedBox(
-                          width: 260,
+                          width: 280,
                           child: SingleChildScrollView(
                             padding: const EdgeInsets.fromLTRB(0, 0, 24, 32),
                             child: metricsBlock,
@@ -742,13 +748,142 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                 ],
               );
             } else {
-              return Column(
-                children: [
-                  headerBlock,
-                  Expanded(child: contentBlock),
-                  Padding(
-                      padding: const EdgeInsets.all(24), child: metricsBlock),
-                ],
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    headerBlock,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: metricsBlock,
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                      child: !hasAnyItems
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(32),
+                                child: Text('No materials found.',
+                                    style: TextStyle(
+                                        color: isDark
+                                            ? Colors.white54
+                                            : AppColors.textSecondary)),
+                              ),
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (filteredLessons.isNotEmpty)
+                                  buildSection(
+                                    'Lessons (${filteredLessons.length})',
+                                    filteredLessons.map((l) {
+                                      final completed =
+                                          progress[l.id]?['completed'] == true;
+                                      return _buildSmallLessonCard(
+                                        context,
+                                        lesson: l,
+                                        completed: completed,
+                                        authorLabel: authorLabel,
+                                        isMobile: true,
+                                      );
+                                    }).toList(),
+                                  ),
+                                if (flashcards.isNotEmpty)
+                                  buildSection(
+                                    'Flashcard Decks (${flashcards.length})',
+                                    flashcards.map((f) {
+                                      final completed =
+                                          progress[f.id]?['completed'] == true;
+                                      return _buildSmallPublishedItemCard(
+                                        context,
+                                        item: f,
+                                        completed: completed,
+                                        authorLabel: authorLabel,
+                                        isMobile: true,
+                                      );
+                                    }).toList(),
+                                  ),
+                                if (mindMaps.isNotEmpty)
+                                  buildSection(
+                                    'Mind Maps (${mindMaps.length})',
+                                    mindMaps.map((m) {
+                                      final completed =
+                                          progress[m.id]?['completed'] == true;
+                                      return _buildSmallPublishedItemCard(
+                                        context,
+                                        item: m,
+                                        completed: completed,
+                                        authorLabel: authorLabel,
+                                        isMobile: true,
+                                      );
+                                    }).toList(),
+                                  ),
+                                if (studyGuides.isNotEmpty)
+                                  buildSection(
+                                    'Study Guides (${studyGuides.length})',
+                                    studyGuides.map((g) {
+                                      final completed =
+                                          progress[g.id]?['completed'] == true;
+                                      return _buildSmallPublishedItemCard(
+                                        context,
+                                        item: g,
+                                        completed: completed,
+                                        authorLabel: authorLabel,
+                                        isMobile: true,
+                                      );
+                                    }).toList(),
+                                  ),
+                                if (timelines.isNotEmpty)
+                                  buildSection(
+                                    'Timelines (${timelines.length})',
+                                    timelines.map((t) {
+                                      final completed =
+                                          progress[t.id]?['completed'] == true;
+                                      return _buildSmallPublishedItemCard(
+                                        context,
+                                        item: t,
+                                        completed: completed,
+                                        authorLabel: authorLabel,
+                                        isMobile: true,
+                                      );
+                                    }).toList(),
+                                  ),
+                                if (briefings.isNotEmpty)
+                                  buildSection(
+                                    'Briefing Documents (${briefings.length})',
+                                    briefings.map((b) {
+                                      final completed =
+                                          progress[b.id]?['completed'] == true;
+                                      return _buildSmallPublishedItemCard(
+                                        context,
+                                        item: b,
+                                        completed: completed,
+                                        authorLabel: authorLabel,
+                                        isMobile: true,
+                                      );
+                                    }).toList(),
+                                  ),
+                                if (faqs.isNotEmpty)
+                                  buildSection(
+                                    'Frequently Asked Questions (${faqs.length})',
+                                    faqs.map((q) {
+                                      final completed =
+                                          progress[q.id]?['completed'] == true;
+                                      return _buildSmallPublishedItemCard(
+                                        context,
+                                        item: q,
+                                        completed: completed,
+                                        authorLabel: authorLabel,
+                                        isMobile: true,
+                                      );
+                                    }).toList(),
+                                  ),
+                              ],
+                            ),
+                    ),
+                  ],
+                ),
               );
             }
           },
@@ -762,6 +897,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     required Lesson lesson,
     required bool completed,
     String? authorLabel,
+    bool isMobile = false,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -773,8 +909,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       iconColor = const Color(0xFFE6625B); // Salmon Red for Educator/Public
     }
 
+    final double cardWidth = isMobile ? double.infinity : 290.0;
+
     return SizedBox(
-      width: 290,
+      width: cardWidth,
       height: 300,
       child: GestureDetector(
         onTap: () {
@@ -902,6 +1040,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     required PublishedContentItem item,
     required bool completed,
     String? authorLabel,
+    bool isMobile = false,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -952,9 +1091,11 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
         break;
     }
 
+    final double cardWidth = isMobile ? double.infinity : 200.0;
+
     return SizedBox(
-      width: 200,
-      height: 280,
+      width: cardWidth,
+      height: isMobile ? 220 : 280,
       child: GestureDetector(
         onTap: () {
           NavigationService.instance.goToContent(context, item);
