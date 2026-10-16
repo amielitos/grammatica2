@@ -32,10 +32,10 @@ dependencies:
     sdk: flutter
 
   # Firebase
-  firebase_core: ^4.4.0
-  firebase_auth: ^6.1.4
-  cloud_firestore: ^6.1.2
-  firebase_storage: ^13.0.6
+  firebase_core: ^4.15.0
+  firebase_auth: ^6.7.0
+  cloud_firestore: ^6.10.0
+  firebase_storage: ^13.6.0
   file_picker: ^10.3.10
   desktop_drop: ^0.8.4
   intl_phone_field: ^3.2.0
@@ -47,10 +47,10 @@ dependencies:
   flutter_markdown_plus: ^1.0.12
   flutter_tts: ^4.2.5
   record: ^6.1.2
-  audioplayers: ^6.5.1
-  path_provider: ^2.1.5
+  audioplayers: ^6.7.1
+  path_provider: ^2.1.6
   vosk_flutter_2: 1.0.5
-  string_similarity: 2.0.0
+  string_similarity: ^2.0.0
 
   google_sign_in: ^7.2.0
   google_sign_in_platform_interface: ^3.1.0
@@ -58,11 +58,11 @@ dependencies:
   web: ^1.1.1
   url_launcher: ^6.3.1
   english_words: ^4.0.0
-  intl: ^0.20.2
+  intl: ^0.20.3
   syncfusion_flutter_pdf: ^32.2.8
   http: ^1.6.0
-  confetti: ^0.7.0
-  mailer: ^7.1.0
+  confetti: ^0.8.0
+  mailer: ^7.2.0
   google_fonts: ^8.0.2
   qr_flutter: ^4.1.0
   speech_to_text: ^7.3.0
@@ -70,7 +70,7 @@ dependencies:
   visibility_detector: ^0.4.0+2
   flutter_animate: ^4.5.2
   firebase_ai: ^3.14.1
-  firebase_app_check: ^0.4.5+2
+  firebase_app_check: ^0.4.8
   flutter_dotenv: ^6.0.1
   shared_preferences: ^2.5.5
   graphview: ^1.5.1

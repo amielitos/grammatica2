@@ -6,6 +6,7 @@ import 'package:firebase_ai/firebase_ai.dart';
 
 import '../config/ai_config.dart';
 import '../models/ai_models.dart';
+import 'ai_rate_limit_service.dart';
 
 /// Configuration for quiz generation, allowing teachers to customise
 /// question types, difficulty, instructions, and whether to include hints.
@@ -157,14 +158,19 @@ $explanationLine
   /// Routes to either the direct Gemini call or the Python backend depending
   /// on [AIConfig.mode].
   Future<AILessonResponse> generateLesson(String rawText) async {
-    switch (AIConfig.mode) {
-      case AIExecutionMode.firebaseAI:
-        return _generateLessonFirebase(rawText);
-      case AIExecutionMode.directClientSide:
-        return _generateLessonDirect(rawText);
-      case AIExecutionMode.pythonBackend:
-        return _generateLessonBackend(rawText);
-    }
+    return AIRateLimitService.instance.runWithRateLimit(
+      actionName: 'generateLesson',
+      action: () async {
+        switch (AIConfig.mode) {
+          case AIExecutionMode.firebaseAI:
+            return _generateLessonFirebase(rawText);
+          case AIExecutionMode.directClientSide:
+            return _generateLessonDirect(rawText);
+          case AIExecutionMode.pythonBackend:
+            return _generateLessonBackend(rawText);
+        }
+      },
+    );
   }
 
   Future<AILessonResponse> _generateLessonFirebase(String rawText) async {
@@ -327,14 +333,19 @@ $explanationLine
     int numQuestions = 10,
     QuizGenerationConfig config = const QuizGenerationConfig(),
   }) async {
-    switch (AIConfig.mode) {
-      case AIExecutionMode.firebaseAI:
-        return _generateQuizFirebase(lessonText, numQuestions, config);
-      case AIExecutionMode.directClientSide:
-        return _generateQuizDirect(lessonText, numQuestions, config);
-      case AIExecutionMode.pythonBackend:
-        return _generateQuizBackend(lessonText, numQuestions, config);
-    }
+    return AIRateLimitService.instance.runWithRateLimit(
+      actionName: 'generateQuiz',
+      action: () async {
+        switch (AIConfig.mode) {
+          case AIExecutionMode.firebaseAI:
+            return _generateQuizFirebase(lessonText, numQuestions, config);
+          case AIExecutionMode.directClientSide:
+            return _generateQuizDirect(lessonText, numQuestions, config);
+          case AIExecutionMode.pythonBackend:
+            return _generateQuizBackend(lessonText, numQuestions, config);
+        }
+      },
+    );
   }
 
   /// Builds the user-facing prompt text for quiz generation.
@@ -450,22 +461,27 @@ $explanationLine
 
   /// Converts PDF bytes to formatted Markdown.
   Future<String> convertToMarkdown(List<int> bytes) async {
-    if (AIConfig.mode == AIExecutionMode.pythonBackend) {
-      return _convertToMarkdownBackend(bytes);
-    }
-    
-    // Client-side: extract text locally, then call Gemini to format as markdown.
-    final rawText = await extractTextFromPdf(bytes);
-    
-    switch (AIConfig.mode) {
-      case AIExecutionMode.firebaseAI:
-        return _convertMarkdownFirebase(rawText);
-      case AIExecutionMode.directClientSide:
-        return _convertMarkdownDirect(rawText);
-      case AIExecutionMode.pythonBackend:
-        // Handled above
-        throw UnimplementedError();
-    }
+    return AIRateLimitService.instance.runWithRateLimit(
+      actionName: 'convertToMarkdown',
+      action: () async {
+        if (AIConfig.mode == AIExecutionMode.pythonBackend) {
+          return _convertToMarkdownBackend(bytes);
+        }
+
+        // Client-side: extract text locally, then call Gemini to format as markdown.
+        final rawText = await extractTextFromPdf(bytes);
+
+        switch (AIConfig.mode) {
+          case AIExecutionMode.firebaseAI:
+            return _convertMarkdownFirebase(rawText);
+          case AIExecutionMode.directClientSide:
+            return _convertMarkdownDirect(rawText);
+          case AIExecutionMode.pythonBackend:
+            // Handled above
+            throw UnimplementedError();
+        }
+      },
+    );
   }
 
   Future<String> _convertMarkdownFirebase(String rawText) async {
@@ -690,7 +706,10 @@ $explanationLine
   }
 
   Future<List<Map<String, String>>> generatePracticeWords(String difficulty, int count) async {
-    final systemPrompt = '''
+    return AIRateLimitService.instance.runWithRateLimit(
+      actionName: 'generatePracticeWords',
+      action: () async {
+        final systemPrompt = '''
 You are an expert English teacher.
 Output a valid JSON array of exactly $count objects, each with a "word" (an English word appropriate for the $difficulty difficulty level) and a "description" (a brief, simple meaning or definition — 5 to 12 words max. Do NOT include the word itself or its root form in the description).
 Example format:
@@ -700,104 +719,106 @@ Example format:
 ]
 ''';
 
-    List<Map<String, String>> parseWordList(String rawText) {
-      final parsedList = jsonDecode(rawText) as List<dynamic>;
-      return parsedList.map((e) {
-        final map = Map<String, dynamic>.from(e as Map);
-        return {
-          'word': (map['word'] ?? '').toString(),
-          'description': (map['description'] ?? '').toString(),
-        };
-      }).toList();
-    }
-
-    if (AIConfig.mode == AIExecutionMode.directClientSide) {
-      final body = jsonEncode({
-        'system_instruction': {
-          'parts': [{'text': systemPrompt}]
-        },
-        'contents': [
-          {'parts': [{'text': 'Generate $count words for $difficulty difficulty.'}]}
-        ],
-        'generationConfig': {
-          'responseMimeType': 'application/json',
-          'temperature': 0.9,
+        List<Map<String, String>> parseWordList(String rawText) {
+          final parsedList = jsonDecode(rawText) as List<dynamic>;
+          return parsedList.map((e) {
+            final map = Map<String, dynamic>.from(e as Map);
+            return {
+              'word': (map['word'] ?? '').toString(),
+              'description': (map['description'] ?? '').toString(),
+            };
+          }).toList();
         }
-      });
 
-      final apiKey = AIConfig.geminiApiKey;
-      if (apiKey.isEmpty) {
-        throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
-      }
+        if (AIConfig.mode == AIExecutionMode.directClientSide) {
+          final body = jsonEncode({
+            'system_instruction': {
+              'parts': [{'text': systemPrompt}]
+            },
+            'contents': [
+              {'parts': [{'text': 'Generate $count words for $difficulty difficulty.'}]}
+            ],
+            'generationConfig': {
+              'responseMimeType': 'application/json',
+              'temperature': 0.9,
+            }
+          });
 
-      final res = await http.post(
-        Uri.parse('${AIConfig.geminiBaseUrl}?key=$apiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: body,
-      );
+          final apiKey = AIConfig.geminiApiKey;
+          if (apiKey.isEmpty) {
+            throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
+          }
 
-      if (res.statusCode != 200) {
-        throw Exception('API error ${res.statusCode}: ${res.body}');
-      }
+          final res = await http.post(
+            Uri.parse('${AIConfig.geminiBaseUrl}?key=$apiKey'),
+            headers: {'Content-Type': 'application/json'},
+            body: body,
+          );
 
-      final data = jsonDecode(res.body);
-      final textResponse = data['candidates'][0]['content']['parts'][0]['text'] as String;
-      return parseWordList(textResponse);
-    }
+          if (res.statusCode != 200) {
+            throw Exception('API error ${res.statusCode}: ${res.body}');
+          }
 
-    try {
-      final model = FirebaseAI.googleAI().generativeModel(
-        model: AIConfig.firebaseAIModel,
-        systemInstruction: Content.system(systemPrompt),
-        generationConfig: GenerationConfig(
-          responseMimeType: 'application/json',
-          temperature: 0.9,
-        ),
-      );
-
-      final response = await model.generateContent([
-        Content.text('Generate $count words for $difficulty difficulty.'),
-      ]);
-
-      final text = response.text;
-      if (text == null || text.isEmpty) {
-        throw Exception('Firebase AI returned empty response.');
-      }
-
-      return parseWordList(text);
-    } catch (e) {
-      debugPrint('Error in generatePracticeWords (Firebase): $e');
-      final body = jsonEncode({
-        'system_instruction': {
-          'parts': [{'text': systemPrompt}]
-        },
-        'contents': [
-          {'parts': [{'text': 'Generate $count words for $difficulty difficulty.'}]}
-        ],
-        'generationConfig': {
-          'responseMimeType': 'application/json',
-          'temperature': 0.9,
+          final data = jsonDecode(res.body);
+          final textResponse = data['candidates'][0]['content']['parts'][0]['text'] as String;
+          return parseWordList(textResponse);
         }
-      });
 
-      final apiKey = AIConfig.geminiApiKey;
-      if (apiKey.isEmpty) {
-        throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
-      }
+        try {
+          final model = FirebaseAI.googleAI().generativeModel(
+            model: AIConfig.firebaseAIModel,
+            systemInstruction: Content.system(systemPrompt),
+            generationConfig: GenerationConfig(
+              responseMimeType: 'application/json',
+              temperature: 0.9,
+            ),
+          );
 
-      final res = await http.post(
-        Uri.parse('${AIConfig.geminiBaseUrl}?key=$apiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: body,
-      );
+          final response = await model.generateContent([
+            Content.text('Generate $count words for $difficulty difficulty.'),
+          ]);
 
-      if (res.statusCode != 200) {
-        throw Exception('API error ${res.statusCode}: ${res.body}');
-      }
+          final text = response.text;
+          if (text == null || text.isEmpty) {
+            throw Exception('Firebase AI returned empty response.');
+          }
 
-      final data = jsonDecode(res.body);
-      final textResponse = data['candidates'][0]['content']['parts'][0]['text'] as String;
-      return parseWordList(textResponse);
-    }
+          return parseWordList(text);
+        } catch (e) {
+          debugPrint('Error in generatePracticeWords (Firebase): $e');
+          final body = jsonEncode({
+            'system_instruction': {
+              'parts': [{'text': systemPrompt}]
+            },
+            'contents': [
+              {'parts': [{'text': 'Generate $count words for $difficulty difficulty.'}]}
+            ],
+            'generationConfig': {
+              'responseMimeType': 'application/json',
+              'temperature': 0.9,
+            }
+          });
+
+          final apiKey = AIConfig.geminiApiKey;
+          if (apiKey.isEmpty) {
+            throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
+          }
+
+          final res = await http.post(
+            Uri.parse('${AIConfig.geminiBaseUrl}?key=$apiKey'),
+            headers: {'Content-Type': 'application/json'},
+            body: body,
+          );
+
+          if (res.statusCode != 200) {
+            throw Exception('API error ${res.statusCode}: ${res.body}');
+          }
+
+          final data = jsonDecode(res.body);
+          final textResponse = data['candidates'][0]['content']['parts'][0]['text'] as String;
+          return parseWordList(textResponse);
+        }
+      },
+    );
   }
 }

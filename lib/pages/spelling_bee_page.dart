@@ -14,6 +14,9 @@ import '../models/spelling_word.dart';
 import '../pages/admin/admin_spelling_words_tab.dart';
 import '../theme/app_colors.dart';
 import '../services/ai_logic_service.dart';
+import '../services/ai_rate_limit_service.dart';
+import '../widgets/ai_quota_badge.dart';
+import '../widgets/ai_quota_exceeded_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 
@@ -144,9 +147,24 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       }).toList();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('AI generation failed: $e')),
-        );
+        if (e is AIRateLimitException) {
+          if (e.isBurst) {
+            AIQuotaExceededDialog.showBurst(
+              context,
+              e.cooldownRemaining ?? const Duration(seconds: 15),
+            );
+          } else {
+            AIRateLimitService.instance.getStatus(widget.user.uid).then((stat) {
+              if (mounted) {
+                AIQuotaExceededDialog.showExceeded(context, stat);
+              }
+            });
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('AI generation failed: $e')),
+          );
+        }
       }
       return;
     }
@@ -354,6 +372,9 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
 
+
+                const AIQuotaBadge(),
+                const SizedBox(height: 16),
 
                 // Main Centered Header
                 Text(

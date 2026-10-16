@@ -628,75 +628,75 @@ class _LessonsListState extends State<_LessonsList> {
               required String value,
               String? subValue,
             }) {
-              return Expanded(
-                flex: isNarrow ? 0 : 1,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+              return Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isNarrow ? 12 : 16,
+                  vertical: isNarrow ? 12 : 14,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(isNarrow ? 8 : 10),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(icon, color: color, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              value,
-                              style: GoogleFonts.outfit(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : Colors.black87,
-                              ),
+                      child: Icon(icon, color: color, size: isNarrow ? 18 : 20),
+                    ),
+                    SizedBox(width: isNarrow ? 10 : 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            value,
+                            style: GoogleFonts.outfit(
+                              fontSize: isNarrow ? 16 : 18,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black87,
                             ),
-                            const SizedBox(height: 2),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            label,
+                            style: GoogleFonts.inter(
+                              fontSize: isNarrow ? 10 : 11,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white60 : Colors.black54,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (subValue != null) ...[
+                            const SizedBox(height: 1),
                             Text(
-                              label,
+                              subValue,
                               style: GoogleFonts.inter(
-                                fontSize: 11,
+                                fontSize: 9.5,
+                                color: color,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white60 : Colors.black54,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                            if (subValue != null) ...[
-                              const SizedBox(height: 1),
-                              Text(
-                                subValue,
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  color: color,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
                           ],
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               );
             }
@@ -734,22 +734,22 @@ class _LessonsListState extends State<_LessonsList> {
                 crossAxisCount: 2,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 2.1,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.95,
                 children: items,
               );
             }
 
             return Row(
               children: [
-                items[0],
+                Expanded(child: items[0]),
                 const SizedBox(width: 12),
-                items[1],
+                Expanded(child: items[1]),
                 const SizedBox(width: 12),
-                items[2],
+                Expanded(child: items[2]),
                 const SizedBox(width: 12),
-                items[3],
+                Expanded(child: items[3]),
               ],
             );
           },

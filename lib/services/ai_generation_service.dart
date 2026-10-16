@@ -9,6 +9,7 @@ import '../models/ai_models.dart';
 import '../models/flashcard_models.dart';
 import '../models/study_guide_models.dart';
 import 'ai_logic_service.dart';
+import 'ai_rate_limit_service.dart';
 
 /// Service dedicated to generating multi-format AI artifacts
 /// (Flashcards, Study Guides, Timelines, Briefings, FAQs, Mind Maps, Quizzes)
@@ -237,14 +238,19 @@ class AIGenerationService {
     required String backendEndpoint,
     required Map<String, dynamic> backendPayload,
   }) async {
-    switch (AIConfig.mode) {
-      case AIExecutionMode.firebaseAI:
-        return _executeFirebase(systemPrompt, userPrompt);
-      case AIExecutionMode.directClientSide:
-        return _executeDirect(systemPrompt, userPrompt);
-      case AIExecutionMode.pythonBackend:
-        return _executeBackend(backendEndpoint, backendPayload);
-    }
+    return AIRateLimitService.instance.runWithRateLimit(
+      actionName: backendEndpoint,
+      action: () async {
+        switch (AIConfig.mode) {
+          case AIExecutionMode.firebaseAI:
+            return _executeFirebase(systemPrompt, userPrompt);
+          case AIExecutionMode.directClientSide:
+            return _executeDirect(systemPrompt, userPrompt);
+          case AIExecutionMode.pythonBackend:
+            return _executeBackend(backendEndpoint, backendPayload);
+        }
+      },
+    );
   }
 
   Future<String> _executeFirebase(String systemPrompt, String userPrompt) async {

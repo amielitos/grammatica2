@@ -14,6 +14,9 @@ import '../services/ai_logic_service.dart';
 import '../models/spelling_word.dart';
 import '../pages/admin/admin_spelling_words_tab.dart';
 import '../theme/app_colors.dart';
+import '../services/ai_rate_limit_service.dart';
+import '../widgets/ai_quota_badge.dart';
+import '../widgets/ai_quota_exceeded_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 
@@ -152,9 +155,24 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       }).toList();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('AI generation failed: $e')),
-      );
+      if (e is AIRateLimitException) {
+        if (e.isBurst) {
+          AIQuotaExceededDialog.showBurst(
+            context,
+            e.cooldownRemaining ?? const Duration(seconds: 15),
+          );
+        } else {
+          AIRateLimitService.instance.getStatus(widget.user.uid).then((stat) {
+            if (mounted) {
+              AIQuotaExceededDialog.showExceeded(context, stat);
+            }
+          });
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('AI generation failed: $e')),
+        );
+      }
       return;
     }
 
@@ -225,10 +243,10 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
             }
           }
         },
-        listenFor: const Duration(seconds: 10),
-        pauseFor: const Duration(seconds: 3),
-        localeId: 'en-US',
         listenOptions: stt.SpeechListenOptions(
+          listenFor: const Duration(seconds: 10),
+          pauseFor: const Duration(seconds: 3),
+          localeId: 'en-US',
           partialResults: true,
           cancelOnError: true,
           listenMode: stt.ListenMode.confirmation,
@@ -504,6 +522,12 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         ),
         // Removed title to match reference image which is clean in the middle
         actions: [
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: AIQuotaBadge(),
+            ),
+          ),
           StreamBuilder<UserRole>(
             stream: RoleService.instance.roleStream(widget.user.uid),
             builder: (context, snapshot) {

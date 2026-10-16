@@ -9,6 +9,7 @@ import '../config/ai_config.dart';
 import '../config/notebook_prompts.dart';
 import '../models/notebook_models.dart';
 import 'ai_logic_service.dart';
+import 'ai_rate_limit_service.dart';
 
 /// Handles extracting text and metadata from varied source formats
 /// (PDF, plain text, web URLs, audio recordings, video clips)
@@ -323,14 +324,19 @@ class SourceIngestionService {
   // ---------------------------------------------------------------------------
 
   Future<String> _transcribeMedia(List<int> bytes, String mimeType) async {
-    switch (AIConfig.mode) {
-      case AIExecutionMode.firebaseAI:
-        return _transcribeMediaFirebase(bytes, mimeType);
-      case AIExecutionMode.directClientSide:
-        return _transcribeMediaDirect(bytes, mimeType);
-      case AIExecutionMode.pythonBackend:
-        return _transcribeMediaBackend(bytes, mimeType);
-    }
+    return AIRateLimitService.instance.runWithRateLimit(
+      actionName: 'transcribeMedia',
+      action: () async {
+        switch (AIConfig.mode) {
+          case AIExecutionMode.firebaseAI:
+            return _transcribeMediaFirebase(bytes, mimeType);
+          case AIExecutionMode.directClientSide:
+            return _transcribeMediaDirect(bytes, mimeType);
+          case AIExecutionMode.pythonBackend:
+            return _transcribeMediaBackend(bytes, mimeType);
+        }
+      },
+    );
   }
 
   Future<String> _transcribeMediaFirebase(List<int> bytes, String mimeType) async {

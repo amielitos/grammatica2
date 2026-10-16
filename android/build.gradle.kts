@@ -1,6 +1,9 @@
 import org.gradle.api.file.Directory
 import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.compile.JavaCompile
+buildscript {
+    extra["kotlin_version"] = "2.3.0"
+}
 
 allprojects {
     repositories {

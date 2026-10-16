@@ -8,6 +8,9 @@ import '../services/ai_logic_service.dart';
 import '../services/database_service.dart';
 import '../models/ai_models.dart';
 import '../services/navigation_service.dart';
+import '../services/ai_rate_limit_service.dart';
+import '../widgets/ai_quota_badge.dart';
+import '../widgets/ai_quota_exceeded_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -83,6 +86,14 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
             color: isDark ? Colors.white : AppColors.textPrimary,
           ),
         ),
+        actions: const [
+          Center(
+            child: Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: AIQuotaBadge(),
+            ),
+          ),
+        ],
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -236,6 +247,14 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
             color: isDark ? Colors.white : AppColors.textPrimary,
           ),
         ),
+        actions: const [
+          Center(
+            child: Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: AIQuotaBadge(),
+            ),
+          ),
+        ],
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -484,10 +503,27 @@ MANDATORY RULES:
       _navigateToQuiz(quiz);
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Failed to generate assessment: $e';
-        });
+        setState(() => _isLoading = false);
+        if (e is AIRateLimitException) {
+          if (e.isBurst) {
+            AIQuotaExceededDialog.showBurst(
+              context,
+              e.cooldownRemaining ?? const Duration(seconds: 15),
+            );
+          } else {
+            AIRateLimitService.instance
+                .getStatus(FirebaseAuth.instance.currentUser?.uid ?? '')
+                .then((stat) {
+              if (mounted) {
+                AIQuotaExceededDialog.showExceeded(context, stat);
+              }
+            });
+          }
+        } else {
+          setState(() {
+            _errorMessage = 'Failed to generate assessment: $e';
+          });
+        }
       }
     }
   }

@@ -19,6 +19,10 @@ import 'mind_map_view.dart';
 import 'publish_content_dialogs.dart';
 import 'study_guide_view.dart';
 import 'timeline_view.dart';
+import '../../services/ai_rate_limit_service.dart';
+import '../../widgets/ai_quota_badge.dart';
+import '../../widgets/ai_quota_exceeded_dialog.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// Main interactive workspace for a Notebook, featuring a split-pane layout
 /// inspired by NotebookLM with sources panel, output workspace, and output toolbar.
@@ -176,6 +180,12 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
         ),
       ),
       actions: [
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: AIQuotaBadge(),
+          ),
+        ),
         if (outputs.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
@@ -920,9 +930,26 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
       await NotebookService.instance.addOutput(widget.notebookId, output);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Generation failed: $e'), backgroundColor: Colors.red),
-        );
+        if (e is AIRateLimitException) {
+          if (e.isBurst) {
+            AIQuotaExceededDialog.showBurst(
+              context,
+              e.cooldownRemaining ?? const Duration(seconds: 15),
+            );
+          } else {
+            AIRateLimitService.instance
+                .getStatus(FirebaseAuth.instance.currentUser?.uid ?? '')
+                .then((stat) {
+              if (mounted) {
+                AIQuotaExceededDialog.showExceeded(context, stat);
+              }
+            });
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Generation failed: $e'), backgroundColor: Colors.red),
+          );
+        }
       }
     } finally {
       if (mounted) {
