@@ -928,6 +928,13 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
       }
 
       await NotebookService.instance.addOutput(widget.notebookId, output);
+
+      if (mounted) {
+        AIRateLimitService.instance.showQuotaNotification(
+          context,
+          title: '${type.displayName} Generated',
+        );
+      }
     } catch (e) {
       if (mounted) {
         if (e is AIRateLimitException) {

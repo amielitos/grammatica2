@@ -8,6 +8,7 @@ import '../../utils/file_helper.dart';
 
 import '../../services/database_service.dart';
 import '../../services/ai_logic_service.dart';
+import '../../services/ai_rate_limit_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../../theme/app_colors.dart';
@@ -1423,6 +1424,12 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     try {
       final lessonResponse = await _aiLogicService.generateLesson(promptText);
       await _processGeneratedLesson(lessonResponse);
+      if (mounted) {
+        AIRateLimitService.instance.showQuotaNotification(
+          context,
+          title: 'Lesson Generated',
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1457,6 +1464,12 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
 
       final lessonResponse = await _aiLogicService.generateLessonFromPdf(bytes);
       await _processGeneratedLesson(lessonResponse);
+      if (mounted) {
+        AIRateLimitService.instance.showQuotaNotification(
+          context,
+          title: 'Lesson Generated',
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -10,6 +10,7 @@ import '../../widgets/user_visibility_selector.dart';
 import 'dart:typed_data';
 import '../../utils/file_helper.dart';
 import '../../services/ai_logic_service.dart';
+import '../../services/ai_rate_limit_service.dart';
 import '../../models/notebook_models.dart';
 import '../../widgets/notebook/notebook_selector_dialog.dart';
 import '../notebook/notebook_list_page.dart';
@@ -1426,8 +1427,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Generated ${aiResponse.questions.length} questions!')),
+        AIRateLimitService.instance.showQuotaNotification(
+          context,
+          title: 'Quiz Generated (${aiResponse.questions.length} questions)',
         );
       }
     } catch (e) {

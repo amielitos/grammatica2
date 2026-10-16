@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'database_service.dart';
 import 'email_sender_service.dart';
+import 'device_session_service.dart';
 
 class LockoutStatus {
   final bool isLocked;
@@ -199,170 +201,252 @@ class AuthService {
 
   String _emailDocId(String email) => email.trim().toLowerCase().replaceAll('/', '_');
 
-  /// Fetches current lockout status for an email
+  /// Sliding window duration after which un-locked failed attempts expire.
+  static const Duration attemptExpirationWindow = Duration(minutes: 15);
+
+  /// Helper to clear expired Firestore lockout document quietly
+  Future<void> _clearFirestoreLockout(String docId) async {
+    try {
+      await _firestore.collection('login_attempts').doc(docId).set({
+        'failed_count': 0,
+        'locked_until': null,
+        'last_cleared_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  /// Fetches current lockout status for the active device and optionally for an email.
   Future<LockoutStatus> getLockoutStatus(String email) async {
     final emailClean = email.trim().toLowerCase();
-    if (emailClean.isEmpty) {
-      return const LockoutStatus(isLocked: false, failedCount: 0);
+
+    // 1. Device/session level lockout check (takes precedence to protect this device)
+    final deviceState = await DeviceSessionService.instance.getLockoutState();
+    if (deviceState.isLocked) {
+      return LockoutStatus(
+        isLocked: true,
+        failedCount: deviceState.failedCount,
+        lockedUntil: deviceState.lockedUntil,
+        remainingDuration: deviceState.remainingDuration,
+      );
     }
+
+    if (emailClean.isEmpty) {
+      return LockoutStatus(
+        isLocked: false,
+        failedCount: deviceState.failedCount,
+      );
+    }
+
     try {
       final doc = await _firestore
           .collection('login_attempts')
           .doc(_emailDocId(emailClean))
           .get();
       if (!doc.exists) {
-        return const LockoutStatus(isLocked: false, failedCount: 0);
+        return LockoutStatus(isLocked: false, failedCount: deviceState.failedCount);
       }
       final data = doc.data() ?? {};
-      final failedCount = (data['failed_count'] as num?)?.toInt() ?? 0;
+      int failedCount = (data['failed_count'] as num?)?.toInt() ?? 0;
       final lockedUntilTs = data['locked_until'] as Timestamp?;
+      final lastFailedTs = data['last_failed_at'] as Timestamp?;
+      final now = DateTime.now();
 
+      // Check if email-specific lockout is active in Firestore
       if (lockedUntilTs != null) {
         final lockedUntilDate = lockedUntilTs.toDate();
-        final now = DateTime.now();
         if (lockedUntilDate.isAfter(now)) {
           return LockoutStatus(
             isLocked: true,
-            failedCount: failedCount,
+            failedCount: math.max(failedCount, deviceState.failedCount),
             lockedUntil: lockedUntilDate,
             remainingDuration: lockedUntilDate.difference(now),
           );
+        } else {
+          // Lock expired in Firestore: clear it asynchronously
+          _clearFirestoreLockout(_emailDocId(emailClean));
+          failedCount = 0;
+        }
+      } else if (lastFailedTs != null) {
+        // Sliding window: If last failed attempt was >15 minutes ago, reset stale count
+        if (now.difference(lastFailedTs.toDate()) > attemptExpirationWindow) {
+          failedCount = 0;
         }
       }
+
+      final effectiveCount = math.max(failedCount, deviceState.failedCount);
       return LockoutStatus(
         isLocked: false,
-        failedCount: failedCount,
+        failedCount: effectiveCount,
       );
     } catch (e) {
       debugPrint('Error getting lockout status: $e');
-      return const LockoutStatus(isLocked: false, failedCount: 0);
+      return LockoutStatus(isLocked: false, failedCount: deviceState.failedCount);
     }
   }
 
-  /// Records a failed login attempt. Locks the account for 5 mins if 3 attempts reached.
+  /// Records a failed login attempt on this device and syncs to Firestore.
+  /// Locks the device for 5 minutes if 3 failed attempts are reached (regardless of email change).
   Future<LockoutStatus> _recordFailedAttempt(String email) async {
     final emailClean = email.trim().toLowerCase();
-    final docRef = _firestore
-        .collection('login_attempts')
-        .doc(_emailDocId(emailClean));
+
+    // 1. Record on this physical device/session (persists across email changes!)
+    final deviceState = await DeviceSessionService.instance.recordFailedAttempt();
+    final deviceId = await DeviceSessionService.instance.getDeviceId();
+
+    final nowUtc = DateTime.now().toUtc();
+    final lockUntilUtc = nowUtc.add(lockoutDuration);
+    final lockUntilTs = Timestamp.fromDate(lockUntilUtc);
 
     try {
-      final doc = await docRef.get();
-      int currentCount = 0;
-      if (doc.exists) {
-        final data = doc.data() ?? {};
-        final lockedUntilTs = data['locked_until'] as Timestamp?;
-        // If a previous lock expired, restart counting from 0
-        if (lockedUntilTs != null &&
-            lockedUntilTs.toDate().isBefore(DateTime.now())) {
-          currentCount = 0;
-        } else {
-          currentCount = (data['failed_count'] as num?)?.toInt() ?? 0;
-        }
-      }
-      currentCount += 1;
-
-      if (currentCount >= maxFailedAttempts) {
-        final lockUntil = DateTime.now().add(lockoutDuration);
-        final lockUntilTs = Timestamp.fromDate(lockUntil);
-
-        await docRef.set({
-          'email': emailClean,
-          'failed_count': currentCount,
+      // 2. Synchronize device attempt to Firestore
+      final devDocRef = _firestore.collection('login_attempts').doc(deviceId);
+      if (deviceState.isLocked) {
+        await devDocRef.set({
+          'device_id': deviceId,
+          'failed_count': deviceState.failedCount,
           'last_failed_at': FieldValue.serverTimestamp(),
           'locked_until': lockUntilTs,
         }, SetOptions(merge: true));
+      } else {
+        await devDocRef.set({
+          'device_id': deviceId,
+          'failed_count': deviceState.failedCount,
+          'last_failed_at': FieldValue.serverTimestamp(),
+          'locked_until': null,
+        }, SetOptions(merge: true));
+      }
 
-        // Mirror to users collection if user doc exists
-        String recipientName = 'Learner';
-        try {
-          final userQuery = await _firestore
+      // 3. If email provided, also sync to email document with sliding window
+      if (emailClean.isNotEmpty) {
+        final emailDocRef = _firestore
+            .collection('login_attempts')
+            .doc(_emailDocId(emailClean));
+
+        final doc = await emailDocRef.get();
+        int emailCount = 0;
+        if (doc.exists) {
+          final data = doc.data() ?? {};
+          final lockedUntilTs = data['locked_until'] as Timestamp?;
+          final lastFailedTs = data['last_failed_at'] as Timestamp?;
+          
+          if (lockedUntilTs != null && lockedUntilTs.toDate().toUtc().isBefore(nowUtc)) {
+            emailCount = 0;
+          } else if (lastFailedTs != null && nowUtc.difference(lastFailedTs.toDate().toUtc()) > attemptExpirationWindow) {
+            emailCount = 0;
+          } else {
+            emailCount = (data['failed_count'] as num?)?.toInt() ?? 0;
+          }
+        }
+        emailCount += 1;
+
+        if (deviceState.isLocked || emailCount >= maxFailedAttempts) {
+          await emailDocRef.set({
+            'email': emailClean,
+            'failed_count': math.max(emailCount, deviceState.failedCount),
+            'last_failed_at': FieldValue.serverTimestamp(),
+            'locked_until': lockUntilTs,
+            'device_id': deviceId,
+          }, SetOptions(merge: true));
+
+          // Mirror to user doc if user exists
+          try {
+            final userQuery = await _firestore
+                .collection('users')
+                .where('email', isEqualTo: emailClean)
+                .limit(1)
+                .get();
+            if (userQuery.docs.isNotEmpty) {
+              final uDoc = userQuery.docs.first;
+              final recipientName = (uDoc.data()['username'] ??
+                      uDoc.data()['full_name'] ??
+                      'Learner')
+                  .toString();
+              await uDoc.reference.update({
+                'locked_until': lockUntilTs,
+              });
+
+              // Send email alert asynchronously
+              EmailSenderService.sendAccountLockedEmail(
+                recipientEmail: emailClean,
+                recipientName: recipientName,
+                lockoutMinutes: lockoutDuration.inMinutes,
+              ).catchError((e) {
+                debugPrint('Error sending account locked email: $e');
+                return false;
+              });
+            }
+          } catch (e) {
+            debugPrint('Error syncing locked_until to user doc: $e');
+          }
+        } else {
+          await emailDocRef.set({
+            'email': emailClean,
+            'failed_count': math.max(emailCount, deviceState.failedCount),
+            'last_failed_at': FieldValue.serverTimestamp(),
+            'locked_until': null,
+            'device_id': deviceId,
+          }, SetOptions(merge: true));
+        }
+      }
+    } catch (e) {
+      debugPrint('Error syncing failed login attempt to Firestore: $e');
+    }
+
+    return LockoutStatus(
+      isLocked: deviceState.isLocked,
+      failedCount: deviceState.failedCount,
+      lockedUntil: deviceState.lockedUntil,
+      remainingDuration: deviceState.remainingDuration,
+    );
+  }
+
+  /// Clears failed attempts and unlocks device and account
+  Future<void> resetLoginAttempts(String email, {String? uid}) async {
+    // 1. Clear device-level lockout
+    await DeviceSessionService.instance.clearLockout();
+    try {
+      final deviceId = await DeviceSessionService.instance.getDeviceId();
+      await _firestore.collection('login_attempts').doc(deviceId).set({
+        'failed_count': 0,
+        'locked_until': null,
+        'last_cleared_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (_) {}
+
+    // 2. Clear email-level lockout
+    final emailClean = email.trim().toLowerCase();
+    if (emailClean.isNotEmpty) {
+      try {
+        final docRef = _firestore
+            .collection('login_attempts')
+            .doc(_emailDocId(emailClean));
+        await docRef.set({
+          'email': emailClean,
+          'failed_count': 0,
+          'locked_until': null,
+          'last_failed_at': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        // Also clear on user document
+        if (uid != null && uid.isNotEmpty) {
+          await _firestore.collection('users').doc(uid).update({
+            'locked_until': null,
+          }).catchError((_) {});
+        } else {
+          final query = await _firestore
               .collection('users')
               .where('email', isEqualTo: emailClean)
               .limit(1)
               .get();
-          if (userQuery.docs.isNotEmpty) {
-            final uDoc = userQuery.docs.first;
-            recipientName = (uDoc.data()['username'] ??
-                    uDoc.data()['full_name'] ??
-                    'Learner')
-                .toString();
-            await uDoc.reference.update({
-              'locked_until': lockUntilTs,
-            });
+          if (query.docs.isNotEmpty) {
+            await query.docs.first.reference.update({
+              'locked_until': null,
+            }).catchError((_) {});
           }
-        } catch (e) {
-          debugPrint('Error syncing locked_until to user doc: $e');
         }
-
-        // Send email alert asynchronously
-        EmailSenderService.sendAccountLockedEmail(
-          recipientEmail: emailClean,
-          recipientName: recipientName,
-          lockoutMinutes: lockoutDuration.inMinutes,
-        ).catchError((e) {
-          debugPrint('Error sending account locked email: $e');
-          return false;
-        });
-
-        return LockoutStatus(
-          isLocked: true,
-          failedCount: currentCount,
-          lockedUntil: lockUntil,
-          remainingDuration: lockoutDuration,
-        );
-      } else {
-        await docRef.set({
-          'email': emailClean,
-          'failed_count': currentCount,
-          'last_failed_at': FieldValue.serverTimestamp(),
-          'locked_until': null,
-        }, SetOptions(merge: true));
-
-        return LockoutStatus(
-          isLocked: false,
-          failedCount: currentCount,
-        );
+      } catch (e) {
+        debugPrint('Error resetting login attempts: $e');
       }
-    } catch (e) {
-      debugPrint('Error recording failed login attempt: $e');
-      return const LockoutStatus(isLocked: false, failedCount: 0);
-    }
-  }
-
-  /// Clears failed attempts and unlocks account
-  Future<void> resetLoginAttempts(String email, {String? uid}) async {
-    final emailClean = email.trim().toLowerCase();
-    try {
-      final docRef = _firestore
-          .collection('login_attempts')
-          .doc(_emailDocId(emailClean));
-      await docRef.set({
-        'email': emailClean,
-        'failed_count': 0,
-        'locked_until': null,
-        'last_failed_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      // Also clear on user document
-      if (uid != null && uid.isNotEmpty) {
-        await _firestore.collection('users').doc(uid).update({
-          'locked_until': null,
-        }).catchError((_) {});
-      } else {
-        final query = await _firestore
-            .collection('users')
-            .where('email', isEqualTo: emailClean)
-            .limit(1)
-            .get();
-        if (query.docs.isNotEmpty) {
-          await query.docs.first.reference.update({
-            'locked_until': null,
-          }).catchError((_) {});
-        }
-      }
-    } catch (e) {
-      debugPrint('Error resetting login attempts: $e');
     }
   }
 
@@ -370,6 +454,7 @@ class AuthService {
   Future<void> unlockAccount(String email, {String? uid}) async {
     await resetLoginAttempts(email, uid: uid);
   }
+
 
   Future<UserCredential> signInWithEmailPassword({
     required String email,

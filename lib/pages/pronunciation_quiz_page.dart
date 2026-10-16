@@ -153,6 +153,14 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
           audioUrl: null,
         );
       }).toList();
+
+      if (mounted) {
+        AIRateLimitService.instance.showQuotaNotification(
+          context,
+          uid: widget.user.uid,
+          title: 'Practice Words Generated',
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       if (e is AIRateLimitException) {

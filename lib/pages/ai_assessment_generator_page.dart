@@ -499,6 +499,11 @@ MANDATORY RULES:
 
       if (!mounted) return;
 
+      AIRateLimitService.instance.showQuotaNotification(
+        context,
+        title: 'Assessment Generated',
+      );
+
       // Navigate directly into active quiz mode (not stuck in preview)
       _navigateToQuiz(quiz);
     } catch (e) {

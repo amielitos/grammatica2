@@ -17,6 +17,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'manage_subscriptions_page.dart';
 import 'role_application_page.dart';
 import '../widgets/video_player_modal.dart';
+import '../services/ai_rate_limit_service.dart';
+import '../widgets/ai_quota_exceeded_dialog.dart';
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -708,6 +710,282 @@ class ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Widget _buildAIUsageCard(UserRole role) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return StreamBuilder<AIRateLimitStatus>(
+      stream: AIRateLimitService.instance.quotaStream(widget.user.uid),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return _buildCard(
+            child: const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          );
+        }
+
+        final status = snapshot.data!;
+        final isUnlimited = status.isUnlimited;
+        final used = status.used;
+        final limit = status.limit;
+        final remaining = status.remaining;
+        final percentUsed = status.percentUsed;
+        final isLow = !isUnlimited && remaining <= 2;
+        final isExceeded = status.isExceeded;
+
+        Color statusColor;
+        if (isExceeded) {
+          statusColor = const Color(0xFFEF4444); // Red
+        } else if (isLow) {
+          statusColor = const Color(0xFFF59E0B); // Amber
+        } else {
+          statusColor = const Color(0xFF81B655); // Grammatica Green
+        }
+
+        String roleTierLabel;
+        if (role == UserRole.admin || role == UserRole.superadmin) {
+          roleTierLabel = 'Admin • Unlimited';
+        } else if (role == UserRole.educator) {
+          roleTierLabel = 'Educator • 200/day';
+        } else if (status.isSubscribed) {
+          roleTierLabel = 'Premium Learner • 100/day';
+        } else {
+          roleTierLabel = 'Free Learner • 10/day';
+        }
+
+        return _buildCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 22,
+                          color: Color(0xFF81B655),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Daily AI Usage',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          Text(
+                            'Today\'s generation quota & limits',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white54 : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white10 : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade300),
+                    ),
+                    child: Text(
+                      roleTierLabel,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // Progress Bar Section
+              if (isUnlimited) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF81B655).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF81B655).withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.all_inclusive_rounded, color: Color(0xFF81B655), size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Unlimited Generations',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            Text(
+                              'You have generated $used requests today with no daily cap.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white60 : Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '$used of $limit Used',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        color: statusColor,
+                      ),
+                    ),
+                    Text(
+                      '$remaining remaining',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: isDark ? Colors.white60 : Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: percentUsed,
+                    minHeight: 10,
+                    backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
+                    valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.schedule_rounded, size: 14, color: isDark ? Colors.white54 : Colors.grey.shade600),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Resets in ${status.formattedTimeUntilReset}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white54 : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () => AIQuotaExceededDialog.showDetails(context, status),
+                      child: const Text(
+                        'Quota Details',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF81B655),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              // Upsell banner for free learners
+              if (!isUnlimited && !status.isSubscribed && role == UserRole.learner) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.bolt_rounded, color: Color(0xFF6366F1), size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Unlock 100 daily generations with Premium',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4338CA),
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          backgroundColor: const Color(0xFF6366F1),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ManageSubscriptionsPage(user: widget.user),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Upgrade',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildRightColumn(UserRole role, {required bool isWide}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
@@ -722,6 +1000,7 @@ class ProfilePageState extends State<ProfilePage> {
             ),
           ),
         _ChangePasswordCard(user: widget.user),
+        _buildAIUsageCard(role),
 
         if (role != UserRole.educator && role != UserRole.validator)
           _buildCard(

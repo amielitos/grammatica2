@@ -28,6 +28,8 @@ class _LoginPageState extends State<LoginPage> {
   int _lockoutRemainingSeconds = 0;
   Timer? _lockoutTimer;
 
+  Stopwatch? _lockoutStopwatch;
+
   String _formatRemainingTime(int totalSeconds) {
     if (totalSeconds <= 0) return '0:00';
     final m = totalSeconds ~/ 60;
@@ -37,9 +39,13 @@ class _LoginPageState extends State<LoginPage> {
 
   void _startLockoutCountdown(int seconds) {
     _lockoutTimer?.cancel();
+    final initialSeconds = seconds > 0 ? seconds : 300;
+    _lockoutStopwatch?.stop();
+    _lockoutStopwatch = Stopwatch()..start();
+
     setState(() {
       _isAccountLocked = true;
-      _lockoutRemainingSeconds = seconds > 0 ? seconds : 300;
+      _lockoutRemainingSeconds = initialSeconds;
     });
 
     _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -47,18 +53,31 @@ class _LoginPageState extends State<LoginPage> {
         timer.cancel();
         return;
       }
-      if (_lockoutRemainingSeconds <= 1) {
+      final elapsed = _lockoutStopwatch?.elapsed.inSeconds ?? 0;
+      final remaining = initialSeconds - elapsed;
+      if (remaining <= 0) {
         timer.cancel();
+        _lockoutStopwatch?.stop();
         setState(() {
           _isAccountLocked = false;
           _lockoutRemainingSeconds = 0;
         });
       } else {
         setState(() {
-          _lockoutRemainingSeconds -= 1;
+          _lockoutRemainingSeconds = remaining;
         });
       }
     });
+  }
+
+  Future<void> _checkInitialLockout() async {
+    final status = await AuthService.instance.getLockoutStatus(_emailController.text.trim());
+    if (status.isLocked && mounted) {
+      final seconds = status.remainingDuration.inSeconds > 0
+          ? status.remainingDuration.inSeconds
+          : 300;
+      _startLockoutCountdown(seconds);
+    }
   }
 
   Future<void> _handleLockoutTriggered(String message) async {
@@ -94,6 +113,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+    _checkInitialLockout();
     _authSubscription = AuthService.instance.authStateChanges().listen((user) async {
       if (user != null && mounted) {
         final isGoogleUser = user.providerData.any(
@@ -114,6 +134,15 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _login() async {
+    if (_isAccountLocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('This device is temporarily locked. Please wait ${_formatRemainingTime(_lockoutRemainingSeconds)}.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -760,6 +789,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     _lockoutTimer?.cancel();
+    _lockoutStopwatch?.stop();
     _authSubscription?.cancel();
     _emailController.dispose();
     _passwordController.dispose();

@@ -3,9 +3,11 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'role_service.dart';
+import '../widgets/ai_quota_notification.dart';
 
 /// Exception thrown when an AI generation is blocked by rate limiting or cooldown.
 class AIRateLimitException implements Exception {
@@ -294,5 +296,23 @@ class AIRateLimitService {
     await recordUsage(targetUid);
 
     return result;
+  }
+
+  /// Displays the interactive quota popup notification for the given user context.
+  Future<void> showQuotaNotification(
+    BuildContext context, {
+    String? uid,
+    String? title,
+  }) async {
+    final targetUid = uid ?? FirebaseAuth.instance.currentUser?.uid;
+    if (targetUid == null || targetUid.isEmpty) return;
+    try {
+      final status = await getStatus(targetUid);
+      if (context.mounted) {
+        AIQuotaNotification.show(context, status: status, title: title);
+      }
+    } catch (e) {
+      debugPrint('[AIRateLimit] Error showing quota notification: $e');
+    }
   }
 }

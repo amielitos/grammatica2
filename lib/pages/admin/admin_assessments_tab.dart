@@ -7,6 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../../widgets/user_visibility_selector.dart';
 import '../../services/ai_logic_service.dart';
+import '../../services/ai_rate_limit_service.dart';
 import '../../models/ai_models.dart';
 import '../../utils/file_helper.dart';
 
@@ -1231,8 +1232,9 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Generated ${aiResponse.questions.length} questions!')),
+        AIRateLimitService.instance.showQuotaNotification(
+          context,
+          title: 'Assessment Generated (${aiResponse.questions.length} questions)',
         );
       }
     } catch (e) {
