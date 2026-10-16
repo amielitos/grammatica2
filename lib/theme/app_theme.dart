@@ -72,6 +72,7 @@ class AppTheme {
     final textTheme = _buildTextTheme(dark: false);
     return ThemeData(
       useMaterial3: true,
+      fontFamily: GoogleFonts.outfit().fontFamily,
       textTheme: textTheme,
       brightness: Brightness.light,
       colorScheme: ColorScheme.fromSeed(
@@ -143,6 +144,7 @@ class AppTheme {
     final textTheme = _buildTextTheme(dark: true);
     return ThemeData(
       useMaterial3: true,
+      fontFamily: GoogleFonts.outfit().fontFamily,
       textTheme: textTheme,
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(

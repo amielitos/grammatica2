@@ -376,23 +376,48 @@ class NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isUnread = !notification.isRead;
+
     return Container(
-      color: notification.isRead ? Colors.transparent : (isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF1F8E9)),
+      decoration: BoxDecoration(
+        color: isUnread
+            ? (isDark
+                ? const Color(0xFFEF4444).withValues(alpha: 0.12)
+                : const Color(0xFFFEF2F2))
+            : Colors.transparent,
+        border: isUnread
+            ? const Border(
+                left: BorderSide(
+                  color: Color(0xFFEF4444),
+                  width: 3.5,
+                ),
+              )
+            : null,
+      ),
       child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: _getIconColor(notification.type).withValues(alpha: 0.1),
+            color: (isUnread
+                    ? const Color(0xFFEF4444)
+                    : _getIconColor(notification.type))
+                .withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
-          child: Icon(_getIcon(notification.type), size: 20, color: _getIconColor(notification.type)),
+          child: Icon(
+            _getIcon(notification.type),
+            size: 20,
+            color: isUnread
+                ? const Color(0xFFEF4444)
+                : _getIconColor(notification.type),
+          ),
         ),
         title: Text(
           notification.title,
           style: TextStyle(
-            fontWeight: notification.isRead ? FontWeight.w500 : FontWeight.w800,
+            fontWeight: isUnread ? FontWeight.w800 : FontWeight.w500,
             fontSize: 14,
             color: isDark ? Colors.white : Colors.black87,
           ),
@@ -417,12 +442,15 @@ class NotificationTile extends StatelessWidget {
               DateFormat('MMM d').format(notification.createdAt),
               style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
-            if (!notification.isRead)
+            if (isUnread)
               Container(
                 margin: const EdgeInsets.only(top: 4),
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(color: Color(0xFF81B655), shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                ),
               ),
           ],
         ),

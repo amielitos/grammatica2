@@ -72,24 +72,26 @@ class _LessonPageState extends State<LessonPage> {
     if (!_scrollController.hasClients) return;
 
     final maxScroll = _scrollController.position.maxScrollExtent;
-    if (maxScroll <= 0) {
-      if (_progress < 1.0) {
-        setState(() {
-          _progress = 1.0;
-          _isCompleted = true;
-        });
-        _updateProgressToDb();
-      }
-      return;
-    }
+    // Do not auto-complete on initial layout or small/unscrollable content
+    if (maxScroll <= 50) return;
 
     final currentScroll = _scrollController.position.pixels;
+    if (currentScroll <= 0) return;
+
     double newProgress = (currentScroll / maxScroll).clamp(0.0, 1.0);
+    final reachedBottom = currentScroll >= (maxScroll - 30);
+    if (!reachedBottom && newProgress >= 1.0) {
+      newProgress = 0.95;
+    }
 
     if (newProgress > _progress) {
-      setState(() => _progress = newProgress);
-      if (_progress >= 1.0) {
-        _isCompleted = true;
+      setState(() {
+        _progress = newProgress;
+        if (reachedBottom) {
+          _isCompleted = true;
+        }
+      });
+      if (_isCompleted) {
         _updateProgressToDb();
       } else {
         _debounceTimer?.cancel();

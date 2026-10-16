@@ -459,6 +459,8 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
         ? '${DateFormat('h:mm a').format(startTime)} - ${DateFormat('h:mm a').format(endTime)}'
         : '';
 
+    final isPast = (endTime ?? startTime)?.isBefore(DateTime.now()) ?? false;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(20),
@@ -528,52 +530,54 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.video_call_rounded, size: 18),
-              label: Text(
-                'Join Conference',
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF81B655),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () {
-                // Determine the channel to use
-                final channel = agoraChannel.isNotEmpty
-                    ? agoraChannel
-                    : AgoraService.instance.channelFromSessionId(
-                        sessionId.isNotEmpty ? sessionId : 'session',
-                      );
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ConferencePage(
-                      channelName: channel,
-                      sessionId: sessionId,
-                      sessionTitle: title,
-                      otherParticipantName: isCurrentUserEducator
-                          ? (session['studentName'] as String? ?? 'Student')
-                          : 'Educator',
-                      isHost: isCurrentUserEducator,
-                      currentUser: widget.user,
-                    ),
+          if (!isPast) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.video_call_rounded, size: 18),
+                label: Text(
+                  'Join',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
                   ),
-                );
-              },
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF81B655),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  // Determine the channel to use
+                  final channel = agoraChannel.isNotEmpty
+                      ? agoraChannel
+                      : AgoraService.instance.channelFromSessionId(
+                          sessionId.isNotEmpty ? sessionId : 'session',
+                        );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ConferencePage(
+                        channelName: channel,
+                        sessionId: sessionId,
+                        sessionTitle: title,
+                        otherParticipantName: isCurrentUserEducator
+                            ? (session['studentName'] as String? ?? 'Student')
+                            : 'Educator',
+                        isHost: isCurrentUserEducator,
+                        currentUser: widget.user,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -749,7 +753,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             ),
           ),
           if (isActive) ...[
-            if (_isEducator) ...[
+            if (_isEducator && lowerTier == 'premium') ...[
               ElevatedButton.icon(
                 icon: const Icon(Icons.video_call_rounded, size: 16),
                 label: Text(
@@ -1017,11 +1021,11 @@ class _LearnerMentorshipBookingModalState
                     .streamLearnerSubscriptions(widget.user.uid),
                 builder: (context, snapshot) {
                   final activeSubs = (snapshot.data ?? [])
-                      .where((s) => s['status'] == 'active')
+                      .where((s) => s['status'] == 'active' && (s['tier'] as String?)?.toLowerCase() == 'premium')
                       .toList();
                   if (activeSubs.isEmpty) {
                     return const Text(
-                        'No active educator subscriptions found.',
+                        'No active premium educator subscriptions found. Mentorship is only available for Premium subscribers.',
                         style: TextStyle(color: Colors.grey, fontSize: 13));
                   }
 

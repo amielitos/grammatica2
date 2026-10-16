@@ -2564,6 +2564,16 @@ class DatabaseService {
         .map((doc) => doc.exists && doc.data()?['status'] == 'active');
   }
 
+  Future<Map<String, dynamic>?> getSubscription(String learnerUid, String educatorUid) async {
+    final doc = await _firestore
+        .collection('users')
+        .doc(learnerUid)
+        .collection('subscriptions')
+        .doc(educatorUid)
+        .get();
+    return doc.data();
+  }
+
   Stream<List<Map<String, dynamic>>> streamLearnerSubscriptions(
     String learnerUid,
   ) {

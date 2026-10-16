@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,9 +16,18 @@ class BrowseEducatorsTab extends StatefulWidget {
 class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
   String _searchQuery = '';
   final _searchCtrl = TextEditingController();
+  Timer? _debounceTimer;
+  late final Stream<List<Map<String, dynamic>>> _educatorsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _educatorsStream = DatabaseService.instance.streamEducators();
+  }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -29,9 +39,9 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
     return Container(
       color: isDark ? const Color(0xFF0F172A) : const Color(0xFFFAFAFA),
       child: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: DatabaseService.instance.streamEducators(),
+        stream: _educatorsStream,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
@@ -39,11 +49,25 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
           }
 
           final allEducators = snapshot.data ?? [];
+          final query = _searchQuery.trim().toLowerCase();
           final filtered = allEducators.where((e) {
             final uid = e['uid'] as String? ?? '';
             if (uid == widget.user.uid) return false;
-            final name = (e['username'] as String? ?? '').toLowerCase();
-            return name.contains(_searchQuery);
+            if (query.isEmpty) return true;
+            final username = (e['username'] as String? ?? '').toLowerCase();
+            final displayName = (e['displayName'] as String? ?? '').toLowerCase();
+            final firstName = (e['firstName'] as String? ?? '').toLowerCase();
+            final lastName = (e['lastName'] as String? ?? '').toLowerCase();
+            final fullName = '$firstName $lastName'.trim();
+            final email = (e['email'] as String? ?? '').toLowerCase();
+            final bio = (e['bio'] as String? ?? '').toLowerCase();
+            return username.contains(query) ||
+                displayName.contains(query) ||
+                firstName.contains(query) ||
+                lastName.contains(query) ||
+                fullName.contains(query) ||
+                email.contains(query) ||
+                bio.contains(query);
           }).toList();
 
           return SingleChildScrollView(
@@ -115,7 +139,16 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                             ),
                             child: TextField(
                               controller: _searchCtrl,
-                              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+                              onChanged: (val) {
+                                _debounceTimer?.cancel();
+                                _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+                                  if (mounted) setState(() => _searchQuery = val.toLowerCase());
+                                });
+                              },
+                              onSubmitted: (val) {
+                                _debounceTimer?.cancel();
+                                setState(() => _searchQuery = val.toLowerCase());
+                              },
                               style: TextStyle(
                                 color: isDark ? Colors.white : const Color(0xFF0F172A),
                                 fontSize: 14,
@@ -139,6 +172,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                                           size: 18,
                                         ),
                                         onPressed: () {
+                                          _debounceTimer?.cancel();
                                           _searchCtrl.clear();
                                           setState(() => _searchQuery = '');
                                         },
@@ -207,7 +241,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                         padding: const EdgeInsets.fromLTRB(24, 0, 24, 64),
                         gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 300,
-                          childAspectRatio: MediaQuery.of(context).size.width <= 600 ? 0.72 : 0.68,
+                          childAspectRatio: MediaQuery.of(context).size.width <= 600 ? 0.58 : 0.68,
                           crossAxisSpacing: 20,
                           mainAxisSpacing: 20,
                         ),
@@ -284,6 +318,7 @@ class _EducatorCardState extends State<_EducatorCard>
         ? ((widget.educator['averageRating'] as num?)?.toDouble() ?? 0.0) 
         : 0.0;
     final isDark = widget.isDark;
+    final isMobile = MediaQuery.of(context).size.width <= 600;
 
     return MouseRegion(
       onEnter: (_) {
@@ -311,7 +346,7 @@ class _EducatorCardState extends State<_EducatorCard>
               Transform.scale(scale: _scale.value, child: child),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(isMobile ? 12 : 16),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(20),
@@ -352,7 +387,7 @@ class _EducatorCardState extends State<_EducatorCard>
                         ),
                       ),
                       child: CircleAvatar(
-                        radius: 36,
+                        radius: isMobile ? 28 : 36,
                         backgroundColor: isDark
                             ? const Color(0xFF334155)
                             : const Color(0xFFF1F5F9),
@@ -362,7 +397,7 @@ class _EducatorCardState extends State<_EducatorCard>
                         child: (photoUrl == null || photoUrl.isEmpty)
                             ? Icon(
                                 Icons.person_rounded,
-                                size: 32,
+                                size: isMobile ? 26 : 32,
                                 color: isDark ? Colors.white24 : Colors.grey.shade400,
                               )
                             : null,
@@ -377,7 +412,7 @@ class _EducatorCardState extends State<_EducatorCard>
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.outfit(
-                        fontSize: 16,
+                        fontSize: isMobile ? 14.5 : 16,
                         fontWeight: FontWeight.w800,
                         color: isDark ? Colors.white : const Color(0xFF0F172A),
                         height: 1.2,
@@ -389,12 +424,12 @@ class _EducatorCardState extends State<_EducatorCard>
                     Text(
                       bio,
                       textAlign: TextAlign.center,
-                      maxLines: 2,
+                      maxLines: isMobile ? 1 : 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
-                        fontSize: 12,
+                        fontSize: isMobile ? 11 : 12,
                         color: isDark ? Colors.white38 : const Color(0xFF64748B),
-                        height: 1.4,
+                        height: 1.3,
                       ),
                     ),
                     const SizedBox(height: 10),

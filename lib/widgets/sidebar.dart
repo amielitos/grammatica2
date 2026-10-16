@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'modern_bottom_nav.dart'; // For ModernNavItem class
+import '../theme/app_colors.dart';
+import '../services/auth_service.dart';
 
 class Sidebar extends StatelessWidget {
   final int currentIndex;
@@ -7,6 +9,7 @@ class Sidebar extends StatelessWidget {
   final List<ModernNavItem> items;
   final bool showProfileWarning;
   final bool isDrawer;
+  final VoidCallback? onSignOut;
 
   const Sidebar({
     super.key,
@@ -15,6 +18,7 @@ class Sidebar extends StatelessWidget {
     required this.items,
     this.showProfileWarning = false,
     this.isDrawer = false,
+    this.onSignOut,
   });
 
   @override
@@ -50,12 +54,12 @@ class Sidebar extends StatelessWidget {
                   final item = items[index];
                   final isSelected = currentIndex == index;
                   return Material(
-                    color: isSelected ? const Color(0xFF7CB342) : Colors.transparent,
+                    color: isSelected ? AppColors.primary : Colors.transparent,
                     child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
                       leading: Icon(
                         item.icon,
-                        color: isSelected ? Colors.white : const Color(0xFF7CB342),
+                        color: isSelected ? Colors.white : AppColors.primary,
                         size: 28,
                       ),
                       title: Text(
@@ -69,16 +73,45 @@ class Sidebar extends StatelessWidget {
                         ),
                       ),
                       onTap: () {
-                        onTap(index);
-                        if (isDrawer) {
+                        if (isDrawer && (Scaffold.maybeOf(context)?.isDrawerOpen ?? false)) {
+                          Navigator.pop(context);
+                        } else if (isDrawer && Navigator.canPop(context)) {
                           Navigator.pop(context);
                         }
+                        onTap(index);
                       },
                     ),
                   );
                 },
               ),
             ),
+            Divider(
+              color: isDark ? Colors.white24 : Colors.grey.shade300,
+              height: 1,
+            ),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              leading: const Icon(Icons.logout, color: Colors.redAccent, size: 24),
+              title: const Text(
+                'Sign Out',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              onTap: () {
+                if (isDrawer) {
+                  Navigator.pop(context);
+                }
+                if (onSignOut != null) {
+                  onSignOut!();
+                } else {
+                  AuthService.instance.signOut();
+                }
+              },
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

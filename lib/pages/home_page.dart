@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -36,6 +37,14 @@ class HomePage extends StatefulWidget {
     this.showProfileWarning = false,
   });
 
+  static final ValueNotifier<int> activeTabNotifier = ValueNotifier<int>(0);
+
+  static void navigateToTab(BuildContext context, int tabIndex) {
+    _HomePageState._persistedTabIndex = tabIndex;
+    activeTabNotifier.value = tabIndex;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -51,9 +60,25 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _tabIndex = _persistedTabIndex;
+    HomePage.activeTabNotifier.addListener(_onTabNotifierChange);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkProfileCompletion();
     });
+  }
+
+  void _onTabNotifierChange() {
+    if (mounted && _tabIndex != HomePage.activeTabNotifier.value) {
+      setState(() {
+        _tabIndex = HomePage.activeTabNotifier.value;
+        _persistedTabIndex = _tabIndex;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    HomePage.activeTabNotifier.removeListener(_onTabNotifierChange);
+    super.dispose();
   }
 
   Future<void> _checkProfileCompletion() async {
@@ -209,27 +234,38 @@ class _LessonsList extends StatefulWidget {
 }
 
 class _LessonsListState extends State<_LessonsList> {
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounceTimer;
   Map<String, dynamic>? _activeFolder;
   String _searchQuery = '';
   String _selectedFilter = 'All';
   late Stream<Map<String, Map<String, dynamic>>> _progressStream;
+  late final Stream<List<Lesson>> _lessonsStream;
 
   @override
   void initState() {
     super.initState();
+    _lessonsStream = DatabaseService.instance.streamLessons(
+      userRole: widget.role,
+      userId: widget.user.uid,
+    );
     _progressStream = DatabaseService.instance.progressStream(widget.user);
     DatabaseService.instance.migrateAdminLessonsToGrammaticaOfficial();
   }
 
   @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Lesson>>(
-      stream: DatabaseService.instance.streamLessons(
-        userRole: widget.role,
-        userId: widget.user.uid,
-      ),
+      stream: _lessonsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
@@ -337,6 +373,31 @@ class _LessonsListState extends State<_LessonsList> {
 
             final isDark = Theme.of(context).brightness == Brightness.dark;
             final username = widget.userData['username'] as String? ?? 'Learner';
+            final query = _searchQuery.trim().toLowerCase();
+            final matchingLessons = query.isEmpty
+                ? <Lesson>[]
+                : lessons.where((l) {
+                    if (_selectedFilter == 'Grammatica') {
+                      final isGramm = l.isGrammaticaLesson == true ||
+                          (l.createdByEmail != null &&
+                              l.createdByEmail!.toLowerCase().contains('admin'));
+                      if (!isGramm) return false;
+                    } else if (_selectedFilter == 'Public') {
+                      if (l.isGrammaticaLesson) return false;
+                      if (l.createdByEmail != null &&
+                          l.createdByEmail!.toLowerCase().contains('admin')) {
+                        return false;
+                      }
+                      if (!l.isVisible) return false;
+                    } else if (_selectedFilter == 'Completed') {
+                      if (progressMap[l.id]?['completed'] != true) return false;
+                    }
+
+                    final title = l.title.toLowerCase();
+                    final prompt = l.prompt.toLowerCase();
+                    final author = (l.createdByEmail ?? '').toLowerCase();
+                    return title.contains(query) || prompt.contains(query) || author.contains(query);
+                  }).toList();
 
             return CustomPaint(
               painter: _DashboardBackgroundPainter(isDark: isDark),
@@ -367,124 +428,252 @@ class _LessonsListState extends State<_LessonsList> {
                       _buildSearchBarAndFilters(context),
                       const SizedBox(height: 20),
 
-                      // 4. Continue Learning Card
-                      if (nextLesson != null && _searchQuery.isEmpty && _selectedFilter == 'All') ...[
-                        _buildContinueLearningCard(context, nextLesson, progressMap[nextLesson.id]),
+                      if (_searchQuery.trim().isNotEmpty) ...[
+                        // Search Results Section
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF81B655),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Search Results (${matchingLessons.length})',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (matchingLessons.isEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(Icons.search_off_rounded,
+                                    size: 44,
+                                    color: isDark ? Colors.white24 : Colors.grey.shade400),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'No lessons match "${_searchQuery.trim()}"',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white70 : Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Try searching for different keywords or topics.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDark ? Colors.white38 : Colors.grey.shade500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: matchingLessons.length,
+                            separatorBuilder: (context, index) => const SizedBox(height: 12),
+                            itemBuilder: (context, idx) {
+                              final l = matchingLessons[idx];
+                              final isCompleted = progressMap[l.id]?['completed'] == true;
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.03),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  leading: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      isCompleted ? Icons.check_circle_rounded : Icons.menu_book_rounded,
+                                      color: const Color(0xFF81B655),
+                                      size: 24,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    l.title,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    l.prompt.isNotEmpty ? l.prompt : (l.isGrammaticaLesson ? 'Official Curriculum' : (l.createdByEmail ?? 'Community')),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? Colors.white60 : Colors.black54,
+                                    ),
+                                  ),
+                                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Color(0xFF81B655)),
+                                  onTap: () {
+                                    NavigationService.instance.goToLesson(context, l);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        const SizedBox(height: 24),
+                      ] else ...[
+                        // 4. Continue Learning Card
+                        if (nextLesson != null && _searchQuery.isEmpty && _selectedFilter == 'All') ...[
+                          _buildContinueLearningCard(context, nextLesson, progressMap[nextLesson.id]),
+                          const SizedBox(height: 24),
+                        ],
+
+                        // 4. Learning Hubs label
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF81B655),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Learning Hubs',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // 5. Hub Cards — responsive row
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isNarrow = constraints.maxWidth < 600;
+                            final cards = <Widget>[
+                              if (_selectedFilter == 'All' ||
+                                  _selectedFilter == 'Grammatica' ||
+                                  (_selectedFilter == 'Completed' && grammaticaCompleted > 0))
+                                _buildHubCard(
+                                  context,
+                                  tag: 'OFFICIAL CURRICULUM',
+                                  title: 'Grammatica Official',
+                                  description:
+                                      'Structured lessons by language experts. Master tenses, punctuation & sentence structure.',
+                                  icon: Icons.verified_rounded,
+                                  brandColor: const Color(0xFFF59E0B),
+                                  gradientEnd: const Color(0xFFD97706),
+                                  lessonCount: grammaticaLessons.length,
+                                  completedCount: grammaticaCompleted,
+                                  onTap: () {
+                                    setState(() {
+                                      _activeFolder = {
+                                        'title': 'Grammatica Lessons',
+                                        'pillLabel': 'From Grammatica',
+                                        'lessons': grammaticaLessons,
+                                      };
+                                    });
+                                    widget.onFolderChanged?.call('Grammatica Lessons');
+                                  },
+                                ),
+                              if (_selectedFilter == 'All' ||
+                                  _selectedFilter == 'Public' ||
+                                  (_selectedFilter == 'Completed' && publicCompleted > 0))
+                                _buildHubCard(
+                                  context,
+                                  tag: 'COMMUNITY & EDUCATORS',
+                                  title: 'Community Hub',
+                                  description:
+                                      'Public lessons by verified educators. Real-world topics & specialized exercises.',
+                                  icon: Icons.public_rounded,
+                                  brandColor: const Color(0xFFEF4444),
+                                  gradientEnd: const Color(0xFFDC2626),
+                                  lessonCount: publicLessons.length,
+                                  completedCount: publicCompleted,
+                                  onTap: () {
+                                    setState(() {
+                                      _activeFolder = {
+                                        'title': 'Public Content',
+                                        'pillLabel': 'Public',
+                                        'lessons': publicLessons,
+                                        'isPublicFolder': true,
+                                      };
+                                    });
+                                    widget.onFolderChanged?.call('Public');
+                                  },
+                                ),
+                            ];
+
+                            if (isNarrow) {
+                              return Column(
+                                children: cards
+                                    .map((c) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 16),
+                                          child: c,
+                                        ))
+                                    .toList(),
+                              );
+                            }
+                            return IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: cards
+                                    .map((c) => Expanded(
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(right: 16),
+                                            child: c,
+                                          ),
+                                        ))
+                                    .toList(),
+                              ),
+                            );
+                          },
+                        ),
                         const SizedBox(height: 24),
                       ],
-
-                      // 4. Learning Hubs label
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 4,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF81B655),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Learning Hubs',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: isDark ? Colors.white : Colors.black87,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // 5. Hub Cards — responsive row
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isNarrow = constraints.maxWidth < 600;
-                          final cards = <Widget>[
-                            if (_selectedFilter == 'All' ||
-                                _selectedFilter == 'Grammatica' ||
-                                (_selectedFilter == 'Completed' && grammaticaCompleted > 0))
-                              _buildHubCard(
-                                context,
-                                tag: 'OFFICIAL CURRICULUM',
-                                title: 'Grammatica Official',
-                                description:
-                                    'Structured lessons by language experts. Master tenses, punctuation & sentence structure.',
-                                icon: Icons.verified_rounded,
-                                brandColor: const Color(0xFFF59E0B),
-                                gradientEnd: const Color(0xFFD97706),
-                                lessonCount: grammaticaLessons.length,
-                                completedCount: grammaticaCompleted,
-                                onTap: () {
-                                  setState(() {
-                                    _activeFolder = {
-                                      'title': 'Grammatica Lessons',
-                                      'pillLabel': 'From Grammatica',
-                                      'lessons': grammaticaLessons,
-                                    };
-                                  });
-                                  widget.onFolderChanged?.call('Grammatica Lessons');
-                                },
-                              ),
-                            if (_selectedFilter == 'All' ||
-                                _selectedFilter == 'Public' ||
-                                (_selectedFilter == 'Completed' && publicCompleted > 0))
-                              _buildHubCard(
-                                context,
-                                tag: 'COMMUNITY & EDUCATORS',
-                                title: 'Community Hub',
-                                description:
-                                    'Public lessons by verified educators. Real-world topics & specialized exercises.',
-                                icon: Icons.public_rounded,
-                                brandColor: const Color(0xFFEF4444),
-                                gradientEnd: const Color(0xFFDC2626),
-                                lessonCount: publicLessons.length,
-                                completedCount: publicCompleted,
-                                onTap: () {
-                                  setState(() {
-                                    _activeFolder = {
-                                      'title': 'Public Content',
-                                      'pillLabel': 'Public',
-                                      'lessons': publicLessons,
-                                      'isPublicFolder': true,
-                                    };
-                                  });
-                                  widget.onFolderChanged?.call('Public');
-                                },
-                              ),
-                          ];
-
-                          if (isNarrow) {
-                            return Column(
-                              children: cards
-                                  .map((c) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 16),
-                                        child: c,
-                                      ))
-                                  .toList(),
-                            );
-                          }
-                          return IntrinsicHeight(
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: cards
-                                  .map((c) => Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(right: 16),
-                                          child: c,
-                                        ),
-                                      ))
-                                  .toList(),
-                            ),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 24),
 
                       // 6. AI Practice Banner
                       _buildAiPracticeBanner(context),
@@ -789,9 +978,19 @@ class _LessonsListState extends State<_LessonsList> {
             ),
           ),
           child: TextField(
+            controller: _searchController,
             style: TextStyle(
                 color: isDark ? Colors.white : Colors.black87, fontSize: 14),
-            onChanged: (val) => setState(() => _searchQuery = val),
+            onChanged: (val) {
+              _debounceTimer?.cancel();
+              _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+                if (mounted) setState(() => _searchQuery = val);
+              });
+            },
+            onSubmitted: (val) {
+              _debounceTimer?.cancel();
+              setState(() => _searchQuery = val);
+            },
             decoration: InputDecoration(
               border: InputBorder.none,
               hintText: 'Search lessons, topics, or educators...',
@@ -807,7 +1006,11 @@ class _LessonsListState extends State<_LessonsList> {
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear_rounded, size: 18),
-                      onPressed: () => setState(() => _searchQuery = ''),
+                      onPressed: () {
+                        _debounceTimer?.cancel();
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
                     )
                   : null,
               contentPadding:
@@ -1365,7 +1568,7 @@ class _LessonsListState extends State<_LessonsList> {
                     height: 40,
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.video_call_rounded, size: 16),
-                      label: const Text('Join Conference',
+                      label: const Text('Join',
                           style: TextStyle(
                               fontWeight: FontWeight.w800, fontSize: 13)),
                       style: ElevatedButton.styleFrom(

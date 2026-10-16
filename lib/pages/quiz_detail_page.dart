@@ -11,6 +11,7 @@ import '../theme/app_colors.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import '../widgets/linked_companion_toolbar.dart';
+import 'home_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class _RenderableQuestion {
@@ -434,11 +435,11 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             final shouldPop = await _showExitConfirmation();
             if (shouldPop == true && context.mounted) {
               Navigator.of(context).pop(); // Close drawer
-              Navigator.of(context).pop(); // Go back to lesson/practice
+              HomePage.navigateToTab(context, i);
             }
           } else {
             Navigator.of(context).pop(); // Close drawer
-            Navigator.of(context).pop(); // Go back
+            HomePage.navigateToTab(context, i);
           }
         },
       ),

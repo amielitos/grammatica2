@@ -5,7 +5,7 @@ class AppColors {
   AppColors._();
 
   // Figma Brand Colors
-  static const Color primary = Color(0xFF76A34F); // Soft leaf green
+  static const Color primary = Color(0xFF81B655); // Signature Grammatica Green
   static const Color secondary = Color(0xFFF5A623); // Yellow/Orange
   static const Color accent = Color(0xFF7ED321); // Bright Green
   static const Color premium = Color(0xFFD0021B); // Bright Red

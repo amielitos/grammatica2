@@ -38,6 +38,14 @@ class AdminDashboard extends StatefulWidget {
     this.showProfileWarning = false,
   });
 
+  static final ValueNotifier<int> activeTabNotifier = ValueNotifier<int>(0);
+
+  static void navigateToTab(BuildContext context, int tabIndex) {
+    _AdminDashboardState._persistedIndex = tabIndex;
+    activeTabNotifier.value = tabIndex;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   @override
   State<AdminDashboard> createState() => _AdminDashboardState();
 }
@@ -55,6 +63,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void initState() {
     super.initState();
     _index = _persistedIndex;
+    AdminDashboard.activeTabNotifier.addListener(_onTabNotifierChange);
     _setupNotificationListener();
 
     // Trigger daily lesson reminders for educators
@@ -64,6 +73,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     if (widget.role == UserRole.admin || widget.role == UserRole.superadmin) {
       DatabaseService.instance.migrateAdminLessonsToGrammaticaOfficial();
+    }
+  }
+
+  void _onTabNotifierChange() {
+    if (mounted && _index != AdminDashboard.activeTabNotifier.value) {
+      setState(() {
+        _index = AdminDashboard.activeTabNotifier.value;
+        _persistedIndex = _index;
+      });
     }
   }
 
@@ -85,6 +103,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   void dispose() {
+    AdminDashboard.activeTabNotifier.removeListener(_onTabNotifierChange);
     _notifSubscription?.cancel();
     super.dispose();
   }

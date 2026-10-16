@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/database_service.dart';
 import '../services/navigation_service.dart';
 import '../widgets/subscription_tier_dialog.dart';
@@ -11,6 +10,8 @@ import '../widgets/paymongo_qr_dialog.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
 import '../widgets/universal_drawer.dart';
+import '../services/agora_service.dart';
+import 'conference_page.dart';
 
 class EducatorProfilePage extends StatefulWidget {
   final Map<String, dynamic> educator;
@@ -466,7 +467,50 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
               height: 44,
               child: ElevatedButton.icon(
                 onPressed: isSubscribed
-                    ? () => DatabaseService.instance.unsubscribeFromEducator(uid)
+                    ? () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            title: Text(
+                              'Cancel Subscription',
+                              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                            ),
+                            content: Text(
+                              'Are you sure you want to cancel your subscription to $username? You will lose access to subscriber-exclusive materials and mentorship scheduling.',
+                              style: GoogleFonts.inter(fontSize: 14),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: Text('Keep Subscription', style: GoogleFonts.outfit(color: Colors.grey)),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.redAccent,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: Text('Cancel Subscription', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await DatabaseService.instance.unsubscribeFromEducator(uid);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Subscription to $username cancelled.'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          }
+                        }
+                      }
                     : () async {
                         final tier = await showDialog<String>(
                           context: context,
@@ -541,7 +585,35 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
               height: 44,
               child: OutlinedButton.icon(
                 onPressed: isSubscribed
-                    ? () => _showReviewDialog(context, uid, isDark)
+                    ? () async {
+                        final subData = await DatabaseService.instance.getSubscription(widget.currentUser.uid, uid);
+                        final subscribedAt = (subData?['subscribedAt'] as Timestamp?)?.toDate();
+                        if (subscribedAt == null) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('You must be subscribed for at least 7 days before leaving a review.'),
+                              ),
+                            );
+                          }
+                          return;
+                        }
+                        final daysSubscribed = DateTime.now().difference(subscribedAt).inDays;
+                        if (daysSubscribed < 7) {
+                          final daysLeft = 7 - daysSubscribed;
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('You can leave a review after 7 days of subscription ($daysLeft day${daysLeft > 1 ? 's' : ''} remaining).'),
+                              ),
+                            );
+                          }
+                          return;
+                        }
+                        if (context.mounted) {
+                          _showReviewDialog(context, uid, isDark);
+                        }
+                      }
                     : () => ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Subscribe to leave a review')),
                         ),
@@ -1143,14 +1215,14 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
               const SizedBox(height: 12),
               ...eduSessions.map((s) {
                 final title = s['meetingTitle'] as String? ?? 'Mentorship Meeting';
-                final app = s['conferenceApp'] as String? ?? 'google_meet';
-                final link = s['meetingLink'] as String? ?? '';
+                final app = s['conferenceApp'] as String? ?? 'agora';
                 final startTime = (s['startTime'] as Timestamp?)?.toDate();
                 final endTime = (s['endTime'] as Timestamp?)?.toDate();
                 final dateStr = startTime != null ? DateFormat('EEE, MMM d, yyyy').format(startTime) : '';
                 final timeStr = (startTime != null && endTime != null)
                     ? '${DateFormat('h:mm a').format(startTime)} - ${DateFormat('h:mm a').format(endTime)}'
                     : '';
+                final isPast = (endTime ?? startTime)?.isBefore(DateTime.now()) ?? false;
 
                 return Container(
                   margin: const EdgeInsets.only(top: 8),
@@ -1194,28 +1266,44 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                           ),
                         ],
                       ),
-                      if (link.isNotEmpty) ...[
+                      if (!isPast) ...[
                         const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,
                           height: 38,
                           child: ElevatedButton.icon(
-                            icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                            icon: const Icon(Icons.video_call_rounded, size: 16),
                             label: Text(
-                              'Open Conference App',
+                              'Join',
                               style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 13),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF3B82F6),
+                              backgroundColor: const Color(0xFF81B655),
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
-                            onPressed: () async {
-                              final uri = Uri.parse(link);
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri, mode: LaunchMode.externalApplication);
-                              }
+                            onPressed: () {
+                              final agoraChannel = s['agoraChannel'] as String? ?? '';
+                              final sessionId = s['id'] as String? ?? '';
+                              final channel = agoraChannel.isNotEmpty
+                                  ? agoraChannel
+                                  : AgoraService.instance.channelFromSessionId(
+                                      sessionId.isNotEmpty ? sessionId : 'session',
+                                    );
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ConferencePage(
+                                    channelName: channel,
+                                    sessionId: sessionId,
+                                    sessionTitle: title.isNotEmpty ? title : 'Mentorship Session',
+                                    otherParticipantName: widget.educator['username'] as String? ?? 'Educator',
+                                    isHost: false,
+                                    currentUser: widget.currentUser,
+                                  ),
+                                ),
+                              );
                             },
                           ),
                         ),
@@ -1246,8 +1334,8 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
       bg = const Color(0xFF5B5FC7);
       icon = Icons.groups_rounded;
     } else {
-      name = 'Google Meet';
-      bg = const Color(0xFF00832D);
+      name = 'Agora';
+      bg = const Color(0xFF81B655);
       icon = Icons.video_call_rounded;
     }
 

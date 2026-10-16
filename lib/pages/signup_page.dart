@@ -321,6 +321,8 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: const PreferredSize(preferredSize: Size.fromHeight(80), child: TopNavBar()),
       body: BackgroundWrapper(
@@ -332,17 +334,17 @@ class _SignupPageState extends State<SignupPage> {
             constraints: const BoxConstraints(maxWidth: 600),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 24, offset: const Offset(0, 12)),
+                  BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08), blurRadius: 24, offset: const Offset(0, 12)),
                 ],
               ),
               clipBehavior: Clip.antiAlias,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildHeader(),
+                  _buildHeader(isDark),
                   _buildProgress(),
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
@@ -359,7 +361,7 @@ class _SignupPageState extends State<SignupPage> {
                       ],
                     ),
                   ),
-                  _buildFooter(),
+                  _buildFooter(isDark),
                 ],
               ),
             ),
@@ -391,14 +393,16 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(bool isDark) {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFE2F3D9), Colors.white],
+          colors: isDark
+              ? const [Color(0xFF334155), Color(0xFF1E293B)]
+              : const [Color(0xFFE2F3D9), Colors.white],
         ),
       ),
       padding: const EdgeInsets.only(top: 32, bottom: 16, left: 32, right: 32),
@@ -416,12 +420,12 @@ class _SignupPageState extends State<SignupPage> {
                   size: 32,
                 ),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'Grammatica',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF0F172A),
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                     letterSpacing: -0.5,
                   ),
                 ),
@@ -431,7 +435,10 @@ class _SignupPageState extends State<SignupPage> {
           const SizedBox(height: 12),
           Text(
             "Create Account",
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.black87),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
           ),
         ],
       ),
@@ -439,6 +446,7 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildProgress() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final labels = ["Personal Info", "Contact", "Security"];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -451,7 +459,7 @@ class _SignupPageState extends State<SignupPage> {
               child: Container(
                 height: 3,
                 margin: const EdgeInsets.only(bottom: 14, left: 4, right: 4),
-                color: stepIndex < _currentStep ? const Color(0xFF81B655) : Colors.grey[200],
+                color: stepIndex < _currentStep ? const Color(0xFF81B655) : (isDark ? Colors.white12 : Colors.grey[200]),
               ),
             );
           }
@@ -464,16 +472,16 @@ class _SignupPageState extends State<SignupPage> {
                 width: 35,
                 height: 35,
                 decoration: BoxDecoration(
-                  color: isActive ? const Color(0xFF81B655) : Colors.grey[200],
+                  color: isActive ? const Color(0xFF81B655) : (isDark ? const Color(0xFF334155) : Colors.grey[200]),
                   shape: BoxShape.circle,
                   boxShadow: isActive ? [BoxShadow(color: const Color(0xFF81B655).withValues(alpha: 0.3), blurRadius: 8)] : [],
                 ),
                 child: Center(
-                  child: Text("${stepIndex + 1}", style: TextStyle(color: isActive ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)),
+                  child: Text("${stepIndex + 1}", style: TextStyle(color: isActive ? Colors.white : (isDark ? Colors.white38 : Colors.grey), fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 4),
-              Text(labels[stepIndex], style: TextStyle(fontSize: 11, color: isActive ? const Color(0xFF81B655) : Colors.grey, fontWeight: FontWeight.bold)),
+              Text(labels[stepIndex], style: TextStyle(fontSize: 11, color: isActive ? const Color(0xFF81B655) : (isDark ? Colors.white54 : Colors.grey), fontWeight: FontWeight.bold)),
             ],
           );
         }),
@@ -482,6 +490,7 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildStep1() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
       child: Form(
@@ -489,7 +498,7 @@ class _SignupPageState extends State<SignupPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("Personal Information", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black54)),
+            Text("Personal Information", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -557,6 +566,7 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildStep2() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
       child: Form(
@@ -564,7 +574,7 @@ class _SignupPageState extends State<SignupPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("Contact Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black54)),
+            Text("Contact Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54)),
             const SizedBox(height: 16),
             _buildTextField(
               controller: _emailController,
@@ -591,6 +601,7 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildStep3() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
       child: Form(
@@ -598,7 +609,7 @@ class _SignupPageState extends State<SignupPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("Security", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black54)),
+            Text("Security", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54)),
             const SizedBox(height: 16),
             _buildTextField(
               controller: _passwordController,
@@ -607,7 +618,12 @@ class _SignupPageState extends State<SignupPage> {
               onChanged: (v) => setState(() {}),
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  color: const Color(0xFF81B655),
+                  size: 22,
+                ),
+                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                 onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
               ),
               validator: (val) => (val == null || val.length < 6) ? 'Min 6 characters' : null,
@@ -616,7 +632,7 @@ class _SignupPageState extends State<SignupPage> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Text("Strength: ", style: TextStyle(fontSize: 12)),
+                  Text("Strength: ", style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87)),
                   Text(_getPasswordStrength(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _getStrengthColor())),
                 ],
               ),
@@ -629,7 +645,12 @@ class _SignupPageState extends State<SignupPage> {
               onChanged: (v) => setState(() {}),
               prefixIcon: const Icon(Icons.lock_reset),
               suffixIcon: IconButton(
-                icon: Icon(_obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                icon: Icon(
+                  _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  color: const Color(0xFF81B655),
+                  size: 22,
+                ),
+                tooltip: _obscureConfirmPassword ? 'Show password' : 'Hide password',
                 onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
               ),
               validator: (val) => (val != _passwordController.text) ? 'Passwords do not match' : null,
@@ -666,7 +687,7 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildFooter(bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
       child: Column(
@@ -722,10 +743,10 @@ class _SignupPageState extends State<SignupPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text("Already have an account? ", style: TextStyle(color: Colors.black87, fontSize: 13)),
+              Text("Already have an account? ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontSize: 13)),
               InkWell(
                 onTap: () => Navigator.pop(context),
-                child: const Text("Sign In", style: TextStyle(color: Color(0xFF75A94B), fontWeight: FontWeight.bold, fontSize: 13)),
+                child: const Text("Sign In", style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold, fontSize: 13)),
               ),
             ],
           ),
@@ -763,12 +784,13 @@ class _SignupPageState extends State<SignupPage> {
     ValueChanged<String>? onChanged,
     List<TextInputFormatter>? inputFormatters,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF334155) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
+        border: Border.all(color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05)),
       ),
       child: TextFormField(
         inputFormatters: inputFormatters,
@@ -778,16 +800,16 @@ class _SignupPageState extends State<SignupPage> {
         onTap: onTap,
         onChanged: onChanged,
         keyboardType: keyboardType,
-        style: const TextStyle(
-          color: Colors.black87,
+        style: TextStyle(
+          color: isDark ? Colors.white : Colors.black87,
           fontWeight: FontWeight.w500,
           fontSize: 14,
         ),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: const TextStyle(color: Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
-          prefixIcon: IconTheme(data: const IconThemeData(color: Colors.black45), child: prefixIcon),
-          suffixIcon: suffixIcon != null ? IconTheme(data: const IconThemeData(color: Colors.black45), child: suffixIcon) : null,
+          hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
+          prefixIcon: IconTheme(data: IconThemeData(color: isDark ? Colors.white60 : Colors.black45), child: prefixIcon),
+          suffixIcon: suffixIcon,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
           filled: true,
           fillColor: Colors.transparent,
@@ -799,25 +821,27 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildDropdownField() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF334155) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
+        border: Border.all(color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButtonFormField<String>(
           isExpanded: true,
           initialValue: _selectedSuffix,
-          decoration: const InputDecoration(
+          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          decoration: InputDecoration(
             hintText: "Suffix (Optional)",
-            hintStyle: TextStyle(color: Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
-            prefixIcon: Icon(Icons.title, color: Colors.black45),
+            hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
+            prefixIcon: Icon(Icons.title, color: isDark ? Colors.white60 : Colors.black45),
             border: InputBorder.none,
           ),
-          items: _suffixes.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+          items: _suffixes.map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(color: isDark ? Colors.white : Colors.black87)))).toList(),
           onChanged: (val) => setState(() => _selectedSuffix = val),
         ),
       ),
@@ -825,27 +849,33 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Widget _buildPhoneField() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF334155) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
+        border: Border.all(color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05)),
       ),
       child: IntlPhoneField(
         controller: _phoneController,
         initialCountryCode: 'PH',
         keyboardType: TextInputType.number,
+        dropdownTextStyle: TextStyle(
+          color: isDark ? Colors.white : Colors.black87,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
         inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
         showDropdownIcon: false,
-        style: const TextStyle(
-          color: Colors.black87,
+        style: TextStyle(
+          color: isDark ? Colors.white : Colors.black87,
           fontWeight: FontWeight.w500,
           fontSize: 14,
         ),
         decoration: InputDecoration(
           hintText: 'Phone Number',
-          hintStyle: const TextStyle(color: Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
+          hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
           counterText: '',
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
           filled: true,

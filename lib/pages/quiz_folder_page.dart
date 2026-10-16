@@ -7,6 +7,7 @@ import '../widgets/app_search_bar.dart';
 import '../widgets/author_name_widget.dart';
 import '../services/navigation_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/universal_drawer.dart';
 
 class QuizFolderPage extends StatefulWidget {
   final User user;
@@ -77,6 +78,19 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
                 color: isDark ? Colors.white : AppColors.textPrimary,
               ),
         ),
+        actions: [
+          Builder(
+            builder: (ctx) => IconButton(
+              icon: Icon(Icons.menu, color: isDark ? Colors.white : AppColors.textPrimary, size: 28),
+              onPressed: () => Scaffold.of(ctx).openDrawer(),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      drawer: UniversalDrawer(
+        user: widget.user,
+        userData: const {},
       ),
       body: _buildContent(context),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SubscriptionTierDialog extends StatelessWidget {
   final Map<String, dynamic>? pricing;
@@ -14,222 +15,292 @@ class SubscriptionTierDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final standardPrice = pricing?['standard'] ?? 3;
     final premiumPrice = pricing?['premium'] ?? 7;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isMobile = screenWidth < 700;
 
     return Dialog(
-      backgroundColor: const Color(0xFFF6F3EC),
+      backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFFAF9F6),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(42),
-        side: const BorderSide(color: Colors.black, width: 1.0),
-      ),
-      child: Container(
-        width: 960,
-        height: 534,
-        padding: const EdgeInsets.only(top: 32.0, bottom: 24.0, left: 32.0, right: 32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Subscribe to $educatorName',
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w400,
-                color: Colors.black87,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            // Wrap allows it to flow to the next line on mobile screens
-            Wrap(
-              spacing: 24,
-              runSpacing: 24,
-              alignment: WrapAlignment.center,
-              children: [
-                _buildCard(
-                  context,
-                  tier: 'Basic',
-                  price: 'Free',
-                  description: 'Access to free content.',
-                  role: 'Viewer',
-                  mainColor: const Color(0xFFF9D866),
-                  bgColor: const Color(0xFFFFFBEA),
-                  strokeColor: const Color(0xFFE5C048),
-                  icon: Icons.menu_book,
-                ),
-                _buildCard(
-                  context,
-                  tier: 'Standard',
-                  price: '\$$standardPrice/mo',
-                  description: 'Access to members-only content.',
-                  role: 'Subscriber',
-                  mainColor: const Color(0xFF98E274),
-                  bgColor: const Color(0xFFECFBE6),
-                  strokeColor: const Color(0xFF75CB4B),
-                  icon: Icons.people_alt,
-                ),
-                _buildCard(
-                  context,
-                  tier: 'Premium',
-                  price: '\$$premiumPrice/mo',
-                  description: 'Hands-on teaching materials',
-                  role: 'Mentored',
-                  mainColor: const Color(0xFFF67576),
-                  bgColor: const Color(0xFFFDEAEB),
-                  strokeColor: const Color(0xFFDF5758),
-                  icon: Icons.workspace_premium_outlined, // closest to crown
-                ),
-              ],
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.red, fontSize: 18),
-                ),
-              ),
-            ),
-          ],
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(
+          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          width: 1.0,
         ),
       ),
-    );
-  }
-
-  Widget _buildCard(
-    BuildContext context, {
-    required String tier,
-    required String price,
-    required String description,
-    required String role,
-    required Color mainColor,
-    required Color bgColor,
-    required Color strokeColor,
-    required IconData icon,
-  }) {
-    return InkWell(
-      onTap: () => Navigator.pop(context, tier),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        width: 263,
-        height: 362,
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: strokeColor, width: 0.5),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16.0 : 40.0,
+        vertical: isMobile ? 24.0 : 32.0,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 760,
+          maxHeight: screenHeight * 0.90,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.topCenter,
-              children: [
-                ClipPath(
-                  clipper: HeaderCurveClipper(),
-                  child: Container(
-                    height: 130,
-                    width: double.infinity,
-                    color: mainColor,
-                    alignment: Alignment.topCenter,
-                    padding: const EdgeInsets.only(top: 28),
+        child: Padding(
+          padding: EdgeInsets.all(isMobile ? 20.0 : 28.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with Title and Close button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
                     child: Text(
-                      tier,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF4A4A4A),
+                      'Subscribe to $educatorName',
+                      style: GoogleFonts.outfit(
+                        fontSize: isMobile ? 20 : 26,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                     ),
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    color: isDark ? Colors.white54 : Colors.grey.shade600,
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Scrollable Tier Cards
+              Flexible(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      // Basic Tier Card
+                      _buildTierCard(
+                        context,
+                        isDark: isDark,
+                        tier: 'Basic',
+                        price: 'Free',
+                        badgeText: 'Free for 30 days',
+                        badgeColor: isDark ? Colors.white12 : Colors.grey.shade200,
+                        badgeTextColor: isDark ? Colors.white70 : Colors.grey.shade800,
+                        subtitle: "For learners who want to explore an educator's content.",
+                        inclusions: const [
+                          'Access to public lessons uploaded by the educator',
+                          'Access to publicly available learning materials',
+                          'View basic lesson information',
+                          'Free trial for 30 days',
+                          'Cancel anytime',
+                          'No access to exclusive private content',
+                          'No personal mentorship from the educator',
+                        ],
+                        buttonColor: const Color(0xFFF9D866),
+                        buttonTextColor: const Color(0xFF4A4A4A),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Standard Tier Card
+                      _buildTierCard(
+                        context,
+                        isDark: isDark,
+                        tier: 'Standard',
+                        price: '\$$standardPrice/mo',
+                        badgeText: 'Exclusive Content',
+                        badgeColor: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                        badgeTextColor: const Color(0xFF2563EB),
+                        subtitle: 'For learners who want access to additional learning materials.',
+                        inclusions: const [
+                          'Everything available in Basic',
+                          'Access to private and exclusive educator content',
+                          'Access to additional lessons and learning resources',
+                          'Access to educator-only learning materials marked for Standard subscribers',
+                          'Subscription applies only to the selected educator',
+                        ],
+                        buttonColor: const Color(0xFF98E274),
+                        buttonTextColor: const Color(0xFF1E3A1A),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Premium Tier Card
+                      _buildTierCard(
+                        context,
+                        isDark: isDark,
+                        tier: 'Premium',
+                        price: '\$$premiumPrice/mo',
+                        badgeText: 'Mentorship',
+                        badgeColor: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                        badgeTextColor: const Color(0xFF7C3AED),
+                        subtitle: 'For learners who want exclusive content and direct guidance.',
+                        inclusions: const [
+                          'Everything included in Standard',
+                          'Personal mentorship with the educator',
+                          'Opportunity to ask questions and receive guidance',
+                          'Personalized feedback on learning progress',
+                          'Additional learning support from the educator',
+                          'Priority access to mentorship sessions, if offered',
+                          'Subscription applies only to the selected educator',
+                        ],
+                        buttonColor: const Color(0xFFF67576),
+                        buttonTextColor: Colors.white,
+                      ),
+                    ],
+                  ),
                 ),
-                Positioned(
-                  top: 90,
-                  child: Container(
-                    width: 75,
-                    height: 75,
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: mainColor, width: 2.0),
+              ),
+
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.outfit(
+                      color: Colors.redAccent,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: Icon(icon, color: mainColor, size: 36),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 55), // Space for circle overlapping below header
-            Text(
-              role,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Includes:',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                description,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black87,
-                  height: 1.3,
-                ),
-              ),
-            ),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 24),
-              child: Container(
-                width: 150, // Slightly wider compact button width
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: mainColor,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: strokeColor, width: 1.0),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  price,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
-}
 
-class HeaderCurveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    Path path = Path();
-    path.lineTo(0, size.height - 35);
-    path.quadraticBezierTo(
-      size.width / 2, size.height + 15, 
-      size.width, size.height - 35
+  Widget _buildTierCard(
+    BuildContext context, {
+    required bool isDark,
+    required String tier,
+    required String price,
+    required String badgeText,
+    required Color badgeColor,
+    required Color badgeTextColor,
+    required String subtitle,
+    required List<String> inclusions,
+    required Color buttonColor,
+    required Color buttonTextColor,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Row: Tier Title + Badge + Button
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                tier,
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  badgeText,
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: badgeTextColor,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, tier),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: buttonColor,
+                  foregroundColor: buttonTextColor,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  price,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: buttonTextColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+
+          // Inclusions List
+          ...inclusions.map((item) {
+            final isNegative = item.startsWith('No ');
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3.5),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Icon(
+                      isNegative ? Icons.remove_circle_outline_rounded : Icons.check_circle_rounded,
+                      size: 15,
+                      color: isNegative
+                          ? (isDark ? Colors.white30 : Colors.grey.shade400)
+                          : const Color(0xFF81B655),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      item,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: isNegative
+                            ? (isDark ? Colors.white38 : Colors.grey.shade500)
+                            : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
   }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

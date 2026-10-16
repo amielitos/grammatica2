@@ -372,9 +372,8 @@ class ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildLeftColumn() {
+  Widget _buildLeftColumn({bool isMobile = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final accentColor = const Color(0xFF81B655);
     final roleStr = _roleStr;
 
     return _buildCard(
@@ -383,6 +382,7 @@ class ProfilePageState extends State<ProfilePage> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 'My Profile',
@@ -393,23 +393,7 @@ class ProfilePageState extends State<ProfilePage> {
                   letterSpacing: -0.5,
                 ),
               ),
-              if (!_isEditing)
-                TextButton.icon(
-                  onPressed: () => setState(() => _isEditing = true),
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF81B655)),
-                  label: const Text('Edit Profile', style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold)),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    backgroundColor: accentColor.withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                  ),
-                )
-              else
-                TextButton.icon(
-                  onPressed: () => setState(() => _isEditing = false),
-                  icon: const Icon(Icons.close, size: 18, color: Colors.grey),
-                  label: const Text('Cancel Request', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-                ),
+              if (isMobile) _buildThemeToggle(),
             ],
           ),
           const SizedBox(height: 40),
@@ -1000,9 +984,7 @@ class ProfilePageState extends State<ProfilePage> {
                         )
                       : Column(
                           children: [
-                            _buildThemeToggle(),
-                            const SizedBox(height: 24),
-                            _buildLeftColumn(),
+                            _buildLeftColumn(isMobile: true),
                             const SizedBox(height: 24),
                             _buildRightColumn(role, isWide: false),
                           ],

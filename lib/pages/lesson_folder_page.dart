@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -13,6 +14,7 @@ import '../services/navigation_service.dart';
 
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
+import '../widgets/universal_drawer.dart';
 
 
 class LessonFolderPage extends StatefulWidget {
@@ -49,6 +51,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
 
   final _searchController = TextEditingController();
+  Timer? _debounceTimer;
   late Stream<Map<String, Map<String, dynamic>>> _progressStream;
 
   @override
@@ -59,6 +62,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -81,6 +85,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             builder: (context) => NotificationsDialog(userId: widget.user.uid),
           );
         },
+      ),
+      drawer: UniversalDrawer(
+        user: widget.user,
+        userData: const {},
       ),
       body: _buildContent(context),
     );
@@ -542,7 +550,16 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                   child: TextField(
                     controller: _searchController,
-                    onChanged: (val) => setState(() => _searchQuery = val),
+                    onChanged: (val) {
+                      _debounceTimer?.cancel();
+                      _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+                        if (mounted) setState(() => _searchQuery = val);
+                      });
+                    },
+                    onSubmitted: (val) {
+                      _debounceTimer?.cancel();
+                      setState(() => _searchQuery = val);
+                    },
                     style:
                         TextStyle(color: isDark ? Colors.white : Colors.black),
                     decoration: InputDecoration(
@@ -551,10 +568,19 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                           color: isDark
                               ? Colors.white70
                               : AppColors.textSecondary),
-                      suffixIcon: Icon(Icons.search_rounded,
-                          color: isDark
-                              ? Colors.white70
-                              : AppColors.textSecondary),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 18),
+                              onPressed: () {
+                                _debounceTimer?.cancel();
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                          : Icon(Icons.search_rounded,
+                              color: isDark
+                                  ? Colors.white70
+                                  : AppColors.textSecondary),
                       filled: true,
                       fillColor:
                           isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -754,12 +780,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                   children: [
                     headerBlock,
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      child: metricsBlock,
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                       child: !hasAnyItems
                           ? Center(
                               child: Padding(
@@ -881,6 +902,10 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                   ),
                               ],
                             ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                      child: metricsBlock,
                     ),
                   ],
                 ),
@@ -1201,42 +1226,71 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     int completedCount = 0;
-    List<Map<String, dynamic>> recentlyCompleted = [];
+    List<Map<String, dynamic>> recentActivities = [];
 
     for (var l in lessons) {
       final p = progress[l.id];
-      if (p != null && p['completed'] == true) {
-        completedCount++;
-        Timestamp? ts = p['completedAt'] as Timestamp?;
-        recentlyCompleted.add({
-          'title': l.title,
-          'completedAt': ts ?? Timestamp.now(),
-        });
+      if (p != null) {
+        final isCompleted = p['completed'] == true;
+        if (isCompleted) {
+          completedCount++;
+        }
+        final dynamic rawTs = p['lastReadAt'] ?? p['completedAt'];
+        if (rawTs is Timestamp) {
+          recentActivities.add({
+            'title': l.title,
+            'completed': isCompleted,
+            'timestamp': rawTs,
+            'lesson': l,
+            'type': 'Lesson',
+          });
+        }
       }
     }
 
     for (var item in publishedItems) {
       final p = progress[item.id];
-      if (p != null && p['completed'] == true) {
-        completedCount++;
-        Timestamp? ts = p['completedAt'] as Timestamp?;
-        recentlyCompleted.add({
-          'title': item.title,
-          'completedAt': ts ?? Timestamp.now(),
-        });
+      if (p != null) {
+        final isCompleted = p['completed'] == true;
+        if (isCompleted) {
+          completedCount++;
+        }
+        final dynamic rawTs = p['lastReadAt'] ?? p['completedAt'];
+        if (rawTs is Timestamp) {
+          recentActivities.add({
+            'title': item.title,
+            'completed': isCompleted,
+            'timestamp': rawTs,
+            'item': item,
+            'type': item.type.displayName,
+          });
+        }
       }
     }
 
     final totalItems = lessons.length + publishedItems.length;
-    double percent = totalItems == 0 ? 0 : completedCount / totalItems;
-    recentlyCompleted.sort(
-      (a, b) => (b['completedAt'] as Timestamp).compareTo(
-        a['completedAt'] as Timestamp,
+    double percent = totalItems == 0 ? 0 : (completedCount / totalItems).clamp(0.0, 1.0);
+    final percentInt = (percent * 100).toInt();
+
+    recentActivities.sort(
+      (a, b) => (b['timestamp'] as Timestamp).compareTo(
+        a['timestamp'] as Timestamp,
       ),
     );
 
-    if (recentlyCompleted.length > 5) {
-      recentlyCompleted = recentlyCompleted.sublist(0, 5);
+    if (recentActivities.length > 5) {
+      recentActivities = recentActivities.sublist(0, 5);
+    }
+
+    String formatTime(Timestamp ts) {
+      final dt = ts.toDate();
+      final now = DateTime.now();
+      final diff = now.difference(dt);
+      if (diff.inSeconds < 60) return 'Just now';
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      if (diff.inDays < 7) return '${diff.inDays}d ago';
+      return DateFormat('MMM d').format(dt);
     }
 
     return Column(
@@ -1255,14 +1309,34 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Folder Progress',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.textPrimary),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Folder Progress',
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppColors.textPrimary),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$percentInt%',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
@@ -1275,17 +1349,26 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  '$completedCount / $totalItems Materials Completed',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : AppColors.textSecondary),
+                Row(
+                  children: [
+                    if (percent >= 1.0 && totalItems > 0) ...[
+                      const Icon(Icons.verified_rounded, size: 16, color: AppColors.primary),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      '$completedCount / $totalItems Materials Completed',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : AppColors.textSecondary),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1299,52 +1382,114 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Recent Activity',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.textPrimary),
-                ),
-                const SizedBox(height: 20),
-                if (recentlyCompleted.isEmpty)
-                  Text('No recent activities...',
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Recent Activity',
                       style: TextStyle(
-                          color: isDark
-                              ? Colors.white54
-                              : AppColors.textSecondary))
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppColors.textPrimary),
+                    ),
+                    if (recentActivities.isNotEmpty)
+                      Text(
+                        '${recentActivities.length} recent',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white54 : AppColors.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (recentActivities.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text('No recent activities...',
+                        style: TextStyle(
+                            color: isDark
+                                ? Colors.white54
+                                : AppColors.textSecondary)),
+                  )
                 else
                   ListView.separated(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: recentlyCompleted.length,
+                    itemCount: recentActivities.length,
                     separatorBuilder: (c, i) => Divider(
-                        color: isDark ? Colors.grey[800] : AppColors.divider),
+                        color: isDark ? Colors.grey[800] : AppColors.divider,
+                        height: 16),
                     itemBuilder: (context, index) {
-                      final item = recentlyCompleted[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle_rounded,
-                              color: AppColors.primary,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                item['title'],
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    color: isDark
-                                        ? Colors.white
-                                        : AppColors.textPrimary),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                      final act = recentActivities[index];
+                      final isComp = act['completed'] == true;
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          if (act['lesson'] != null) {
+                            NavigationService.instance.goToLesson(context, act['lesson'] as Lesson);
+                          } else if (act['item'] != null) {
+                            NavigationService.instance.goToContent(context, act['item'] as PublishedContentItem);
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isComp
+                                    ? Icons.check_circle_rounded
+                                    : Icons.schedule_rounded,
+                                color: isComp ? AppColors.primary : const Color(0xFFF59E0B),
+                                size: 20,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      act['title'] as String,
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark
+                                              ? Colors.white
+                                              : AppColors.textPrimary),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          isComp ? 'Completed' : 'Studied',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: isComp ? AppColors.primary : const Color(0xFFF59E0B),
+                                          ),
+                                        ),
+                                        Text(
+                                          ' • ${formatTime(act['timestamp'] as Timestamp)}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? Colors.white54 : AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 18,
+                                color: isDark ? Colors.white38 : Colors.grey[400],
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },

@@ -28,9 +28,12 @@ class BackgroundWrapper extends StatelessWidget {
         children: [
           if (imageAssetPath != null)
             Positioned.fill(
-              child: Image.asset(
-                imageAssetPath!,
-                fit: BoxFit.cover,
+              child: Opacity(
+                opacity: isDark ? 0.08 : 1.0,
+                child: Image.asset(
+                  imageAssetPath!,
+                  fit: BoxFit.cover,
+                ),
               ),
             )
           else ...[

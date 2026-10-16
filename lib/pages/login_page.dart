@@ -315,16 +315,17 @@ class _LoginPageState extends State<LoginPage> {
         imageAssetPath: 'assets/signinbgs.png',
         child: LayoutBuilder(builder: (context, constraints) {
           final isLargeScreen = constraints.maxWidth > 800;
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           
           final authCard = ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
+                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.08),
                     blurRadius: 24,
                     offset: const Offset(0, 12),
                   ),
@@ -338,15 +339,20 @@ class _LoginPageState extends State<LoginPage> {
                   // Header section with gradient
                   Container(
                     width: double.infinity,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0xFFE2F3D9), // Light green tint
-                          Colors.white,
-                        ],
-                        stops: [0.0, 1.0],
+                        colors: isDark
+                            ? const [
+                                Color(0xFF334155),
+                                Color(0xFF1E293B),
+                              ]
+                            : const [
+                                Color(0xFFE2F3D9), // Light green tint
+                                Colors.white,
+                              ],
+                        stops: const [0.0, 1.0],
                       ),
                     ),
                     padding: const EdgeInsets.only(
@@ -370,7 +376,7 @@ class _LoginPageState extends State<LoginPage> {
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w900,
-                                  color: const Color(0xFF0F172A),
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   letterSpacing: -0.5,
                                 ),
                               ),
@@ -385,13 +391,13 @@ class _LoginPageState extends State<LoginPage> {
                               .headlineSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           "Sign in to continue your learning journey",
-                          style: TextStyle(color: Colors.black54),
+                          style: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -410,9 +416,9 @@ class _LoginPageState extends State<LoginPage> {
                               padding: const EdgeInsets.all(16),
                               margin: const EdgeInsets.only(bottom: 20),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFEF2F2),
+                                color: isDark ? const Color(0xFF450A0A) : const Color(0xFFFEF2F2),
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: const Color(0xFFFCA5A5)),
+                                border: Border.all(color: isDark ? const Color(0xFF991B1B) : const Color(0xFFFCA5A5)),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -422,13 +428,13 @@ class _LoginPageState extends State<LoginPage> {
                                       const Icon(Icons.lock_clock_rounded,
                                           color: Color(0xFFDC2626), size: 22),
                                       const SizedBox(width: 10),
-                                      const Expanded(
+                                      Expanded(
                                         child: Text(
                                           'Account Temporarily Locked',
                                           style: TextStyle(
                                             fontWeight: FontWeight.w800,
                                             fontSize: 14,
-                                            color: Color(0xFF991B1B),
+                                            color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
                                           ),
                                         ),
                                       ),
@@ -455,7 +461,7 @@ class _LoginPageState extends State<LoginPage> {
                                     '3 consecutive failed login attempts detected. For security, sign-in is temporarily paused.',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.red.shade900,
+                                      color: isDark ? Colors.red.shade200 : Colors.red.shade900,
                                       height: 1.4,
                                     ),
                                   ),
@@ -518,7 +524,10 @@ class _LoginPageState extends State<LoginPage> {
                                 _obscurePassword
                                     ? Icons.visibility_outlined
                                     : Icons.visibility_off_outlined,
+                                color: const Color(0xFF81B655),
+                                size: 22,
                               ),
+                              tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                               onPressed: () => setState(
                                   () => _obscurePassword = !_obscurePassword),
                             ),
@@ -536,10 +545,10 @@ class _LoginPageState extends State<LoginPage> {
                                 minimumSize: const Size(0, 30),
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Forgot Password?',
                                 style: TextStyle(
-                                  color: Colors.black87,
+                                  color: isDark ? Colors.white70 : Colors.black87,
                                   decoration: TextDecoration.underline,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
@@ -624,16 +633,16 @@ class _LoginPageState extends State<LoginPage> {
                                 );
                               },
                               child: RichText(
-                                text: const TextSpan(
+                                text: TextSpan(
                                   text: "Don't have an account? ",
                                   style: TextStyle(
-                                    color: Colors.black87,
+                                    color: isDark ? Colors.white70 : Colors.black87,
                                   ),
-                                  children: [
+                                  children: const [
                                     TextSpan(
                                       text: "Sign Up",
                                       style: TextStyle(
-                                        color: Color(0xFF75A94B), // Match green
+                                        color: Color(0xFF81B655), // Match green
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -685,43 +694,40 @@ class _LoginPageState extends State<LoginPage> {
     bool obscureText = false,
     String? Function(String?)? validator,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF334155) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
             blurRadius: 8,
             spreadRadius: 2,
             offset: const Offset(0, 4),
           ),
         ],
         border: Border.all(
-          color: Colors.black.withValues(alpha: 0.05),
+          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
           width: 1,
         ),
       ),
       child: TextFormField(
         controller: controller,
         obscureText: obscureText,
-        style: const TextStyle(
-          color: Colors.black87,
+        style: TextStyle(
+          color: isDark ? Colors.white : Colors.black87,
           fontWeight: FontWeight.w500,
           fontSize: 14,
         ),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: const TextStyle(
-              color: Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
+          hintStyle: TextStyle(
+              color: isDark ? Colors.white38 : Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
           prefixIcon: IconTheme(
-              data: const IconThemeData(color: Colors.black45),
+              data: IconThemeData(color: isDark ? Colors.white60 : Colors.black45),
               child: prefixIcon),
-          suffixIcon: suffixIcon != null
-              ? IconTheme(
-                  data: const IconThemeData(color: Colors.black45),
-                  child: suffixIcon)
-              : null,
+          suffixIcon: suffixIcon,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,

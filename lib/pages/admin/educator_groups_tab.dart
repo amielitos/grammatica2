@@ -252,6 +252,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                     final start = (s['startTime'] as Timestamp).toDate();
                     final end = (s['endTime'] as Timestamp).toDate();
                     final timeStr = '${DateFormat('h:mm a').format(start)} - ${DateFormat('h:mm a').format(end)}';
+                    final isPast = end.isBefore(DateTime.now());
                     final agoraChannel = s['agoraChannel']?.toString() ?? '';
                     final sessionId = s['id']?.toString() ?? '';
 
@@ -307,41 +308,43 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                                       color: isDark ? Colors.white70 : Colors.grey.shade600,
                                     ),
                                   ),
-                                  const SizedBox(height: 10),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: ElevatedButton.icon(
-                                      onPressed: () {
-                                        final channel = agoraChannel.isNotEmpty
-                                            ? agoraChannel
-                                            : AgoraService.instance.channelFromSessionId(
-                                                sessionId.isNotEmpty ? sessionId : 'session',
-                                              );
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => ConferencePage(
-                                              channelName: channel,
-                                              sessionId: sessionId,
-                                              sessionTitle: s['meetingTitle']?.toString() ?? 'Mentorship Session',
-                                              otherParticipantName: s['studentName']?.toString() ?? 'Student',
-                                              isHost: true,
-                                              currentUser: widget.user,
+                                  if (!isPast) ...[
+                                    const SizedBox(height: 10),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () {
+                                          final channel = agoraChannel.isNotEmpty
+                                              ? agoraChannel
+                                              : AgoraService.instance.channelFromSessionId(
+                                                  sessionId.isNotEmpty ? sessionId : 'session',
+                                                );
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => ConferencePage(
+                                                channelName: channel,
+                                                sessionId: sessionId,
+                                                sessionTitle: s['meetingTitle']?.toString() ?? 'Mentorship Session',
+                                                otherParticipantName: s['studentName']?.toString() ?? 'Student',
+                                                isHost: true,
+                                                currentUser: widget.user,
+                                              ),
                                             ),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.video_call_rounded, size: 16),
-                                      label: const Text('Join'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF81B655),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                        elevation: 0,
+                                          );
+                                        },
+                                        icon: const Icon(Icons.video_call_rounded, size: 16),
+                                        label: const Text('Join'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF81B655),
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                          elevation: 0,
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -877,6 +880,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
     final timeString = '${DateFormat('h:mm a').format(start)} - ${DateFormat('h:mm a').format(end)}';
     final meetingTitle = s['meetingTitle']?.toString() ?? '';
     final conferenceApp = s['conferenceApp']?.toString() ?? 'agora';
+    final isPast = end.isBefore(DateTime.now());
 
     showDialog(
       context: context,
@@ -917,42 +921,44 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
             const SizedBox(height: 12),
             const Text('Status', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
             Text((s['status']?.toString().toUpperCase() ?? 'SCHEDULED'), style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.video_call_rounded, size: 18),
-                label: const Text('Join Conference'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF81B655),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  final agoraChannel = s['agoraChannel']?.toString() ?? '';
-                  final sessionId = s['id']?.toString() ?? '';
-                  final channel = agoraChannel.isNotEmpty
-                      ? agoraChannel
-                      : AgoraService.instance.channelFromSessionId(
-                          sessionId.isNotEmpty ? sessionId : 'session',
-                        );
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ConferencePage(
-                        channelName: channel,
-                        sessionId: sessionId,
-                        sessionTitle: meetingTitle.isNotEmpty ? meetingTitle : 'Mentorship Session',
-                        otherParticipantName: s['studentName']?.toString() ?? 'Student',
-                        isHost: true,
-                        currentUser: widget.user,
+            if (!isPast) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.video_call_rounded, size: 18),
+                  label: const Text('Join'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF81B655),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    final agoraChannel = s['agoraChannel']?.toString() ?? '';
+                    final sessionId = s['id']?.toString() ?? '';
+                    final channel = agoraChannel.isNotEmpty
+                        ? agoraChannel
+                        : AgoraService.instance.channelFromSessionId(
+                            sessionId.isNotEmpty ? sessionId : 'session',
+                          );
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ConferencePage(
+                          channelName: channel,
+                          sessionId: sessionId,
+                          sessionTitle: meetingTitle.isNotEmpty ? meetingTitle : 'Mentorship Session',
+                          otherParticipantName: s['studentName']?.toString() ?? 'Student',
+                          isHost: true,
+                          currentUser: widget.user,
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
+            ],
           ],
         ),
         actions: [
@@ -1190,7 +1196,8 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
               StreamBuilder<List<Map<String, dynamic>>>(
                 stream: DatabaseService.instance.streamEducatorSubscribers(widget.user.uid),
                 builder: (context, snapshot) {
-                  final subs = (snapshot.data ?? []).toList();
+                  final allSubs = (snapshot.data ?? []).toList();
+                  final subs = allSubs.where((s) => (s['tier']?.toString().toLowerCase() ?? '') == 'premium').toList();
                   
                   if (subs.isEmpty && snapshot.connectionState != ConnectionState.waiting) {
                     return DropdownButtonFormField<String>(
@@ -1201,7 +1208,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                       ),
                       items: const [],
-                      hint: const Text('No active subscribers found', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                      hint: const Text('No active premium subscribers found', style: TextStyle(fontSize: 13, color: Colors.grey)),
                     );
                   }
 

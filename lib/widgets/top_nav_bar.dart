@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../main.dart';
 
 class TopNavBar extends StatelessWidget {
   const TopNavBar({super.key});
@@ -8,13 +9,19 @@ class TopNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth > 800; // Consistent breakpoint
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       height: 80,
       padding: EdgeInsets.symmetric(horizontal: isDesktop ? 48 : 20),
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+          ),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -45,7 +52,7 @@ class TopNavBar extends StatelessWidget {
                         style: GoogleFonts.outfit(
                           fontSize: 22,
                           fontWeight: FontWeight.w900,
-                          color: const Color(0xFF0F172A),
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                           letterSpacing: -0.5,
                         ),
                       ),
@@ -57,16 +64,53 @@ class TopNavBar extends StatelessWidget {
           ),
           const Spacer(),
           if (isDesktop) ...[
-            _buildNavButton('All About Grammatica'),
-            const SizedBox(width: 28),
-            _buildNavButton("FAQ's"),
+            _buildNavButton(context, 'All About Grammatica', isDark),
+            const SizedBox(width: 24),
+            _buildNavButton(context, "FAQ's", isDark),
+            const SizedBox(width: 16),
           ],
+          // Light/Dark mode toggle button
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: themeNotifier,
+            builder: (context, mode, _) {
+              final activeDark = mode == ThemeMode.dark ||
+                  (mode == ThemeMode.system &&
+                      MediaQuery.of(context).platformBrightness ==
+                          Brightness.dark);
+              return Container(
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : const Color(0xFF81B655).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  tooltip: activeDark
+                      ? 'Switch to Light Mode'
+                      : 'Switch to Dark Mode',
+                  icon: Icon(
+                    activeDark
+                        ? Icons.light_mode_rounded
+                        : Icons.dark_mode_rounded,
+                    color: activeDark
+                        ? Colors.amberAccent
+                        : const Color(0xFF81B655),
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    themeNotifier.value =
+                        activeDark ? ThemeMode.light : ThemeMode.dark;
+                  },
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildNavButton(String text) {
+  Widget _buildNavButton(BuildContext context, String text, bool isDark) {
     return TextButton(
       onPressed: () {},
       style: TextButton.styleFrom(
@@ -76,8 +120,8 @@ class TopNavBar extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Color(0xFF1D1B20),
+        style: TextStyle(
+          color: isDark ? Colors.white70 : const Color(0xFF1D1B20),
           fontWeight: FontWeight.w500,
           fontSize: 15,
           letterSpacing: 0.1,

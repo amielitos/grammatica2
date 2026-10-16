@@ -78,6 +78,8 @@ class AdminSidebar extends StatelessWidget {
                           onTap: () {
                             if (Scaffold.maybeOf(context)?.isDrawerOpen ?? false) {
                               Navigator.pop(context);
+                            } else if (Navigator.canPop(context)) {
+                              Navigator.pop(context);
                             }
                             onItemSelected(index);
                           },

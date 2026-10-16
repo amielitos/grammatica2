@@ -16,6 +16,7 @@ import 'notebook/mind_map_view.dart';
 import 'notebook/study_guide_view.dart';
 import 'notebook/timeline_view.dart';
 import '../widgets/linked_companion_toolbar.dart';
+import '../widgets/universal_drawer.dart';
 
 /// Universal content viewer for all published non-lesson/non-quiz output types
 /// (Mind Maps, Flashcards, Study Guides, Timelines, Briefings, FAQs).
@@ -469,7 +470,18 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
               );
             },
           ),
+          Builder(
+            builder: (ctx) => IconButton(
+              icon: const Icon(Icons.menu, size: 26),
+              onPressed: () => Scaffold.of(ctx).openDrawer(),
+            ),
+          ),
+          const SizedBox(width: 8),
         ],
+      ),
+      drawer: UniversalDrawer(
+        user: _effectiveUser,
+        userData: const {},
       ),
       body: Center(
         child: LayoutBuilder(

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'sidebar.dart';
 import 'admin_sidebar.dart';
 import 'modern_bottom_nav.dart';
 import '../services/role_service.dart';
 import '../services/auth_service.dart';
+import '../pages/home_page.dart';
+import '../pages/admin_dashboard.dart';
 
 class UniversalDrawer extends StatelessWidget {
   final User user;
@@ -24,10 +27,23 @@ class UniversalDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final role = roleFromString(userData['role'] as String?);
+    if (userData.isEmpty) {
+      return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+        builder: (context, snapshot) {
+          final data = snapshot.data?.data() ?? {};
+          return _buildDrawerContent(context, data);
+        },
+      );
+    }
+    return _buildDrawerContent(context, userData);
+  }
+
+  Widget _buildDrawerContent(BuildContext context, Map<String, dynamic> effectiveUserData) {
+    final role = roleFromString(effectiveUserData['role'] as String?);
     final isAdmin = role == UserRole.admin || role == UserRole.superadmin || role == UserRole.validator;
     final isEducator = role == UserRole.educator;
-    final username = (userData['username'] as String?)?.split(' ').first ?? 'User';
+    final username = (effectiveUserData['username'] as String?)?.split(' ').first ?? 'User';
 
     if (isAdmin || isEducator) {
       final List<ModernNavItem> items = navItems ?? [];
@@ -83,7 +99,7 @@ class UniversalDrawer extends StatelessWidget {
           if (onTap != null) {
             onTap!(i);
           } else {
-            Navigator.pop(context);
+            AdminDashboard.navigateToTab(context, i);
           }
         },
         userName: username,
@@ -106,11 +122,12 @@ class UniversalDrawer extends StatelessWidget {
           if (onTap != null) {
             onTap!(i);
           } else {
-            Navigator.pop(context);
+            HomePage.navigateToTab(context, i);
           }
         },
         items: items,
         isDrawer: true,
+        onSignOut: () => AuthService.instance.signOut(),
       );
     }
   }

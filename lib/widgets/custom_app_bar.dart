@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import 'notification_widgets.dart';
 import '../pages/settings_page.dart';
 import '../services/auth_service.dart';
+import 'universal_drawer.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final User user;
@@ -66,15 +67,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     IconButton(
                       icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black87, size: 28),
                       onPressed: () => Navigator.maybePop(context),
-                    )
-                  else
-                    IconButton(
-                      icon: Icon(Icons.menu, color: isDark ? Colors.white : Colors.black87, size: 28),
-                      onPressed: () {
-                        final scaffold = Scaffold.maybeOf(context);
-                        scaffold?.openDrawer();
-                      },
                     ),
+                  IconButton(
+                    icon: Icon(Icons.menu, color: isDark ? Colors.white : Colors.black87, size: 28),
+                    onPressed: () => _openDrawer(context),
+                  ),
                   const SizedBox(width: 4),
                   Material(
                     color: Colors.transparent,
@@ -203,6 +200,39 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
+
+  void _openDrawer(BuildContext context) {
+    final scaffold = Scaffold.maybeOf(context);
+    if (scaffold != null && scaffold.hasDrawer) {
+      scaffold.openDrawer();
+      return;
+    }
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Drawer',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 250),
+      pageBuilder: (ctx, anim1, anim2) => Align(
+        alignment: Alignment.centerLeft,
+        child: Material(
+          color: Colors.transparent,
+          child: UniversalDrawer(
+            user: user,
+            userData: userData ?? const {},
+          ),
+        ),
+      ),
+      transitionBuilder: (ctx, anim, _, child) => SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(-1.0, 0.0),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
+    );
+  }
 
   @override
   Size get preferredSize => const Size.fromHeight(80.0);
