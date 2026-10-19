@@ -29,6 +29,14 @@ void main() async {
     debugPrint('Dotenv initialization note: $e');
   }
 
+  if (dotenv.env['GEMINI_API_KEY'] == null || dotenv.env['GEMINI_API_KEY']!.isEmpty) {
+    try {
+      await dotenv.load(fileName: "assets/env");
+    } catch (e) {
+      debugPrint('Fallback dotenv initialization note: $e');
+    }
+  }
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
 // AppCheck disabled for production to avoid 403 token fetch error without reCAPTCHA setup

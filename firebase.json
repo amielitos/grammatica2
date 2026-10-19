@@ -9,6 +9,9 @@
 
     "hosting": {
         "public": "build/web",
+        "predeploy": [
+            "flutter build web --dart-define-from-file=.env"
+        ],
         "ignore": [
             "firebase.json",
             "**/.*",

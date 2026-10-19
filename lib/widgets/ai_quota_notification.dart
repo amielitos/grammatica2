@@ -41,7 +41,9 @@ class AIQuotaNotification {
         ? 'Unlimited AI generations left today'
         : remaining == 1
             ? '1 generation left today'
-            : '$remaining of $limit generations left today';
+            : status.used == 0
+                ? '$remaining generations left today'
+                : '$remaining of $limit generations left today';
 
     final resetText = 'Resets in ${status.formattedTimeUntilReset}';
 

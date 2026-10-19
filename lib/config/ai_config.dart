@@ -45,19 +45,19 @@ class AIConfig {
 
   // ── Execution mode ──────────────────────────────────────────────────────
   /// **DEV TOGGLE**: Change this constant to swap between execution modes.
-  static const AIExecutionMode mode = AIExecutionMode.firebaseAI;
+  static const AIExecutionMode mode = AIExecutionMode.directClientSide;
 
   // ── Firebase AI (used in firebaseAI mode) ───────────────────────────────
   /// The Gemini model to use via Firebase AI Logic SDK.
   static const String firebaseAIModel = 'gemini-3.8-flash';
 
   // ── Gemini REST API (used in directClientSide mode) ─────────────────────
-  /// Your Google Gemini API key loaded from the .env file.
+  /// Your Google Gemini API key loaded from compile-time environment or .env file.
   static String get geminiApiKey {
-    final key = dotenv.env['GEMINI_API_KEY'];
-    if (key != null && key.isNotEmpty) return key;
     const compileKey = String.fromEnvironment('GEMINI_API_KEY');
     if (compileKey.isNotEmpty) return compileKey;
+    final key = dotenv.env['GEMINI_API_KEY'];
+    if (key != null && key.isNotEmpty) return key;
     return '';
   }
 

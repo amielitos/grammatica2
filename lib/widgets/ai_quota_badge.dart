@@ -9,19 +9,23 @@ import 'ai_quota_exceeded_dialog.dart';
 class AIQuotaBadge extends StatelessWidget {
   final bool compact;
   final VoidCallback? onTap;
+  final AIRateLimitStatus? statusOverride;
 
   const AIQuotaBadge({
     super.key,
     this.compact = false,
     this.onTap,
+    this.statusOverride,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (statusOverride != null) {
+      return _buildBadge(context, statusOverride!);
+    }
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const SizedBox.shrink();
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return StreamBuilder<AIRateLimitStatus>(
       stream: AIRateLimitService.instance.quotaStream(user.uid),
@@ -29,13 +33,17 @@ class AIQuotaBadge extends StatelessWidget {
         if (!snapshot.hasData) {
           return const SizedBox.shrink();
         }
+        return _buildBadge(context, snapshot.data!);
+      },
+    );
+  }
 
-        final status = snapshot.data!;
-        final isUnlimited = status.isUnlimited;
-        final remaining = status.remaining;
-        final limit = status.limit;
-        final isLow = !isUnlimited && remaining <= 2;
-        final isOut = !isUnlimited && remaining == 0;
+  Widget _buildBadge(BuildContext context, AIRateLimitStatus status) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isUnlimited = status.isUnlimited;
+    final remaining = status.remaining;
+    final isLow = !isUnlimited && remaining <= 2;
+    final isOut = !isUnlimited && remaining == 0;
 
         Color badgeColor;
         Color textColor;
@@ -52,51 +60,58 @@ class AIQuotaBadge extends StatelessWidget {
 
         final label = isUnlimited
             ? 'AI: Unlimited'
-            : compact
-                ? 'AI: $remaining/$limit'
-                : 'AI: $remaining/$limit left today';
+            : isOut
+                ? (compact ? 'AI: 0 left' : 'AI: 0 left today')
+                : compact
+                    ? 'AI: $remaining left'
+                    : 'AI: $remaining left today';
 
-        return InkWell(
-          onTap: onTap ??
-              () {
-                AIQuotaExceededDialog.showDetails(context, status);
-              },
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 8 : 12,
-              vertical: compact ? 4 : 6,
-            ),
-            decoration: BoxDecoration(
-              color: badgeColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: textColor.withValues(alpha: 0.25),
-                width: 1,
+        final tooltipMessage = isUnlimited
+            ? 'Unlimited daily AI generations'
+            : 'AI Quota: ${status.used} used of ${status.limit} ($remaining left today). Tap for details.';
+
+        return Tooltip(
+          message: tooltipMessage,
+          child: InkWell(
+            onTap: onTap ??
+                () {
+                  AIQuotaExceededDialog.showDetails(context, status);
+                },
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? 8 : 12,
+                vertical: compact ? 4 : 6,
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.auto_awesome_rounded,
-                  size: compact ? 12 : 14,
-                  color: textColor,
+              decoration: BoxDecoration(
+                color: badgeColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: textColor.withValues(alpha: 0.25),
+                  width: 1,
                 ),
-                const SizedBox(width: 5),
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: compact ? 11 : 12,
-                    fontWeight: FontWeight.w600,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.auto_awesome_rounded,
+                    size: compact ? 12 : 14,
                     color: textColor,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 5),
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      fontSize: compact ? 11 : 12,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
-      },
-    );
   }
 }

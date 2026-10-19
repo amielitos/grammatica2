@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:grammatica/services/ai_rate_limit_service.dart';
 import 'package:grammatica/services/role_service.dart';
 import 'package:grammatica/widgets/ai_quota_notification.dart';
+import 'package:grammatica/widgets/ai_quota_badge.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -133,6 +134,150 @@ void main() {
       expect(find.text('Assessment Generated'), findsOneWidget);
       expect(find.text('UNLIMITED'), findsOneWidget);
       expect(find.textContaining('Unlimited AI generations left today'), findsOneWidget);
+    });
+
+    testWidgets('AIQuotaNotification displays clean message when user has zero usage today', (tester) async {
+      const zeroUsageStatus = AIRateLimitStatus(
+        used: 0,
+        limit: 10,
+        date: '2026-10-17',
+        role: UserRole.learner,
+        isSubscribed: false,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () {
+                  AIQuotaNotification.show(
+                    context,
+                    status: zeroUsageStatus,
+                    title: 'Lesson Generated',
+                  );
+                },
+                child: const Text('Trigger Zero AI'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Trigger Zero AI'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Lesson Generated'), findsOneWidget);
+      expect(find.text('10 LEFT'), findsOneWidget);
+      expect(find.textContaining('10 generations left today'), findsOneWidget);
+      // Ensure confusing fraction is NOT shown
+      expect(find.textContaining('10 of 10'), findsNothing);
+    });
+
+    testWidgets('AIQuotaBadge displays "200 left today" when unused and NOT confusing "200/200"', (tester) async {
+      const unusedEducatorStatus = AIRateLimitStatus(
+        used: 0,
+        limit: 200,
+        date: '2026-10-17',
+        role: UserRole.educator,
+        isSubscribed: false,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AIQuotaBadge(statusOverride: unusedEducatorStatus),
+          ),
+        ),
+      );
+
+      expect(find.text('AI: 200 left today'), findsOneWidget);
+      expect(find.textContaining('200/200'), findsNothing);
+    });
+
+    testWidgets('AIQuotaBadge compact mode displays "AI: 200 left"', (tester) async {
+      const unusedEducatorStatus = AIRateLimitStatus(
+        used: 0,
+        limit: 200,
+        date: '2026-10-17',
+        role: UserRole.educator,
+        isSubscribed: false,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AIQuotaBadge(
+              compact: true,
+              statusOverride: unusedEducatorStatus,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('AI: 200 left'), findsOneWidget);
+      expect(find.textContaining('200/200'), findsNothing);
+    });
+
+    testWidgets('AIQuotaBadge displays remaining count correctly after partial usage', (tester) async {
+      const partialStatus = AIRateLimitStatus(
+        used: 5,
+        limit: 200,
+        date: '2026-10-17',
+        role: UserRole.educator,
+        isSubscribed: false,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AIQuotaBadge(statusOverride: partialStatus),
+          ),
+        ),
+      );
+
+      expect(find.text('AI: 195 left today'), findsOneWidget);
+    });
+
+    testWidgets('AIQuotaBadge displays "AI: 0 left today" when quota is exhausted', (tester) async {
+      const exhaustedStatus = AIRateLimitStatus(
+        used: 200,
+        limit: 200,
+        date: '2026-10-17',
+        role: UserRole.educator,
+        isSubscribed: false,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AIQuotaBadge(statusOverride: exhaustedStatus),
+          ),
+        ),
+      );
+
+      expect(find.text('AI: 0 left today'), findsOneWidget);
+    });
+
+    testWidgets('AIQuotaBadge displays "AI: Unlimited" for administrator', (tester) async {
+      const adminStatus = AIRateLimitStatus(
+        used: 12,
+        limit: -1,
+        date: '2026-10-17',
+        role: UserRole.admin,
+        isSubscribed: false,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: AIQuotaBadge(statusOverride: adminStatus),
+          ),
+        ),
+      );
+
+      expect(find.text('AI: Unlimited'), findsOneWidget);
     });
   });
 }
