@@ -7,20 +7,35 @@ class AgoraService {
   AgoraService._();
   static final instance = AgoraService._();
 
-  /// The Agora RTC App ID. Must be set in .env as `AGORA_APP_ID`.
-  String get appId => (dotenv.env['AGORA_APP_ID'] ?? '').trim();
+  /// The Agora RTC App ID. Must be set in environment or .env as `AGORA_APP_ID`.
+  String get appId {
+    const fromEnv = String.fromEnvironment('AGORA_APP_ID');
+    if (fromEnv.isNotEmpty) return fromEnv.trim();
+    return (dotenv.env['AGORA_APP_ID'] ?? '').trim();
+  }
 
-  /// The Agora Chat App Key. Must be set in .env as `AGORA_CHAT_APP_KEY`.
-  String get chatAppKey => (dotenv.env['AGORA_CHAT_APP_KEY'] ?? '').trim();
+  /// The Agora Chat App Key. Must be set in environment or .env as `AGORA_CHAT_APP_KEY`.
+  String get chatAppKey {
+    const fromEnv = String.fromEnvironment('AGORA_CHAT_APP_KEY');
+    if (fromEnv.isNotEmpty) return fromEnv.trim();
+    return (dotenv.env['AGORA_CHAT_APP_KEY'] ?? '').trim();
+  }
 
   /// Primary Certificate from Agora Console > Security.
-  /// Set in .env as `AGORA_APP_CERTIFICATE`.
-  String get appCertificate =>
-      (dotenv.env['AGORA_APP_CERTIFICATE'] ?? '').trim();
+  /// Set in environment or .env as `AGORA_APP_CERTIFICATE`.
+  String get appCertificate {
+    const fromEnv = String.fromEnvironment('AGORA_APP_CERTIFICATE');
+    if (fromEnv.isNotEmpty) return fromEnv.trim();
+    return (dotenv.env['AGORA_APP_CERTIFICATE'] ?? '').trim();
+  }
 
   /// Optional temporary RTC token if App Certificate is enabled in Agora Console.
-  /// Set in .env as `AGORA_TEMP_TOKEN`.
-  String get tempToken => (dotenv.env['AGORA_TEMP_TOKEN'] ?? '').trim();
+  /// Set in environment or .env as `AGORA_TEMP_TOKEN`.
+  String get tempToken {
+    const fromEnv = String.fromEnvironment('AGORA_TEMP_TOKEN');
+    if (fromEnv.isNotEmpty) return fromEnv.trim();
+    return (dotenv.env['AGORA_TEMP_TOKEN'] ?? '').trim();
+  }
 
   bool get isConfigured => appId.isNotEmpty;
   bool get isChatConfigured => chatAppKey.isNotEmpty;
