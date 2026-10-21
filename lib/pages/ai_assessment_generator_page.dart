@@ -11,6 +11,7 @@ import '../services/navigation_service.dart';
 import '../services/ai_rate_limit_service.dart';
 import '../widgets/ai_quota_badge.dart';
 import '../widgets/ai_quota_exceeded_dialog.dart';
+import '../widgets/generation_loading_overlay.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -325,7 +326,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _selectedDifficulty == null
+                    onPressed: (_selectedDifficulty == null || _isLoading)
                         ? null
                         : _generateAssessment,
                     style: ElevatedButton.styleFrom(
@@ -364,36 +365,11 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
       backgroundColor: isDark
           ? const Color(0xFF1A1A1A)
           : const Color(0xFFF8F9FA),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(
-              width: 56,
-              height: 56,
-              child: CircularProgressIndicator(strokeWidth: 3),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              _selectedMode == 'ielts'
-                  ? 'Generating IELTS Assessment…'
-                  : 'Generating English Assessment…',
-              style: GoogleFonts.outfit(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Creating passages and questions. This may take a moment.',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: isDark ? Colors.white54 : AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
+      body: GenerationLoadingOverlay(
+        title: _selectedMode == 'ielts'
+            ? 'Generating IELTS Assessment...'
+            : 'Generating English Assessment...',
+        subtitle: 'Creating reading passages, comprehension questions, and scoring keys...',
       ),
     );
   }
@@ -437,6 +413,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _generateAssessment() async {
+    if (_isLoading) return;
     final mode = _selectedMode!;
     final diff = _selectedDifficulty!;
 

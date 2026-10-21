@@ -11,6 +11,7 @@ import '../../services/web_service.dart';
 import '../../models/spelling_word.dart';
 import '../../services/database_service.dart';
 import '../../widgets/audio_player_widget.dart';
+import '../../widgets/generation_loading_overlay.dart';
 import '../../services/ai_service.dart';
 
 class AdminSpellingWordsTab extends StatefulWidget {
@@ -742,6 +743,7 @@ class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
   }
 
   Future<void> _generate() async {
+    if (_isLoading) return;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -809,6 +811,20 @@ class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: GenerationLoadingOverlay(
+            title: 'Generating Words...',
+            subtitle: 'Selecting vocabulary for the ${_difficulty.name} level...',
+          ),
+        ),
+      );
+    }
+
     if (_generatedWords != null) {
       return AlertDialog(
         title: const Text('Review Generated Words'),

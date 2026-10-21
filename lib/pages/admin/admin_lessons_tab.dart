@@ -21,6 +21,7 @@ import 'admin_quizzes_tab.dart';
 import 'admin_assessments_tab.dart';
 import '../../models/notebook_models.dart';
 import '../../widgets/notebook/notebook_selector_dialog.dart';
+import '../../widgets/generation_loading_overlay.dart';
 import '../notebook/notebook_list_page.dart';
 
 class EditableContentBlock {
@@ -187,90 +188,104 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           _tabIndex = 0;
         }
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(32, 40, 32, 60),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              Text(
-                'Manage Content',
-                style: GoogleFonts.outfit(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w900,
-                  color: isDark ? Colors.white : AppColors.textPrimary,
-                  letterSpacing: -1.0,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Create or edit your lessons and quizzes.',
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Custom Segmented Toggle
-              Center(
-                child: Container(
-                  height: 52,
-                  width: isEducator ? 340 : 500,
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      _buildTabBtn('Lessons', 0),
-                      _buildTabBtn('Quizzes', 1),
-                      if (!isEducator) _buildTabBtn('Assessments', 2),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Main Card Content
-              Container(
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    )
-                  ],
-                ),
-                child: IndexedStack(
-                  index: _tabIndex.clamp(0, isEducator ? 1 : 2),
-                  children: [
-                    _buildLessonForm(roleSnap.data, isDark),
-                    AdminQuizzesTab(
-                      key: _quizKey,
-                      initialQuizId: _selectedQuizId,
+        return Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(32, 40, 32, 60),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Header
+                  Text(
+                    'Manage Content',
+                    style: GoogleFonts.outfit(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                      letterSpacing: -1.0,
                     ),
-                    if (!isEducator)
-                      AdminAssessmentsTab(
-                        isEmbedded: true,
-                        initialQuizId: _tabIndex == 2 ? _selectedQuizId : null,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Create or edit your lessons and quizzes.',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Custom Segmented Toggle
+                  Center(
+                    child: Container(
+                      height: 52,
+                      width: isEducator ? 340 : 500,
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
-                  ],
-                ),
+                      child: Row(
+                        children: [
+                          _buildTabBtn('Lessons', 0),
+                          _buildTabBtn('Quizzes', 1),
+                          if (!isEducator) _buildTabBtn('Assessments', 2),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Main Card Content
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        )
+                      ],
+                    ),
+                    child: IndexedStack(
+                      index: _tabIndex.clamp(0, isEducator ? 1 : 2),
+                      children: [
+                        _buildLessonForm(roleSnap.data, isDark),
+                        AdminQuizzesTab(
+                          key: _quizKey,
+                          initialQuizId: _selectedQuizId,
+                        ),
+                        if (!isEducator)
+                          AdminAssessmentsTab(
+                            isEmbedded: true,
+                            initialQuizId: _tabIndex == 2 ? _selectedQuizId : null,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            if (_isGeneratingFromPrompt || _isGeneratingFromPdf)
+              GenerationLoadingOverlay.fullBarrier(
+                context: context,
+                title: _isGeneratingFromPdf
+                    ? 'Generating Lesson from PDF...'
+                    : 'Generating Lesson with AI...',
+                subtitle: _isGeneratingFromPdf
+                    ? 'Extracting text and organizing structured lesson content...'
+                    : 'Synthesizing prompt into comprehensive educational content...',
+              ),
+          ],
         );
       },
     );
@@ -1411,6 +1426,8 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Future<void> _generateFromTextPrompt() async {
+    if (_isGeneratingFromPrompt || _isGeneratingFromPdf) return;
+
     final promptText = _prompt.text.trim();
     if (promptText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1442,6 +1459,8 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Future<void> _generateFromPdf() async {
+    if (_isGeneratingFromPrompt || _isGeneratingFromPdf) return;
+
     setState(() => _isGeneratingFromPdf = true);
 
     try {

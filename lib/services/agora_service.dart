@@ -56,22 +56,34 @@ class AgoraService {
   /// - Falls back to empty string (Testing mode without App Certificate).
   Future<String> fetchToken({
     required String channelName,
-    required String uid,
+    dynamic uid = 0,
   }) async {
     // 1. If App Certificate is provided, generate a fresh dynamic token for this channel
     if (appCertificate.isNotEmpty && appId.isNotEmpty) {
       try {
         final expireTimestamp =
             (DateTime.now().millisecondsSinceEpoch ~/ 1000) + (24 * 3600);
+        // In Agora AccessToken (006), numeric wildcard uid == 0 is represented
+        // as empty string "" yielding crc_uid = 0. Passing "0" generates CRC32('0')
+        // which Agora server rejects with error 110 (invalid token).
+        final String tokenUid;
+        if (uid is int) {
+          tokenUid = uid == 0 ? '' : uid.toString();
+        } else if (uid is String) {
+          tokenUid = (uid == '0' || uid.isEmpty) ? '' : uid;
+        } else {
+          tokenUid = '';
+        }
+
         final token = RtcTokenBuilder.build(
           appId: appId,
           appCertificate: appCertificate,
           channelName: channelName,
-          uid: '0', // 0 = wildcard, matches uid: 0 passed to joinChannel
+          uid: tokenUid,
           role: RtcRole.publisher,
           expireTimestamp: expireTimestamp,
         );
-        debugPrint('[Agora] Generated dynamic RTC token for channel: $channelName');
+        debugPrint('[Agora] Generated dynamic RTC token for channel: $channelName (tokenUid: "$tokenUid")');
         return token;
       } catch (e) {
         debugPrint('[Agora] Dynamic token generation failed: $e');

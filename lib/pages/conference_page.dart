@@ -46,6 +46,9 @@ class _ConferencePageState extends State<ConferencePage>
   bool _isMuted = false;
   bool _isCameraOff = false;
   bool _isSpeakerOn = true;
+  bool _hasRetriedWithoutToken = false;
+  VideoViewController? _localVideoController;
+  VideoViewController? _remoteVideoController;
 
   // ── In-Call Chat ───────────────────────────────────────────────────────────
   final List<_ChatMsg> _messages = [];
@@ -83,9 +86,10 @@ class _ConferencePageState extends State<ConferencePage>
 
   Future<void> _initAgora() async {
     try {
-      // 1. Request runtime permissions (mobile only — web uses browser prompts)
+      // 1. Request runtime permissions on Android / iOS
       if (!kIsWeb) {
-        await [Permission.camera, Permission.microphone].request();
+        final statuses = await [Permission.camera, Permission.microphone].request();
+        debugPrint('[Agora] Permissions: camera=${statuses[Permission.camera]}, mic=${statuses[Permission.microphone]}');
       }
 
       if (!_agoraService.isConfigured) {
@@ -100,48 +104,120 @@ class _ConferencePageState extends State<ConferencePage>
           await _engine!.release();
         } catch (_) {}
         _engine = null;
+        _localVideoController = null;
+        _remoteVideoController = null;
       }
 
-      // 3. Create RTC engine with Live Broadcasting profile
+      // 3. Create RTC engine with Communication profile (standard for 1-to-1 video calls)
       _engine = createAgoraRtcEngine();
       await _engine!.initialize(RtcEngineContext(
         appId: _agoraService.appId,
-        channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+        channelProfile: ChannelProfileType.channelProfileCommunication,
       ));
 
-      // 4. Enable video and client role
-      await _engine!.enableVideo();
-      await _engine!.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
-
-      // 5. Start local preview immediately so camera renders in PiP
-      try {
-        await _engine!.startPreview();
-      } catch (e) {
-        debugPrint('[Agora] startPreview note: $e');
-      }
-      if (mounted) {
-        setState(() => _localVideoReady = true);
-      }
-
-      // 6. Register event handler
+      // 4. Register event handlers BEFORE joining channel
       _engine!.registerEventHandler(RtcEngineEventHandler(
         onJoinChannelSuccess: (connection, elapsed) {
-          debugPrint('[Agora] Joined channel: ${connection.channelId}');
-          if (mounted) setState(() => _localVideoReady = true);
+          debugPrint('[Agora] Joined channel: ${connection.channelId}, localUid: ${connection.localUid}');
+          if (mounted) {
+            setState(() {
+              _localVideoReady = true;
+              _localVideoController ??= VideoViewController(
+                rtcEngine: _engine!,
+                canvas: const VideoCanvas(uid: 0),
+              );
+            });
+          }
         },
-        onConnectionStateChanged: (connection, state, reason) {
+        onConnectionStateChanged: (connection, state, reason) async {
           debugPrint('[Agora] Connection state: $state, reason: $reason');
           if (state == ConnectionStateType.connectionStateConnected) {
-            if (mounted) setState(() => _localVideoReady = true);
+            if (mounted) {
+              setState(() {
+                _localVideoReady = true;
+                _localVideoController ??= VideoViewController(
+                  rtcEngine: _engine!,
+                  canvas: const VideoCanvas(uid: 0),
+                );
+              });
+            }
+          } else if (state == ConnectionStateType.connectionStateFailed) {
+            debugPrint('[Agora] Connection failed with reason: $reason');
+            if (reason == ConnectionChangedReasonType.connectionChangedInvalidToken ||
+                reason == ConnectionChangedReasonType.connectionChangedTokenExpired) {
+              // If token failed, attempt joining with empty token in case project uses App ID only
+              if (!_hasRetriedWithoutToken) {
+                _hasRetriedWithoutToken = true;
+                debugPrint('[Agora] Retrying connection with empty token...');
+                try {
+                  await _engine?.leaveChannel();
+                  await _engine?.joinChannel(
+                    token: '',
+                    channelId: widget.channelName,
+                    uid: 0,
+                    options: const ChannelMediaOptions(
+                      channelProfile: ChannelProfileType.channelProfileCommunication,
+                      clientRoleType: ClientRoleType.clientRoleBroadcaster,
+                      autoSubscribeAudio: true,
+                      autoSubscribeVideo: true,
+                      publishCameraTrack: true,
+                      publishMicrophoneTrack: true,
+                    ),
+                  );
+                  return;
+                } catch (retryErr) {
+                  debugPrint('[Agora] Retry with empty token failed: $retryErr');
+                }
+              }
+              if (mounted) {
+                setState(() {
+                  _initError =
+                      'Agora Token Authentication Failed.\n\n'
+                      'Please verify your Agora project security settings in console.agora.io '
+                      'and ensure your App ID and App Certificate match.';
+                });
+              }
+            }
           }
         },
         onUserJoined: (connection, uid, elapsed) {
           debugPrint('[Agora] Remote user joined: $uid');
-          if (mounted) setState(() => _remoteUid = uid);
+          if (mounted) {
+            setState(() {
+              _remoteUid = uid;
+              _remoteVideoController = VideoViewController.remote(
+                rtcEngine: _engine!,
+                canvas: VideoCanvas(uid: uid),
+                connection: RtcConnection(channelId: widget.channelName),
+              );
+            });
+          }
         },
         onUserOffline: (connection, uid, reason) {
-          debugPrint('[Agora] Remote user left: $uid');
-          if (mounted) setState(() => _remoteUid = null);
+          debugPrint('[Agora] Remote user left: $uid, reason: $reason');
+          if (mounted && _remoteUid == uid) {
+            setState(() {
+              _remoteUid = null;
+              _remoteVideoController = null;
+            });
+          }
+        },
+        onRemoteVideoStateChanged: (connection, remoteUid, state, reason, elapsed) {
+          debugPrint('[Agora] Remote video state changed: uid=$remoteUid, state=$state, reason=$reason');
+          if (mounted &&
+              (state == RemoteVideoState.remoteVideoStateStarting ||
+                  state == RemoteVideoState.remoteVideoStateDecoding)) {
+            if (_remoteUid != remoteUid || _remoteVideoController == null) {
+              setState(() {
+                _remoteUid = remoteUid;
+                _remoteVideoController = VideoViewController.remote(
+                  rtcEngine: _engine!,
+                  canvas: VideoCanvas(uid: remoteUid),
+                  connection: RtcConnection(channelId: widget.channelName),
+                );
+              });
+            }
+          }
         },
         onError: (err, msg) {
           debugPrint('[Agora] RTC error: $err — $msg');
@@ -159,10 +235,42 @@ class _ConferencePageState extends State<ConferencePage>
         },
       ));
 
-      // 7. Fetch token and join channel
+      // 5. Enable BOTH video and audio explicitly
+      await _engine!.enableVideo();
+      await _engine!.enableAudio();
+      await _engine!.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
+
+      // 6. On mobile, default to speakerphone for video calls
+      if (!kIsWeb) {
+        try {
+          await _engine!.setDefaultAudioRouteToSpeakerphone(true);
+          await _engine!.setEnableSpeakerphone(true);
+        } catch (e) {
+          debugPrint('[Agora] Speakerphone setup note: $e');
+        }
+      }
+
+      // 7. Start local preview immediately so camera renders in PiP
+      try {
+        await _engine!.startPreview();
+      } catch (e) {
+        debugPrint('[Agora] startPreview note: $e');
+      }
+
+      if (mounted) {
+        setState(() {
+          _localVideoReady = true;
+          _localVideoController = VideoViewController(
+            rtcEngine: _engine!,
+            canvas: const VideoCanvas(uid: 0),
+          );
+        });
+      }
+
+      // 8. Fetch token and join channel
       final token = await _agoraService.fetchToken(
         channelName: widget.channelName,
-        uid: widget.currentUser.uid,
+        uid: 0,
       );
 
       await _engine!.joinChannel(
@@ -170,7 +278,7 @@ class _ConferencePageState extends State<ConferencePage>
         channelId: widget.channelName,
         uid: 0, // 0 = Agora assigns automatically
         options: const ChannelMediaOptions(
-          channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+          channelProfile: ChannelProfileType.channelProfileCommunication,
           clientRoleType: ClientRoleType.clientRoleBroadcaster,
           autoSubscribeAudio: true,
           autoSubscribeVideo: true,
@@ -237,12 +345,14 @@ class _ConferencePageState extends State<ConferencePage>
   void _toggleMute() async {
     _isMuted = !_isMuted;
     await _engine?.muteLocalAudioStream(_isMuted);
+    await _engine?.enableLocalAudio(!_isMuted);
     setState(() {});
   }
 
   void _toggleCamera() async {
     _isCameraOff = !_isCameraOff;
     await _engine?.muteLocalVideoStream(_isCameraOff);
+    await _engine?.enableLocalVideo(!_isCameraOff);
     setState(() {});
   }
 
@@ -255,9 +365,16 @@ class _ConferencePageState extends State<ConferencePage>
     setState(() {});
   }
 
+  void _switchCamera() async {
+    if (!kIsWeb) {
+      await _engine?.switchCamera();
+    }
+  }
 
   Future<void> _endCall() async {
     setState(() => _callEnded = true);
+    _localVideoController = null;
+    _remoteVideoController = null;
     await _engine?.leaveChannel();
     await _engine?.release();
     _engine = null;
@@ -476,12 +593,10 @@ class _ConferencePageState extends State<ConferencePage>
   }
 
   Widget _buildRemoteVideo() {
-    if (_remoteUid != null) {
-      return AgoraVideoView(
-        controller: VideoViewController.remote(
-          rtcEngine: _engine!,
-          canvas: VideoCanvas(uid: _remoteUid),
-          connection: RtcConnection(channelId: widget.channelName),
+    if (_remoteUid != null && _remoteVideoController != null) {
+      return SizedBox.expand(
+        child: AgoraVideoView(
+          controller: _remoteVideoController!,
         ),
       );
     }
@@ -541,7 +656,7 @@ class _ConferencePageState extends State<ConferencePage>
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.white24, width: 1.5),
           ),
-          child: _isCameraOff || !_localVideoReady || _engine == null
+          child: _isCameraOff || !_localVideoReady || _localVideoController == null || _engine == null
               ? Container(
                   color: const Color(0xFF1E293B),
                   child: const Icon(
@@ -551,10 +666,7 @@ class _ConferencePageState extends State<ConferencePage>
                   ),
                 )
               : AgoraVideoView(
-                  controller: VideoViewController(
-                    rtcEngine: _engine!,
-                    canvas: const VideoCanvas(uid: 0),
-                  ),
+                  controller: _localVideoController!,
                 ),
         ),
       ),
@@ -611,37 +723,60 @@ class _ConferencePageState extends State<ConferencePage>
                   ],
                 ),
               ),
-              // Live indicator
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
+              // Live indicator & Camera switch
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    const SizedBox(width: 5),
-                    Text(
-                      'LIVE',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'LIVE',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!kIsWeb) ...[
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _switchCamera,
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.flip_camera_ios_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                       ),
                     ),
                   ],
-                ),
+                ],
               ),
             ],
           ),
@@ -1009,6 +1144,8 @@ class _ConferencePageState extends State<ConferencePage>
     _chatController.dispose();
     _chatScrollCtrl.dispose();
     _chatSub?.cancel();
+    _localVideoController = null;
+    _remoteVideoController = null;
     if (!_callEnded) {
       _engine?.leaveChannel();
       _engine?.release();

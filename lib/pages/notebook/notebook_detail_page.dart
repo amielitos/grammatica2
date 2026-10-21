@@ -116,11 +116,14 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
 
                       if (_isGenerating)
                         Positioned.fill(
-                          child: Container(
-                            color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.9),
-                            child: GenerationLoadingOverlay(
-                              title: 'Generating ${_selectedOutputType.displayName}...',
-                              subtitle: _generationMessage,
+                          child: AbsorbPointer(
+                            absorbing: true,
+                            child: Container(
+                              color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.9),
+                              child: GenerationLoadingOverlay(
+                                title: 'Generating ${_selectedOutputType.displayName}...',
+                                subtitle: _generationMessage,
+                              ),
                             ),
                           ),
                         ),
@@ -823,6 +826,8 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
     NotebookOutputType type, {
     bool isAssessment = false,
   }) async {
+    if (_isGenerating) return;
+
     final readySources = sources
         .where((s) => s.processingStatus == SourceProcessingStatus.ready && s.rawContent.isNotEmpty)
         .toList();

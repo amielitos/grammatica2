@@ -17,6 +17,7 @@ import '../services/ai_logic_service.dart';
 import '../services/ai_rate_limit_service.dart';
 import '../widgets/ai_quota_badge.dart';
 import '../widgets/ai_quota_exceeded_dialog.dart';
+import '../widgets/generation_loading_overlay.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 
@@ -36,6 +37,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   int _score = 0;
   bool _isPlaying = false;
   bool _isGameOver = false;
+  bool _isLoading = false;
 
 
   final FlutterTts _flutterTts = FlutterTts();
@@ -128,6 +130,9 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   }
 
   Future<void> _startSession(SpellingDifficulty difficulty) async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
     List<SpellingWord> allWords;
 
     try {
@@ -175,6 +180,10 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         }
       }
       return;
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
 
     if (allWords.isEmpty) {
@@ -339,18 +348,28 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
           ),
         ],
       ),
-      body: Container(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF1E1E1E)
-            : AppColors.backgroundBase,
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
-              child: _buildBody(),
+      body: Stack(
+        children: [
+          Container(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF1E1E1E)
+                : AppColors.backgroundBase,
+            child: SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: _buildBody(),
+                ),
+              ),
             ),
           ),
-        ),
+          if (_isLoading)
+            GenerationLoadingOverlay.fullBarrier(
+              context: context,
+              title: 'Generating Spelling Words...',
+              subtitle: 'Curating vocabulary with custom definitions and hints...',
+            ),
+        ],
       ),
     );
   }

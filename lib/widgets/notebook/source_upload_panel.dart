@@ -406,6 +406,7 @@ class _SourceUploadPanelState extends State<SourceUploadPanel> {
   }
 
   Future<void> _pickPdf() async {
+    if (_isUploading) return;
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],

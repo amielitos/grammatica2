@@ -10,6 +10,7 @@ import '../../services/ai_logic_service.dart';
 import '../../services/ai_rate_limit_service.dart';
 import '../../models/ai_models.dart';
 import '../../utils/file_helper.dart';
+import '../../widgets/generation_loading_overlay.dart';
 
 class AdminAssessmentsTab extends StatefulWidget {
   final bool isEmbedded;
@@ -96,8 +97,10 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (!widget.isEmbedded) _buildQuizzesList(),
@@ -168,7 +171,17 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
           ),
         ],
       ),
-    );
+    ),
+    if (_isGeneratingFromPdf)
+      GenerationLoadingOverlay.fullBarrier(
+        context: context,
+        title: 'Generating Assessment Questions...',
+        subtitle: _aiSourceMode == 'pdf'
+            ? 'Extracting text and structuring examination questions...'
+            : 'Crafting questions, options, hints, and explanations...',
+      ),
+  ],
+);
   }
 
   Widget _buildQuizzesList() {
@@ -1142,6 +1155,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
 
   /// AI-powered question generation — replaces old PDF-only flow.
   Future<void> _generateQuestionsWithAi() async {
+    if (_isGeneratingFromPdf) return;
     setState(() => _isGeneratingFromPdf = true);
 
     try {

@@ -17,6 +17,7 @@ import '../theme/app_colors.dart';
 import '../services/ai_rate_limit_service.dart';
 import '../widgets/ai_quota_badge.dart';
 import '../widgets/ai_quota_exceeded_dialog.dart';
+import '../widgets/generation_loading_overlay.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 
@@ -43,6 +44,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   String _recognizedText = "";
   bool? _isLastCorrect;
   bool _isTransitioning = false;
+  bool _isLoading = false;
 
   // Speech to Text
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -136,6 +138,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   }
 
   Future<void> _startSession(SpellingDifficulty difficulty) async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
     List<SpellingWord> allWords;
 
     try {
@@ -182,6 +187,10 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         );
       }
       return;
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
 
     if (!mounted) return;
@@ -562,18 +571,28 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
           ),
         ],
       ),
-      body: Container(
-        color: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF1E1E1E)
-            : AppColors.backgroundBase,
-        child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
-              child: _buildBody(),
+      body: Stack(
+        children: [
+          Container(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF1E1E1E)
+                : AppColors.backgroundBase,
+            child: SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: _buildBody(),
+                ),
+              ),
             ),
           ),
-        ),
+          if (_isLoading)
+            GenerationLoadingOverlay.fullBarrier(
+              context: context,
+              title: 'Generating Practice Words...',
+              subtitle: 'Crafting pronunciation targets and phonetic guidelines...',
+            ),
+        ],
       ),
     ),
   );
