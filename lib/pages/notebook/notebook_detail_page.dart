@@ -979,7 +979,7 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'Title *', border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),

@@ -292,7 +292,7 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'DETAILED EXPLANATION',
+                      'DETAILED EXPLANATION *',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w900,

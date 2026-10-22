@@ -207,7 +207,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _buildPricingField(
-                            label: 'Standard Tier (Max \$10)',
+                            label: 'Standard Tier (Max \$10) *',
                             controller: _standardController,
                             icon: Icons.star_outline_rounded,
                             isDark: isDark,
@@ -216,7 +216,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                           ),
                           const SizedBox(height: 16),
                           _buildPricingField(
-                            label: 'Premium Tier (Max \$30)',
+                            label: 'Premium Tier (Max \$30) *',
                             controller: _premiumController,
                             icon: Icons.auto_awesome_rounded,
                             isDark: isDark,
@@ -392,6 +392,9 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               _buildEmptyCard('No subscription history.', isDark, cardBg, borderColor, subtitleColor)
             else
               ...history.map((s) => _buildSubscriptionCard(s, false, isDark, cardBg, borderColor, textColor, subtitleColor)),
+
+            const SizedBox(height: 36),
+            _buildPaymentsHistorySection(isDark, cardBg, borderColor, textColor, subtitleColor),
           ],
         );
       },
@@ -886,6 +889,355 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
       }
     }
   }
+
+  Widget _buildPaymentsHistorySection(
+    bool isDark,
+    Color cardBg,
+    Color borderColor,
+    Color textColor,
+    Color subtitleColor,
+  ) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: DatabaseService.instance.streamLearnerPayments(widget.user.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final payments = snapshot.data ?? [];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeaderBox(
+              Icons.receipt_long_rounded,
+              'Payment Receipts & Transactions',
+              const Color(0xFF1E88E5),
+              textColor,
+              isDark,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Official PayMongo payment receipts for all your educator subscriptions.',
+              style: GoogleFonts.inter(fontSize: 13, color: subtitleColor),
+            ),
+            const SizedBox(height: 16),
+            if (payments.isEmpty)
+              _buildEmptyCard('No payment receipts recorded yet.', isDark, cardBg, borderColor, subtitleColor)
+            else
+              ...payments.map((p) => _buildPaymentReceiptTile(p, isDark, cardBg, borderColor, textColor, subtitleColor)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPaymentReceiptTile(
+    Map<String, dynamic> payment,
+    bool isDark,
+    Color cardBg,
+    Color borderColor,
+    Color textColor,
+    Color subtitleColor,
+  ) {
+    final eduName = payment['educatorName'] as String? ?? 'Educator';
+    final tier = payment['tier'] as String? ?? 'Subscription';
+    final refNumber = payment['referenceNumber'] as String? ?? payment['paymentId'] as String? ?? 'N/A';
+    final amount = (payment['amountPhp'] as num?)?.toDouble() ?? 0.0;
+    final status = payment['status'] as String? ?? 'paid';
+    final isPaid = status.toLowerCase() == 'paid';
+    final method = payment['paymentMethod'] as String? ?? 'PayMongo QR PH';
+
+    DateTime? paidDate;
+    final paidAtRaw = payment['paidAt'] ?? payment['createdAt'];
+    if (paidAtRaw is Timestamp) {
+      paidDate = paidAtRaw.toDate();
+    } else if (paidAtRaw is DateTime) {
+      paidDate = paidAtRaw;
+    }
+
+    final dateStr = paidDate != null
+        ? DateFormat('MMM d, yyyy • h:mm a').format(paidDate)
+        : 'Recent Payment';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.0 : 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isPaid
+                  ? const Color(0xFF81B655).withValues(alpha: 0.12)
+                  : Colors.orange.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isPaid ? Icons.check_circle_rounded : Icons.pending_rounded,
+              color: isPaid ? const Color(0xFF81B655) : Colors.orange,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      eduName,
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        tier.toUpperCase(),
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF81B655),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Ref: $refNumber  •  $method',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: subtitleColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  dateStr,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: subtitleColor.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '₱${amount.toStringAsFixed(2)}',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: () => _showPaymentReceiptDialog(context, payment, isDark),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.receipt_rounded, size: 14, color: Color(0xFF1E88E5)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Receipt',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF1E88E5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPaymentReceiptDialog(
+    BuildContext context,
+    Map<String, dynamic> payment,
+    bool isDark,
+  ) {
+    final eduName = payment['educatorName'] as String? ?? 'Educator';
+    final tier = payment['tier'] as String? ?? 'Subscription';
+    final refNumber = payment['referenceNumber'] as String? ?? payment['paymentId'] as String? ?? 'N/A';
+    final amount = (payment['amountPhp'] as num?)?.toDouble() ?? 0.0;
+    final method = payment['paymentMethod'] as String? ?? 'PayMongo QR PH';
+
+    DateTime? paidDate;
+    final paidAtRaw = payment['paidAt'] ?? payment['createdAt'];
+    if (paidAtRaw is Timestamp) {
+      paidDate = paidAtRaw.toDate();
+    } else if (paidAtRaw is DateTime) {
+      paidDate = paidAtRaw;
+    }
+
+    final dateStr = paidDate != null
+        ? DateFormat('MMMM d, yyyy • h:mm a').format(paidDate)
+        : 'Confirmed';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 420),
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header with Green Check
+              Center(
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF81B655).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check_circle_rounded, color: Color(0xFF81B655), size: 36),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Payment Receipt',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              Text(
+                'Official Grammatica Subscription Invoice',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  children: [
+                    _buildReceiptRow('Status', 'PAID', isDark, isHighlight: true),
+                    const Divider(height: 18),
+                    _buildReceiptRow('Amount Paid', '₱${amount.toStringAsFixed(2)}', isDark, isBold: true),
+                    const Divider(height: 18),
+                    _buildReceiptRow('Educator', eduName, isDark),
+                    const Divider(height: 18),
+                    _buildReceiptRow('Tier', '$tier Tier (Monthly)', isDark),
+                    const Divider(height: 18),
+                    _buildReceiptRow('Reference #', refNumber, isDark),
+                    const Divider(height: 18),
+                    _buildReceiptRow('Payment Rail', method, isDark),
+                    const Divider(height: 18),
+                    _buildReceiptRow('Date & Time', dateStr, isDark),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.mark_email_read_rounded, size: 16, color: Color(0xFF81B655)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'A confirmation email with this receipt was sent to ${widget.user.email ?? 'your email'}.',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                height: 44,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF81B655),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(
+                    'Done',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReceiptRow(String label, String value, bool isDark, {bool isHighlight = false, bool isBold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+          ),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.outfit(
+            fontSize: 13,
+            fontWeight: isBold || isHighlight ? FontWeight.w800 : FontWeight.w600,
+            color: isHighlight
+                ? const Color(0xFF81B655)
+                : (isDark ? Colors.white : const Color(0xFF0F172A)),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class LearnerMentorshipBookingModal extends StatefulWidget {
@@ -986,7 +1338,7 @@ class _LearnerMentorshipBookingModalState
                 ),
               ),
 
-              Text('Session Title / Topic',
+              Text('Session Title / Topic *',
                   style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -998,7 +1350,7 @@ class _LearnerMentorshipBookingModalState
                   color: isDark ? Colors.white : Colors.black87,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'e.g. Grammar Consultation & Practice',
+                  hintText: 'e.g. Grammar Consultation & Practice *',
                   filled: true,
                   fillColor: isDark
                       ? Colors.white.withValues(alpha: 0.05)
@@ -1010,7 +1362,7 @@ class _LearnerMentorshipBookingModalState
               ),
               const SizedBox(height: 16),
 
-              Text('Select Educator',
+              Text('Select Educator *',
                   style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,

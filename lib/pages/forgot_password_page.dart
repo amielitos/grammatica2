@@ -274,7 +274,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         const SizedBox(height: 20),
         _field(
           controller: _emailController,
-          hint: 'Recovery Email',
+          hint: 'Recovery Email *',
           icon: Icons.alternate_email_rounded,
           keyboard: TextInputType.emailAddress,
           isValid: showEmailFeedback ? _isEmailValid : null,

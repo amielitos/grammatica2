@@ -11,6 +11,8 @@ import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
 import '../widgets/universal_drawer.dart';
 import '../services/agora_service.dart';
+import '../services/email_sender_service.dart';
+import '../services/paymongo_service.dart';
 import 'conference_page.dart';
 
 class EducatorProfilePage extends StatefulWidget {
@@ -534,20 +536,57 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                                 : (pricingData['premium']?.toDouble() ?? 7.0);
                             double amountInPhp = amountInUSD * 56.0;
                             if (!context.mounted) return;
-                            final success = await showDialog<bool>(
+                            final paymentResult =
+                                await showDialog<PaymongoPaymentResult>(
                               context: context,
                               barrierDismissible: false,
                               builder: (context) => PaymongoQrDialog(
                                 tier: tier,
                                 amount: amountInPhp,
                                 educatorName: username,
+                                learnerName:
+                                    widget.currentUser.displayName ?? 'Learner',
+                                learnerEmail: widget.currentUser.email,
                               ),
                             );
-                            if (success == true) {
-                              await DatabaseService.instance.subscribeToEducator(uid, tier);
+                            if (paymentResult != null && paymentResult.isSuccess) {
+                              // Record payment in Firestore and activate subscription
+                              await DatabaseService.instance
+                                  .recordSubscriptionPayment(
+                                educatorUid: uid,
+                                educatorName: username,
+                                tier: tier,
+                                amount: amountInPhp,
+                                referenceNumber: paymentResult.referenceNumber,
+                                paymentMethod: paymentResult.paymentMethod,
+                                paymongoLinkId: paymentResult.linkId,
+                              );
+
+                              // Send email payment receipt & confirmation
+                              final userEmail = widget.currentUser.email;
+                              if (userEmail != null && userEmail.isNotEmpty) {
+                                EmailSenderService
+                                    .sendSubscriptionPaymentReceiptEmail(
+                                  recipientEmail: userEmail,
+                                  recipientName:
+                                      widget.currentUser.displayName ?? 'Learner',
+                                  educatorName: username,
+                                  tier: tier,
+                                  amount: amountInPhp,
+                                  referenceNumber: paymentResult.referenceNumber,
+                                  paymentMethod: paymentResult.paymentMethod,
+                                  paymentDate: paymentResult.paidAt,
+                                );
+                              }
+
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Payment Successful! Subscribed to $tier.')),
+                                  SnackBar(
+                                    content: Text(
+                                      'Payment Successful! Subscribed to $tier. Receipt sent to ${userEmail ?? "your email"}.',
+                                    ),
+                                    backgroundColor: const Color(0xFF16A34A),
+                                  ),
                                 );
                               }
                             }

@@ -526,6 +526,106 @@ class EmailSenderService {
     );
   }
 
+  /// Send Subscription Payment Receipt & Confirmation Email
+  static Future<bool> sendSubscriptionPaymentReceiptEmail({
+    required String recipientEmail,
+    required String recipientName,
+    required String educatorName,
+    required String tier,
+    required double amount,
+    required String referenceNumber,
+    String paymentMethod = 'PayMongo QR PH / Checkout',
+    DateTime? paymentDate,
+  }) async {
+    final dateStr = (paymentDate ?? DateTime.now())
+        .toLocal()
+        .toString()
+        .split('.')[0];
+
+    debugPrint('==============================================');
+    debugPrint('🧾 PAYMENT RECEIPT FOR $recipientEmail: ₱$amount ($tier)');
+    debugPrint('==============================================');
+
+    final contentHtml = '''
+      <p style="color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+        Thank you for your payment! Your subscription to <strong>$educatorName</strong> has been successfully processed and your <strong>$tier Tier</strong> benefits are now active.
+      </p>
+
+      <!-- Receipt Summary Card -->
+      <div style="background-color: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 18px; padding: 24px; margin-bottom: 28px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            <td style="padding-bottom: 14px; border-bottom: 1px dashed #CBD5E1;">
+              <span style="font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 1px;">Official Payment Receipt</span>
+              <div style="font-size: 18px; font-weight: 800; color: #0F172A; margin-top: 4px;">Ref: $referenceNumber</div>
+            </td>
+            <td align="right" style="padding-bottom: 14px; border-bottom: 1px dashed #CBD5E1;">
+              <span style="display: inline-block; background-color: #DCFCE7; color: #166534; font-size: 11px; font-weight: 800; padding: 5px 12px; border-radius: 999px; letter-spacing: 0.5px; text-transform: uppercase;">✓ PAID & ACTIVE</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0 6px 0; color: #64748B; font-size: 13.5px;">Educator:</td>
+            <td align="right" style="padding: 12px 0 6px 0; color: #0F172A; font-weight: 700; font-size: 14px;">$educatorName</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #64748B; font-size: 13.5px;">Subscription Plan:</td>
+            <td align="right" style="padding: 6px 0; color: #0F172A; font-weight: 700; font-size: 14px;">$tier Tier (Monthly)</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #64748B; font-size: 13.5px;">Payment Method:</td>
+            <td align="right" style="padding: 6px 0; color: #0F172A; font-weight: 700; font-size: 14px;">$paymentMethod</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0 14px 0; color: #64748B; font-size: 13.5px; border-bottom: 1px dashed #CBD5E1;">Date & Time:</td>
+            <td align="right" style="padding: 6px 0 14px 0; color: #0F172A; font-weight: 600; font-size: 13.5px; border-bottom: 1px dashed #CBD5E1;">$dateStr</td>
+          </tr>
+          <tr>
+            <td style="padding-top: 14px; color: #0F172A; font-size: 16px; font-weight: 800;">Total Amount Paid:</td>
+            <td align="right" style="padding-top: 14px; color: #16A34A; font-size: 24px; font-weight: 900;">₱${amount.toStringAsFixed(2)}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Perks Unlocked -->
+      <div style="background-color: #F0FDF4; border-radius: 16px; padding: 22px 24px; margin-bottom: 24px; border: 1px solid #C8E6B5;">
+        <p style="margin: 0 0 10px 0; color: #166534; font-weight: 800; font-size: 14.5px;">✨ What's included with your $tier Tier:</p>
+        <ul style="margin: 0; padding-left: 20px; color: #15803D; font-size: 13.5px; line-height: 1.8;">
+          <li>Direct 1-on-1 video conference mentorship sessions with $educatorName.</li>
+          <li>Real-time in-call messaging & lesson collaboration.</li>
+          <li>Unlimited access to premium interactive grammar lessons & quizzes.</li>
+          <li>Priority reviews and personalized feedback.</li>
+        </ul>
+      </div>
+
+      <!-- Support Notice -->
+      <div style="background-color: #F8FAFC; border-left: 4px solid #81B655; border-radius: 10px; padding: 14px 18px; margin-bottom: 24px;">
+        <p style="margin: 0; color: #475569; font-size: 13px; line-height: 1.6;">
+          <strong>🧾 Need an invoice or have billing questions?</strong> Reach out anytime to our billing team at <a href="mailto:support@grammatica.app" style="color: #81B655; font-weight: 600;">support@grammatica.app</a> with your reference number.
+        </p>
+      </div>
+    ''';
+
+    final body = _buildBrandedEmailTemplate(
+      title: 'Payment Confirmed & Receipt',
+      subtitle: 'Your Grammatica educator subscription is now active',
+      badgeIcon: '💳',
+      badgeText: 'Payment Receipt',
+      recipientName: recipientName,
+      contentHtml: contentHtml,
+      badgeBgColor: '#F0FDF4',
+      badgeBorderColor: '#81B655',
+      badgeTextColor: '#166534',
+      ctaButtonText: 'Access My Subscriptions',
+      ctaButtonUrl: 'https://grammatica.site',
+    );
+
+    return await sendEmail(
+      toEmail: recipientEmail,
+      subject: '💳 Payment Receipt & Confirmation: $tier Subscription to $educatorName',
+      body: body,
+    );
+  }
+
   /// Base Core Send Email Function
   static Future<bool> sendEmail({
     required String toEmail,

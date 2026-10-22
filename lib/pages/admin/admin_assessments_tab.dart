@@ -369,13 +369,13 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
           const SizedBox(height: 24),
           _buildStyledTextField(
             controller: _title,
-            label: 'Title',
+            label: 'Title *',
             icon: Icons.title_rounded,
           ),
           const SizedBox(height: 16),
           _buildStyledTextField(
             controller: _description,
-            label: 'Description',
+            label: 'Description (Optional)',
             icon: Icons.description_rounded,
             maxLines: 3,
           ),
@@ -513,7 +513,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
       initialValue: currentVal,
       style: GoogleFonts.inter(fontSize: 16, color: Colors.black87),
       decoration: InputDecoration(
-        labelText: 'Duration',
+        labelText: 'Duration *',
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
         prefixIcon: const Icon(Icons.timer_outlined, color: Color(0xFF88B342)),
         filled: true,
@@ -588,7 +588,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
 
     return InputDecorator(
       decoration: InputDecoration(
-        labelText: 'Max Attempts',
+        labelText: 'Max Attempts *',
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
         filled: true,
         fillColor: Colors.grey.shade50,
@@ -736,7 +736,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
             TextField(
               controller: q.questionCtrl,
               decoration: InputDecoration(
-                labelText: q.type == 'passage' ? 'Passage Content' : 'Question',
+                labelText: q.type == 'passage' ? 'Passage Content *' : 'Question *',
                 hintText: q.type == 'passage'
                     ? 'Enter the text passage here...'
                     : 'Enter your question...',
@@ -749,7 +749,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
             DropdownButtonFormField<String>(
               initialValue: q.type,
               decoration: const InputDecoration(
-                labelText: 'Type',
+                labelText: 'Type *',
                 border: OutlineInputBorder(),
               ),
               items: [
@@ -802,7 +802,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                           child: TextField(
                             controller: q.optionsCtrls[optIdx],
                             decoration: InputDecoration(
-                              labelText: 'Option ${optIdx + 1}',
+                              labelText: 'Option ${optIdx + 1} *',
                             ),
                             onChanged: (val) {
                               setState(() {});
@@ -838,7 +838,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
               TextField(
                 controller: q.answerCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Correct Answer',
+                  labelText: 'Correct Answer *',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -1077,7 +1077,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                   maxLines: 4,
                   style: GoogleFonts.inter(fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: 'Paste raw text here...',
+                    hintText: 'Paste raw text here *...',
                     hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade400),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     enabledBorder: OutlineInputBorder(

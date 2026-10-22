@@ -217,13 +217,13 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           const SizedBox(height: 24),
           _buildStyledTextField(
             controller: _title,
-            label: 'Title',
+            label: 'Title *',
             icon: Icons.title_rounded,
           ),
           const SizedBox(height: 16),
           _buildStyledTextField(
             controller: _description,
-            label: 'Description',
+            label: 'Description (Optional)',
             icon: Icons.description_rounded,
             maxLines: 3,
           ),
@@ -361,7 +361,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       initialValue: currentVal,
       style: GoogleFonts.inter(fontSize: 16, color: Colors.black87),
       decoration: InputDecoration(
-        labelText: 'Duration',
+        labelText: 'Duration *',
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
         prefixIcon: const Icon(Icons.timer_outlined, color: Color(0xFF88B342)),
         filled: true,
@@ -436,7 +436,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
     return InputDecorator(
       decoration: InputDecoration(
-        labelText: 'Max Attempts',
+        labelText: 'Max Attempts *',
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
         filled: true,
         fillColor: Colors.grey.shade50,
@@ -656,10 +656,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               controller: q.questionCtrl,
               decoration: InputDecoration(
                 labelText: q.type == 'passage'
-                    ? 'Passage Content'
+                    ? 'Passage Content *'
                     : q.type == 'image'
-                        ? 'Image Question Title'
-                        : 'Question',
+                        ? 'Image Question Title *'
+                        : 'Question *',
                 hintText: q.type == 'passage'
                     ? 'Enter the text passage here...'
                     : q.type == 'image'
@@ -674,7 +674,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             DropdownButtonFormField<String>(
               initialValue: q.type,
               decoration: const InputDecoration(
-                labelText: 'Type',
+                labelText: 'Type *',
                 border: OutlineInputBorder(),
               ),
               items: [
@@ -822,7 +822,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               TextField(
                 controller: q.answerCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Correct Answer',
+                  labelText: 'Correct Answer *',
                   hintText: 'Enter the correct answer for this image question...',
                   border: OutlineInputBorder(),
                 ),
@@ -859,7 +859,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                           child: TextField(
                             controller: q.optionsCtrls[optIdx],
                             decoration: InputDecoration(
-                              labelText: 'Option ${optIdx + 1}',
+                              labelText: 'Option ${optIdx + 1} *',
                             ),
                             onChanged: (val) {
                               setState(() {});
@@ -895,7 +895,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               TextField(
                 controller: q.answerCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Correct Answer',
+                  labelText: 'Correct Answer *',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -1239,7 +1239,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   maxLines: 4,
                   style: GoogleFonts.inter(fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: 'Paste raw text here...',
+                    hintText: 'Paste raw text here *...',
                     hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade400),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     enabledBorder: OutlineInputBorder(

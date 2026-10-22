@@ -377,7 +377,7 @@ class _NotebookListPageState extends State<NotebookListPage> {
                 controller: titleController,
                 autofocus: true,
                 decoration: const InputDecoration(
-                  labelText: 'Notebook Title',
+                  labelText: 'Notebook Title *',
                   hintText: 'e.g., Biology 101 - Cell Respiration',
                   border: OutlineInputBorder(),
                 ),
@@ -447,7 +447,7 @@ class _NotebookListPageState extends State<NotebookListPage> {
               TextField(
                 controller: titleController,
                 decoration: const InputDecoration(
-                  labelText: 'Title',
+                  labelText: 'Title *',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -456,7 +456,7 @@ class _NotebookListPageState extends State<NotebookListPage> {
                 controller: descController,
                 maxLines: 3,
                 decoration: const InputDecoration(
-                  labelText: 'Description',
+                  labelText: 'Description (Optional)',
                   border: OutlineInputBorder(),
                 ),
               ),

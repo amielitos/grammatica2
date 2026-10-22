@@ -2340,6 +2340,73 @@ class DatabaseService {
     }
   }
 
+  /// Records a successful payment receipt in Firestore and updates subscription status.
+  Future<void> recordSubscriptionPayment({
+    required String educatorUid,
+    required String educatorName,
+    required String tier,
+    required double amount,
+    required String referenceNumber,
+    required String paymentMethod,
+    String? paymongoLinkId,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // 1. Activate or upgrade subscription status
+    await subscribeToEducator(educatorUid, tier);
+
+    // 2. Write receipt document in user's payments subcollection
+    final paymentDocRef = _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('payments')
+        .doc();
+
+    final paymentData = {
+      'paymentId': paymentDocRef.id,
+      'learnerUid': user.uid,
+      'learnerEmail': user.email ?? '',
+      'learnerName': user.displayName ?? 'Learner',
+      'educatorUid': educatorUid,
+      'educatorName': educatorName,
+      'tier': tier,
+      'amount': amount,
+      'amountPhp': amount,
+      'currency': 'PHP',
+      'referenceNumber': referenceNumber,
+      'paymentMethod': paymentMethod,
+      'paymongoLinkId': paymongoLinkId ?? '',
+      'status': 'paid',
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    await paymentDocRef.set(paymentData);
+
+    // 3. Write in top-level payments collection for administrative & analytics tracking
+    try {
+      await _firestore
+          .collection('payments')
+          .doc(paymentDocRef.id)
+          .set(paymentData);
+    } catch (e) {
+      debugPrint('[DatabaseService] Note: top-level payments ledger write: $e');
+    }
+  }
+
+  /// Stream of payment receipts for the learner (defaults to currently signed-in user).
+  Stream<List<Map<String, dynamic>>> streamLearnerPayments([String? learnerUid]) {
+    final targetUid = learnerUid ?? FirebaseAuth.instance.currentUser?.uid;
+    if (targetUid == null) return Stream.value([]);
+    return _firestore
+        .collection('users')
+        .doc(targetUid)
+        .collection('payments')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => d.data()).toList());
+  }
+
   Future<void> unsubscribeFromEducator(String educatorUid) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;

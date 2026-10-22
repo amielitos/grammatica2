@@ -235,7 +235,7 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
 
               // Lesson Title Input
               Text(
-                'Lesson Title',
+                'Lesson Title *',
                 style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               const SizedBox(height: 8),
@@ -715,7 +715,7 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
               ],
 
               // Title
-              Text('Quiz Title', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text('Quiz Title *', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
               const SizedBox(height: 8),
               TextField(
                 controller: _titleCtrl,
@@ -733,7 +733,7 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
               const SizedBox(height: 16),
 
               // Description
-              Text('Description', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text('Description (Optional)', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
               const SizedBox(height: 8),
               TextField(
                 controller: _descCtrl,
@@ -1117,7 +1117,7 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
 
               // Title Field
               Text(
-                'Content Title',
+                'Content Title *',
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,

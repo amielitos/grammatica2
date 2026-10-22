@@ -614,7 +614,7 @@ class ProfilePageState extends State<ProfilePage> {
             Text('Edit Profile Information', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.black87)),
             const SizedBox(height: 24),
             
-            _buildEditLabel('Username'),
+            _buildEditLabel('Username *'),
             TextField(
               controller: _usernameCtrl,
               style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
@@ -632,21 +632,21 @@ class ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 24),
             
-            _buildEditLabel('Phone Number'),
+            _buildEditLabel('Phone Number *'),
             IntlPhoneField(
               controller: _phoneCtrl,
               focusNode: _phoneFocus,
               initialCountryCode: 'PH',
               style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
               dropdownTextStyle: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
-              decoration: _customInputDecoration(hint: 'Phone Number'),
+              decoration: _customInputDecoration(hint: 'Phone Number *'),
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
               onChanged: (phone) => _completePhoneNumber = phone.completeNumber,
             ),
             const SizedBox(height: 24),
             
-            _buildEditLabel('Date of Birth'),
+            _buildEditLabel('Date of Birth *'),
             InkWell(
               onTap: _updateDob,
               borderRadius: BorderRadius.circular(8),
@@ -1633,8 +1633,8 @@ class _ReauthDialogState extends State<_ReauthDialog> {
             controller: widget.pwdCtrl,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
-              labelText: 'Password',
-              hintText: 'Enter your password',
+              labelText: 'Password *',
+              hintText: 'Enter your password *',
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -1831,7 +1831,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                 controller: _passwordCtrl,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
-                  hintText: 'Enter your password',
+                  hintText: 'Enter your password *',
                   prefixIcon: const Icon(Icons.lock_outline, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -2054,7 +2054,7 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
             ),
             decoration: _inputDecoration(
               context: context,
-              hint: 'Current Password',
+              hint: 'Current Password *',
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscureCurrentPassword
@@ -2080,7 +2080,7 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
             ),
             decoration: _inputDecoration(
               context: context,
-              hint: 'New Password',
+              hint: 'New Password *',
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscureNewPassword
@@ -2135,7 +2135,7 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
             ),
             decoration: _inputDecoration(
               context: context,
-              hint: 'Confirm New Password',
+              hint: 'Confirm New Password *',
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscureConfirmPassword

@@ -582,7 +582,7 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
             TextField(
               controller: _wordController,
               decoration: InputDecoration(
-                labelText: 'Word',
+                labelText: 'Word *',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -594,7 +594,7 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
             DropdownButtonFormField<SpellingDifficulty>(
               initialValue: _difficulty,
               decoration: InputDecoration(
-                labelText: 'Difficulty',
+                labelText: 'Difficulty *',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

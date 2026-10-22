@@ -528,7 +528,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ],
                           _buildTextField(
-                            hintText: 'Email Address',
+                            hintText: 'Email Address *',
                             controller: _emailController,
                             prefixIcon: const Icon(Icons.email_outlined),
                             validator: (value) {
@@ -544,7 +544,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           const SizedBox(height: 20),
                           _buildTextField(
-                            hintText: 'Password',
+                            hintText: 'Password *',
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             prefixIcon: const Icon(Icons.lock_outline),

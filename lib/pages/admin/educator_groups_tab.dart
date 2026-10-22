@@ -1156,12 +1156,12 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 16),
-              const Text('Meeting Title / Topic', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const Text('Meeting Title / Topic *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
               const SizedBox(height: 8),
               TextField(
                 controller: _titleController,
                 decoration: InputDecoration(
-                  hintText: 'e.g. Grammar Practice & Accent Coaching',
+                  hintText: 'e.g. Grammar Practice & Accent Coaching *',
                   filled: true,
                   fillColor: Colors.grey.withValues(alpha: 0.05),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
@@ -1191,7 +1191,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
               ),
               const SizedBox(height: 16),
 
-              const Text('Select Student', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const Text('Select Student *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
               const SizedBox(height: 8),
               StreamBuilder<List<Map<String, dynamic>>>(
                 stream: DatabaseService.instance.streamEducatorSubscribers(widget.user.uid),

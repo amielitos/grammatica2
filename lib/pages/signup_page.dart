@@ -505,7 +505,7 @@ class _SignupPageState extends State<SignupPage> {
                 Expanded(
                   child: _buildTextField(
                     controller: _firstNameController,
-                    hintText: 'First Name',
+                    hintText: 'First Name *',
                     prefixIcon: const Icon(Icons.person_outline),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s\-]')),
@@ -522,7 +522,7 @@ class _SignupPageState extends State<SignupPage> {
                 Expanded(
                   child: _buildTextField(
                     controller: _lastNameController,
-                    hintText: 'Last Name',
+                    hintText: 'Last Name *',
                     prefixIcon: const Icon(Icons.person_outline),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s\-]')),
@@ -547,7 +547,7 @@ class _SignupPageState extends State<SignupPage> {
                 Expanded(
                   child: _buildTextField(
                     controller: _dobController,
-                    hintText: 'Date of Birth',
+                    hintText: 'Date of Birth *',
                     prefixIcon: const Icon(Icons.calendar_month_outlined),
                     readOnly: true,
                     onTap: () => _selectDate(context),
@@ -578,7 +578,7 @@ class _SignupPageState extends State<SignupPage> {
             const SizedBox(height: 16),
             _buildTextField(
               controller: _emailController,
-              hintText: 'Email Address',
+              hintText: 'Email Address *',
               prefixIcon: const Icon(Icons.email_outlined),
               keyboardType: TextInputType.emailAddress,
               validator: (val) {
@@ -613,7 +613,7 @@ class _SignupPageState extends State<SignupPage> {
             const SizedBox(height: 16),
             _buildTextField(
               controller: _passwordController,
-              hintText: 'Password',
+              hintText: 'Password *',
               obscureText: _obscurePassword,
               onChanged: (v) => setState(() {}),
               prefixIcon: const Icon(Icons.lock_outline),
@@ -640,7 +640,7 @@ class _SignupPageState extends State<SignupPage> {
             const SizedBox(height: 12),
             _buildTextField(
               controller: _confirmPasswordController,
-              hintText: 'Confirm Password',
+              hintText: 'Confirm Password *',
               obscureText: _obscureConfirmPassword,
               onChanged: (v) => setState(() {}),
               prefixIcon: const Icon(Icons.lock_reset),
@@ -874,7 +874,7 @@ class _SignupPageState extends State<SignupPage> {
           fontSize: 14,
         ),
         decoration: InputDecoration(
-          hintText: 'Phone Number',
+          hintText: 'Phone Number *',
           hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
           counterText: '',
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),

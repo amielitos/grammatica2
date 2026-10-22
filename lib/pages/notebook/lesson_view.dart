@@ -400,7 +400,7 @@ class _LessonViewState extends State<LessonView> {
                     color: isDark ? Colors.white : AppColors.textPrimary,
                   ),
                   decoration: const InputDecoration(
-                    labelText: 'Lesson Title',
+                    labelText: 'Lesson Title *',
                     border: OutlineInputBorder(),
                   ),
                   onChanged: (_) => _hasUnsavedEdits = true,

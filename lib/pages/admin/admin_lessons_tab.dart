@@ -412,7 +412,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           const SizedBox(height: 24),
           _buildStyledTextField(
             controller: _title,
-            label: 'Lesson Title',
+            label: 'Lesson Title *',
             hint: 'e.g. Introduction to Nouns',
             icon: Icons.menu_book_rounded,
             isDark: isDark,

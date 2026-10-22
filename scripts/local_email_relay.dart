@@ -33,6 +33,49 @@ Future<void> main() async {
         final content = await utf8.decoder.bind(request).join();
         final data = jsonDecode(content);
 
+        // --- PayMongo Link Relay (bypasses browser CORS for Flutter Web) ---
+        if (request.uri.path == '/create-paymongo-link') {
+          final client = HttpClient();
+          final paymongoReq = await client.postUrl(Uri.parse('https://api.paymongo.com/v1/links'));
+          const secretKey = 'sk_live_spqXAkVZE4LvX2qhKtAR9Nw9';
+          final basicAuth = 'Basic ${base64Encode(utf8.encode('$secretKey:'))}';
+          paymongoReq.headers.set('authorization', basicAuth);
+          paymongoReq.headers.set('content-type', 'application/json');
+          paymongoReq.headers.set('accept', 'application/json');
+          final double amount = (data['amount'] as num).toDouble();
+          paymongoReq.write(jsonEncode({
+            "data": {
+              "attributes": {
+                "amount": (amount * 100).toInt(),
+                "description": data['description'],
+                "remarks": data['remarks'] ?? 'Grammatica Subscription',
+              }
+            }
+          }));
+          final paymongoRes = await paymongoReq.close();
+          final resBody = await utf8.decoder.bind(paymongoRes).join();
+          request.response.statusCode = paymongoRes.statusCode;
+          request.response.write(resBody);
+          await request.response.close();
+          continue;
+        }
+
+        if (request.uri.path == '/get-paymongo-link') {
+          final linkId = data['linkId'] as String;
+          final client = HttpClient();
+          final paymongoReq = await client.getUrl(Uri.parse('https://api.paymongo.com/v1/links/$linkId'));
+          const secretKey = 'sk_live_spqXAkVZE4LvX2qhKtAR9Nw9';
+          final basicAuth = 'Basic ${base64Encode(utf8.encode('$secretKey:'))}';
+          paymongoReq.headers.set('authorization', basicAuth);
+          paymongoReq.headers.set('accept', 'application/json');
+          final paymongoRes = await paymongoReq.close();
+          final resBody = await utf8.decoder.bind(paymongoRes).join();
+          request.response.statusCode = paymongoRes.statusCode;
+          request.response.write(resBody);
+          await request.response.close();
+          continue;
+        }
+
         final String smtpEmail = data['smtpEmail'];
         final String smtpPassword = data['smtpPassword'];
         final String recipientEmail = data['recipientEmail'];
