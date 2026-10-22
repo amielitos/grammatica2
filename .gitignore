@@ -12,6 +12,8 @@
 .swiftpm/
 migrate_working_dir/
 .env
+.idempotency_cache/
+.test_idempotency_cache/
 
 
 # IntelliJ related

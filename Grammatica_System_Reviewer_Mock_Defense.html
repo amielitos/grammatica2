@@ -341,7 +341,7 @@
       </tr>
       <tr>
         <td class="label">Primary Technology Stack:</td>
-        <td class="val">Flutter 3.x (Web & Android APK), Firebase Firestore, Firebase Auth, FastAPI Backend, Google Gemini 2.5 Flash, Agora RTC, PayMongo API, Vosk Acoustic Engine</td>
+        <td class="val">Flutter 3.x (Web & Android APK), Firebase Firestore, Firebase Auth, FastAPI Backend (Distributed Idempotency Engine), Google Gemini 2.5 Flash, Agora RTC, PayMongo API (QR Ph & Idempotent Checkout), Brevo Transactional Email, Vosk Acoustic Engine</td>
       </tr>
       <tr>
         <td class="label">Target Review:</td>
@@ -349,11 +349,11 @@
       </tr>
       <tr>
         <td class="label">Document Scope:</td>
-        <td class="val">Architectural Principles, Subsystem Implementations, Theoretical Algorithms, File-by-File Catalog (85+ Dart files), Panelist Q&A</td>
+        <td class="val">Architectural Principles, Subsystem Implementations, Theoretical Algorithms, Distributed Idempotency Engine, File-by-File Catalog (85+ Dart files), Panelist Q&A</td>
       </tr>
       <tr>
         <td class="label">Version & Date:</td>
-        <td class="val">Version 2.4.0 • Academic Year 2026</td>
+        <td class="val">Version 2.5.0 • Academic Year 2026</td>
       </tr>
     </table>
   </div>
@@ -376,7 +376,8 @@
   <div class="toc-item" style="padding-left: 20px;"><span class="toc-title"><span class="toc-sec">3.5</span>Interactive Gamified Learning & Acoustic Speech Evaluation</span></div>
   <div class="toc-item" style="padding-left: 20px;"><span class="toc-title"><span class="toc-sec">3.6</span>Real-Time Video Conferencing & Mentorship (Agora RTC)</span></div>
   <div class="toc-item" style="padding-left: 20px;"><span class="toc-title"><span class="toc-sec">3.7</span>Monetization, PayMongo Dynamic Checkout & Email Receipts</span></div>
-  <div class="toc-item" style="padding-left: 20px;"><span class="toc-title"><span class="toc-sec">3.8</span>Content Moderation, Verification & Mandatory Denial Auditing</span></div>
+  <div class="toc-item" style="padding-left: 20px;"><span class="toc-title"><span class="toc-sec">3.8</span>Distributed Idempotency Architecture & Financial Double-Charge Prevention</span></div>
+  <div class="toc-item" style="padding-left: 20px;"><span class="toc-title"><span class="toc-sec">3.9</span>Content Moderation, Verification & Mandatory Denial Auditing</span></div>
   <div class="toc-item"><span class="toc-title"><span class="toc-sec">4.0</span>Exhaustive File-by-File Catalog (Every Single .dart File)</span></div>
   <div class="toc-item" style="padding-left: 20px;"><span class="toc-title"><span class="toc-sec">4.1</span>Configuration & Theme Layer (<code>lib/config/</code>, <code>lib/theme/</code>)</span></div>
   <div class="toc-item" style="padding-left: 20px;"><span class="toc-title"><span class="toc-sec">4.2</span>Domain Models & Data Structures (<code>lib/models/</code>)</span></div>
@@ -387,7 +388,7 @@
   <div class="toc-item" style="padding-left: 20px;"><span class="toc-title"><span class="toc-sec">4.7</span>Reusable UI Components & Widgets (<code>lib/widgets/</code>)</span></div>
   <div class="toc-item" style="padding-left: 20px;"><span class="toc-title"><span class="toc-sec">4.8</span>Utilities & Platform Helpers (<code>lib/utils/</code>)</span></div>
   <div class="toc-item"><span class="toc-title"><span class="toc-sec">5.0</span>Microservices AI Backend & LLM Fine-Tuning (FastAPI & LoRA)</span></div>
-  <div class="toc-item"><span class="toc-title"><span class="toc-sec">6.0</span>Anticipated Defense Questions & Panel Defense Guide (Top 25 Q&A)</span></div>
+  <div class="toc-item"><span class="toc-title"><span class="toc-sec">6.0</span>Anticipated Defense Questions & Panel Defense Guide (Top 27 Q&A)</span></div>
 </div>
 
 <!-- SECTION 1: EXECUTIVE SUMMARY -->
@@ -433,16 +434,19 @@ Grammatica is engineered using a robust, decoupled, and highly responsive <stron
 |                                 CLIENT APPLICATION SERVICES                             |
 |  - AuthService         - DatabaseService      - RoleService       - AIRateLimitService  |
 |  - NotebookService    - AgoraService         - PaymongoService   - SpacedRepetitionSvc |
-|  - EmailSenderService - SourceIngestionSvc   - DeviceSessionSvc  - VoskServiceNative   |
+|  - EmailSenderService - SourceIngestionSvc   - DeviceSessionSvc  - IdempotencyService  |
+|  - WebServiceWeb      - VoskServiceNative    - AppRepository     - NavigationService   |
 +-----------------------------------------------------------------------------------------+
            |                               |                               |
            v                               v                               v
 +-----------------------+     +-----------------------+     +-----------------------------+
 |    CLOUD BACKEND      |     |  FASTAPI AI GATEWAY   |     |    EXTERNAL INTEGRATIONS    |
 | Firebase Firestore    |     | Python 3.13 Microsvc  |     | - Google Gemini 2.5 Flash   |
-| Firebase Auth (OAuth) |     | - Gemini SDK Pipeline |     | - Agora RTC Cloud Engine    |
-| Firebase Storage      |     | - PDF / Web Scraper   |     | - PayMongo Payment Gateway  |
-| Firestore Rules & RBAC|     | - Fine-Tuned LoRA     |     | - Brevo Transactional Email |
+| - /payments/ Ledger   |     | - Idempotency Store   |     | - Agora RTC Cloud Engine    |
+| - /idempotency_keys/  |     | - Webhook Mutex Lock  |     | - PayMongo Payment Gateway  |
+| Firebase Auth (OAuth) |     | - Gemini SDK Pipeline |     |   (Idempotent QR Ph & Card) |
+| Firebase Storage      |     | - PDF / Web Scraper   |     | - Brevo Transactional Email |
+| Firestore Rules & RBAC|     | - Fine-Tuned LoRA     |     |   (Deduplicated Receipts)   |
 +-----------------------+     +-----------------------+     +-----------------------------+
   </pre>
 </div>
@@ -451,6 +455,7 @@ Grammatica is engineered using a robust, decoupled, and highly responsive <stron
 <ul>
   <li><strong>Single Source of Truth:</strong> <code>DatabaseService</code> acts as the canonical data gatekeeper, exposing continuous, real-time reactive streams (<code>StreamBuilder</code>) from Cloud Firestore. Data mutations are optimistically reflected in the UI while ensuring atomic cloud persistence.</li>
   <li><strong>Cross-Platform Conditional Compilation:</strong> The codebase leverages conditional imports (e.g., <code>web_service_web.dart</code> vs <code>web_service_stub.dart</code>, and <code>vosk_service_native.dart</code> vs <code>vosk_service_stub.dart</code>). This enables native Android builds to execute high-performance C++ speech binaries (Vosk offline acoustic model) while web builds gracefully adapt to browser standards and CORS proxy relays without crashing.</li>
+  <li><strong>Distributed Idempotency & Financial Safety:</strong> End-to-end multi-tier deduplication protects against double billing, duplicate bookings, and race conditions across client (single-flight coalescing), gateway (SHA-256 fingerprinting & 409 Conflict locks), and database (check-and-set Firestore ledgers) layers.</li>
   <li><strong>Strict Defensive Input Validation:</strong> Every single required user entry point is enforced both on the UI layer (displaying visual asterisk <code>*</code> indicators and inline regex validators) and within service invocation guards.</li>
 </ul>
 
@@ -633,18 +638,38 @@ Grammatica enables educators to commercialize their pedagogical work through sub
   <li><strong>Tier Structure:</strong> <em>Standard Tier</em> (Up to $10/mo - grants access to exclusive educator lessons and quiz folders) and <em>Premium Tier</em> (Up to $30/mo - includes 1-on-1 scheduled live Agora mentorship sessions).</li>
   <li><strong>PayMongo API Integration (<code>PayMongoService</code>):</strong>
     <ul>
-      <li><strong>Dynamic Hosted Checkout:</strong> Generates secure PayMongo checkout sessions supporting credit/debit cards, GCash, Maya, and GrabPay.</li>
-      <li><strong>Direct QR Ph Code Fallback:</strong> Generates real-time, high-contrast QR Ph payment strings displayed in a dedicated modal (<code>PaymongoQrDialog</code>). Users scan the QR directly in banking apps.</li>
+      <li><strong>Dynamic Hosted Checkout:</strong> Generates secure PayMongo checkout sessions supporting credit/debit cards, GCash, Maya, and GrabPay. All link generation calls attach cryptographic <code>Idempotency-Key</code> headers and cache active URLs in-memory to prevent duplicate checkout creations.</li>
+      <li><strong>Direct QR Ph Code Fallback:</strong> Generates real-time, high-contrast QR Ph payment strings displayed in a dedicated modal (<code>PaymongoQrDialog</code>). Users scan the QR directly in banking apps. A single-shot mutex (<code>_hasDispatchedSuccess</code>) prevents race conditions between polling timers and manual triggers.</li>
     </ul>
   </li>
   <li><strong>Automated Transactional Email Receipts (<code>EmailSenderService</code>):</strong>
-    Upon successful payment confirmation, the system generates an itemized, responsive HTML receipt and dispatches it directly to the customer's email via the <strong>Brevo API</strong> (Sendinblue), complete with transaction ID, tier details, and renewal dates. A local Dart email relay (<code>scripts/local_email_relay.dart</code>) serves as a zero-downtime offline fallback during local testing.
+    Upon successful payment confirmation, the system generates an itemized, responsive HTML receipt and dispatches it directly to the customer's email via the <strong>Brevo API</strong> (Sendinblue), complete with transaction ID, tier details, and renewal dates. A local Dart email relay (<code>scripts/local_email_relay.dart</code>) serves as a zero-downtime offline fallback during local testing. Duplicate receipt dispatch is strictly blocked by the idempotency ledger.
   </li>
 </ul>
 
 <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
 
-<h2>3.8 Content Moderation, Verification & Mandatory Denial Auditing</h2>
+<h2>3.8 Distributed Idempotency Architecture & Financial Double-Charge Prevention</h2>
+<p>
+In financial and distributed systems, network unreliability and rapid user interactions can lead to severe side-effects such as double billing, duplicate session bookings, and redundant AI credit deductions. To guarantee absolute consistency, Grammatica implements a cohesive <strong>3-Tier Distributed Idempotency Architecture</strong> spanning client, gateway, and database layers:
+</p>
+
+<div class="callout callout-defense">
+  <div class="callout-title">The Three Pillars of Grammatica Idempotency</div>
+  <ol style="margin-bottom: 0;">
+    <li><strong>Client-Tier Single-Flight Coalescing (<code>IdempotencyService</code>):</strong> Rapid button taps within short windows join the exact same active <code>Future</code>, completely preventing multiple concurrent HTTP requests from ever leaving the client device. Deterministic RFC 4122 v4 keys (<code>pay_link_{studentId}_{educatorId}_{timestampMinutes}</code>) guarantee replay safety.</li>
+    <li><strong>Gateway Middleware Fingerprinting (<code>IdempotencyMiddleware</code> & <code>IdempotencyStore</code>):</strong> Mutating HTTP routes (<code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>) are locked via SHA-256 payload fingerprints. Concurrent requests return <code>HTTP 409 Conflict</code> (with <code>Retry-After: 2</code>); modified payloads under the same key reject with <code>HTTP 422 Unprocessable Entity</code>; and repeated identical calls replay the cached response with <code>Idempotent-Replay: true</code>.</li>
+    <li><strong>Database Transactional Check-and-Set Ledger (<code>DatabaseService</code>):</strong> Transactions in <code>/payments/{paymentId}</code> use deterministic doc IDs (<code>pay_{linkId}</code>). Existing <code>paid</code> records return <code>PaymentRecordResult(isDuplicate: true)</code>, safely skipping duplicate subscription increments and redundant email receipts.</li>
+  </ol>
+</div>
+
+<p>
+<strong>PayMongo Webhook Deduplication:</strong> Inbound webhooks from payment gateways operate on an <em>at-least-once delivery</em> model. The FastAPI webhook route locks each event ID (<code>evt_...</code>) via <code>IdempotencyStore</code>. Whichever path resolves first—the background webhook or the client’s foreground polling loop—commits the payment atomically. The secondary process recognizes the existing record, flags it as duplicate, and quietly exits without side-effects.
+</p>
+
+<hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+
+<h2>3.9 Content Moderation, Verification & Mandatory Denial Auditing</h2>
 <p>
 To ensure curricular excellence, educator-published lessons and quizzes enter a pending verification queue reviewed by certified Validators (<code>ValidatorDashboardTab</code>).
 </p>
@@ -743,6 +768,11 @@ Below is an exhaustive architectural catalog detailing every relevant <code>.dar
       <td>Represents items submitted by educators to the public repository. Tracks verification status (<code>pending</code>, <code>approved</code>, <code>denied</code>), denial rationale, and validator UID.</td>
     </tr>
     <tr>
+      <td><code>lib/models/payment_models.dart</code> (and <code>DatabaseService</code>)</td>
+      <td><code>PaymentRecordResult</code></td>
+      <td>Result object returned from payment ledger mutations. Encapsulates <code>isSuccess</code>, <code>isDuplicate</code>, <code>paymentId</code>, and human-readable audit messages to safely gate downstream receipt dispatch.</td>
+    </tr>
+    <tr>
       <td><code>lib/models/spelling_word.dart</code></td>
       <td><code>SpellingWord</code>, <code>SpellingDifficulty</code></td>
       <td>Defines vocabulary items for the Spelling Bee game: word text, phonetics, audio URL, definition, example sentence, and difficulty tier.</td>
@@ -773,7 +803,12 @@ Below is an exhaustive architectural catalog detailing every relevant <code>.dar
     <tr>
       <td><code>lib/services/database_service.dart</code></td>
       <td><code>DatabaseService</code></td>
-      <td>Massive (100KB) data access singleton. Manages all Cloud Firestore collections: user profiles, lesson CRUD, quiz CRUD, assessments, spelling words, mentorship sessions, reviews, and denial audits.</td>
+      <td>Massive (100KB) data access singleton. Manages all Cloud Firestore collections: user profiles, lesson CRUD, quiz CRUD, assessments, spelling words, mentorship sessions, reviews, denial audits, and the idempotent <code>PaymentLedger</code> (/payments/ & /idempotency_keys/) with check-and-set duplicate protection.</td>
+    </tr>
+    <tr>
+      <td><code>lib/services/idempotency_service.dart</code></td>
+      <td><code>IdempotencyService</code></td>
+      <td>Client-side idempotency coordinator. Generates cryptographic RFC 4122 v4 UUIDs, deterministic payment/mentorship/AI keys, coalesces in-flight requests (single-flight deduplication), and persists cached results in local storage with TTL.</td>
     </tr>
     <tr>
       <td><code>lib/services/role_service.dart</code></td>
@@ -783,12 +818,12 @@ Below is an exhaustive architectural catalog detailing every relevant <code>.dar
     <tr>
       <td><code>lib/services/ai_logic_service.dart</code></td>
       <td><code>AILogicService</code></td>
-      <td>Direct low-level client for Google Gemini 2.5 Flash. Assembles prompt templates, enforces structured JSON response schemas, handles API error parsing, and manages token usage.</td>
+      <td>Direct low-level client for Google Gemini 2.5 Flash. Assembles prompt templates, enforces structured JSON response schemas, injects <code>Idempotency-Key</code> headers, handles API error parsing, and manages token usage.</td>
     </tr>
     <tr>
       <td><code>lib/services/ai_generation_service.dart</code></td>
       <td><code>AIGenerationService</code></td>
-      <td>High-level orchestration service that coordinates source text extraction, quota validation, prompt dispatch, and model mapping for lessons, quizzes, and study guides.</td>
+      <td>High-level orchestration service that coordinates source text extraction, quota validation, prompt dispatch, and model mapping for lessons, quizzes, and study guides with deterministic request keys.</td>
     </tr>
     <tr>
       <td><code>lib/services/ai_rate_limit_service.dart</code></td>
@@ -813,7 +848,7 @@ Below is an exhaustive architectural catalog detailing every relevant <code>.dar
     <tr>
       <td><code>lib/services/paymongo_service.dart</code></td>
       <td><code>PayMongoService</code></td>
-      <td>Interacts with the PayMongo API. Creates dynamic checkout sessions (Cards, GCash, Maya), generates high-contrast QR Ph codes, verifies webhook payment statuses, and updates subscriptions.</td>
+      <td>Interacts with the PayMongo API. Creates dynamic checkout sessions (Cards, GCash, Maya) with injected <code>Idempotency-Key</code> headers, caches active payment links in-memory, generates high-contrast QR Ph codes, and coordinates single-shot UI locks.</td>
     </tr>
     <tr>
       <td><code>lib/services/email_sender_service.dart</code></td>
@@ -1185,7 +1220,7 @@ Below is an exhaustive architectural catalog detailing every relevant <code>.dar
     <tr>
       <td><code>lib/widgets/paymongo_qr_dialog.dart</code></td>
       <td><code>PaymongoQrDialog</code></td>
-      <td>High-contrast QR Ph payment dialog rendering dynamic QR strings with banking instructions and real-time payment status polling.</td>
+      <td>High-contrast QR Ph payment dialog rendering dynamic QR strings with banking instructions, real-time payment status polling, and a single-shot mutex (<code>_hasDispatchedSuccess</code>) preventing race conditions between timers and manual confirms.</td>
     </tr>
     <tr>
       <td><code>lib/widgets/interactive_markdown.dart</code></td>
@@ -1357,8 +1392,9 @@ While the Flutter client directly connects to Firebase for primary application d
 <h2>5.1 FastAPI Microservice Architecture (<code>ai_backend/</code>)</h2>
 <ul>
   <li><strong>REST API Gateway (<code>main.py</code>):</strong> High-performance asynchronous API built on FastAPI and Uvicorn, secured by JWT and Firebase ID Token verification middleware (<code>middleware/auth.py</code>).</li>
+  <li><strong>Distributed Idempotency Engine (<code>middleware/idempotency.py</code> & <code>services/idempotency_store.py</code>):</strong> Intercepts mutating API calls, validates <code>Idempotency-Key</code> headers, enforces async locks, calculates SHA-256 payload fingerprints, returns <code>HTTP 409 Conflict</code> on in-flight collisions, rejects mutations via <code>HTTP 422</code>, and serves replay-cached responses with <code>Idempotent-Replay: true</code>.</li>
   <li><strong>Generation Routes (<code>routes/lesson.py</code>, <code>routes/quiz.py</code>, <code>routes/notebook.py</code>):</strong> Endpoints accepting ingested curricular sources and calling Google Gemini 2.5 Flash with strict JSON schema constraints.</li>
-  <li><strong>Payment & Webhook Listener (<code>routes/payment.py</code>):</strong> Receives PayMongo webhook callbacks, verifies cryptographic signature headers, and updates user subscription records in Firestore.</li>
+  <li><strong>Payment & Webhook Listener (<code>routes/payment.py</code>):</strong> Receives PayMongo webhook callbacks, verifies cryptographic signature headers, locks on webhook event IDs (<code>evt_...</code>) for deduplication, and updates user subscription records in Firestore.</li>
   <li><strong>Email Dispatcher (<code>routes/email.py</code>):</strong> Dispatches transactional receipts and notifications using the Brevo API.</li>
   <li><strong>Document Processing (<code>services/pdf_service.py</code>):</strong> Uses <code>pdfplumber</code> and <code>pypdf</code> to parse complex multi-page academic documents, stripping non-textual artifacts and chunking text to prevent token overflow.</li>
 </ul>
@@ -1373,7 +1409,7 @@ In addition to Google Gemini, Grammatica features an internal, domain-specific f
 </ul>
 
 <!-- SECTION 6: DEFENSE QUESTIONS & ANSWERS -->
-<h1>6.0 Top 25 Mock Defense Questions & Comprehensive Panel Answers</h1>
+<h1>6.0 Top 27 Mock Defense Questions & Comprehensive Panel Answers</h1>
 <p>
 This section contains anticipated questions frequently raised by academic panels, complete with authoritative technical answers.
 </p>
@@ -1516,7 +1552,7 @@ This section contains anticipated questions frequently raised by academic panels
   <div class="qa-tag">Testing & Quality Assurance</div>
   <div class="qa-q"><span>Q17:</span> How do you test the system? What test suites exist in the codebase?</div>
   <div class="qa-a">
-    <strong>Answer:</strong> The project maintains an automated test suite comprising <strong>55 comprehensive test cases</strong>. This includes unit tests for SM-2 interval calculations (<code>spaced_repetition_test.dart</code>), brute-force lockout window tests (<code>lockout_system_test.dart</code>), Agora token generation tests (<code>agora_service_env_test.dart</code>), model serialization tests (<code>study_guide_models_test.dart</code>), and widget tests for dropzones and quota badges (<code>ai_rate_limit_visual_test.dart</code>). All 55 tests pass cleanly in CI.
+    <strong>Answer:</strong> The project maintains an automated test suite comprising <strong>63+ comprehensive test cases</strong>. This includes unit tests for SM-2 interval calculations (<code>spaced_repetition_test.dart</code>), brute-force lockout window tests (<code>lockout_system_test.dart</code>), Agora token generation tests (<code>agora_service_env_test.dart</code>), model serialization tests (<code>study_guide_models_test.dart</code>), widget tests for dropzones and quota badges (<code>ai_rate_limit_visual_test.dart</code>), end-to-end distributed idempotency tests (<code>idempotency_system_test.dart</code>), and backend FastAPI replay/conflict test suites (<code>test_idempotency.py</code>). All automated tests pass cleanly in CI.
   </div>
 </div>
 
@@ -1587,6 +1623,31 @@ This section contains anticipated questions frequently raised by academic panels
   <div class="qa-q"><span>Q25:</span> What is the primary academic contribution of this capstone project?</div>
   <div class="qa-a">
     <strong>Answer:</strong> The primary academic contribution is the <strong>synthesis of generative AI document grounding with cognitive spaced retrieval and live synchronous mentorship</strong>. While existing platforms either provide static drills or unguided AI chatbots, Grammatica proves that grounding LLMs in verified curricular sources and coupling them with empirical memory algorithms (SM-2) and human educator verification delivers a significantly more reliable, accountable, and effective digital language learning ecosystem.
+  </div>
+</div>
+
+<div class="qa-card">
+  <div class="qa-tag">Financial Architecture & Idempotency</div>
+  <div class="qa-q"><span>Q26:</span> How does Grammatica prevent double billing and duplicate payment records if a learner taps the checkout button multiple times or suffers network drops during payment?</div>
+  <div class="qa-a">
+    <strong>Answer:</strong> We enforce an end-to-end <strong>3-Tier Distributed Idempotency Pipeline</strong>:
+    <ul>
+      <li><strong>Client Tier:</strong> <code>IdempotencyService</code> employs <em>single-flight coalescing</em> (<code>executeDeduplicated</code>). If a user taps "Pay" multiple times rapidly, subsequent taps await the existing in-flight Future rather than firing duplicate HTTP requests. It also computes deterministic keys scoped to 1-minute windows (e.g. <code>pay_link_{studentId}_{educatorId}_{timestampMinutes}</code>).</li>
+      <li><strong>API Gateway Tier:</strong> <code>IdempotencyMiddleware</code> forwards the key to PayMongo and checks our FastAPI <code>IdempotencyStore</code>. If a concurrent duplicate arrives, the server locks on the key and immediately returns <code>HTTP 409 Conflict</code> (with <code>Retry-After: 2</code>). When completed, repeated calls replay the cached JSON with an <code>Idempotent-Replay: true</code> header.</li>
+      <li><strong>Database Ledger Tier:</strong> In Firestore, payments use deterministic document IDs: <code>/payments/pay_{linkId}</code> and register in <code>/idempotency_keys/{key}</code>. In <code>DatabaseService.recordPayment()</code>, a check-and-set transaction inspects if the record is already <code>paid</code>. If so, it returns <code>PaymentRecordResult(isDuplicate: true)</code>, bypassing duplicate subscription extensions, notification broadcasts, and duplicate Brevo email receipts.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="qa-card">
+  <div class="qa-tag">Distributed Systems</div>
+  <div class="qa-q"><span>Q27:</span> How do you handle PayMongo webhook at-least-once delivery and race conditions with client-side polling?</div>
+  <div class="qa-a">
+    <strong>Answer:</strong> Payment gateways guarantee <em>at-least-once</em> webhook delivery, meaning webhooks may arrive multiple times, often concurrently with the client's foreground QR polling loop (<code>PaymongoQrDialog</code>). We resolve this race condition through two synchronized guards:
+    <ol>
+      <li><strong>Webhook Mutex:</strong> In <code>routes/payment.py</code>, the FastAPI webhook listener locks on the PayMongo event identifier (<code>evt_...</code>) via <code>IdempotencyStore</code>, rejecting duplicate webhook retries.</li>
+      <li><strong>UI Single-Shot Lock & Transactional Check-and-Set:</strong> <code>PaymongoQrDialog</code> maintains a private boolean lock <code>_hasDispatchedSuccess</code>. Whichever path finishes first—the webhook or client poll—commits the record to Firestore. The secondary caller checks the deterministic record ID, recognizes the <code>status == 'paid'</code> state, flags <code>isDuplicate: true</code>, and gracefully exits without side effects.</li>
+    </ol>
   </div>
 </div>
 

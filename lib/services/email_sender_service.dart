@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../config/ai_config.dart';
+import 'idempotency_service.dart';
 
 class EmailSenderService {
   static String get _smtpEmail {
@@ -619,10 +620,16 @@ class EmailSenderService {
       ctaButtonUrl: 'https://grammatica.site',
     );
 
+    final emailKey = IdempotencyService.instance.generateEmailReceiptKey(
+      recipientEmail: recipientEmail,
+      referenceNumber: referenceNumber,
+    );
+
     return await sendEmail(
       toEmail: recipientEmail,
       subject: '💳 Payment Receipt & Confirmation: $tier Subscription to $educatorName',
       body: body,
+      idempotencyKey: emailKey,
     );
   }
 
@@ -631,70 +638,86 @@ class EmailSenderService {
     required String toEmail,
     required String subject,
     required String body,
+    String? idempotencyKey,
   }) async {
-    // ==========================================
-    // FLUTTER WEB (CHROME) - ROUTE VIA LOCAL RELAY
-    // Browsers can't open raw SMTP sockets.
-    // Try Dart relay (port 8081) first, then Python backend (port 8001).
-    // ==========================================
-    if (kIsWeb) {
-      // --- Try Dart relay first (dart run scripts/local_email_relay.dart) ---
-      try {
-        debugPrint('📧 Trying Dart relay at http://localhost:8081/send-generic ...');
-        final smtpEmail = _smtpEmail;
-        final smtpPassword = _smtpPassword;
-        final dartResponse = await http.post(
-          Uri.parse('http://localhost:8081/send-generic'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'smtpEmail': smtpEmail,
-            'smtpPassword': smtpPassword,
-            'recipientEmail': toEmail,
-            'subject': subject,
-            'body': body,
-          }),
-        ).timeout(const Duration(seconds: 6));
+    final effectiveKey = idempotencyKey ??
+        IdempotencyService.instance.generateEmailReceiptKey(
+          recipientEmail: toEmail,
+          referenceNumber: subject.hashCode.abs().toString(),
+        );
 
-        if (dartResponse.statusCode == 200) {
-          debugPrint('✅ Dart relay sent email to $toEmail');
-          return true;
-        } else {
-          debugPrint('⚠️ Dart relay returned ${dartResponse.statusCode}: ${dartResponse.body}');
+    return await IdempotencyService.instance.executeDeduplicated<bool>(
+      key: 'send_email_$effectiveKey',
+      action: () async {
+        // ==========================================
+        // FLUTTER WEB (CHROME) - ROUTE VIA LOCAL RELAY
+        // Browsers can't open raw SMTP sockets.
+        // Try Dart relay (port 8081) first, then Python backend (port 8001).
+        // ==========================================
+        if (kIsWeb) {
+          // --- Try Dart relay first (dart run scripts/local_email_relay.dart) ---
+          try {
+            debugPrint('📧 Trying Dart relay at http://localhost:8081/send-generic ...');
+            final smtpEmail = _smtpEmail;
+            final smtpPassword = _smtpPassword;
+            final dartResponse = await http.post(
+              Uri.parse('http://localhost:8081/send-generic'),
+              headers: {
+                'Content-Type': 'application/json',
+                'Idempotency-Key': effectiveKey,
+                'X-Idempotency-Key': effectiveKey,
+              },
+              body: jsonEncode({
+                'smtpEmail': smtpEmail,
+                'smtpPassword': smtpPassword,
+                'recipientEmail': toEmail,
+                'subject': subject,
+                'body': body,
+              }),
+            ).timeout(const Duration(seconds: 6));
+
+            if (dartResponse.statusCode == 200) {
+              debugPrint('✅ Dart relay sent email to $toEmail');
+              return true;
+            } else {
+              debugPrint('⚠️ Dart relay returned ${dartResponse.statusCode}: ${dartResponse.body}');
+            }
+          } catch (_) {
+            debugPrint('⚠️ Dart relay not available, trying Python backend...');
+          }
+
+          // --- Fallback: Python FastAPI backend (port 8001) ---
+          try {
+            final backendUrl = AIConfig.pythonBackendUrl;
+            final apiKey = AIConfig.pythonApiKey;
+            debugPrint('📧 Trying Python backend at $backendUrl/api/v1/email/send ...');
+            final response = await http.post(
+              Uri.parse('$backendUrl/api/v1/email/send'),
+              headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': apiKey,
+                'Idempotency-Key': effectiveKey,
+                'X-Idempotency-Key': effectiveKey,
+              },
+              body: jsonEncode({
+                'recipientEmail': toEmail,
+                'subject': subject,
+                'body': body,
+              }),
+            ).timeout(const Duration(seconds: 10));
+
+            if (response.statusCode == 200) {
+              debugPrint('✅ Python backend sent email to $toEmail');
+              return true;
+            } else {
+              debugPrint('❌ Python backend failed: ${response.body}');
+              return false;
+            }
+          } catch (e) {
+            debugPrint('❌ Both relays failed. Is a relay running? Error: $e');
+            return false;
+          }
         }
-      } catch (_) {
-        debugPrint('⚠️ Dart relay not available, trying Python backend...');
-      }
-
-      // --- Fallback: Python FastAPI backend (port 8001) ---
-      try {
-        final backendUrl = AIConfig.pythonBackendUrl;
-        final apiKey = AIConfig.pythonApiKey;
-        debugPrint('📧 Trying Python backend at $backendUrl/api/v1/email/send ...');
-        final response = await http.post(
-          Uri.parse('$backendUrl/api/v1/email/send'),
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': apiKey,
-          },
-          body: jsonEncode({
-            'recipientEmail': toEmail,
-            'subject': subject,
-            'body': body,
-          }),
-        ).timeout(const Duration(seconds: 10));
-
-        if (response.statusCode == 200) {
-          debugPrint('✅ Python backend sent email to $toEmail');
-          return true;
-        } else {
-          debugPrint('❌ Python backend failed: ${response.body}');
-          return false;
-        }
-      } catch (e) {
-        debugPrint('❌ Both relays failed. Is a relay running? Error: $e');
-        return false;
-      }
-    }
 
 
     final smtpServer = gmail(_smtpEmail, _smtpPassword);
@@ -711,5 +734,7 @@ class EmailSenderService {
       debugPrint('Error sending email: $e');
       return false;
     }
+      },
+    );
   }
 }

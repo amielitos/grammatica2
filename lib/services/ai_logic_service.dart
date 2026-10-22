@@ -7,6 +7,7 @@ import 'package:firebase_ai/firebase_ai.dart';
 import '../config/ai_config.dart';
 import '../models/ai_models.dart';
 import 'ai_rate_limit_service.dart';
+import 'idempotency_service.dart';
 
 /// Configuration for quiz generation, allowing teachers to customise
 /// question types, difficulty, instructions, and whether to include hints.
@@ -248,14 +249,18 @@ $explanationLine
   }
 
   Future<AILessonResponse> _generateLessonBackend(String rawText) async {
-    // The `/api/v1/extract-lesson` endpoint only accepts PDFs via multipart.
-    // For text-only generation we fall back to the old `/api/v1/generate-lesson`
-    // route which accepts a JSON body.
+    final key = IdempotencyService.instance.generateAiKey(
+      action: 'lesson',
+      contentSnippet: rawText.length > 200 ? rawText.substring(0, 200) : rawText,
+    );
+
     final response = await http.post(
       Uri.parse('${AIConfig.pythonBackendUrl}/api/v1/generate-lesson'),
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': AIConfig.pythonApiKey,
+        'Idempotency-Key': key,
+        'X-Idempotency-Key': key,
       },
       body: jsonEncode({'rawText': rawText}),
     );
@@ -300,8 +305,15 @@ $explanationLine
     final uri =
         Uri.parse('${AIConfig.pythonBackendUrl}/api/v1/extract-lesson');
 
+    final key = IdempotencyService.instance.generateAiKey(
+      action: 'extract_lesson',
+      contentSnippet: 'pdf_bytes_${pdfBytes.length}',
+    );
+
     final request = http.MultipartRequest('POST', uri);
     request.headers['X-API-Key'] = AIConfig.pythonApiKey;
+    request.headers['Idempotency-Key'] = key;
+    request.headers['X-Idempotency-Key'] = key;
     request.files.add(http.MultipartFile.fromBytes(
       'file',
       pdfBytes,
@@ -430,11 +442,18 @@ $explanationLine
 
   Future<AIQuizResponse> _generateQuizBackend(
       String lessonText, int numQuestions, QuizGenerationConfig config) async {
+    final key = IdempotencyService.instance.generateAiKey(
+      action: 'quiz',
+      contentSnippet: '${lessonText.length}_${numQuestions}_${config.difficulty}',
+    );
+
     final response = await http.post(
       Uri.parse('${AIConfig.pythonBackendUrl}/api/v1/generate-quiz'),
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': AIConfig.pythonApiKey,
+        'Idempotency-Key': key,
+        'X-Idempotency-Key': key,
       },
       body: jsonEncode({
         'lessonText': lessonText,

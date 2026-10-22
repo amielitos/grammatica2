@@ -351,6 +351,9 @@ erDiagram
 | `/notifications/{id}` | **NotificationModel** | `id` | `uid` | User-targeted notifications for approvals, rejections, system reminders, and subscription changes. |
 | `/spelling_words/{id}` | **SpellingWord** | `id` | `createdByUid` | Curated vocabulary items with difficulty classifications and audio URLs for the interactive Spelling Bee. |
 | `/images/{id}` | **ImageUpload** | `id` | `userId` | Uploaded image assets hosted on Firebase Storage and linked to lessons or questions. |
+| `/payments/{paymentId}` | **PaymentLedger** | `paymentId` | `learnerUid`, `educatorUid` | Platform-wide immutable ledger of confirmed subscription payments with deterministic keys (`pay_{ref}`) preventing duplicate billing. |
+| `/users/{uid}/payments/{id}` | **UserPayment** | `paymentId` | `learnerUid`, `educatorUid` | Learner-scoped payment receipts and transaction records for active subscription tier access. |
+| `/idempotency_keys/{key}` | **IdempotencyKey** | `key` | None | Distributed idempotency locks and state records preventing concurrent or duplicated operations across Flutter, Firebase, and FastAPI. |
 | `/settings/landing_page` | **Settings** | `landing_page` | None | Administrative global configurations (e.g., dynamic hero showcase carousel images). |
 
 ---
@@ -389,7 +392,13 @@ The scope identifies the specific features, user roles, technical capabilities, 
 #### 3. Monetization & Payment Infrastructure
 - Integrated with the **PayMongo API** to handle regional Philippine e-wallet transactions (GCash, Maya, QR Ph) and credit/debit card checkouts via dynamic payment links and QR generation.
 
-#### 4. Cross-Platform Client Architecture
+#### 4. Distributed Idempotency System Architecture
+To completely prevent duplicate payments, double subscriber activations, duplicate email receipts, and redundant AI model executions, Grammatica enforces a distributed 3-tier idempotency system:
+1. **Client-Side Coalescing (Single-Flight)**: The Flutter `IdempotencyService` intercepts concurrent user interactions (e.g. repeated button clicks or network retries) and merges in-flight operations to a single asynchronous execution.
+2. **Backend API Middleware (IETF / Stripe Specification)**: The FastAPI `IdempotencyMiddleware` evaluates incoming `Idempotency-Key` headers on state-mutating requests (`/payment/create-link`, `/payment/webhook`, `/email/send`, AI generation). It verifies payload fingerprints via SHA-256, blocks concurrent duplicates with HTTP 409 Conflict, and replays cached successful responses (`Idempotent-Replay: true`).
+3. **Database Ledger Level Idempotency**: Cloud Firestore records use deterministic document keys (`pay_{ref}`) and transactional verification. If a payment record exists in `status: paid`, subsequent webhook or client notifications cleanly replay without re-incrementing subscriptions, re-running notifications, or sending duplicate receipts.
+
+#### 5. Cross-Platform Client Architecture
 - Built with Flutter for responsive presentation across Mobile (Android, iOS), Web, and Desktop environments, incorporating dark and light theme modes.
 
 ---

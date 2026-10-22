@@ -11,6 +11,7 @@ class PaymongoQrDialog extends StatefulWidget {
   final String educatorName;
   final String? learnerName;
   final String? learnerEmail;
+  final String? idempotencyKey;
 
   const PaymongoQrDialog({
     super.key,
@@ -19,6 +20,7 @@ class PaymongoQrDialog extends StatefulWidget {
     required this.educatorName,
     this.learnerName,
     this.learnerEmail,
+    this.idempotencyKey,
   });
 
   @override
@@ -33,6 +35,7 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
   bool _isSuccess = false;
   bool _isProcessing = false;
   bool _copied = false;
+  bool _hasDispatchedSuccess = false;
 
   @override
   void initState() {
@@ -50,6 +53,7 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
       amount: widget.amount,
       description: 'Grammatica ${widget.tier} Tier - ${widget.educatorName}',
       remarks: 'Grammatica Subscription for ${widget.learnerName ?? "Learner"}',
+      idempotencyKey: widget.idempotencyKey,
     );
 
     if (!mounted) return;
@@ -90,6 +94,8 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
     required String paymentMethod,
     String? linkId,
   }) async {
+    if (_hasDispatchedSuccess) return; // Prevent duplicate fulfillment
+    _hasDispatchedSuccess = true;
     _pollTimer?.cancel();
     if (!mounted) return;
 
@@ -111,12 +117,14 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
           paymentMethod: paymentMethod,
           linkId: linkId,
           paidAt: DateTime.now(),
+          idempotencyKey: _paymentLink?.idempotencyKey ?? widget.idempotencyKey,
         ),
       );
     }
   }
 
   void _simulateSuccess() async {
+    if (_hasDispatchedSuccess || _isProcessing) return;
     setState(() => _isProcessing = true);
     await Future.delayed(const Duration(seconds: 1));
     final simulatedRef =

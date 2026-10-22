@@ -10,6 +10,7 @@ import '../models/flashcard_models.dart';
 import '../models/study_guide_models.dart';
 import 'ai_logic_service.dart';
 import 'ai_rate_limit_service.dart';
+import 'idempotency_service.dart';
 
 /// Service dedicated to generating multi-format AI artifacts
 /// (Flashcards, Study Guides, Timelines, Briefings, FAQs, Mind Maps, Quizzes)
@@ -331,12 +332,19 @@ class AIGenerationService {
   }
 
   Future<String> _executeBackend(String endpoint, Map<String, dynamic> payload) async {
+    final key = IdempotencyService.instance.generateAiKey(
+      action: endpoint.replaceAll('/', '_'),
+      contentSnippet: jsonEncode(payload),
+    );
+
     final uri = Uri.parse('${AIConfig.pythonBackendUrl}$endpoint');
     final response = await http.post(
       uri,
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': AIConfig.pythonApiKey,
+        'Idempotency-Key': key,
+        'X-Idempotency-Key': key,
       },
       body: jsonEncode(payload),
     );

@@ -13,6 +13,7 @@ import '../widgets/universal_drawer.dart';
 import '../services/agora_service.dart';
 import '../services/email_sender_service.dart';
 import '../services/paymongo_service.dart';
+import '../services/idempotency_service.dart';
 import 'conference_page.dart';
 
 class EducatorProfilePage extends StatefulWidget {
@@ -537,6 +538,13 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                                 : (pricingData['premium']?.toDouble() ?? 7.0);
                             double amountInPhp = amountInUSD * 56.0;
                             if (!context.mounted) return;
+                            final paymentIdempotencyKey =
+                                IdempotencyService.instance.generatePaymentKey(
+                              learnerUid: widget.currentUser.uid,
+                              educatorUid: uid,
+                              tier: tier,
+                            );
+
                             final paymentResult =
                                 await showDialog<PaymongoPaymentResult>(
                               context: context,
@@ -548,11 +556,12 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                                 learnerName:
                                     widget.currentUser.displayName ?? 'Learner',
                                 learnerEmail: widget.currentUser.email,
+                                idempotencyKey: paymentIdempotencyKey,
                               ),
                             );
                             if (paymentResult != null && paymentResult.isSuccess) {
-                              // Record payment in Firestore and activate subscription
-                              await DatabaseService.instance
+                              // Record payment in Firestore idempotently and activate subscription
+                              final recordResult = await DatabaseService.instance
                                   .recordSubscriptionPayment(
                                 educatorUid: uid,
                                 educatorName: username,
@@ -561,11 +570,14 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                                 referenceNumber: paymentResult.referenceNumber,
                                 paymentMethod: paymentResult.paymentMethod,
                                 paymongoLinkId: paymentResult.linkId,
+                                idempotencyKey: paymentResult.idempotencyKey ?? paymentIdempotencyKey,
                               );
 
-                              // Send email payment receipt & confirmation
+                              // Send email payment receipt & confirmation ONLY IF fresh transaction
                               final userEmail = widget.currentUser.email;
-                              if (userEmail != null && userEmail.isNotEmpty) {
+                              if (!recordResult.isDuplicate &&
+                                  userEmail != null &&
+                                  userEmail.isNotEmpty) {
                                 EmailSenderService
                                     .sendSubscriptionPaymentReceiptEmail(
                                   recipientEmail: userEmail,
@@ -584,7 +596,9 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Payment Successful! Subscribed to $tier. Receipt sent to ${userEmail ?? "your email"}.',
+                                      recordResult.isDuplicate
+                                          ? 'Subscription to $tier is already active!'
+                                          : 'Payment Successful! Subscribed to $tier. Receipt sent to ${userEmail ?? "your email"}.',
                                     ),
                                     backgroundColor: const Color(0xFF16A34A),
                                   ),

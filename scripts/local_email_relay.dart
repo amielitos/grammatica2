@@ -20,7 +20,8 @@ Future<void> main() async {
     // Add CORS headers to allow Chrome Web App to connect
     request.response.headers.add('Access-Control-Allow-Origin', '*');
     request.response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    request.response.headers.add('Access-Control-Allow-Headers', 'Content-Type');
+    request.response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Idempotency-Key, X-Idempotency-Key, Authorization');
+    request.response.headers.add('Access-Control-Expose-Headers', 'Idempotent-Replay, X-Idempotency-Key');
 
     if (request.method == 'OPTIONS') {
       request.response.statusCode = HttpStatus.ok;
@@ -42,6 +43,14 @@ Future<void> main() async {
           paymongoReq.headers.set('authorization', basicAuth);
           paymongoReq.headers.set('content-type', 'application/json');
           paymongoReq.headers.set('accept', 'application/json');
+
+          final rawKey = request.headers.value('idempotency-key') ??
+              request.headers.value('x-idempotency-key') ??
+              data['idempotencyKey'];
+          if (rawKey != null && rawKey.toString().trim().isNotEmpty) {
+            paymongoReq.headers.set('idempotency-key', rawKey.toString().trim());
+          }
+
           final double amount = (data['amount'] as num).toDouble();
           paymongoReq.write(jsonEncode({
             "data": {
@@ -55,6 +64,9 @@ Future<void> main() async {
           final paymongoRes = await paymongoReq.close();
           final resBody = await utf8.decoder.bind(paymongoRes).join();
           request.response.statusCode = paymongoRes.statusCode;
+          if (rawKey != null) {
+            request.response.headers.add('X-Idempotency-Key', rawKey.toString());
+          }
           request.response.write(resBody);
           await request.response.close();
           continue;

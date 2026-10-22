@@ -40,6 +40,7 @@ try:
     from routes.email import router as email_router
     from routes.payment import router as payment_router
     from routes.notebook import router as notebook_router
+    from middleware.idempotency import IdempotencyMiddleware
 except ImportError:
     from ai_backend.config import settings
     from ai_backend.routes.lesson import router as lesson_router
@@ -48,6 +49,7 @@ except ImportError:
     from ai_backend.routes.email import router as email_router
     from ai_backend.routes.payment import router as payment_router
     from ai_backend.routes.notebook import router as notebook_router
+    from ai_backend.middleware.idempotency import IdempotencyMiddleware
 
 
 @asynccontextmanager
@@ -78,14 +80,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# -- CORS ---------------------------------------------------------------------
+# -- CORS & Idempotency Middlewares --------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Restrict in production
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "Idempotency-Key", "X-Idempotency-Key"],
+    expose_headers=["Idempotent-Replay", "X-Idempotency-Key", "Retry-After"],
 )
+app.add_middleware(IdempotencyMiddleware)
 
 # -- Static Files (for serving generated images) ------------------------------
 os.makedirs(settings.STATIC_DIR, exist_ok=True)

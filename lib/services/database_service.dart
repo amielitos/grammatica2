@@ -12,6 +12,22 @@ import '../models/spelling_word.dart';
 import '../models/notebook_models.dart';
 import '../models/published_content_item.dart';
 import '../utils/image_utils.dart';
+import 'idempotency_service.dart';
+
+/// Result of an idempotent payment recording transaction.
+class PaymentRecordResult {
+  final bool isSuccess;
+  final bool isDuplicate;
+  final String paymentId;
+  final String message;
+
+  const PaymentRecordResult({
+    required this.isSuccess,
+    required this.isDuplicate,
+    required this.paymentId,
+    required this.message,
+  });
+}
 
 class ImageUpload {
   final String id;
@@ -591,27 +607,50 @@ class DatabaseService {
     String meetingLink = '',
     String conferenceApp = 'agora',
     String meetingTitle = '',
+    String? idempotencyKey,
   }) async {
-    final docRef = await _firestore.collection('mentorship_sessions').add({
-      'educatorId': educatorId,
-      'studentId': studentId,
-      'studentName': studentName,
-      'startTime': Timestamp.fromDate(startTime),
-      'endTime': Timestamp.fromDate(endTime),
-      'meetingLink': meetingLink,
-      'conferenceApp': conferenceApp,
-      'meetingTitle': meetingTitle,
-      'status': 'scheduled',
-      // agoraChannel is set after doc creation (uses doc ID for uniqueness)
-      'agoraChannel': '',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    final effectiveKey = idempotencyKey ??
+        IdempotencyService.instance.generateMentorshipKey(
+          educatorUid: educatorId,
+          studentUid: studentId,
+          startTime: startTime,
+        );
 
-    // Set the Agora channel name to a deterministic, safe string based on doc ID
-    final channelName = docRef.id.length > 32
-        ? docRef.id.substring(0, 32)
-        : docRef.id;
-    await docRef.update({'agoraChannel': channelName});
+    final sessionId = effectiveKey.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+
+    await IdempotencyService.instance.executeDeduplicated<void>(
+      key: 'mentorship_$sessionId',
+      action: () async {
+        final docRef =
+            _firestore.collection('mentorship_sessions').doc(sessionId);
+
+        // Check if session already exists
+        final existing = await docRef.get();
+        if (existing.exists) {
+          debugPrint(
+              '[MentorshipIdempotency] Session $sessionId already exists. Skipping duplicate creation.');
+          return;
+        }
+
+        // Set the Agora channel name to a deterministic, safe string based on doc ID
+        final channelName = sessionId.length > 32
+            ? sessionId.substring(0, 32)
+            : sessionId;
+
+        await docRef.set({
+          'educatorId': educatorId,
+          'studentId': studentId,
+          'studentName': studentName,
+          'startTime': Timestamp.fromDate(startTime),
+          'endTime': Timestamp.fromDate(endTime),
+          'meetingLink': meetingLink,
+          'conferenceApp': conferenceApp,
+          'meetingTitle': meetingTitle,
+          'status': 'scheduled',
+          'agoraChannel': channelName,
+          'idempotencyKey': effectiveKey,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
 
     try {
       final educatorDoc = await getUserDoc(educatorId);
@@ -646,6 +685,8 @@ class DatabaseService {
     } catch (e) {
       debugPrint('Error sending mentorship notification/email: $e');
     }
+      },
+    );
   }
 
   Future<void> cancelMentorshipSession(String sessionId) async {
@@ -2282,6 +2323,24 @@ class DatabaseService {
   Future<void> subscribeToEducator(String educatorUid, String tier) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+
+    // Check if subscription was already active on the same tier to prevent duplicate notifications
+    bool wasAlreadyActive = false;
+    try {
+      final existingSub = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('subscriptions')
+          .doc(educatorUid)
+          .get();
+      if (existingSub.exists) {
+        final data = existingSub.data() ?? {};
+        if (data['status'] == 'active' && data['tier'] == tier) {
+          wasAlreadyActive = true;
+        }
+      }
+    } catch (_) {}
+
     final batch = _firestore.batch();
 
     // Educator's view: list of active subscribers
@@ -2314,7 +2373,12 @@ class DatabaseService {
 
     await batch.commit();
 
-    // Send notifications
+    if (wasAlreadyActive) {
+      debugPrint('[SubscriptionIdempotency] User already subscribed to $tier. Skipping duplicate notifications.');
+      return;
+    }
+
+    // Send notifications only on fresh or changed subscription
     try {
       final learnerDoc = await _firestore
           .collection('users')
@@ -2342,7 +2406,9 @@ class DatabaseService {
   }
 
   /// Records a successful payment receipt in Firestore and updates subscription status.
-  Future<void> recordSubscriptionPayment({
+  /// Fully idempotent: uses deterministic document IDs and transaction checking
+  /// to prevent duplicate charges, duplicate receipts, and double notification broadcasts.
+  Future<PaymentRecordResult> recordSubscriptionPayment({
     required String educatorUid,
     required String educatorName,
     required String tier,
@@ -2350,49 +2416,129 @@ class DatabaseService {
     required String referenceNumber,
     required String paymentMethod,
     String? paymongoLinkId,
+    String? idempotencyKey,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    // 1. Activate or upgrade subscription status
-    await subscribeToEducator(educatorUid, tier);
-
-    // 2. Write receipt document in user's payments subcollection
-    final paymentDocRef = _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('payments')
-        .doc();
-
-    final paymentData = {
-      'paymentId': paymentDocRef.id,
-      'learnerUid': user.uid,
-      'learnerEmail': user.email ?? '',
-      'learnerName': user.displayName ?? 'Learner',
-      'educatorUid': educatorUid,
-      'educatorName': educatorName,
-      'tier': tier,
-      'amount': amount,
-      'amountPhp': amount,
-      'currency': 'PHP',
-      'referenceNumber': referenceNumber,
-      'paymentMethod': paymentMethod,
-      'paymongoLinkId': paymongoLinkId ?? '',
-      'status': 'paid',
-      'createdAt': FieldValue.serverTimestamp(),
-    };
-
-    await paymentDocRef.set(paymentData);
-
-    // 3. Write in top-level payments collection for administrative & analytics tracking
-    try {
-      await _firestore
-          .collection('payments')
-          .doc(paymentDocRef.id)
-          .set(paymentData);
-    } catch (e) {
-      debugPrint('[DatabaseService] Note: top-level payments ledger write: $e');
+    if (user == null) {
+      return const PaymentRecordResult(
+        isSuccess: false,
+        isDuplicate: false,
+        paymentId: '',
+        message: 'No authenticated user.',
+      );
     }
+
+    // Compute deterministic document ID based on paymongoLinkId or referenceNumber
+    final String sanitizedRef =
+        referenceNumber.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final String docId = (paymongoLinkId != null &&
+            paymongoLinkId.isNotEmpty &&
+            !paymongoLinkId.startsWith('link_merchant_'))
+        ? 'pay_${paymongoLinkId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')}'
+        : 'pay_$sanitizedRef';
+
+    final effectiveKey = idempotencyKey ?? docId;
+
+    // Execute through client-side single-flight task coalescer
+    return await IdempotencyService.instance.executeDeduplicated<PaymentRecordResult>(
+      key: 'record_payment_$docId',
+      action: () async {
+        final paymentDocRef = _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('payments')
+            .doc(docId);
+
+        // 1. Check if payment was already recorded
+        try {
+          final existingSnap = await paymentDocRef.get();
+          if (existingSnap.exists) {
+            final data = existingSnap.data() ?? {};
+            if (data['status'] == 'paid') {
+              debugPrint(
+                  '[PaymentIdempotency] Payment $docId was ALREADY recorded. Replaying cleanly.');
+              return PaymentRecordResult(
+                isSuccess: true,
+                isDuplicate: true,
+                paymentId: docId,
+                message: 'Payment was previously recorded.',
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('[PaymentIdempotency] Note: Read check error: $e');
+        }
+
+        // 2. Activate or upgrade subscription status
+        await subscribeToEducator(educatorUid, tier);
+
+        // 3. Write receipt document in user's payments subcollection
+        final paymentData = {
+          'paymentId': docId,
+          'learnerUid': user.uid,
+          'learnerEmail': user.email ?? '',
+          'learnerName': user.displayName ?? 'Learner',
+          'educatorUid': educatorUid,
+          'educatorName': educatorName,
+          'tier': tier,
+          'amount': amount,
+          'amountPhp': amount,
+          'currency': 'PHP',
+          'referenceNumber': referenceNumber,
+          'paymentMethod': paymentMethod,
+          'paymongoLinkId': paymongoLinkId ?? '',
+          'idempotencyKey': effectiveKey,
+          'status': 'paid',
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+
+        await paymentDocRef.set(paymentData, SetOptions(merge: true));
+
+        // 4. Write in top-level payments collection for administrative & analytics tracking
+        try {
+          await _firestore
+              .collection('payments')
+              .doc(docId)
+              .set(paymentData, SetOptions(merge: true));
+        } catch (e) {
+          debugPrint('[DatabaseService] Note: top-level payments ledger write: $e');
+        }
+
+        // 5. Record in global idempotency_keys collection
+        try {
+          await _firestore
+              .collection('idempotency_keys')
+              .doc(effectiveKey)
+              .set({
+            'key': effectiveKey,
+            'scope': 'subscription_payment',
+            'docId': docId,
+            'learnerUid': user.uid,
+            'educatorUid': educatorUid,
+            'tier': tier,
+            'amount': amount,
+            'referenceNumber': referenceNumber,
+            'status': 'RESOLVED',
+            'createdAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (e) {
+          debugPrint('[DatabaseService] Note: global idempotency key record write: $e');
+        }
+
+        // 6. Mark locally completed
+        await IdempotencyService.instance.markCompletedLocally(
+          effectiveKey,
+          metadata: {'docId': docId, 'referenceNumber': referenceNumber},
+        );
+
+        return PaymentRecordResult(
+          isSuccess: true,
+          isDuplicate: false,
+          paymentId: docId,
+          message: 'Payment recorded successfully.',
+        );
+      },
+    );
   }
 
   /// Stream of payment receipts for the learner (defaults to currently signed-in user).
