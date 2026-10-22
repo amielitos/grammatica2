@@ -16,6 +16,7 @@ class _LandingPageState extends State<LandingPage>
     with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   bool _isScrolled = false;
+  bool _showBackToTop = false;
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -51,10 +52,16 @@ class _LandingPageState extends State<LandingPage>
     _animController.forward();
 
     _scrollController.addListener(() {
-      if (_scrollController.offset > 10 && !_isScrolled) {
+      final offset = _scrollController.offset;
+      if (offset > 10 && !_isScrolled) {
         setState(() => _isScrolled = true);
-      } else if (_scrollController.offset <= 10 && _isScrolled) {
+      } else if (offset <= 10 && _isScrolled) {
         setState(() => _isScrolled = false);
+      }
+
+      final shouldShow = offset > 300;
+      if (shouldShow != _showBackToTop) {
+        setState(() => _showBackToTop = shouldShow);
       }
     });
 
@@ -111,6 +118,23 @@ class _LandingPageState extends State<LandingPage>
         preferredSize: const Size.fromHeight(72),
         child: _buildNavbar(isDesktop),
       ),
+      floatingActionButton: _showBackToTop
+          ? FloatingActionButton(
+              mini: true,
+              backgroundColor: const Color(0xFF81B655),
+              foregroundColor: Colors.white,
+              elevation: 4,
+              tooltip: 'Back to Top',
+              onPressed: () {
+                _scrollController.animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 600),
+                  curve: Curves.easeInOutCubic,
+                );
+              },
+              child: const Icon(Icons.arrow_upward_rounded),
+            )
+          : null,
       body: SingleChildScrollView(
         controller: _scrollController,
         child: Column(
@@ -1163,13 +1187,6 @@ class _LandingPageState extends State<LandingPage>
                       ),
                     ],
                   ),
-                  Row(
-                    children: [
-                      _buildSocialIcon(Icons.facebook_rounded),
-                      const SizedBox(width: 12),
-                      _buildSocialIcon(Icons.email_rounded),
-                    ],
-                  ),
                 ],
               ),
               const SizedBox(height: 40),
@@ -1216,18 +1233,6 @@ class _LandingPageState extends State<LandingPage>
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSocialIcon(IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-      ),
-      child: Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: 20),
     );
   }
 }

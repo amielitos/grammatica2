@@ -36,6 +36,7 @@ class NotificationService {
     required NotificationType type,
     String? rejectionReason,
     String? rejectionDescription,
+    String? educatorId,
   }) async {
     try {
       final notification = NotificationModel(
@@ -47,6 +48,7 @@ class NotificationService {
         createdAt: DateTime.now(),
         rejectionReason: rejectionReason,
         rejectionDescription: rejectionDescription,
+        educatorId: educatorId,
       );
       await _notifications.add(notification.toMap());
     } catch (e) {

@@ -7,6 +7,7 @@ enum NotificationType {
   achievement,
   profileReminder,
   subscription,
+  mentorship,
   general,
 }
 
@@ -21,6 +22,7 @@ class NotificationModel {
   final bool isArchived;
   final String? rejectionReason;
   final String? rejectionDescription;
+  final String? educatorId;
 
   NotificationModel({
     required this.id,
@@ -33,6 +35,7 @@ class NotificationModel {
     this.isArchived = false,
     this.rejectionReason,
     this.rejectionDescription,
+    this.educatorId,
   });
 
   factory NotificationModel.fromDoc(
@@ -50,6 +53,7 @@ class NotificationModel {
       isArchived: data['isArchived'] ?? false,
       rejectionReason: data['rejectionReason'],
       rejectionDescription: data['rejectionDescription'],
+      educatorId: data['educatorId'],
     );
   }
 
@@ -64,6 +68,7 @@ class NotificationModel {
       'isArchived': isArchived,
       'rejectionReason': rejectionReason,
       'rejectionDescription': rejectionDescription,
+      'educatorId': educatorId,
     };
   }
 
@@ -81,6 +86,8 @@ class NotificationModel {
         return NotificationType.profileReminder;
       case 'subscription':
         return NotificationType.subscription;
+      case 'mentorship':
+        return NotificationType.mentorship;
       default:
         return NotificationType.general;
     }
@@ -98,6 +105,7 @@ class NotificationModel {
       isArchived: isArchived ?? this.isArchived,
       rejectionReason: rejectionReason,
       rejectionDescription: rejectionDescription,
+      educatorId: educatorId,
     );
   }
 }

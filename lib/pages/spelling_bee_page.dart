@@ -533,8 +533,61 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     );
   }
 
-  Widget _buildStatBox(String title, String value, IconData icon, Color color) {
+  Widget _buildStatBox(String title, String value, IconData icon, Color color, {bool isMobile = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (isMobile) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF262626) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: 14),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: isDark ? Colors.white60 : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       width: 220,
@@ -617,8 +670,10 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         break;
     }
 
+    final isMobile = MediaQuery.of(context).size.width < 700;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
+      padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 16 : 32, isMobile ? 16 : 24, 40),
       child: Column(
         children: [
           // Header Badge
@@ -646,27 +701,65 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: isMobile ? 12 : 20),
 
           // KPI Stats Cards
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            alignment: WrapAlignment.center,
-            children: [
-              _buildStatBox('Progress', '${_currentIndex + 1} / 10', Icons.subtitles_rounded, AppColors.primary),
-              _buildStatBox('Current Score', '$_score / 10', Icons.stars_rounded, const Color(0xFFF59E0B)),
-              _buildStatBox('Time Left', '$minutes:$seconds', Icons.timer_rounded, const Color(0xFFEF4444)),
-            ],
-          ),
-          const SizedBox(height: 36),
+          if (isMobile)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatBox(
+                    'Progress',
+                    '${_currentIndex + 1} / 10',
+                    Icons.subtitles_rounded,
+                    AppColors.primary,
+                    isMobile: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatBox(
+                    'Score',
+                    '$_score / 10',
+                    Icons.stars_rounded,
+                    const Color(0xFFF59E0B),
+                    isMobile: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatBox(
+                    'Time Left',
+                    '$minutes:$seconds',
+                    Icons.timer_rounded,
+                    const Color(0xFFEF4444),
+                    isMobile: true,
+                  ),
+                ),
+              ],
+            )
+          else
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              alignment: WrapAlignment.center,
+              children: [
+                _buildStatBox('Progress', '${_currentIndex + 1} / 10', Icons.subtitles_rounded, AppColors.primary),
+                _buildStatBox('Current Score', '$_score / 10', Icons.stars_rounded, const Color(0xFFF59E0B)),
+                _buildStatBox('Time Left', '$minutes:$seconds', Icons.timer_rounded, const Color(0xFFEF4444)),
+              ],
+            ),
+          SizedBox(height: isMobile ? 16 : 36),
 
           // Main Card
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 640),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 40),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 18 : 36,
+                vertical: isMobile ? 24 : 40,
+              ),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF262626) : Colors.white,
                 borderRadius: BorderRadius.circular(24),

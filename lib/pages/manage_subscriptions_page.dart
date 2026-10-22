@@ -417,7 +417,12 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
         final sessions = snapshot.data ?? [];
         final scheduledSessions = sessions
             .where((s) => (s['status'] ?? 'scheduled').toString().toLowerCase() != 'cancelled')
-            .toList();
+            .toList()
+          ..sort((a, b) {
+            final ta = (a['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
+            final tb = (b['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
+            return ta.compareTo(tb);
+          });
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

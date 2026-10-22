@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification.dart';
 import '../services/notification_service.dart';
+import '../pages/educator_profile_page.dart';
 import 'package:intl/intl.dart';
 
 class NotificationIconButton extends StatefulWidget {
@@ -193,13 +196,7 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
   }
 
   void _showDetails(BuildContext context, NotificationModel n) {
-    if (!n.isRead) {
-      NotificationService.instance.markAsRead(n.id);
-    }
-    showDialog(
-      context: context,
-      builder: (context) => NotificationDetailDialog(notification: n),
-    );
+    _navigateToNotificationTarget(context, n);
   }
 }
 
@@ -353,9 +350,123 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
   }
 
   void _showDetails(BuildContext context, NotificationModel n) {
-    if (!n.isRead) {
-      NotificationService.instance.markAsRead(n.id);
+    _navigateToNotificationTarget(context, n);
+  }
+}
+
+Future<void> _navigateToNotificationTarget(BuildContext context, NotificationModel n) async {
+  if (!n.isRead) {
+    NotificationService.instance.markAsRead(n.id);
+  }
+
+  final isMentorship = n.type == NotificationType.mentorship ||
+      (n.educatorId != null && n.educatorId!.isNotEmpty) ||
+      n.title.toLowerCase().contains('mentorship') ||
+      n.message.toLowerCase().contains('scheduled');
+
+  if (isMentorship) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final nav = Navigator.of(context, rootNavigator: true);
+
+    String? educatorId = n.educatorId;
+
+    // If educatorId is not directly attached to notification, resolve it from Firestore
+    if (educatorId == null || educatorId.isEmpty) {
+      try {
+        final currentUid = currentUser?.uid ?? n.uid;
+        // 1. Check student mentorship sessions
+        final sessionSnap = await FirebaseFirestore.instance
+            .collection('mentorship_sessions')
+            .where('studentId', isEqualTo: currentUid)
+            .get();
+
+        if (sessionSnap.docs.isNotEmpty) {
+          final sortedDocs = sessionSnap.docs.toList()
+            ..sort((a, b) {
+              final aTime = (a.data()['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
+              final bTime = (b.data()['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
+              return bTime.compareTo(aTime);
+            });
+          educatorId = sortedDocs.first.data()['educatorId'] as String?;
+        }
+
+        // 2. Try parsing educator username from message (format: "$name scheduled...")
+        if (educatorId == null || educatorId.isEmpty) {
+          final split = n.message.split(' scheduled ');
+          if (split.isNotEmpty && split.first.trim().isNotEmpty) {
+            final possibleName = split.first.trim();
+            final userSnap = await FirebaseFirestore.instance
+                .collection('users')
+                .where('username', isEqualTo: possibleName)
+                .limit(1)
+                .get();
+            if (userSnap.docs.isNotEmpty) {
+              educatorId = userSnap.docs.first.id;
+            }
+          }
+        }
+
+        // 3. Fallback: query any verified educator if still null
+        if (educatorId == null || educatorId.isEmpty) {
+          final eduSnap = await FirebaseFirestore.instance
+              .collection('users')
+              .where('role', isEqualTo: 'EDUCATOR')
+              .limit(1)
+              .get();
+          if (eduSnap.docs.isNotEmpty) {
+            educatorId = eduSnap.docs.first.id;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error resolving educator for notification: $e');
+      }
     }
+
+    if (educatorId != null && educatorId.isNotEmpty) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(educatorId)
+            .get();
+
+        if (doc.exists && doc.data() != null && currentUser != null) {
+          final educatorData = {
+            'uid': doc.id,
+            ...doc.data()!,
+          };
+
+          // Cache educatorId on the notification document
+          if (n.educatorId == null || n.educatorId!.isEmpty) {
+            try {
+              await FirebaseFirestore.instance
+                  .collection('notifications')
+                  .doc(n.id)
+                  .update({'educatorId': educatorId});
+            } catch (_) {}
+          }
+
+          // Dismiss the notifications dialog/sheet
+          nav.pop();
+
+          // Push the educator profile page
+          nav.push(
+            MaterialPageRoute(
+              builder: (_) => EducatorProfilePage(
+                educator: educatorData,
+                currentUser: currentUser,
+              ),
+            ),
+          );
+          return;
+        }
+      } catch (e) {
+        debugPrint('Error navigating to educator profile: $e');
+      }
+    }
+  }
+
+  // Fallback: If not mentorship or educator profile couldn't be loaded, show detail dialog
+  if (context.mounted) {
     showDialog(
       context: context,
       builder: (context) => NotificationDetailDialog(notification: n),
@@ -377,6 +488,10 @@ class NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isUnread = !notification.isRead;
+    final isMentorship = notification.type == NotificationType.mentorship ||
+        (notification.educatorId != null && notification.educatorId!.isNotEmpty) ||
+        notification.title.toLowerCase().contains('mentorship') ||
+        notification.message.toLowerCase().contains('scheduled');
 
     return Container(
       decoration: BoxDecoration(
@@ -402,16 +517,16 @@ class NotificationTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: (isUnread
                     ? const Color(0xFFEF4444)
-                    : _getIconColor(notification.type))
+                    : (isMentorship ? const Color(0xFF81B655) : _getIconColor(notification.type)))
                 .withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
           child: Icon(
-            _getIcon(notification.type),
+            isMentorship ? CupertinoIcons.calendar_today : _getIcon(notification.type),
             size: 20,
             color: isUnread
                 ? const Color(0xFFEF4444)
-                : _getIconColor(notification.type),
+                : (isMentorship ? const Color(0xFF81B655) : _getIconColor(notification.type)),
           ),
         ),
         title: Text(
@@ -424,14 +539,38 @@ class NotificationTile extends StatelessWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4.0),
-          child: Text(
-            notification.message,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.white54 : Colors.black54,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                notification.message,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? Colors.white54 : Colors.black54,
+                ),
+              ),
+              if (isMentorship)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4.0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.touch_app, size: 12, color: Color(0xFF81B655)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Tap to view educator profile',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF81B655),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
         ),
         trailing: Column(
@@ -452,6 +591,15 @@ class NotificationTile extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
               ),
+            if (isMentorship)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Icon(
+                  CupertinoIcons.chevron_right,
+                  size: 13,
+                  color: isDark ? Colors.white38 : Colors.black38,
+                ),
+              ),
           ],
         ),
       ),
@@ -464,6 +612,7 @@ class NotificationTile extends StatelessWidget {
       case NotificationType.appRejected: return Colors.red;
       case NotificationType.achievement: return Colors.orange;
       case NotificationType.subscription: return Colors.blue;
+      case NotificationType.mentorship: return const Color(0xFF81B655);
       default: return Colors.grey;
     }
   }
@@ -480,6 +629,8 @@ class NotificationTile extends StatelessWidget {
         return CupertinoIcons.star_fill;
       case NotificationType.profileReminder:
         return CupertinoIcons.person_crop_circle_badge_exclam;
+      case NotificationType.mentorship:
+        return CupertinoIcons.calendar_today;
       default:
         return CupertinoIcons.info_circle_fill;
     }
@@ -526,6 +677,85 @@ class NotificationDetailDialog extends StatelessWidget {
         ),
       ),
       actions: [
+        if (notification.educatorId != null && notification.educatorId!.isNotEmpty ||
+            notification.type == NotificationType.mentorship ||
+            notification.title.toLowerCase().contains('mentorship') ||
+            notification.message.toLowerCase().contains('scheduled'))
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF81B655),
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.person, size: 18),
+            label: const Text('View Educator'),
+            onPressed: () async {
+              final nav = Navigator.of(context, rootNavigator: true);
+              final currentUser = FirebaseAuth.instance.currentUser;
+              if (currentUser == null) return;
+
+              String? educatorId = notification.educatorId;
+              if (educatorId == null || educatorId.isEmpty) {
+                try {
+                  final sessionSnap = await FirebaseFirestore.instance
+                      .collection('mentorship_sessions')
+                      .where('studentId', isEqualTo: currentUser.uid)
+                      .get();
+                  if (sessionSnap.docs.isNotEmpty) {
+                    final sortedDocs = sessionSnap.docs.toList()
+                      ..sort((a, b) {
+                        final aTime = (a.data()['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                        final bTime = (b.data()['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                        return bTime.compareTo(aTime);
+                      });
+                    educatorId = sortedDocs.first.data()['educatorId'] as String?;
+                  }
+                  if (educatorId == null || educatorId.isEmpty) {
+                    final split = notification.message.split(' scheduled ');
+                    if (split.isNotEmpty && split.first.trim().isNotEmpty) {
+                      final possibleName = split.first.trim();
+                      final userSnap = await FirebaseFirestore.instance
+                          .collection('users')
+                          .where('username', isEqualTo: possibleName)
+                          .limit(1)
+                          .get();
+                      if (userSnap.docs.isNotEmpty) {
+                        educatorId = userSnap.docs.first.id;
+                      }
+                    }
+                  }
+                } catch (e) {
+                  debugPrint('Error resolving educator: $e');
+                }
+              }
+
+              if (educatorId != null && educatorId.isNotEmpty) {
+                try {
+                  final doc = await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(educatorId)
+                      .get();
+                  if (doc.exists && doc.data() != null) {
+                    final educatorData = {
+                      'uid': doc.id,
+                      ...doc.data()!,
+                    };
+                    nav.pop();
+                    nav.push(
+                      MaterialPageRoute(
+                        builder: (_) => EducatorProfilePage(
+                          educator: educatorData,
+                          currentUser: currentUser,
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                } catch (e) {
+                  debugPrint('Error navigating to educator: $e');
+                }
+              }
+            },
+          ),
         TextButton(
           onPressed: () {
             NotificationService.instance.archiveNotification(

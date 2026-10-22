@@ -31,6 +31,7 @@ class _SignupPageState extends State<SignupPage> {
 
   // Step 1 Controllers
   final _firstNameController = TextEditingController();
+  final _middleNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _dobController = TextEditingController();
   String? _selectedSuffix;
@@ -228,7 +229,12 @@ class _SignupPageState extends State<SignupPage> {
     setState(() => _isLoading = true);
 
     try {
-      String fullName = "${_firstNameController.text.trim()} ${_lastNameController.text.trim()}";
+      final first = _firstNameController.text.trim();
+      final middle = _middleNameController.text.trim();
+      final last = _lastNameController.text.trim();
+      String fullName = first;
+      if (middle.isNotEmpty) fullName += " $middle";
+      if (last.isNotEmpty) fullName += " $last";
       if (_selectedSuffix != null && _selectedSuffix != 'None') fullName += " $_selectedSuffix";
 
       // Register directly via Firebase Authentication
@@ -349,7 +355,7 @@ class _SignupPageState extends State<SignupPage> {
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
-                    height: _currentStep == 2 ? 380 : 220,
+                    height: _getStepHeight(),
                     child: PageView(
                       controller: _pageController,
                       physics: const NeverScrollableScrollPhysics(),
@@ -489,9 +495,23 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
+  double _getStepHeight() {
+    switch (_currentStep) {
+      case 0:
+        return 390;
+      case 1:
+        return 230;
+      case 2:
+        return 390;
+      default:
+        return 390;
+    }
+  }
+
   Widget _buildStep1() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
       child: Form(
         key: _formKey1,
@@ -500,64 +520,64 @@ class _SignupPageState extends State<SignupPage> {
           children: [
             Text("Personal Information", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54)),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTextField(
-                    controller: _firstNameController,
-                    hintText: 'First Name *',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s\-]')),
-                      _CapitalizerFormatter(),
-                    ],
-                    validator: (val) {
-                      if (val == null || val.isEmpty) return 'Enter first name';
-                      if (!RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(val)) return 'Only letters allowed';
-                      return null;
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildTextField(
-                    controller: _lastNameController,
-                    hintText: 'Last Name *',
-                    prefixIcon: const Icon(Icons.person_outline),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s\-]')),
-                      _CapitalizerFormatter(),
-                    ],
-                    validator: (val) {
-                      if (val == null || val.isEmpty) return 'Enter last name';
-                      if (!RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(val)) return 'Only letters allowed';
-                      return null;
-                    },
-                  ),
-                ),
+            _buildTextField(
+              controller: _firstNameController,
+              hintText: 'First Name *',
+              prefixIcon: const Icon(Icons.person_outline),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s\-]')),
+                _CapitalizerFormatter(),
               ],
+              validator: (val) {
+                if (val == null || val.isEmpty) return 'Enter first name';
+                if (!RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(val)) return 'Only letters allowed';
+                return null;
+              },
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDropdownField(),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildTextField(
-                    controller: _dobController,
-                    hintText: 'Date of Birth *',
-                    prefixIcon: const Icon(Icons.calendar_month_outlined),
-                    readOnly: true,
-                    onTap: () => _selectDate(context),
-                    validator: (val) {
-                      if (val == null || val.isEmpty) return 'Select date';
-                      return null;
-                    },
-                  ),
-                ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              controller: _middleNameController,
+              hintText: 'Middle Name (Optional)',
+              prefixIcon: const Icon(Icons.person_outline),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s\-]')),
+                _CapitalizerFormatter(),
               ],
+              validator: (val) {
+                if (val != null && val.isNotEmpty && !RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(val)) {
+                  return 'Only letters allowed';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildTextField(
+              controller: _lastNameController,
+              hintText: 'Last Name *',
+              prefixIcon: const Icon(Icons.person_outline),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s\-]')),
+                _CapitalizerFormatter(),
+              ],
+              validator: (val) {
+                if (val == null || val.isEmpty) return 'Enter last name';
+                if (!RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(val)) return 'Only letters allowed';
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildDropdownField(),
+            const SizedBox(height: 12),
+            _buildTextField(
+              controller: _dobController,
+              hintText: 'Date of Birth *',
+              prefixIcon: const Icon(Icons.calendar_month_outlined),
+              readOnly: true,
+              onTap: () => _selectDate(context),
+              validator: (val) {
+                if (val == null || val.isEmpty) return 'Select date';
+                return null;
+              },
             ),
           ],
         ),
@@ -567,7 +587,8 @@ class _SignupPageState extends State<SignupPage> {
 
   Widget _buildStep2() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
       child: Form(
         key: _formKey2,
@@ -602,7 +623,8 @@ class _SignupPageState extends State<SignupPage> {
 
   Widget _buildStep3() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
       child: Form(
         key: _formKey3,
@@ -619,7 +641,7 @@ class _SignupPageState extends State<SignupPage> {
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                   color: const Color(0xFF81B655),
                   size: 22,
                 ),
@@ -646,7 +668,7 @@ class _SignupPageState extends State<SignupPage> {
               prefixIcon: const Icon(Icons.lock_reset),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                   color: const Color(0xFF81B655),
                   size: 22,
                 ),
@@ -811,6 +833,8 @@ class _SignupPageState extends State<SignupPage> {
           prefixIcon: IconTheme(data: IconThemeData(color: isDark ? Colors.white60 : Colors.black45), child: prefixIcon),
           suffixIcon: suffixIcon,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
           filled: true,
           fillColor: Colors.transparent,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
@@ -823,25 +847,53 @@ class _SignupPageState extends State<SignupPage> {
   Widget _buildDropdownField() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
+      height: 52,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF334155) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
-        border: Border.all(color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 8,
+            spreadRadius: 2,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
+        ),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButtonFormField<String>(
+        child: DropdownButton<String>(
           isExpanded: true,
-          initialValue: _selectedSuffix,
+          value: _selectedSuffix,
           dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-          decoration: InputDecoration(
-            hintText: "Suffix (Optional)",
-            hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
-            prefixIcon: Icon(Icons.title, color: isDark ? Colors.white60 : Colors.black45),
-            border: InputBorder.none,
+          icon: Icon(
+            Icons.arrow_drop_down,
+            color: isDark ? Colors.white60 : Colors.black45,
           ),
-          items: _suffixes.map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(color: isDark ? Colors.white : Colors.black87)))).toList(),
+          hint: Text(
+            "Suffix (Optional)",
+            style: TextStyle(
+              color: isDark ? Colors.white38 : Colors.black45,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          items: _suffixes.map((s) {
+            return DropdownMenuItem<String>(
+              value: s,
+              child: Text(
+                s,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            );
+          }).toList(),
           onChanged: (val) => setState(() => _selectedSuffix = val),
         ),
       ),
@@ -878,6 +930,8 @@ class _SignupPageState extends State<SignupPage> {
           hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
           counterText: '',
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
           filled: true,
           fillColor: Colors.transparent,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),

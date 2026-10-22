@@ -627,7 +627,8 @@ class DatabaseService {
         uid: studentId,
         title: 'Mentorship Session Scheduled!',
         message: '$educatorName scheduled "$titleStr" for $dateStr.',
-        type: NotificationType.general,
+        type: NotificationType.mentorship,
+        educatorId: educatorId,
       );
 
       // 2. Send Email Notification

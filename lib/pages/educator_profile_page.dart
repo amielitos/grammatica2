@@ -33,6 +33,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int? _starFilter; // null means "All Ratings"
+  bool _mentorshipSortNewestFirst = false;
 
   @override
   void initState() {
@@ -51,7 +52,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
     final photoUrl = widget.educator['photoUrl'] as String?;
     final username = widget.educator['username'] as String? ?? 'Educator';
     final bio = widget.educator['bio'] as String? ?? 'Verified Educator & Language Specialist';
-    final uid = widget.educator['uid'] as String;
+    final uid = (widget.educator['uid'] ?? widget.educator['id'] ?? '') as String;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
@@ -1214,7 +1215,12 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
         final eduSessions = snapshot.data!.where((s) =>
           s['educatorId'] == educatorUid &&
           (s['status'] ?? 'scheduled').toString().toLowerCase() != 'cancelled'
-        ).toList();
+        ).toList()
+          ..sort((a, b) {
+            final ta = (a['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
+            final tb = (b['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
+            return _mentorshipSortNewestFirst ? tb.compareTo(ta) : ta.compareTo(tb);
+          });
 
         if (eduSessions.isEmpty) return const SizedBox.shrink();
 
@@ -1241,12 +1247,54 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                 children: [
                   const Icon(Icons.video_call_rounded, color: Color(0xFF3B82F6), size: 22),
                   const SizedBox(width: 8),
-                  Text(
-                    'Scheduled Mentorship Session',
-                    style: GoogleFonts.outfit(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: textColor,
+                  Expanded(
+                    child: Text(
+                      'Scheduled Mentorship Session',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: textColor,
+                      ),
+                    ),
+                  ),
+                  Tooltip(
+                    message: _mentorshipSortNewestFirst
+                        ? 'Sorted by Date (Newest first)'
+                        : 'Sorted by Date (Chronological)',
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {
+                        setState(() {
+                          _mentorshipSortNewestFirst = !_mentorshipSortNewestFirst;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _mentorshipSortNewestFirst ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                              size: 13,
+                              color: const Color(0xFF3B82F6),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              _mentorshipSortNewestFirst ? 'Newest Date' : 'By Date',
+                              style: GoogleFonts.inter(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: textColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -1293,7 +1341,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(Icons.calendar_today_rounded, size: 14, color: const Color(0xFF81B655)),
+                          Icon(Icons.calendar_today_rounded, size: 14, color: isPast ? subtitleColor : const Color(0xFF81B655)),
                           const SizedBox(width: 6),
                           Text(
                             '$dateStr  •  $timeStr',
@@ -1303,6 +1351,24 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                               fontWeight: FontWeight.w500,
                             ),
                           ),
+                          if (isPast) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'Ended',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       if (!isPast) ...[
