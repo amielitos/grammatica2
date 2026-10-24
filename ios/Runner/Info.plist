@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Grammatica requires camera access for live video conferencing sessions.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Grammatica requires microphone access for live video conferences and pronunciation practice.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Grammatica requires speech recognition for interactive pronunciation evaluation.</string>
 </dict>
 </plist>

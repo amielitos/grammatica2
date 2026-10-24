@@ -1,0 +1,3 @@
+@echo off
+echo Building Flutter Web with environment variables from .env...
+flutter build web --dart-define-from-file=.env

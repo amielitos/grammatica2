@@ -3,9 +3,17 @@ import 'dart:js_interop';
 import 'package:web/web.dart' as web;
 import 'web_service.dart';
 
+@JS('SpeechRecognition')
+extension type _StandardSpeechRecognition._(JSObject _) implements JSObject {
+  external factory _StandardSpeechRecognition();
+}
+
 @JS('webkitSpeechRecognition')
-extension type SpeechRecognition._(JSObject _) implements JSObject {
-  external SpeechRecognition();
+extension type _WebkitSpeechRecognition._(JSObject _) implements JSObject {
+  external factory _WebkitSpeechRecognition();
+}
+
+extension type SpeechRecognitionObject._(JSObject _) implements JSObject {
   external set continuous(bool value);
   external set interimResults(bool value);
   external set lang(String value);
@@ -14,6 +22,7 @@ extension type SpeechRecognition._(JSObject _) implements JSObject {
   external set onend(JSFunction value);
   external void start();
   external void stop();
+  external void abort();
 }
 
 // AudioContext JS interop
@@ -67,20 +76,38 @@ class WebServiceWeb implements WebService {
   @override
   dynamic createSpeechRecognition() {
     try {
-      return SpeechRecognition();
-    } catch (e) {
-      return null;
+      return _WebkitSpeechRecognition();
+    } catch (_) {
+      try {
+        return _StandardSpeechRecognition();
+      } catch (e) {
+        debugPrint('SpeechRecognition creation note: $e');
+        return null;
+      }
     }
   }
 
   @override
   void startSpeechRecognition(dynamic recognition) {
-    (recognition as SpeechRecognition).start();
+    try {
+      (recognition as SpeechRecognitionObject).start();
+    } catch (e) {
+      debugPrint('startSpeechRecognition error: $e');
+    }
   }
 
   @override
   void stopSpeechRecognition(dynamic recognition) {
-    (recognition as SpeechRecognition).stop();
+    try {
+      final sr = recognition as SpeechRecognitionObject;
+      sr.abort();
+    } catch (_) {
+      try {
+        (recognition as SpeechRecognitionObject).stop();
+      } catch (e) {
+        debugPrint('stopSpeechRecognition error: $e');
+      }
+    }
   }
 
   @override
@@ -90,22 +117,36 @@ class WebServiceWeb implements WebService {
     required void Function(dynamic error) onError,
     required void Function() onEnd,
   }) {
-    final sr = recognition as SpeechRecognition;
+    final sr = recognition as SpeechRecognitionObject;
     sr.continuous = false;
     sr.interimResults = true;
     sr.lang = 'en-US';
 
     sr.onresult = (web.SpeechRecognitionEvent event) {
-      final results = event.results;
-      if (results.length > 0) {
-        final result = results.item(results.length - 1);
-        final transcript = result.item(0).transcript;
-        onResult(transcript, result.isFinal);
+      try {
+        final results = event.results;
+        final buffer = StringBuffer();
+        bool hasFinal = false;
+        for (var i = 0; i < results.length; i++) {
+          final res = results.item(i);
+          if (res.length > 0) {
+            final alt = res.item(0);
+            if (buffer.isNotEmpty) buffer.write(' ');
+            buffer.write(alt.transcript.trim());
+            if (res.isFinal) hasFinal = true;
+          }
+        }
+        final transcript = buffer.toString().trim();
+        if (transcript.isNotEmpty) {
+          onResult(transcript, hasFinal);
+        }
+      } catch (e) {
+        debugPrint('Web onresult parse error: $e');
       }
     }.toJS;
 
-    sr.onerror = (JSObject error) {
-      onError(error);
+    sr.onerror = (web.SpeechRecognitionErrorEvent event) {
+      onError(event.error);
     }.toJS;
 
     sr.onend = () {

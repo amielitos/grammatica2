@@ -7,18 +7,29 @@ class AgoraService {
   AgoraService._();
   static final instance = AgoraService._();
 
+  // Built-in resilient credentials for Grammatica Agora RTC & Chat
+  static const String _fallbackAppId = '4cfa67ebdf8e4e989345a2be9b2f18fe';
+  static const String _fallbackChatAppKey = '41200079971#200112311';
+  static const String _fallbackAppCertificate = '527a608eabb34d87a26724df945b76f8';
+  static const String _fallbackTempToken =
+      '007eJxTYMjVMNcRiy5r+qzp9nTLvIs/l5k9mCVfdPyDTcxdV9/OucUKDCbJaYlm5qlJKWkWqSaplhaWxiamiUZJqZZJRmmGFmmpf5+fzWoIZGR4m8fJwAiFID4Xg3tRYm5uYklmciIDAwB+4yQD';
+
   /// The Agora RTC App ID. Must be set in environment or .env as `AGORA_APP_ID`.
   String get appId {
     const fromEnv = String.fromEnvironment('AGORA_APP_ID');
     if (fromEnv.isNotEmpty) return fromEnv.trim();
-    return (dotenv.env['AGORA_APP_ID'] ?? '').trim();
+    final envVal = dotenv.env['AGORA_APP_ID'];
+    if (envVal != null && envVal.isNotEmpty) return envVal.trim();
+    return _fallbackAppId;
   }
 
   /// The Agora Chat App Key. Must be set in environment or .env as `AGORA_CHAT_APP_KEY`.
   String get chatAppKey {
     const fromEnv = String.fromEnvironment('AGORA_CHAT_APP_KEY');
     if (fromEnv.isNotEmpty) return fromEnv.trim();
-    return (dotenv.env['AGORA_CHAT_APP_KEY'] ?? '').trim();
+    final envVal = dotenv.env['AGORA_CHAT_APP_KEY'];
+    if (envVal != null && envVal.isNotEmpty) return envVal.trim();
+    return _fallbackChatAppKey;
   }
 
   /// Primary Certificate from Agora Console > Security.
@@ -26,7 +37,9 @@ class AgoraService {
   String get appCertificate {
     const fromEnv = String.fromEnvironment('AGORA_APP_CERTIFICATE');
     if (fromEnv.isNotEmpty) return fromEnv.trim();
-    return (dotenv.env['AGORA_APP_CERTIFICATE'] ?? '').trim();
+    final envVal = dotenv.env['AGORA_APP_CERTIFICATE'];
+    if (envVal != null && envVal.isNotEmpty) return envVal.trim();
+    return _fallbackAppCertificate;
   }
 
   /// Optional temporary RTC token if App Certificate is enabled in Agora Console.
@@ -34,7 +47,9 @@ class AgoraService {
   String get tempToken {
     const fromEnv = String.fromEnvironment('AGORA_TEMP_TOKEN');
     if (fromEnv.isNotEmpty) return fromEnv.trim();
-    return (dotenv.env['AGORA_TEMP_TOKEN'] ?? '').trim();
+    final envVal = dotenv.env['AGORA_TEMP_TOKEN'];
+    if (envVal != null && envVal.isNotEmpty) return envVal.trim();
+    return _fallbackTempToken;
   }
 
   bool get isConfigured => appId.isNotEmpty;
