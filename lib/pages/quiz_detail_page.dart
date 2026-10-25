@@ -190,7 +190,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     );
     _secondsRemaining = widget.quiz.duration * 60;
     _quizProgressStream = DatabaseService.instance.quizProgressStream(_effectiveUser);
-    _confettiController = ConfettiController(duration: const Duration(seconds: 5));
+    _confettiController = ConfettiController(duration: const Duration(milliseconds: 2500));
     
     if (!widget.quiz.isMembersOnly ||
         widget.quiz.createdByUid == _effectiveUser.uid ||
@@ -1494,154 +1494,340 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
 
     final scorableCount = _shuffledQuestions.where((q) => !(q.question.type == 'passage' && q.parentPassage == null)).length;
     final double percentage = scorableCount > 0 ? (_lastScore ?? 0) / scorableCount : 1.0;
+    final int percentInt = (percentage * 100).round();
     
-    String feedbackMessage = 'Keep practicing to achieve mastery.';
+    String feedbackMessage = 'Keep practicing to achieve complete mastery.';
+    String performanceBadge = 'Completed 📚';
+    Color badgeColor = const Color(0xFF3B82F6);
     if (percentage >= 1.0) {
-      feedbackMessage = 'Perfect Score! You are a true Grammatica expert.';
-    } else if (percentage >= 0.9) {
-      feedbackMessage = 'Stellar performance! You have mastered this content.';
-    } else if (percentage >= 0.7) {
-      feedbackMessage = "Great job! You're very close to mastery.";
-    } else if (percentage >= 0.5) {
-      feedbackMessage = "Good effort! A bit more review and you'll get there.";
+      feedbackMessage = 'Outstanding! Perfect score — you have mastered this material!';
+      performanceBadge = 'Perfect Score! 🏆';
+      badgeColor = const Color(0xFF10B981);
+    } else if (percentage >= 0.8) {
+      feedbackMessage = 'Stellar performance! You have a solid grasp of this topic.';
+      performanceBadge = 'Great Job! ⭐';
+      badgeColor = const Color(0xFF10B981);
+    } else if (percentage >= 0.6) {
+      feedbackMessage = "Good effort! You're making steady progress toward mastery.";
+      performanceBadge = 'Passed 👍';
+      badgeColor = const Color(0xFFF59E0B);
+    } else {
+      feedbackMessage = "Review the lesson materials and try again to sharpen your skills.";
+      performanceBadge = 'Needs Review 💡';
+      badgeColor = const Color(0xFFEF4444);
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
+    final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final canRetake = !_isCorrect && (maxAttempts - _attemptsUsed) > 0;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 64),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 40,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFFEE69F), Color(0xFFFFD54F)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
             ),
-            child: const Center(
-              child: Icon(
-                Icons.emoji_events_rounded,
-                size: 64,
-                color: Color(0xFFF57F17),
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          Text(
-            'Quiz Complete!',
-            style: GoogleFonts.outfit(
-              fontSize: 36,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 48),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildResultPill(
-                label: 'Score',
-                value: '${_lastScore ?? 0}/$scorableCount',
-                bgColor: const Color(0xFFFFF3E0),
-                textColor: const Color(0xFFE65100),
-              ),
-              const SizedBox(width: 24),
-              _buildResultPill(
-                label: 'Duration',
-                value: timeStr,
-                bgColor: AppColors.primary.withValues(alpha: 0.1),
-                textColor: AppColors.primary,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                blurRadius: 32,
+                offset: const Offset(0, 12),
               ),
             ],
           ),
-          const SizedBox(height: 48),
-          Container(
-            width: 500,
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              feedbackMessage,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 16, color: isDark ? Colors.white : Colors.black87, height: 1.5),
-            ),
-          ),
-          if (!_isCorrect && (maxAttempts - _attemptsUsed) > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 48),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _quizStarted = true;
-                    _completedLocal = false;
-                    _currentQuestionIndex = 0;
-                    for (var ctrl in _answerCtrls) {
-                      ctrl.clear();
-                    }
-                    _secondsRemaining = widget.quiz.duration * 60;
-                    _startTime = DateTime.now();
-                  });
-                  if (widget.quiz.duration > 0) _startTimer();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  elevation: 0,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Glowing Trophy Icon
+              Container(
+                width: 104,
+                height: 104,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFDE68A), Color(0xFFF59E0B), Color(0xFFD97706)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                      blurRadius: 28,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-                icon: const Icon(Icons.refresh_rounded),
-                label: Text('Try Again', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)),
+                child: const Center(
+                  child: Icon(
+                    Icons.emoji_events_rounded,
+                    size: 56,
+                    color: Colors.white,
+                  ),
+                ),
               ),
-            ),
-        ],
+              const SizedBox(height: 24),
+
+              // Title
+              Text(
+                'Quiz Complete!',
+                style: GoogleFonts.outfit(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Performance Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  performanceBadge,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: badgeColor,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Stat Cards Row
+              Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                alignment: WrapAlignment.center,
+                children: [
+                  _buildModernStatCard(
+                    context,
+                    isDark: isDark,
+                    label: 'SCORE',
+                    value: '${_lastScore ?? 0}/$scorableCount',
+                    subtext: '$percentInt% Accuracy',
+                    icon: Icons.military_tech_rounded,
+                    accentColor: const Color(0xFFF59E0B),
+                  ),
+                  _buildModernStatCard(
+                    context,
+                    isDark: isDark,
+                    label: 'DURATION',
+                    value: timeStr,
+                    subtext: 'Time elapsed',
+                    icon: Icons.timer_outlined,
+                    accentColor: const Color(0xFF10B981),
+                  ),
+                  _buildModernStatCard(
+                    context,
+                    isDark: isDark,
+                    label: 'ATTEMPTS',
+                    value: '$_attemptsUsed / $maxAttempts',
+                    subtext: (maxAttempts - _attemptsUsed) > 0
+                        ? '${maxAttempts - _attemptsUsed} remaining'
+                        : 'Final attempt',
+                    icon: Icons.replay_rounded,
+                    accentColor: const Color(0xFF6366F1),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+
+              // Feedback Banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        feedbackMessage,
+                        style: GoogleFonts.inter(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? Colors.white70 : const Color(0xFF334155),
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Actions
+              Wrap(
+                spacing: 16,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
+                children: [
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).maybePop();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isDark ? Colors.white70 : const Color(0xFF334155),
+                        side: BorderSide(
+                          color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                          width: 1.5,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                      label: Text(
+                        'Back to Lessons',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                    ),
+                  ),
+                  if (canRetake)
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _quizStarted = true;
+                            _completedLocal = false;
+                            _currentQuestionIndex = 0;
+                            for (var ctrl in _answerCtrls) {
+                              ctrl.clear();
+                            }
+                            _secondsRemaining = widget.quiz.duration * 60;
+                            _startTime = DateTime.now();
+                          });
+                          if (widget.quiz.duration > 0) _startTimer();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 2,
+                        ),
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: Text(
+                          'Try Again',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ),
+                    )
+                  else
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).maybePop();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          elevation: 2,
+                        ),
+                        icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                        label: Text(
+                          'Continue Learning',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildResultPill({
+  Widget _buildModernStatCard(
+    BuildContext context, {
+    required bool isDark,
     required String label,
     required String value,
-    required Color bgColor,
-    required Color textColor,
+    required String subtext,
+    required IconData icon,
+    required Color accentColor,
   }) {
     return Container(
       width: 180,
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(24),
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: accentColor.withValues(alpha: isDark ? 0.3 : 0.25),
+          width: 1.5,
+        ),
       ),
       child: Column(
         children: [
-          Text(
-            label.toUpperCase(),
-            style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: textColor.withValues(alpha: 0.8), letterSpacing: 1.0),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: accentColor),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: accentColor,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             value,
-            style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.w900, color: textColor),
+            style: GoogleFonts.outfit(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtext,
+            style: GoogleFonts.inter(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white54 : const Color(0xFF64748B),
+            ),
           ),
         ],
       ),

@@ -148,9 +148,6 @@ class OutputToolbar extends StatelessWidget {
         onTap: enabled
             ? () {
                 onSelectOutput(type);
-                if (count == 0) {
-                  onGenerateRequested(type);
-                }
               }
             : null,
         borderRadius: BorderRadius.circular(16),

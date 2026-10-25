@@ -90,7 +90,7 @@ class UniversalDrawer extends StatelessWidget {
             items.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
           }
         }
-        items.add(ModernNavItem(icon: Icons.person, label: username));
+        items.add(const ModernNavItem(icon: Icons.person, label: 'My Profile'));
       }
 
       return AdminSidebar(
@@ -113,7 +113,7 @@ class UniversalDrawer extends StatelessWidget {
         const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
         if (role != UserRole.learner) const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
         const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
-        ModernNavItem(icon: Icons.person, label: username),
+        const ModernNavItem(icon: Icons.person, label: 'My Profile'),
       ];
 
       return Sidebar(

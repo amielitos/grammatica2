@@ -3,12 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/database_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
 import '../widgets/universal_drawer.dart';
 import '../widgets/application_preview_widgets.dart';
 import '../widgets/preview_helper.dart';
+import '../services/notification_service.dart';
 
 class RoleApplicationPage extends StatefulWidget {
   final User user;
@@ -217,6 +219,29 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
     });
 
     try {
+      if (widget.applicationType != 'validator') {
+        final dob = _userData?['date_of_birth'] as Timestamp?;
+        final createdAt = _userData?['createdAt'] as Timestamp?;
+        if (dob != null) {
+          final birthDate = dob.toDate();
+          final today = DateTime.now();
+          int age = today.year - birthDate.year;
+          if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) {
+            age--;
+          }
+          if (age < 21) {
+            throw Exception('Educator applicants must be at least 21 years old. Your current recorded age is $age.');
+          }
+        }
+        final created = createdAt?.toDate() ?? widget.user.metadata.creationTime;
+        if (created != null) {
+          final days = DateTime.now().difference(created).inDays;
+          if (days < 30) {
+            throw Exception('Educator applicants must be registered on Grammatica for at least 30 days. You have been a member for $days days.');
+          }
+        }
+      }
+
       String getContentType(String name) {
         final ext = name.toLowerCase().split('.').last;
         if (ext == 'pdf') return 'application/pdf';
@@ -279,7 +304,24 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         videoUrl: videoUrl,
         syllabusUrl: syllabusUrl,
         applicationType: widget.applicationType,
+        cvFileName: _cvFile?.name,
+        certificateFileNames: _certificateFiles.map((f) => f.name).toList(),
+        videoFileName: _videoFile?.name,
+        syllabusFileName: _syllabusFile?.name,
       );
+
+      // Notify all validators in real-time about the new application
+      final applicantFirst = (_userData?['first_name'] as String?)?.trim() ?? '';
+      final applicantLast = (_userData?['last_name'] as String?)?.trim() ?? '';
+      final applicantFull = '$applicantFirst $applicantLast'.trim();
+      final finalName = applicantFull.isNotEmpty
+          ? applicantFull
+          : ((_userData?['username'] as String?)?.trim() ?? widget.user.displayName ?? widget.user.email ?? 'Applicant');
+
+      NotificationService.instance.notifyValidatorsOfNewApplication(
+        applicantName: finalName,
+        applicationType: widget.applicationType,
+      ).catchError((e) => debugPrint('Error notifying validators of application: $e'));
 
       setState(() {
         _isUploading = false;

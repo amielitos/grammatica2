@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/auth_service.dart';
-import 'package:intl_phone_field/intl_phone_field.dart';
 
 import 'package:flutter/services.dart';
 import '../widgets/google_sign_in_button.dart';
@@ -40,7 +39,6 @@ class _SignupPageState extends State<SignupPage> {
   // Step 2 Controllers
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  String? _completePhoneNumber;
   bool _isEmailTaken = false;
   bool _isValidatingEmail = false;
 
@@ -90,11 +88,16 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final DateTime maxAllowedDate = DateTime(2014, 12, 31);
+    DateTime defaultInitDate = DateTime(2005, 1, 1);
+    if (_selectedDate != null) {
+      defaultInitDate = _selectedDate!.isAfter(maxAllowedDate) ? maxAllowedDate : _selectedDate!;
+    }
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now().subtract(const Duration(days: 365 * 18)),
+      initialDate: defaultInitDate,
       firstDate: DateTime(1900),
-      lastDate: DateTime.now().subtract(const Duration(days: 365 * 5)),
+      lastDate: maxAllowedDate,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -116,22 +119,30 @@ class _SignupPageState extends State<SignupPage> {
     }
   }
 
+  bool _hasMinLength(String p) => p.length >= 8;
+  bool _hasUppercase(String p) => p.contains(RegExp(r'[A-Z]'));
+  bool _hasLowercase(String p) => p.contains(RegExp(r'[a-z]'));
+  bool _hasDigit(String p) => p.contains(RegExp(r'[0-9]'));
+  bool _hasSpecial(String p) => p.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>~_\-+=]'));
+
   String _getPasswordStrength() {
     String pass = _passwordController.text;
     if (pass.isEmpty) return "";
-    if (pass.length < 6) return "Weak (Short)";
-    bool hasLetters = pass.contains(RegExp(r'[a-zA-Z]'));
-    bool hasNumbers = pass.contains(RegExp(r'[0-9]'));
-    bool hasSpecial = pass.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+    int score = 0;
+    if (_hasMinLength(pass)) score++;
+    if (_hasUppercase(pass)) score++;
+    if (_hasLowercase(pass)) score++;
+    if (_hasDigit(pass)) score++;
+    if (_hasSpecial(pass)) score++;
 
-    if (hasLetters && hasNumbers && hasSpecial && pass.length >= 8) return "Strong";
-    if (hasLetters && hasNumbers) return "Medium";
+    if (score == 5) return "Strong";
+    if (score >= 3) return "Medium";
     return "Weak";
   }
 
   Color _getStrengthColor() {
     String strength = _getPasswordStrength();
-    if (strength == "Strong") return Colors.green;
+    if (strength == "Strong") return const Color(0xFF16A34A);
     if (strength == "Medium") return Colors.orange;
     if (strength.contains("Weak")) return Colors.red;
     return Colors.grey;
@@ -242,7 +253,7 @@ class _SignupPageState extends State<SignupPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         fullName: fullName,
-        phoneNumber: _completePhoneNumber ?? _phoneController.text.trim(),
+        phoneNumber: '',
         dateOfBirth: _selectedDate ?? DateTime.now(),
       );
 
@@ -500,9 +511,9 @@ class _SignupPageState extends State<SignupPage> {
       case 0:
         return 390;
       case 1:
-        return 230;
+        return 170;
       case 2:
-        return 390;
+        return 530;
       default:
         return 390;
     }
@@ -570,12 +581,15 @@ class _SignupPageState extends State<SignupPage> {
             const SizedBox(height: 12),
             _buildTextField(
               controller: _dobController,
-              hintText: 'Date of Birth *',
+              hintText: 'Date of Birth (2014 or earlier) *',
               prefixIcon: const Icon(Icons.calendar_month_outlined),
               readOnly: true,
               onTap: () => _selectDate(context),
               validator: (val) {
-                if (val == null || val.isEmpty) return 'Select date';
+                if (val == null || val.isEmpty) return 'Select date of birth';
+                if (_selectedDate != null && _selectedDate!.isAfter(DateTime(2014, 12, 31))) {
+                  return 'Must be born in 2014 or earlier (minimum 12 years old)';
+                }
                 return null;
               },
             ),
@@ -595,7 +609,7 @@ class _SignupPageState extends State<SignupPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text("Contact Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54)),
+            Text("Account Email", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54)),
             const SizedBox(height: 16),
             _buildTextField(
               controller: _emailController,
@@ -613,16 +627,44 @@ class _SignupPageState extends State<SignupPage> {
                 ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
                 : _isEmailTaken ? const Icon(Icons.error_outline, color: Colors.red) : null,
             ),
-            const SizedBox(height: 12),
-            _buildPhoneField(),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildPasswordRequirementItem(String text, bool met, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(
+            met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            size: 14,
+            color: met ? const Color(0xFF16A34A) : (isDark ? Colors.white38 : Colors.grey[400]),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: met ? FontWeight.w600 : FontWeight.normal,
+                color: met
+                    ? (isDark ? const Color(0xFF86EFAC) : const Color(0xFF15803D))
+                    : (isDark ? Colors.white60 : Colors.grey[600]),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStep3() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final pass = _passwordController.text;
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
@@ -648,10 +690,18 @@ class _SignupPageState extends State<SignupPage> {
                 tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                 onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
               ),
-              validator: (val) => (val == null || val.length < 6) ? 'Min 6 characters' : null,
+              validator: (val) {
+                if (val == null || val.isEmpty) return 'Password is required';
+                if (!_hasMinLength(val)) return 'At least 8 characters required';
+                if (!_hasUppercase(val)) return 'At least 1 uppercase letter required';
+                if (!_hasLowercase(val)) return 'At least 1 lowercase letter required';
+                if (!_hasDigit(val)) return 'At least 1 number required';
+                if (!_hasSpecial(val)) return 'At least 1 special character required';
+                return null;
+              },
             ),
-            if (_passwordController.text.isNotEmpty) ...[
-              const SizedBox(height: 4),
+            if (pass.isNotEmpty) ...[
+              const SizedBox(height: 6),
               Row(
                 children: [
                   Text("Strength: ", style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87)),
@@ -659,6 +709,60 @@ class _SignupPageState extends State<SignupPage> {
                 ],
               ),
             ],
+            const SizedBox(height: 8),
+            // Password Requirements Guidance Card
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.6) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.shield_outlined, size: 14, color: Color(0xFF81B655)),
+                      const SizedBox(width: 6),
+                      Text(
+                        "Password Requirements",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _buildPasswordRequirementItem("At least 8 characters", _hasMinLength(pass), isDark),
+                  _buildPasswordRequirementItem("At least 1 uppercase letter (A-Z)", _hasUppercase(pass), isDark),
+                  _buildPasswordRequirementItem("At least 1 lowercase letter (a-z)", _hasLowercase(pass), isDark),
+                  _buildPasswordRequirementItem("At least 1 number (0-9)", _hasDigit(pass), isDark),
+                  _buildPasswordRequirementItem("At least 1 special character", _hasSpecial(pass), isDark),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0).withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      "Allowed special characters: ! @ # \$ % ^ & * ( ) , . ? \" : { } | < > ~ _ - + =",
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontFamily: 'monospace',
+                        color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 12),
             _buildTextField(
               controller: _confirmPasswordController,
@@ -684,7 +788,7 @@ class _SignupPageState extends State<SignupPage> {
                 style: TextStyle(fontSize: 12, color: _passwordController.text == _confirmPasswordController.text ? Colors.green : Colors.red),
               ),
             ],
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Checkbox(
@@ -896,49 +1000,6 @@ class _SignupPageState extends State<SignupPage> {
           }).toList(),
           onChanged: (val) => setState(() => _selectedSuffix = val),
         ),
-      ),
-    );
-  }
-
-  Widget _buildPhoneField() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF334155) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04), blurRadius: 8, spreadRadius: 2, offset: const Offset(0, 4))],
-        border: Border.all(color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05)),
-      ),
-      child: IntlPhoneField(
-        controller: _phoneController,
-        initialCountryCode: 'PH',
-        keyboardType: TextInputType.number,
-        dropdownTextStyle: TextStyle(
-          color: isDark ? Colors.white : Colors.black87,
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
-        showDropdownIcon: false,
-        style: TextStyle(
-          color: isDark ? Colors.white : Colors.black87,
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-        ),
-        decoration: InputDecoration(
-          hintText: 'Phone Number *',
-          hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
-          counterText: '',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-          filled: true,
-          fillColor: Colors.transparent,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-        ),
-        onChanged: (phone) {
-          _completePhoneNumber = phone.completeNumber;
-        },
       ),
     );
   }

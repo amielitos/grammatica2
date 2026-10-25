@@ -531,6 +531,12 @@ class _LoginPageState extends State<LoginPage> {
                             hintText: 'Email Address *',
                             controller: _emailController,
                             prefixIcon: const Icon(Icons.email_outlined),
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) {
+                              if (_passwordController.text.isNotEmpty && !_isLoading) {
+                                _login();
+                              }
+                            },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Please enter your email';
@@ -548,6 +554,12 @@ class _LoginPageState extends State<LoginPage> {
                             controller: _passwordController,
                             obscureText: _obscurePassword,
                             prefixIcon: const Icon(Icons.lock_outline),
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) {
+                              if (!_isLoading) {
+                                _login();
+                              }
+                            },
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscurePassword
@@ -722,6 +734,8 @@ class _LoginPageState extends State<LoginPage> {
     Widget? suffixIcon,
     bool obscureText = false,
     String? Function(String?)? validator,
+    TextInputAction? textInputAction,
+    ValueChanged<String>? onFieldSubmitted,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
@@ -744,6 +758,8 @@ class _LoginPageState extends State<LoginPage> {
       child: TextFormField(
         controller: controller,
         obscureText: obscureText,
+        textInputAction: textInputAction,
+        onFieldSubmitted: onFieldSubmitted,
         style: TextStyle(
           color: isDark ? Colors.white : Colors.black87,
           fontWeight: FontWeight.w500,

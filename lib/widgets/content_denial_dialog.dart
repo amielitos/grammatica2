@@ -145,10 +145,12 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Target: "${widget.contentTitle}"',
+                            widget.authorName != null && widget.authorName!.isNotEmpty
+                                ? widget.authorName!
+                                : widget.contentTitle,
                             style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
                               color: primaryActionColor,
                             ),
                             maxLines: 2,
@@ -204,58 +206,60 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                   final isSelected = _selectedCategory == cat.label;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
-                    child: InkWell(
-                      onTap: () => setState(() => _selectedCategory = cat.label),
-                      borderRadius: BorderRadius.circular(14),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? primaryActionColor.withValues(alpha: 0.08)
-                              : (isDark ? const Color(0xFF263346) : const Color(0xFFF8FAFC)),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: InkWell(
+                        onTap: () => setState(() => _selectedCategory = cat.label),
+                        borderRadius: BorderRadius.circular(14),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
                             color: isSelected
-                                ? primaryActionColor
-                                : (isDark ? Colors.white12 : Colors.grey.shade200),
-                            width: isSelected ? 2 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              cat.icon,
-                              size: 20,
+                                ? primaryActionColor.withValues(alpha: 0.08)
+                                : (isDark ? const Color(0xFF263346) : const Color(0xFFF8FAFC)),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
                               color: isSelected
                                   ? primaryActionColor
-                                  : (isDark ? Colors.white70 : Colors.grey.shade600),
+                                  : (isDark ? Colors.white12 : Colors.grey.shade200),
+                              width: isSelected ? 2 : 1,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    cat.label,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                                      color: isSelected
-                                          ? primaryActionColor
-                                          : (isDark ? Colors.white : AppColors.textPrimary),
-                                    ),
-                                  ),
-                                  Text(
-                                    cat.description,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      color: isDark ? Colors.white54 : Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                cat.icon,
+                                size: 20,
+                                color: isSelected
+                                    ? primaryActionColor
+                                    : (isDark ? Colors.white70 : Colors.grey.shade600),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      cat.label,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                        color: isSelected
+                                            ? primaryActionColor
+                                            : (isDark ? Colors.white : AppColors.textPrimary),
+                                      ),
+                                    ),
+                                    Text(
+                                      cat.description,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             Container(
                               width: 18,
                               height: 18,
@@ -283,8 +287,9 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                         ),
                       ),
                     ),
-                  );
-                }),
+                  ),
+                );
+              }),
                 const SizedBox(height: 20),
 
                 // ── Detailed Explanation Field ──────────────────────────
@@ -356,53 +361,59 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                      ),
-                      child: Text(
-                        'Cancel',
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : Colors.grey.shade700,
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : Colors.grey.shade700,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
-                    FilledButton.icon(
-                      onPressed: isLengthValid
-                          ? () {
-                              Navigator.pop(
-                                context,
-                                ContentDenialResult(
-                                  category: _selectedCategory,
-                                  explanation: _explanationController.text.trim(),
-                                ),
-                              );
-                            }
-                          : null,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: primaryActionColor,
-                        disabledBackgroundColor: isDark ? Colors.white12 : Colors.grey.shade300,
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    MouseRegion(
+                      cursor: isLengthValid ? SystemMouseCursors.click : SystemMouseCursors.basic,
+                      child: FilledButton.icon(
+                        onPressed: isLengthValid
+                            ? () {
+                                Navigator.pop(
+                                  context,
+                                  ContentDenialResult(
+                                    category: _selectedCategory,
+                                    explanation: _explanationController.text.trim(),
+                                  ),
+                                );
+                              }
+                            : null,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: primaryActionColor,
+                          disabledBackgroundColor: isDark ? Colors.white12 : Colors.grey.shade300,
+                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                      ),
-                      icon: Icon(
-                        widget.isPermanentDeletion
-                            ? Icons.delete_forever_rounded
-                            : Icons.send_rounded,
-                        size: 18,
-                      ),
-                      label: Text(
-                        widget.isPermanentDeletion
-                            ? 'Permanently Delete & Notify'
-                            : 'Deny Content & Notify',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                        icon: Icon(
+                          widget.isPermanentDeletion
+                              ? Icons.delete_forever_rounded
+                              : Icons.send_rounded,
+                          size: 18,
+                        ),
+                        label: Text(
+                          widget.isPermanentDeletion
+                              ? 'Permanently Delete & Notify'
+                              : 'Deny Content & Notify',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),

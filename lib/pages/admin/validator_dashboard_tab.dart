@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/database_service.dart';
 import '../../widgets/author_name_widget.dart';
 import '../../theme/app_colors.dart';
@@ -318,7 +319,7 @@ class ValidatorDashboardTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header with applicant details
           Material(
             color: Colors.transparent,
             child: InkWell(
@@ -326,46 +327,127 @@ class ValidatorDashboardTab extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: (showRejected ? _kRejected : Colors.teal).withValues(alpha: 0.1),
-                      child: Icon(
-                        Icons.person_rounded,
-                        color: showRejected ? _kRejected : Colors.teal,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            app.applicantEmail,
-                            style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                              color: textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance.collection('users').doc(app.applicantUid).snapshots(),
+                  builder: (context, snapshot) {
+                    final data = snapshot.data?.data();
+                    final firstName = (data?['first_name'] as String?)?.trim() ?? '';
+                    final lastName = (data?['last_name'] as String?)?.trim() ?? '';
+                    final fullName = '$firstName $lastName'.trim();
+                    final username = (data?['username'] as String?)?.trim();
+                    final photoUrl = data?['photoUrl'] as String?;
+                    final dob = data?['date_of_birth'] as Timestamp?;
+                    final createdAt = data?['createdAt'] as Timestamp?;
+
+                    final displayName = fullName.isNotEmpty
+                        ? fullName
+                        : (username != null && username.isNotEmpty ? username : app.applicantEmail);
+
+                    int? age;
+                    if (dob != null) {
+                      final bDate = dob.toDate();
+                      final now = DateTime.now();
+                      age = now.year - bDate.year;
+                      if (now.month < bDate.month || (now.month == bDate.month && now.day < bDate.day)) age--;
+                    }
+
+                    String joinedStr = 'N/A';
+                    if (createdAt != null) {
+                      final d = createdAt.toDate();
+                      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                      joinedStr = '${months[d.month - 1]} ${d.day}, ${d.year}';
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 22,
+                          backgroundColor: (showRejected ? _kRejected : Colors.teal).withValues(alpha: 0.12),
+                          backgroundImage: (photoUrl != null && photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
+                          child: (photoUrl == null || photoUrl.isEmpty)
+                              ? Icon(
+                                  Icons.person_rounded,
+                                  color: showRejected ? _kRejected : Colors.teal,
+                                  size: 24,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                displayName,
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                  color: textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '${app.applicantEmail} • Applied as ${app.applicationType.toUpperCase()}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.2)),
+                                    ),
+                                    child: Text(
+                                      age != null ? 'Age: $age yrs old' : 'Age: Not set',
+                                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF16A34A)),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.2)),
+                                    ),
+                                    child: Text(
+                                      'Member since: $joinedStr',
+                                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6)),
+                                    ),
+                                  ),
+                                  if (app.appliedAt != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFF81B655).withValues(alpha: 0.2)),
+                                      ),
+                                      child: Text(
+                                        'Applied: ${_CredentialThumbnailRow._formatWordDate(app.appliedAt!)}',
+                                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF81B655)),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
                           ),
-                          Text(
-                            'Applied as ${app.applicationType.toUpperCase()}',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    _StatusBadge(status: showRejected ? 'rejected' : 'pending'),
-                    const SizedBox(width: 8),
-                    Icon(Icons.chevron_right_rounded, color: AppColors.divider, size: 24),
-                  ],
+                        ),
+                        _StatusBadge(status: showRejected ? 'rejected' : 'pending'),
+                        const SizedBox(width: 8),
+                        Icon(Icons.chevron_right_rounded, color: AppColors.divider, size: 24),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -558,245 +640,377 @@ class _CredentialThumbnailRow extends StatelessWidget {
   final EducatorApplication app;
   const _CredentialThumbnailRow({required this.app});
 
+  void _preview(BuildContext context, String url, String label) {
+    String ext = 'pdf';
+    final lower = url.toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].any((e) => lower.contains('.$e'))) {
+      ext = 'png';
+    } else if (['mp4', 'mov', 'avi', 'webm', 'mkv'].any((e) => lower.contains('.$e'))) {
+      ext = 'mp4';
+    }
+    final fileName = '${label.toLowerCase().replaceAll(' ', '_')}.$ext';
+    showFilePreviewModal(context, url, fileName);
+  }
+
+  Widget _buildRequirementItem({
+    required BuildContext context,
+    required bool isDark,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required List<Map<String, String>> files,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.6) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Title
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: accentColor, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.outfit(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: files.isNotEmpty
+                      ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                      : const Color(0xFFEF4444).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  files.isNotEmpty ? '${files.length} Submitted' : 'Missing',
+                  style: GoogleFonts.inter(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: files.isNotEmpty ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Submitted File Card(s) Below Title
+          if (files.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.02),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, size: 16, color: Colors.amber.shade700),
+                  const SizedBox(width: 8),
+                  Text(
+                    'No document submitted for this requirement.',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...files.map((file) {
+              final label = file['label'] ?? title;
+              final url = file['url'] ?? '';
+              final ext = file['ext'] ?? 'DOCUMENT';
+
+              return Container(
+                margin: const EdgeInsets.only(top: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        ext.toUpperCase(),
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: accentColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            label,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'Click preview to review applicant submission',
+                            style: GoogleFonts.inter(
+                              fontSize: 10.5,
+                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: FilledButton.tonalIcon(
+                        onPressed: () => _preview(context, url, label),
+                        icon: const Icon(Icons.visibility_rounded, size: 14),
+                        label: const Text('Preview File', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: accentColor.withValues(alpha: 0.15),
+                          foregroundColor: accentColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  static String _formatWordDate(Timestamp ts) {
+    final d = ts.toDate();
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return '${months[d.month - 1]} ${d.day}, ${d.year}';
+  }
+
+  static String _extractFileName(String url, String? savedName, String fallback) {
+    if (savedName != null && savedName.trim().isNotEmpty) {
+      return savedName.trim();
+    }
+    if (url.isEmpty) return fallback;
+    try {
+      final uri = Uri.parse(url);
+      final segment = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
+      var decoded = Uri.decodeComponent(segment);
+      if (decoded.contains('/')) decoded = decoded.split('/').last;
+      final regex = RegExp(r'^\d{10,14}_(.+)$');
+      final match = regex.firstMatch(decoded);
+      if (match != null && match.group(1) != null) {
+        decoded = match.group(1)!;
+      }
+      return decoded.isNotEmpty ? decoded : fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  static String _getFileExt(String fileName, String fallback) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.pdf')) return 'PDF';
+    if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'IMG';
+    if (lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.avi') || lower.endsWith('.webm')) return 'VIDEO';
+    if (lower.endsWith('.doc') || lower.endsWith('.docx')) return 'DOC';
+    return fallback;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final credentials = <Map<String, dynamic>>[
-      {'label': 'CV / Résumé', 'url': app.cvUrl, 'icon': Icons.description_rounded},
-      ...app.certificateUrls.asMap().entries.map(
-        (e) => {'label': 'Certificate ${e.key + 1}', 'url': e.value, 'icon': Icons.verified_rounded},
-      ),
-      {'label': 'Teaching Demo', 'url': app.videoUrl, 'icon': Icons.videocam_rounded},
-      {'label': 'Syllabus', 'url': app.syllabusUrl, 'icon': Icons.book_rounded},
-    ].where((c) => (c['url'] as String).isNotEmpty).toList();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (credentials.isEmpty) {
-      return const SizedBox();
-    }
+    final cvLabel = _extractFileName(app.cvUrl, app.cvFileName, 'Applicant_CV_Resume.pdf');
+    final cvFiles = <Map<String, String>>[
+      if (app.cvUrl.isNotEmpty) {
+        'label': cvLabel,
+        'url': app.cvUrl,
+        'ext': _getFileExt(cvLabel, 'PDF'),
+      },
+    ];
+
+    final certFiles = app.certificateUrls
+        .asMap()
+        .entries
+        .where((e) => e.value.isNotEmpty)
+        .map((e) {
+          final saved = (app.certificateFileNames != null && e.key < app.certificateFileNames!.length)
+              ? app.certificateFileNames![e.key]
+              : null;
+          final certLabel = _extractFileName(e.value, saved, 'Teaching_Certificate_${e.key + 1}');
+          return {
+            'label': certLabel,
+            'url': e.value,
+            'ext': _getFileExt(certLabel, 'CERT'),
+          };
+        }).toList();
+
+    final videoLabel = _extractFileName(app.videoUrl, app.videoFileName, 'Teaching_Demonstration.mp4');
+    final videoFiles = <Map<String, String>>[
+      if (app.videoUrl.isNotEmpty) {
+        'label': videoLabel,
+        'url': app.videoUrl,
+        'ext': _getFileExt(videoLabel, 'VIDEO'),
+      },
+    ];
+
+    final syllabusLabel = _extractFileName(app.syllabusUrl, app.syllabusFileName, 'Course_Syllabus.pdf');
+    final syllabusFiles = <Map<String, String>>[
+      if (app.syllabusUrl.isNotEmpty) {
+        'label': syllabusLabel,
+        'url': app.syllabusUrl,
+        'ext': _getFileExt(syllabusLabel, 'SYLLABUS'),
+      },
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'CREDENTIALS',
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.2,
-            color: AppColors.textSecondary,
-          ),
+        Row(
+          children: [
+            Text(
+              'APPLICATION REQUIREMENTS & CREDENTIALS',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+                color: isDark ? Colors.white60 : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF81B655).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'REQUIREMENTS VIEW',
+                style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF81B655)),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 10),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: credentials.map((c) {
-              return _CredentialThumbnail(
-                label: c['label'] as String,
-                url: c['url'] as String,
-                fallbackIcon: c['icon'] as IconData,
-              );
-            }).toList(),
-          ),
+        const SizedBox(height: 12),
+
+        // 1. Curriculum Vitae
+        _buildRequirementItem(
+          context: context,
+          isDark: isDark,
+          title: 'Curriculum Vitae (CV / Résumé)',
+          subtitle: 'Educational background, employment history, and teaching experience',
+          icon: Icons.description_rounded,
+          accentColor: const Color(0xFF10B981),
+          files: cvFiles,
+        ),
+
+        // 2. Teaching Certificates
+        _buildRequirementItem(
+          context: context,
+          isDark: isDark,
+          title: 'Teaching & Accreditation Certificates',
+          subtitle: 'Accreditation certificates, teaching licenses, and academic diplomas',
+          icon: Icons.verified_rounded,
+          accentColor: const Color(0xFF3B82F6),
+          files: certFiles,
+        ),
+
+        // 3. Teaching Demo Video
+        _buildRequirementItem(
+          context: context,
+          isDark: isDark,
+          title: 'Teaching Demonstration Video',
+          subtitle: 'Recorded teaching demonstration showcasing instruction methodology',
+          icon: Icons.videocam_rounded,
+          accentColor: const Color(0xFF8B5CF6),
+          files: videoFiles,
+        ),
+
+        // 4. Course Syllabus
+        _buildRequirementItem(
+          context: context,
+          isDark: isDark,
+          title: 'Course Syllabus / Instructional Plan',
+          subtitle: 'Structured curriculum plan, lesson topics, and learning objectives',
+          icon: Icons.menu_book_rounded,
+          accentColor: const Color(0xFF0EA5E9),
+          files: syllabusFiles,
         ),
       ],
     );
   }
 }
 
-// ─────────────────────────────────────────────
-//  Single credential thumbnail
-// ─────────────────────────────────────────────
-class _CredentialThumbnail extends StatelessWidget {
-  final String label;
-  final String url;
-  final IconData fallbackIcon;
 
-  const _CredentialThumbnail({
-    required this.label,
-    required this.url,
-    required this.fallbackIcon,
-  });
-
-  bool get _isImage {
-    final lower = url.toLowerCase();
-    final clean = lower.split('?').first;
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].any(
-      (ext) => clean.endsWith('.$ext') || lower.contains('.$ext?') || lower.contains('format=$ext'),
-    );
-  }
-
-  bool get _isVideo {
-    final lower = url.toLowerCase();
-    final clean = lower.split('?').first;
-    return ['mp4', 'mov', 'avi', 'webm', 'm4v', 'mkv', 'ogv'].any(
-      (ext) => clean.endsWith('.$ext') || lower.contains('.$ext?') || lower.contains('/video'),
-    );
-  }
-
-  bool get _isPdf {
-    final lower = url.toLowerCase();
-    final clean = lower.split('?').first;
-    return clean.endsWith('.pdf') || lower.contains('.pdf?') || lower.contains('pdf');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final borderColor = isDark ? Colors.white12 : Colors.grey.shade300;
-    final labelTextColor = isDark ? Colors.white : AppColors.textPrimary;
-
-    return GestureDetector(
-      onTap: () => _previewFile(context),
-      child: Container(
-        width: 170,
-        height: 150,
-        margin: const EdgeInsets.only(right: 14),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor, width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Thumbnail area
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _buildContentTile(isDark),
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.18)],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.50),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.open_in_full_rounded, size: 14, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Label
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              color: cardBg,
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: labelTextColor,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContentTile(bool isDark) {
-    if (_isImage) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        loadingBuilder: (ctx, child, progress) =>
-            progress == null ? child : _placeholder(isDark),
-        errorBuilder: (context, error, stackTrace) => _placeholder(isDark),
-      );
-    }
-    if (_isVideo) {
-      return Container(
-        color: const Color(0xFF0F172A),
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.play_circle_fill, size: 46, color: Color(0xFF81B655)),
-              SizedBox(height: 6),
-              Text('VIDEO DEMO', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
-            ],
-          ),
-        ),
-      );
-    }
-    if (_isPdf) {
-      return Container(
-        color: isDark ? const Color(0xFF2C1515) : const Color(0xFFFEF2F2),
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.picture_as_pdf_rounded, size: 46, color: Color(0xFFDC2626)),
-              SizedBox(height: 6),
-              Text('PDF DOC', style: TextStyle(color: Color(0xFFDC2626), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
-            ],
-          ),
-        ),
-      );
-    }
-    return Container(
-      color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(fallbackIcon, size: 46, color: isDark ? Colors.white38 : Colors.grey.shade400),
-            const SizedBox(height: 6),
-            Text('DOCUMENT', style: TextStyle(color: isDark ? Colors.white60 : Colors.grey.shade600, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _placeholder(bool isDark) => Container(
-        color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade100,
-        child: Center(
-          child: Icon(fallbackIcon, size: 36, color: isDark ? Colors.white30 : Colors.grey.shade300),
-        ),
-      );
-
-  void _previewFile(BuildContext context) {
-    String ext = 'pdf';
-    if (_isImage) {
-      ext = 'png';
-    } else if (_isVideo) {
-      ext = 'mp4';
-    } else if (_isPdf) {
-      ext = 'pdf';
-    }
-    final fileName = '${label.toLowerCase().replaceAll(' ', '_')}.$ext';
-    showFilePreviewModal(context, url, fileName);
-  }
-}
 
 // ─────────────────────────────────────────────
 //  Status badge

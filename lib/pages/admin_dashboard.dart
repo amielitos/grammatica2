@@ -40,6 +40,11 @@ class AdminDashboard extends StatefulWidget {
 
   static final ValueNotifier<int> activeTabNotifier = ValueNotifier<int>(0);
 
+  static void resetToDashboard() {
+    _AdminDashboardState._persistedIndex = 0;
+    activeTabNotifier.value = 0;
+  }
+
   static void navigateToTab(BuildContext context, int tabIndex) {
     _AdminDashboardState._persistedIndex = tabIndex;
     activeTabNotifier.value = tabIndex;
@@ -137,8 +142,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
         widget.role == UserRole.admin || widget.role == UserRole.superadmin;
     final isEducator = widget.role == UserRole.educator;
     final isValidator = widget.role == UserRole.validator;
-    final username =
-        (widget.userData['username'] as String?)?.split(' ').first ?? 'Profile';
 
     final List<Widget> tabs = [];
     final List<ModernNavItem> navItems = [];
@@ -296,7 +299,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     // Profile (All)
     tabs.add(ProfilePage(user: widget.user));
-    navItems.add(ModernNavItem(icon: Icons.person, label: username));
+    navItems.add(const ModernNavItem(icon: Icons.person, label: 'My Profile'));
 
     if (_index >= tabs.length) {
       _index = 0;

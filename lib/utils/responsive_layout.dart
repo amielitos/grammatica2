@@ -273,6 +273,7 @@ class ResponsiveGridView extends StatelessWidget {
     } else {
       crossAxisCount = desktopCrossAxisCount;
     }
+    crossAxisCount = crossAxisCount < 1 ? 1 : crossAxisCount;
 
     return GridView.builder(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

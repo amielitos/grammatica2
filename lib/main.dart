@@ -27,14 +27,12 @@ void main() async {
     await dotenv.load(fileName: ".env");
   } catch (e) {
     debugPrint('Dotenv initialization note: $e');
-  }
-
-  if ((dotenv.env['GEMINI_API_KEY'] == null || dotenv.env['GEMINI_API_KEY']!.isEmpty) ||
-      (dotenv.env['AGORA_APP_ID'] == null || dotenv.env['AGORA_APP_ID']!.isEmpty)) {
-    try {
-      await dotenv.load(fileName: "assets/env");
-    } catch (e) {
-      debugPrint('Fallback dotenv initialization note: $e');
+    if (!dotenv.isInitialized) {
+      try {
+        await dotenv.load(fileName: "assets/env");
+      } catch (fallbackError) {
+        debugPrint('Fallback dotenv initialization note: $fallbackError');
+      }
     }
   }
 

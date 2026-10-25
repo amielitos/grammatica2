@@ -8,6 +8,7 @@ enum NotificationType {
   profileReminder,
   subscription,
   mentorship,
+  lessonUpload,
   general,
 }
 
@@ -88,6 +89,8 @@ class NotificationModel {
         return NotificationType.subscription;
       case 'mentorship':
         return NotificationType.mentorship;
+      case 'lessonUpload':
+        return NotificationType.lessonUpload;
       default:
         return NotificationType.general;
     }

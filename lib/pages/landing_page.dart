@@ -21,12 +21,15 @@ class _LandingPageState extends State<LandingPage>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  final List<String> _bgImages = ['assets/hero_bg2.png', 'assets/people4.png'];
+  // Background image slideshow (defaults to built-in assets, updated from admin site settings)
+  List<String> _bgImages = [
+    'assets/people4.png',
+    'assets/student_teacher_bg2.png',
+    'assets/student_teacher_bg3.png',
+  ];
   int _currentBgIndex = 0;
   Timer? _bgTimer;
-
-  // Remote image URLs from Firebase (empty = use local asset fallback)
-  List<String> _remoteImages = [];
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _landingSettingsSub;
 
   @override
   void initState() {
@@ -51,6 +54,55 @@ class _LandingPageState extends State<LandingPage>
 
     _animController.forward();
 
+    // Slideshow transition every 6 seconds
+    _bgTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (mounted && _bgImages.isNotEmpty) {
+        setState(() {
+          _currentBgIndex = (_currentBgIndex + 1) % _bgImages.length;
+        });
+      }
+    });
+
+    // Load & listen to Admin Site Settings for landing page hero slideshow images
+    _landingSettingsSub = FirebaseFirestore.instance
+        .collection('settings')
+        .doc('landing_page')
+        .snapshots()
+        .listen((doc) {
+      if (!mounted) return;
+      if (doc.exists) {
+        final data = doc.data() ?? {};
+        final raw = data['hero_images'];
+        if (raw is List && raw.isNotEmpty) {
+          final customUrls = List<String>.from(raw.whereType<String>())
+              .where((url) => url.trim().isNotEmpty)
+              .toList();
+          if (customUrls.isNotEmpty) {
+            setState(() {
+              _bgImages = customUrls;
+              if (_currentBgIndex >= _bgImages.length) {
+                _currentBgIndex = 0;
+              }
+            });
+            return;
+          }
+        }
+      }
+      // Fallback to built-in images if no admin images configured
+      setState(() {
+        _bgImages = [
+          'assets/people4.png',
+          'assets/student_teacher_bg2.png',
+          'assets/student_teacher_bg3.png',
+        ];
+        if (_currentBgIndex >= _bgImages.length) {
+          _currentBgIndex = 0;
+        }
+      });
+    }, onError: (err) {
+      debugPrint('Error listening to landing settings: $err');
+    });
+
     _scrollController.addListener(() {
       final offset = _scrollController.offset;
       if (offset > 10 && !_isScrolled) {
@@ -64,42 +116,11 @@ class _LandingPageState extends State<LandingPage>
         setState(() => _showBackToTop = shouldShow);
       }
     });
-
-    _bgTimer = Timer.periodic(const Duration(seconds: 6), (timer) {
-      if (mounted) {
-        setState(() {
-          _currentBgIndex = (_currentBgIndex + 1) % _bgImages.length;
-        });
-      }
-    });
-
-    _fetchRemoteImages();
-  }
-
-  Future<void> _fetchRemoteImages() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('settings')
-          .doc('landing_page')
-          .get();
-      if (doc.exists && mounted) {
-        final data = doc.data() ?? {};
-        final raw = data['hero_images'];
-        if (raw is List && raw.isNotEmpty) {
-          setState(() {
-            _remoteImages = List<String>.from(raw.whereType<String>());
-            // Reset index if it's out of bounds for new list
-            _currentBgIndex = 0;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Could not load landing page remote images: $e');
-    }
   }
 
   @override
   void dispose() {
+    _landingSettingsSub?.cancel();
     _bgTimer?.cancel();
     _scrollController.dispose();
     _animController.dispose();
@@ -333,14 +354,70 @@ class _LandingPageState extends State<LandingPage>
 
   // ─── HERO ─────────────────────────────────────────────────────────────────
 
+  Widget _buildHeroImage(int index) {
+    if (_bgImages.isEmpty) {
+      return Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F2618), Color(0xFF0B1120)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      );
+    }
+    final safeIndex = index % _bgImages.length;
+    final imagePath = _bgImages[safeIndex];
+    final isNetwork =
+        imagePath.startsWith('http://') || imagePath.startsWith('https://');
+
+    if (isNetwork) {
+      return Image.network(
+        imagePath,
+        key: ValueKey<String>('hero_bg_net_$imagePath'),
+        fit: BoxFit.cover,
+        alignment: const Alignment(0, 0.35),
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) => Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF0F2618), Color(0xFF0B1120)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Image.asset(
+      imagePath,
+      key: ValueKey<String>('hero_bg_asset_$safeIndex'),
+      fit: BoxFit.cover,
+      alignment: const Alignment(0, 0.35),
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (context, error, stackTrace) => Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F2618), Color(0xFF0B1120)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeroSection(bool isDesktop) {
     return SizedBox(
       width: double.infinity,
-      height: isDesktop ? 680 : 560,
+      height: isDesktop ? 680 : 580,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Background image slideshow
+          // Background image slideshow (NO photo of solo woman)
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 1500),
             transitionBuilder: (child, animation) =>
@@ -353,14 +430,14 @@ class _LandingPageState extends State<LandingPage>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF0B1120).withValues(alpha: 0.88),
-                  const Color(0xFF0B1120).withValues(alpha: 0.75),
-                  const Color(0xFF0B1120).withValues(alpha: 0.40),
+                  const Color(0xFF0B1120).withValues(alpha: 0.90),
+                  const Color(0xFF0B1120).withValues(alpha: 0.78),
+                  const Color(0xFF0B1120).withValues(alpha: 0.45),
                   Colors.transparent,
                 ],
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                stops: const [0.0, 0.35, 0.60, 1.0],
+                stops: const [0.0, 0.40, 0.65, 1.0],
               ),
             ),
           ),
@@ -370,7 +447,7 @@ class _LandingPageState extends State<LandingPage>
               gradient: LinearGradient(
                 colors: [
                   Colors.transparent,
-                  const Color(0xFF0B1120).withValues(alpha: 0.65),
+                  const Color(0xFF0B1120).withValues(alpha: 0.70),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -383,7 +460,7 @@ class _LandingPageState extends State<LandingPage>
           Positioned.fill(
             child: Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 60 : 24,
+                horizontal: isDesktop ? 60 : 20,
                 vertical: 0,
               ),
               child: Row(
@@ -403,7 +480,7 @@ class _LandingPageState extends State<LandingPage>
                             Text(
                               'Master Grammar\nWith Confidence.',
                               style: GoogleFonts.outfit(
-                                fontSize: isDesktop ? 68 : 42,
+                                fontSize: isDesktop ? 68 : 38,
                                 fontWeight: FontWeight.w900,
                                 height: 1.08,
                                 letterSpacing: -2.0,
@@ -415,81 +492,80 @@ class _LandingPageState extends State<LandingPage>
 
                             // Subtitle
                             ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 500),
+                              constraints: const BoxConstraints(maxWidth: 520),
                               child: Text(
                                 'Join learners improving their language skills daily with verified educators, interactive quizzes, and community-driven lessons.',
                                 style: GoogleFonts.inter(
                                   fontSize: isDesktop ? 17 : 15,
                                   height: 1.65,
-                                  color: Colors.white.withValues(alpha: 0.80),
+                                  color: Colors.white.withValues(alpha: 0.85),
                                 ),
                               ),
                             ),
 
                             const SizedBox(height: 36),
 
-                            // CTA Buttons
+                            // CTA Buttons with Pointer Cursors
                             Wrap(
                               spacing: 14,
                               runSpacing: 12,
                               children: [
-                                ElevatedButton(
-                                  onPressed: () =>
-                                      Navigator.pushNamed(context, '/register'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF81B655),
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: isDesktop ? 32 : 24,
-                                      vertical: 16,
+                                MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  child: ElevatedButton(
+                                    onPressed: () =>
+                                        Navigator.pushNamed(context, '/register'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF81B655),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: isDesktop ? 32 : 24,
+                                        vertical: 16,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
                                     ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Start Learning Free',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                                    child: Text(
+                                      'Start Learning Free',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
-                                OutlinedButton(
-                                  onPressed: () =>
-                                      Navigator.pushNamed(context, '/login'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    side: BorderSide(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.6,
+                                MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  child: OutlinedButton(
+                                    onPressed: () =>
+                                        Navigator.pushNamed(context, '/login'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      side: BorderSide(
+                                        color: Colors.white.withValues(alpha: 0.6),
+                                        width: 1.5,
                                       ),
-                                      width: 1.5,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: isDesktop ? 32 : 24,
+                                        vertical: 16,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
                                     ),
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: isDesktop ? 32 : 24,
-                                      vertical: 16,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Log In to Account',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
+                                    child: Text(
+                                      'Log In to Account',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-
-                            const SizedBox(height: 40),
-
-                            // Stats row
-                            _buildHeroStats(isDesktop),
                           ],
                         ),
                       ),
@@ -501,49 +577,6 @@ class _LandingPageState extends State<LandingPage>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildHeroStats(bool isDesktop) {
-    return Wrap(spacing: 24, runSpacing: 12);
-  }
-
-  Widget _buildHeroImage(int index) {
-    // Use remote images if available, otherwise fall back to local assets
-    final imageList = _remoteImages.isNotEmpty ? _remoteImages : _bgImages;
-    final safeIndex = index % imageList.length;
-    final source = imageList[safeIndex];
-    final isRemote = _remoteImages.isNotEmpty;
-
-    if (isRemote) {
-      return Image.network(
-        source,
-        key: ValueKey<String>('remote_$safeIndex$source'),
-        fit: BoxFit.cover,
-        alignment: const Alignment(0, 0.35),
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (ctx, err, st) {
-          // Fallback to local asset on network error
-          final assetPath = _bgImages[safeIndex % _bgImages.length];
-          return Image.asset(
-            assetPath,
-            key: ValueKey<String>('asset_fallback_$safeIndex'),
-            fit: BoxFit.cover,
-            alignment: const Alignment(0, 0.35),
-            width: double.infinity,
-            height: double.infinity,
-          );
-        },
-      );
-    }
-    return Image.asset(
-      source,
-      key: ValueKey<String>('asset_$safeIndex'),
-      fit: BoxFit.cover,
-      alignment: const Alignment(0, 0.35),
-      width: double.infinity,
-      height: double.infinity,
     );
   }
 

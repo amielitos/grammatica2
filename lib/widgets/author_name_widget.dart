@@ -32,16 +32,25 @@ class AuthorName extends StatelessWidget {
         }
 
         final data = snap.data?.data();
+        final firstName = (data?['first_name'] as String?)?.trim() ?? '';
+        final lastName = (data?['last_name'] as String?)?.trim() ?? '';
+        final fullName = '$firstName $lastName'.trim();
         final username = (data?['username'] as String?)?.trim();
+        final displayName = (data?['displayName'] as String?)?.trim();
         final email = data?['email'] as String? ?? fallbackEmail;
 
-        // Logic: If username is empty or default, use email.
-        final display =
-            (username != null &&
-                username.isNotEmpty &&
-                username != 'Firstname Lastname')
-            ? username
-            : (email ?? 'Unknown');
+        String display = 'Unknown';
+        if (fullName.isNotEmpty) {
+          display = fullName;
+        } else if (displayName != null && displayName.isNotEmpty) {
+          display = displayName;
+        } else if (username != null &&
+            username.isNotEmpty &&
+            username != 'Firstname Lastname') {
+          display = username;
+        } else if (email != null && email.isNotEmpty) {
+          display = email;
+        }
 
         return Text('$prefix$display', style: style);
       },

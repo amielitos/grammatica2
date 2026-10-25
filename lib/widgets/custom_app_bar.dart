@@ -179,6 +179,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                               radius: 14,
                               backgroundColor: AppColors.primary,
                               backgroundImage: profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null,
+                              onBackgroundImageError: profileImageUrl.isNotEmpty ? (exception, stackTrace) {} : null,
                               child: profileImageUrl.isEmpty ? const Icon(Icons.person, color: Colors.white, size: 16) : null,
                             ),
                             Icon(Icons.keyboard_arrow_down, size: 18, color: isDark ? Colors.white54 : Colors.black54),

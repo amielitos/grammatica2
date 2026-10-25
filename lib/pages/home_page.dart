@@ -11,6 +11,8 @@ import 'conference_page.dart';
 import 'quizzes_page.dart';
 import 'lesson_folder_page.dart';
 import 'profile_page.dart';
+import 'educator_profile_page.dart';
+import '../widgets/author_name_widget.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../widgets/modern_bottom_nav.dart';
 
@@ -38,6 +40,11 @@ class HomePage extends StatefulWidget {
   });
 
   static final ValueNotifier<int> activeTabNotifier = ValueNotifier<int>(0);
+
+  static void resetToDashboard() {
+    _HomePageState._persistedTabIndex = 0;
+    activeTabNotifier.value = 0;
+  }
 
   static void navigateToTab(BuildContext context, int tabIndex) {
     _HomePageState._persistedTabIndex = tabIndex;
@@ -131,9 +138,9 @@ class _HomePageState extends State<HomePage> {
       if (widget.role != UserRole.learner)
         const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
       const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
-      ModernNavItem(
+      const ModernNavItem(
         icon: Icons.person,
-        label: widget.userData['username']?.split(' ').first ?? 'Profile',
+        label: 'My Profile',
       ),
     ];
     return items;
@@ -675,6 +682,14 @@ class _LessonsListState extends State<_LessonsList> {
                         const SizedBox(height: 24),
                       ],
 
+                      // Subscribed Educators Easy Access (hidden in Official tab)
+                      if (_selectedFilter != 'Grammatica') ...[
+                        _buildSubscribedEducatorsSection(context, isDark),
+
+                        // Recent Lessons from Subscribed Educators
+                        _buildSubscribedEducatorLessonsSection(context, lessons, progressMap, isDark),
+                      ],
+
                       // 6. AI Practice Banner
                       _buildAiPracticeBanner(context),
                       const SizedBox(height: 16),
@@ -819,8 +834,8 @@ class _LessonsListState extends State<_LessonsList> {
             }) {
               return Container(
                 padding: EdgeInsets.symmetric(
-                  horizontal: isNarrow ? 12 : 16,
-                  vertical: isNarrow ? 12 : 14,
+                  horizontal: isNarrow ? 10 : 16,
+                  vertical: isNarrow ? 10 : 14,
                 ),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -839,14 +854,14 @@ class _LessonsListState extends State<_LessonsList> {
                 child: Row(
                   children: [
                     Container(
-                      padding: EdgeInsets.all(isNarrow ? 8 : 10),
+                      padding: EdgeInsets.all(isNarrow ? 7 : 10),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(icon, color: color, size: isNarrow ? 18 : 20),
+                      child: Icon(icon, color: color, size: isNarrow ? 17 : 20),
                     ),
-                    SizedBox(width: isNarrow ? 10 : 12),
+                    SizedBox(width: isNarrow ? 8 : 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -854,8 +869,10 @@ class _LessonsListState extends State<_LessonsList> {
                         children: [
                           Text(
                             value,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.outfit(
-                              fontSize: isNarrow ? 16 : 18,
+                              fontSize: isNarrow ? 15 : 18,
                               fontWeight: FontWeight.bold,
                               color: isDark ? Colors.white : Colors.black87,
                             ),
@@ -880,6 +897,8 @@ class _LessonsListState extends State<_LessonsList> {
                                 color: color,
                                 fontWeight: FontWeight.w600,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ],
@@ -925,7 +944,7 @@ class _LessonsListState extends State<_LessonsList> {
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 10,
                 crossAxisSpacing: 10,
-                childAspectRatio: 1.95,
+                childAspectRatio: 2.15,
                 children: items,
               );
             }
@@ -1244,6 +1263,300 @@ class _LessonsListState extends State<_LessonsList> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSubscribedEducatorsSection(BuildContext context, bool isDark) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid),
+      builder: (context, snapshot) {
+        final subs = snapshot.data ?? [];
+        final activeSubs = subs.where((s) => s['status'] == 'active').toList();
+        if (activeSubs.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Subscribed Educators',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : Colors.black87,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => HomePage.navigateToTab(context, 2),
+                  child: const Text('Browse More', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold, fontSize: 13)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 85,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: activeSubs.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final sub = activeSubs[index];
+                  final eduData = (sub['educatorData'] as Map<String, dynamic>?) ?? {};
+                  final eduUid = (sub['educatorUid'] as String?) ?? (eduData['uid'] as String?) ?? '';
+                  final tier = (sub['tier'] as String?) ?? 'Pro';
+                  final firstName = (eduData['first_name'] as String?)?.trim() ?? '';
+                  final lastName = (eduData['last_name'] as String?)?.trim() ?? '';
+                  final fullName = '$firstName $lastName'.trim();
+                  final username = (eduData['username'] as String?)?.trim();
+                  final name = fullName.isNotEmpty ? fullName : (username ?? 'Educator');
+                  final photoUrl = eduData['photoUrl'] as String?;
+
+                  return InkWell(
+                    onTap: () {
+                      final fullEduMap = {'uid': eduUid, ...eduData};
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => EducatorProfilePage(
+                            educator: fullEduMap,
+                            currentUser: widget.user,
+                          ),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: 210,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                            backgroundImage: (photoUrl != null && photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
+                            onBackgroundImageError: (photoUrl != null && photoUrl.isNotEmpty) ? (err, st) {} : null,
+                            child: (photoUrl == null || photoUrl.isEmpty)
+                                ? Text(
+                                    name.isNotEmpty ? name[0].toUpperCase() : 'E',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6366F1)),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    tier.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF6366F1),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSubscribedEducatorLessonsSection(
+    BuildContext context,
+    List<Lesson> lessons,
+    Map<String, dynamic> progressMap,
+    bool isDark,
+  ) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid),
+      builder: (context, snapshot) {
+        final subs = snapshot.data ?? [];
+        final activeSubUids = subs
+            .where((s) => s['status'] == 'active')
+            .map((s) => (s['educatorUid'] as String?) ?? '')
+            .where((uid) => uid.isNotEmpty)
+            .toSet();
+
+        if (activeSubUids.isEmpty) return const SizedBox.shrink();
+
+        final subscribedLessons = lessons
+            .where((l) => activeSubUids.contains(l.createdByUid) && l.isVisible)
+            .toList();
+
+        if (subscribedLessons.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D9488),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Recent Lessons from Your Educators',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : Colors.black87,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: subscribedLessons.take(3).length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final l = subscribedLessons[index];
+                final isCompleted = progressMap[l.id]?['completed'] == true;
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D9488).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.auto_stories_rounded,
+                          color: Color(0xFF0D9488),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            AuthorName(
+                              uid: l.createdByUid,
+                              fallbackEmail: l.createdByEmail,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      FilledButton.tonal(
+                        onPressed: () => NavigationService.instance.goToLesson(context, l),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: isCompleted
+                              ? (isDark ? Colors.white10 : Colors.grey.shade100)
+                              : const Color(0xFF0D9488).withValues(alpha: 0.15),
+                          foregroundColor: isCompleted
+                              ? (isDark ? Colors.white60 : Colors.grey.shade700)
+                              : const Color(0xFF0D9488),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        ),
+                        child: Text(
+                          isCompleted ? 'Review' : 'Start',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+          ],
+        );
+      },
     );
   }
 

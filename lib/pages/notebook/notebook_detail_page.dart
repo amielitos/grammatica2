@@ -7,7 +7,6 @@ import '../../models/study_guide_models.dart';
 import '../../services/ai_generation_service.dart';
 import '../../services/notebook_service.dart';
 import '../../theme/app_colors.dart';
-import '../../widgets/notebook/generation_confirm_dialog.dart';
 import '../../widgets/notebook/generation_loading_overlay.dart';
 import '../../widgets/notebook/output_toolbar.dart';
 import '../../widgets/notebook/source_upload_panel.dart';
@@ -44,6 +43,8 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
 
   bool _isGenerating = false;
   String _generationMessage = '';
+  bool _isAssessment = false;
+  bool _isSourcesCollapsed = false;
 
   // Mobile tab index: 0 = Sources, 1 = Outputs
   int _mobileTabIndex = 0;
@@ -93,12 +94,12 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                       orElse: () => null,
                     );
 
-                return Scaffold(
-                  backgroundColor: isDark ? const Color(0xFF181818) : AppColors.backgroundBase,
-                  appBar: _buildAppBar(context, notebook, isDark, outputs),
-                  body: Stack(
-                    children: [
-                      isDesktop
+                return Stack(
+                  children: [
+                    Scaffold(
+                      backgroundColor: isDark ? const Color(0xFF181818) : AppColors.backgroundBase,
+                      appBar: _buildAppBar(context, notebook, isDark, outputs),
+                      body: isDesktop
                           ? _buildDesktopLayout(
                               sources: sources,
                               outputs: outputs,
@@ -113,13 +114,14 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                               activeOutput: activeOutput,
                               isDark: isDark,
                             ),
-
-                      if (_isGenerating)
-                        Positioned.fill(
-                          child: AbsorbPointer(
-                            absorbing: true,
-                            child: Container(
-                              color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.9),
+                    ),
+                    if (_isGenerating)
+                      Positioned.fill(
+                        child: AbsorbPointer(
+                          absorbing: true,
+                          child: Container(
+                            color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.92),
+                            child: Center(
                               child: GenerationLoadingOverlay(
                                 title: 'Generating ${_selectedOutputType.displayName}...',
                                 subtitle: _generationMessage,
@@ -127,8 +129,8 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                             ),
                           ),
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 );
               },
             );
@@ -183,6 +185,14 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
         ),
       ),
       actions: [
+        IconButton(
+          tooltip: _isSourcesCollapsed ? 'Show Sources Sidebar' : 'Full Screen Workspace',
+          icon: Icon(
+            _isSourcesCollapsed ? Icons.view_sidebar_rounded : Icons.fullscreen_rounded,
+            color: _isSourcesCollapsed ? AppColors.primary : (isDark ? Colors.white70 : Colors.black54),
+          ),
+          onPressed: () => setState(() => _isSourcesCollapsed = !_isSourcesCollapsed),
+        ),
         const Center(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 8),
@@ -231,19 +241,25 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
   }) {
     return Row(
       children: [
-        // Left Column: Source Upload Panel (fixed 320px)
-        SizedBox(
-          width: 320,
-          child: SourceUploadPanel(
-            notebookId: widget.notebookId,
-            sources: sources,
-            selectedSource: _selectedSource,
-            onSourceSelected: (s) {
-              setState(() {
-                _selectedSource = (_selectedSource?.id == s.id) ? null : s;
-              });
-            },
-          ),
+        // Left Column: Source Upload Panel (fixed 320px, collapsible for full-screen)
+        AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          child: _isSourcesCollapsed
+              ? const SizedBox.shrink()
+              : SizedBox(
+                  width: 320,
+                  child: SourceUploadPanel(
+                    notebookId: widget.notebookId,
+                    sources: sources,
+                    selectedSource: _selectedSource,
+                    onSourceSelected: (s) {
+                      setState(() {
+                        _selectedSource = (_selectedSource?.id == s.id) ? null : s;
+                      });
+                    },
+                  ),
+                ),
         ),
 
         // Right Column: Active Output Workspace + Bottom Toolbar
@@ -537,62 +553,273 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
     }
   }
 
+  Color _getTypeColor(NotebookOutputType type) {
+    switch (type) {
+      case NotebookOutputType.lesson:
+        return const Color(0xFF10B981);
+      case NotebookOutputType.flashcards:
+        return const Color(0xFF3B82F6);
+      case NotebookOutputType.quiz:
+        return const Color(0xFFEF4444);
+      case NotebookOutputType.studyGuide:
+        return AppColors.primary;
+      case NotebookOutputType.timeline:
+        return const Color(0xFF8B5CF6);
+      case NotebookOutputType.briefing:
+        return const Color(0xFF14B8A6);
+      case NotebookOutputType.faq:
+        return const Color(0xFFF59E0B);
+      case NotebookOutputType.mindMap:
+        return const Color(0xFFEC4899);
+    }
+  }
+
+  IconData _getTypeIcon(NotebookOutputType type) {
+    switch (type) {
+      case NotebookOutputType.lesson:
+        return Icons.school_rounded;
+      case NotebookOutputType.flashcards:
+        return Icons.style_rounded;
+      case NotebookOutputType.quiz:
+        return Icons.quiz_rounded;
+      case NotebookOutputType.studyGuide:
+        return Icons.menu_book_rounded;
+      case NotebookOutputType.timeline:
+        return Icons.timeline_rounded;
+      case NotebookOutputType.briefing:
+        return Icons.assignment_rounded;
+      case NotebookOutputType.faq:
+        return Icons.help_outline_rounded;
+      case NotebookOutputType.mindMap:
+        return Icons.hub_rounded;
+    }
+  }
+
+  String _getTypeDescription(NotebookOutputType type) {
+    switch (type) {
+      case NotebookOutputType.lesson:
+        return 'Generates an interactive, structured lesson with key concepts, rich markdown formatting, and clear pedagogical explanations based on your sources.';
+      case NotebookOutputType.flashcards:
+        return 'Creates high-yield study flashcards with key terms, definitions, and front/back pairs optimized for active recall.';
+      case NotebookOutputType.quiz:
+        return 'Generates comprehensive assessment questions with answer keys and explanations based on your ingested source materials.';
+      case NotebookOutputType.studyGuide:
+        return 'Compiles an in-depth study guide featuring key takeaways, essential vocabulary terms, and chapter-by-chapter summaries.';
+      case NotebookOutputType.timeline:
+        return 'Constructs a chronological milestone sequence tracking key historical events, steps, or developments.';
+      case NotebookOutputType.briefing:
+        return 'Synthesizes an executive overview summarizing primary arguments, important takeaways, and critical insights.';
+      case NotebookOutputType.faq:
+        return 'Answers the most frequently asked questions and foundational concepts extracted from your sources.';
+      case NotebookOutputType.mindMap:
+        return 'Constructs a visual hierarchical mind map connecting central topics to sub-concepts and branches.';
+    }
+  }
+
   Widget _buildNoOutputPlaceholder(List<NotebookSource> sources, bool isDark) {
-    final hasSources = sources.any((s) => s.processingStatus == SourceProcessingStatus.ready);
+    final readySources = sources
+        .where((s) => s.processingStatus == SourceProcessingStatus.ready && s.rawContent.isNotEmpty)
+        .toList();
+    final hasSources = readySources.isNotEmpty;
+    final color = _getTypeColor(_selectedOutputType);
+    final icon = _getTypeIcon(_selectedOutputType);
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 820),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E261D) : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                width: 1.5,
               ),
-              child: const Icon(
-                Icons.auto_awesome_rounded,
-                size: 48,
-                color: AppColors.primary,
-              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            Text(
-              'No ${_selectedOutputType.displayName} generated yet',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 40, color: color),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Generate ${_selectedOutputType.displayName}',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _getTypeDescription(_selectedOutputType),
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    height: 1.5,
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Active Source Badges
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF151C14) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            hasSources ? Icons.check_circle_outline : Icons.info_outline,
+                            size: 16,
+                            color: hasSources ? const Color(0xFF10B981) : Colors.orange,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            hasSources
+                                ? '${readySources.length} Ready Source(s) will be synthesized'
+                                : 'No ready sources found',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (hasSources) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: readySources.map((s) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: color.withValues(alpha: 0.2)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.description_rounded, size: 12, color: color),
+                                const SizedBox(width: 4),
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 160),
+                                  child: Text(
+                                    s.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                if (_selectedOutputType == NotebookOutputType.quiz) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF151C14) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: SwitchListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        'Assessment Style Quiz',
+                        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        'Format questions for formal graded testing instead of study practice.',
+                        style: GoogleFonts.inter(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
+                      ),
+                      value: _isAssessment,
+                      activeThumbColor: const Color(0xFFEF4444),
+                      activeTrackColor: const Color(0xFFEF4444).withValues(alpha: 0.5),
+                      onChanged: (v) => setState(() => _isAssessment = v),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 24),
+
+                // Generate button on the middle of application!
+                ElevatedButton.icon(
+                  onPressed: hasSources
+                      ? () => _confirmAndGenerate(
+                            sources,
+                            _selectedOutputType,
+                            hasExistingOutput: false,
+                            isAssessment: _isAssessment,
+                          )
+                      : null,
+                  icon: const Icon(Icons.bolt_rounded, size: 20),
+                  label: Text('Generate ${_selectedOutputType.displayName}'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                    textStyle: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (!hasSources)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Text(
+                      'Please upload at least one readable document/source to enable generation.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(fontSize: 12, color: Colors.orange.shade700),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              hasSources
-                  ? 'Synthesize all ingested sources into a high-quality ${_selectedOutputType.displayName.toLowerCase()}.'
-                  : 'Add one or more sources on the left panel to begin generating.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? Colors.white60 : AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: hasSources
-                  ? () => _confirmAndGenerate(sources, _selectedOutputType, hasExistingOutput: false)
-                  : null,
-              icon: const Icon(Icons.bolt_rounded),
-              label: Text('Generate ${_selectedOutputType.displayName}'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -794,6 +1021,7 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
     List<NotebookSource> sources,
     NotebookOutputType type, {
     bool hasExistingOutput = false,
+    bool isAssessment = false,
   }) async {
     final readySources = sources
         .where((s) => s.processingStatus == SourceProcessingStatus.ready && s.rawContent.isNotEmpty)
@@ -806,19 +1034,35 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
       return;
     }
 
-    final result = await showDialog<Map<String, dynamic>?>(
-      context: context,
-      builder: (ctx) => GenerationConfirmDialog(
-        type: type,
-        sources: sources,
-        hasExistingOutput: hasExistingOutput,
-      ),
-    );
-
-    if (result != null && result['confirmed'] == true) {
-      final isAssessment = result['isAssessment'] as bool? ?? false;
-      await _generateOutput(sources, type, isAssessment: isAssessment);
+    if (hasExistingOutput) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Regenerate ${type.displayName}?'),
+          content: Text(
+            'Regenerating will replace your current ${type.displayName.toLowerCase()} output for this notebook. Are you sure you want to proceed?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Regenerate'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) return;
     }
+
+    await _generateOutput(sources, type, isAssessment: isAssessment);
   }
 
   Future<void> _generateOutput(
@@ -972,32 +1216,106 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
 
   void _showRenameDialog(BuildContext context, Notebook notebook) {
     final controller = TextEditingController(text: notebook.title);
+    String? duplicateWarning;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename Notebook'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Title *', border: OutlineInputBorder()),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (controller.text.trim().isEmpty) return;
-              Navigator.pop(ctx);
-              await NotebookService.instance.updateNotebook(
-                notebook.copyWith(title: controller.text.trim()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void checkDuplicate(String value) async {
+            final exists = await NotebookService.instance.hasNotebookTitle(
+              value.trim(),
+              excludeNotebookId: notebook.id,
+            );
+            setDialogState(() {
+              duplicateWarning = exists
+                  ? 'A notebook with the name "${value.trim()}" already exists. Please choose a unique name.'
+                  : null;
+            });
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Rename Notebook'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  onChanged: checkDuplicate,
+                  decoration: InputDecoration(
+                    labelText: 'Title *',
+                    border: const OutlineInputBorder(),
+                    errorText: duplicateWarning != null ? 'Duplicate name detected' : null,
+                  ),
+                ),
+                if (duplicateWarning != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFF59E0B)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            duplicateWarning!,
+                            style: const TextStyle(
+                              color: Color(0xFF92400E),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
-            child: const Text('Save'),
-          ),
-        ],
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: duplicateWarning != null
+                    ? null
+                    : () async {
+                        final title = controller.text.trim();
+                        if (title.isEmpty) return;
+
+                        final isDup = await NotebookService.instance.hasNotebookTitle(
+                          title,
+                          excludeNotebookId: notebook.id,
+                        );
+                        if (isDup) {
+                          setDialogState(() {
+                            duplicateWarning = 'A notebook with the name "$title" already exists. Please choose a unique name.';
+                          });
+                          return;
+                        }
+
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+                        await NotebookService.instance.updateNotebook(
+                          notebook.copyWith(title: title),
+                        );
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                ),
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

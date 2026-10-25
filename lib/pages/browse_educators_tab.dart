@@ -394,6 +394,9 @@ class _EducatorCardState extends State<_EducatorCard>
                         backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
                             ? NetworkImage(photoUrl)
                             : null,
+                        onBackgroundImageError: (photoUrl != null && photoUrl.isNotEmpty)
+                            ? (err, st) {}
+                            : null,
                         child: (photoUrl == null || photoUrl.isEmpty)
                             ? Icon(
                                 Icons.person_rounded,

@@ -16,6 +16,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   String _searchQuery = '';
   String _selectedFilter = 'Create Date';
   String _selectedRoleFilter = 'ALL';
+  int _currentPage = 1;
+  static const int _pageSize = 10;
 
   final List<String> _filterOptions = ['Name', 'Role', 'Status', 'Create Date'];
 
@@ -94,6 +96,18 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               }
               return cmp;
             });
+
+            final totalUsers = users.length;
+            final totalPages = (totalUsers / _pageSize).ceil();
+            if (_currentPage > totalPages && totalPages > 0) {
+              _currentPage = totalPages;
+            }
+            if (_currentPage < 1) {
+              _currentPage = 1;
+            }
+            final startIndex = totalUsers == 0 ? 0 : (_currentPage - 1) * _pageSize;
+            final endIndex = (startIndex + _pageSize > totalUsers) ? totalUsers : (startIndex + _pageSize);
+            final paginatedUsers = users.skip(startIndex).take(_pageSize).toList();
 
             final isMobile = constraints.maxWidth < 600;
 
@@ -213,7 +227,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: TextField(
-                                  onChanged: (v) => setState(() => _searchQuery = v),
+                                  onChanged: (v) => setState(() {
+                                    _searchQuery = v;
+                                    _currentPage = 1;
+                                  }),
                                   style: GoogleFonts.inter(fontSize: 14, color: Colors.black87),
                                   decoration: InputDecoration(
                                     hintText: 'Search users by name or email…',
@@ -268,64 +285,86 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     )
                   else if (isMobile)
                     // ── Mobile: Card list ──────────────────────────────
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: users.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) => _buildUserCard(users[index]),
+                    Column(
+                      children: [
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: paginatedUsers.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) => _buildUserCard(paginatedUsers[index]),
+                        ),
+                        _buildPaginationBar(
+                          totalUsers: totalUsers,
+                          totalPages: totalPages,
+                          startIndex: startIndex,
+                          endIndex: endIndex,
+                          isMobile: true,
+                        ),
+                      ],
                     )
                   else
                     // ── Desktop: Table ────────────────────────────────
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 20,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(20),
-                                topRight: Radius.circular(20),
+                    Column(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 20,
+                                offset: const Offset(0, 6),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                _tableH('Username', 3),
-                                _tableH('Email', 4),
-                                _tableH('Role', 2),
-                                _tableH('Status', 2),
-                                _tableH('Educ. Dates', 3),
-                                _tableH('Action', 3, center: true),
-                              ],
-                            ),
+                            ],
                           ),
-                          const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: users.length,
-                            separatorBuilder: (context, index) => const Divider(
-                              height: 1, color: Color(0xFFF1F5F9), indent: 24, endIndent: 24,
-                            ),
-                            itemBuilder: (context, index) => _buildUserRow(users[index]),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(20),
+                                    topRight: Radius.circular(20),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    _tableH('Username', 3),
+                                    _tableH('Email', 4),
+                                    _tableH('Role', 2),
+                                    _tableH('Status', 2),
+                                    _tableH('Educ. Dates', 3),
+                                    _tableH('Action', 3, center: true),
+                                  ],
+                                ),
+                              ),
+                              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                              ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: paginatedUsers.length,
+                                separatorBuilder: (context, index) => const Divider(
+                                  height: 1, color: Color(0xFFF1F5F9), indent: 24, endIndent: 24,
+                                ),
+                                itemBuilder: (context, index) => _buildUserRow(paginatedUsers[index]),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
+                        ),
+                        _buildPaginationBar(
+                          totalUsers: totalUsers,
+                          totalPages: totalPages,
+                          startIndex: startIndex,
+                          endIndex: endIndex,
+                          isMobile: false,
+                        ),
+                      ],
                     ),
                 ],
               ),
@@ -340,7 +379,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   Widget _buildRoleChip(String roleKey, String label, int count, Color color) {
     final isSelected = _selectedRoleFilter == roleKey;
     return InkWell(
-      onTap: () => setState(() => _selectedRoleFilter = roleKey),
+      onTap: () => setState(() {
+        _selectedRoleFilter = roleKey;
+        _currentPage = 1;
+      }),
       borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -398,6 +440,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final cardWidget = InkWell(
       onTap: () => setState(() {
         _selectedRoleFilter = isSelected ? 'ALL' : roleKey;
+        _currentPage = 1;
       }),
       borderRadius: BorderRadius.circular(18),
       child: AnimatedContainer(
@@ -534,13 +577,285 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   ),
                 ),
                 onTap: () {
-                  setState(() => _selectedFilter = option);
+                  setState(() {
+                    _selectedFilter = option;
+                    _currentPage = 1;
+                  });
                   Navigator.pop(context);
                 },
               );
             }),
             const SizedBox(height: 8),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaginationBar({
+    required int totalUsers,
+    required int totalPages,
+    required int startIndex,
+    required int endIndex,
+    required bool isMobile,
+  }) {
+    if (totalUsers == 0) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 22, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: isMobile
+          ? Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF81B655).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '10 per page',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF81B655),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Showing ${startIndex + 1}–$endIndex of $totalUsers',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _pageNavBtn(
+                      icon: Icons.chevron_left_rounded,
+                      label: 'Prev',
+                      enabled: _currentPage > 1,
+                      onTap: () => setState(() => _currentPage--),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'Page $_currentPage of $totalPages',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF81B655),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _pageNavBtn(
+                      icon: Icons.chevron_right_rounded,
+                      label: 'Next',
+                      enabled: _currentPage < totalPages,
+                      onTap: () => setState(() => _currentPage++),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF81B655).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '10 per page',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF81B655),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Showing ${startIndex + 1}–$endIndex of $totalUsers users',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    _pageNavBtn(
+                      icon: Icons.chevron_left_rounded,
+                      label: 'Previous',
+                      enabled: _currentPage > 1,
+                      onTap: () => setState(() => _currentPage--),
+                    ),
+                    const SizedBox(width: 6),
+                    ..._buildPageNumbers(totalPages),
+                    const SizedBox(width: 6),
+                    _pageNavBtn(
+                      icon: Icons.chevron_right_rounded,
+                      label: 'Next',
+                      enabled: _currentPage < totalPages,
+                      onTap: () => setState(() => _currentPage++),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _pageNavBtn({
+    required IconData icon,
+    required String label,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: enabled ? Colors.grey.shade100 : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: enabled ? const Color(0xFFCBD5E1) : Colors.grey.shade200,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (label == 'Previous' || label == 'Prev') ...[
+                Icon(icon, size: 16, color: enabled ? Colors.black87 : Colors.grey.shade300),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: enabled ? Colors.black87 : Colors.grey.shade300,
+                ),
+              ),
+              if (label == 'Next') ...[
+                const SizedBox(width: 4),
+                Icon(icon, size: 16, color: enabled ? Colors.black87 : Colors.grey.shade300),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildPageNumbers(int totalPages) {
+    if (totalPages <= 1) return [];
+
+    final List<Widget> pages = [];
+    final int start = (_currentPage - 2).clamp(1, totalPages);
+    final int end = (_currentPage + 2).clamp(1, totalPages);
+
+    if (start > 1) {
+      pages.add(_pageNumberBtn(1));
+      if (start > 2) {
+        pages.add(Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text('…', style: GoogleFonts.inter(color: Colors.grey)),
+        ));
+      }
+    }
+
+    for (int p = start; p <= end; p++) {
+      pages.add(_pageNumberBtn(p));
+    }
+
+    if (end < totalPages) {
+      if (end < totalPages - 1) {
+        pages.add(Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text('…', style: GoogleFonts.inter(color: Colors.grey)),
+        ));
+      }
+      pages.add(_pageNumberBtn(totalPages));
+    }
+
+    return pages;
+  }
+
+  Widget _pageNumberBtn(int page) {
+    final isSelected = page == _currentPage;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: InkWell(
+        onTap: () => setState(() => _currentPage = page),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF81B655) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? const Color(0xFF81B655) : const Color(0xFFE2E8F0),
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF81B655).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            '$page',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              color: isSelected ? Colors.white : Colors.black87,
+            ),
+          ),
         ),
       ),
     );

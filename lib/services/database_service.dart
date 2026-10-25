@@ -82,6 +82,10 @@ class EducatorApplication {
   final Timestamp? appliedAt;
   final String? rejectionReason;
   final String? rejectionDescription;
+  final String? cvFileName;
+  final List<String>? certificateFileNames;
+  final String? videoFileName;
+  final String? syllabusFileName;
 
   EducatorApplication({
     required this.id,
@@ -96,6 +100,10 @@ class EducatorApplication {
     required this.appliedAt,
     this.rejectionReason,
     this.rejectionDescription,
+    this.cvFileName,
+    this.certificateFileNames,
+    this.videoFileName,
+    this.syllabusFileName,
   });
 
   factory EducatorApplication.fromDoc(
@@ -118,6 +126,10 @@ class EducatorApplication {
       appliedAt: data['appliedAt'] as Timestamp?,
       rejectionReason: (data['rejectionReason'] as String?)?.isNotEmpty == true ? data['rejectionReason'] as String? : null,
       rejectionDescription: (data['rejectionDescription'] as String?)?.isNotEmpty == true ? data['rejectionDescription'] as String? : null,
+      cvFileName: data['cvFileName'] as String?,
+      certificateFileNames: (data['certificateFileNames'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+      videoFileName: data['videoFileName'] as String?,
+      syllabusFileName: data['syllabusFileName'] as String?,
     );
   }
 
@@ -132,6 +144,10 @@ class EducatorApplication {
       'status': status,
       'applicationType': applicationType,
       'appliedAt': appliedAt ?? FieldValue.serverTimestamp(),
+      if (cvFileName != null) 'cvFileName': cvFileName,
+      if (certificateFileNames != null) 'certificateFileNames': certificateFileNames,
+      if (videoFileName != null) 'videoFileName': videoFileName,
+      if (syllabusFileName != null) 'syllabusFileName': syllabusFileName,
     };
   }
 }
@@ -529,6 +545,10 @@ class DatabaseService {
     required String videoUrl,
     required String syllabusUrl,
     required String applicationType,
+    String? cvFileName,
+    List<String>? certificateFileNames,
+    String? videoFileName,
+    String? syllabusFileName,
   }) async {
     // Delete any existing application files for this user to avoid storage bloat
     final existingApps = await _educatorApplications.where('applicantUid', isEqualTo: uid).get();
@@ -553,6 +573,10 @@ class DatabaseService {
       'status': 'pending',
       'applicationType': applicationType,
       'appliedAt': FieldValue.serverTimestamp(),
+      'cvFileName': ?cvFileName,
+      'certificateFileNames': ?certificateFileNames,
+      'videoFileName': ?videoFileName,
+      'syllabusFileName': ?syllabusFileName,
     });
   }
 
@@ -854,6 +878,14 @@ class DatabaseService {
       'imageUrl': imageUrl,
       'notebookId': notebookId,
     });
+
+    // Notify validators in real-time when new lesson is submitted for validation
+    final authorName = user?.displayName ?? user?.email ?? 'An educator';
+    NotificationService.instance.notifyValidatorsOfNewLesson(
+      authorName: authorName,
+      lessonTitle: title,
+    ).catchError((e) => debugPrint('Error notifying validators of new lesson: $e'));
+
     return doc.id;
   }
 

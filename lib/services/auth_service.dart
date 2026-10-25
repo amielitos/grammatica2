@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'database_service.dart';
 import 'email_sender_service.dart';
 import 'device_session_service.dart';
+import '../pages/home_page.dart';
+import '../pages/admin_dashboard.dart';
 
 class LockoutStatus {
   final bool isLocked;
@@ -684,6 +686,11 @@ class AuthService {
     } catch (e) {
       debugPrint('Error during Google sign out: $e');
     }
+    // Always reset dashboard state to main Dashboard tab (index 0)
+    try {
+      AdminDashboard.resetToDashboard();
+      HomePage.resetToDashboard();
+    } catch (_) {}
     _auth.signOut();
   }
 

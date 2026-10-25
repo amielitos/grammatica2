@@ -165,6 +165,17 @@ class NotebookService {
   // Notebook CRUD Operations (Local Session)
   // ---------------------------------------------------------------------------
 
+  /// Checks whether a notebook with the given title already exists (case-insensitive).
+  /// Optionally exclude [excludeNotebookId] for rename/edit operations.
+  Future<bool> hasNotebookTitle(String title, {String? excludeNotebookId}) async {
+    await _loadFromLocalSession();
+    final normalized = title.trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+    return _localNotebooks.values.any((nb) =>
+        nb.id != excludeNotebookId &&
+        nb.title.trim().toLowerCase() == normalized);
+  }
+
   /// Creates a new notebook stored locally in the session.
   Future<Notebook> createNotebook({
     required String title,
@@ -174,12 +185,17 @@ class NotebookService {
     List<String> tags = const [],
   }) async {
     await _loadFromLocalSession();
+    final cleanTitle = title.trim();
+    if (await hasNotebookTitle(cleanTitle)) {
+      throw Exception('A notebook with the name "$cleanTitle" already exists. Please choose a different name.');
+    }
+
     final now = DateTime.now();
     final id = 'nb_${now.millisecondsSinceEpoch}';
 
     final notebook = Notebook(
       id: id,
-      title: title.trim(),
+      title: cleanTitle,
       description: description.trim(),
       createdBy: createdBy,
       createdAt: now,

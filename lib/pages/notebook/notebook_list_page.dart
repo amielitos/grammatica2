@@ -362,70 +362,149 @@ class _NotebookListPageState extends State<NotebookListPage> {
   void _showCreateNotebookDialog(BuildContext context, String currentUid) {
     final titleController = TextEditingController();
     final descController = TextEditingController();
+    String? duplicateWarning;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Create New Notebook'),
-        content: SizedBox(
-          width: 450,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Notebook Title *',
-                  hintText: 'e.g., Biology 101 - Cell Respiration',
-                  border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void checkDuplicate(String value) async {
+            final exists = await NotebookService.instance.hasNotebookTitle(value.trim());
+            setDialogState(() {
+              duplicateWarning = exists
+                  ? 'A notebook with the name "${value.trim()}" already exists. Please choose a unique name.'
+                  : null;
+            });
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.menu_book_rounded, color: AppColors.primary, size: 22),
                 ),
+                const SizedBox(width: 12),
+                const Text('Create New Notebook'),
+              ],
+            ),
+            content: SizedBox(
+              width: 450,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    autofocus: true,
+                    onChanged: checkDuplicate,
+                    decoration: InputDecoration(
+                      labelText: 'Notebook Title *',
+                      hintText: 'e.g., Biology 101 - Cell Respiration',
+                      border: const OutlineInputBorder(),
+                      errorText: duplicateWarning != null ? 'Duplicate name detected' : null,
+                    ),
+                  ),
+                  if (duplicateWarning != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFF59E0B)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              duplicateWarning!,
+                              style: const TextStyle(
+                                color: Color(0xFF92400E),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: descController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (Optional)',
+                      hintText: 'Brief summary of what this notebook covers...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Description (Optional)',
-                  hintText: 'Brief summary of what this notebook covers...',
-                  border: OutlineInputBorder(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: duplicateWarning != null
+                    ? null
+                    : () async {
+                        final title = titleController.text.trim();
+                        if (title.isEmpty) return;
+
+                        final isDup = await NotebookService.instance.hasNotebookTitle(title);
+                        if (isDup) {
+                          setDialogState(() {
+                            duplicateWarning = 'A notebook with the name "$title" already exists. Please choose a unique name.';
+                          });
+                          return;
+                        }
+
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+
+                        try {
+                          final notebook = await NotebookService.instance.createNotebook(
+                            title: title,
+                            description: descController.text.trim(),
+                            createdBy: currentUid,
+                          );
+
+                          if (!context.mounted) return;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => NotebookDetailPage(notebookId: notebook.id),
+                            ),
+                          );
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
                 ),
+                child: const Text('Create'),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleController.text.trim().isEmpty) return;
-              Navigator.pop(ctx);
-
-              final notebook = await NotebookService.instance.createNotebook(
-                title: titleController.text.trim(),
-                description: descController.text.trim(),
-                createdBy: currentUid,
-              );
-
-              if (!context.mounted) return;
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => NotebookDetailPage(notebookId: notebook.id),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Create'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -433,59 +512,123 @@ class _NotebookListPageState extends State<NotebookListPage> {
   void _showEditNotebookDialog(BuildContext context, Notebook notebook) {
     final titleController = TextEditingController(text: notebook.title);
     final descController = TextEditingController(text: notebook.description);
+    String? duplicateWarning;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Edit Notebook Details'),
-        content: SizedBox(
-          width: 450,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Title *',
-                  border: OutlineInputBorder(),
-                ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          void checkDuplicate(String value) async {
+            final exists = await NotebookService.instance.hasNotebookTitle(
+              value.trim(),
+              excludeNotebookId: notebook.id,
+            );
+            setDialogState(() {
+              duplicateWarning = exists
+                  ? 'A notebook with the name "${value.trim()}" already exists. Please choose a unique name.'
+                  : null;
+            });
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Edit Notebook Details'),
+            content: SizedBox(
+              width: 450,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    onChanged: checkDuplicate,
+                    decoration: InputDecoration(
+                      labelText: 'Title *',
+                      border: const OutlineInputBorder(),
+                      errorText: duplicateWarning != null ? 'Duplicate name detected' : null,
+                    ),
+                  ),
+                  if (duplicateWarning != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFF59E0B)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              duplicateWarning!,
+                              style: const TextStyle(
+                                color: Color(0xFF92400E),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: descController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (Optional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Description (Optional)',
-                  border: OutlineInputBorder(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: duplicateWarning != null
+                    ? null
+                    : () async {
+                        final title = titleController.text.trim();
+                        if (title.isEmpty) return;
+
+                        final isDup = await NotebookService.instance.hasNotebookTitle(
+                          title,
+                          excludeNotebookId: notebook.id,
+                        );
+                        if (isDup) {
+                          setDialogState(() {
+                            duplicateWarning = 'A notebook with the name "$title" already exists. Please choose a unique name.';
+                          });
+                          return;
+                        }
+
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+
+                        final updated = notebook.copyWith(
+                          title: title,
+                          description: descController.text.trim(),
+                        );
+                        await NotebookService.instance.updateNotebook(updated);
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
                 ),
+                child: const Text('Save'),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleController.text.trim().isEmpty) return;
-              Navigator.pop(ctx);
-
-              final updated = notebook.copyWith(
-                title: titleController.text.trim(),
-                description: descController.text.trim(),
-              );
-              await NotebookService.instance.updateNotebook(updated);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Save'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

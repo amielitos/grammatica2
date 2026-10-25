@@ -243,4 +243,88 @@ class NotificationService {
       type: NotificationType.subscription,
     );
   }
+
+  Future<void> notifySubscribersOfLesson({
+    required String educatorUid,
+    required String lessonTitle,
+    required String lessonId,
+  }) async {
+    try {
+      final eduDoc = await _firestore.collection('users').doc(educatorUid).get();
+      final data = eduDoc.data() ?? {};
+      final firstName = (data['first_name'] as String?)?.trim() ?? '';
+      final lastName = (data['last_name'] as String?)?.trim() ?? '';
+      final fullName = '$firstName $lastName'.trim();
+      final username = (data['username'] as String?)?.trim();
+      final educatorName = fullName.isNotEmpty ? fullName : (username ?? 'Your subscribed educator');
+
+      final subscribersSnap = await _firestore
+          .collection('users')
+          .doc(educatorUid)
+          .collection('subscribers')
+          .get();
+
+      for (final subDoc in subscribersSnap.docs) {
+        final subscriberUid = subDoc.id;
+        await sendNotification(
+          uid: subscriberUid,
+          title: 'New Lesson Uploaded!',
+          message: '$educatorName just published a new lesson: "$lessonTitle". Tap to check it out!',
+          type: NotificationType.lessonUpload,
+          educatorId: educatorUid,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error notifying subscribers of lesson: $e');
+    }
+  }
+
+  /// Real-time alert to validators and admins when a new educator/validator application is submitted
+  Future<void> notifyValidatorsOfNewApplication({
+    required String applicantName,
+    required String applicationType,
+  }) async {
+    try {
+      final validatorsSnap = await _firestore
+          .collection('users')
+          .where('role', whereIn: ['validator', 'superadmin'])
+          .get();
+
+      final labelType = applicationType == 'validator' ? 'Validator' : 'Educator';
+      for (final doc in validatorsSnap.docs) {
+        await sendNotification(
+          uid: doc.id,
+          title: 'New $labelType Application',
+          message: '$applicantName submitted an application for verification. Review their credentials now.',
+          type: NotificationType.general,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error notifying validators of new application: $e');
+    }
+  }
+
+  /// Real-time alert to validators and admins when a lesson is submitted for validation
+  Future<void> notifyValidatorsOfNewLesson({
+    required String authorName,
+    required String lessonTitle,
+  }) async {
+    try {
+      final validatorsSnap = await _firestore
+          .collection('users')
+          .where('role', whereIn: ['validator', 'superadmin'])
+          .get();
+
+      for (final doc in validatorsSnap.docs) {
+        await sendNotification(
+          uid: doc.id,
+          title: 'Lesson Awaiting Validation',
+          message: '$authorName submitted "$lessonTitle" for validation review.',
+          type: NotificationType.general,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error notifying validators of new lesson: $e');
+    }
+  }
 }

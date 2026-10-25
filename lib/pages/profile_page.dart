@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl_phone_field/intl_phone_field.dart';
 
 import 'package:file_picker/file_picker.dart';
 import '../services/role_service.dart';
@@ -40,10 +39,19 @@ class ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  String _capitalizeWords(String input) {
+    if (input.trim().isEmpty) return '';
+    return input.trim().split(RegExp(r'\s+')).map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + (word.length > 1 ? word.substring(1).toLowerCase() : '');
+    }).join(' ');
+  }
+
   final _usernameCtrl = TextEditingController();
+  final _firstNameCtrl = TextEditingController();
+  final _middleNameCtrl = TextEditingController();
+  final _lastNameCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _phoneFocus = FocusNode();
 
   // Local state for profile data
   bool _isEditing = false;
@@ -51,8 +59,23 @@ class ProfilePageState extends State<ProfilePage> {
   String _roleStr = 'LEARNER';
   String? _photoUrl;
   Timestamp? _dob;
-  String? _phoneNumber;
-  String? _completePhoneNumber;
+  Timestamp? _createdAt;
+
+  int? get _userAge {
+    if (_dob == null) return null;
+    final birthDate = _dob!.toDate();
+    final today = DateTime.now();
+    int age = today.year - birthDate.year;
+    if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  int get _accountAgeDays {
+    final created = _createdAt?.toDate() ?? widget.user.metadata.creationTime ?? DateTime.now();
+    return DateTime.now().difference(created).inDays;
+  }
 
   @override
   void initState() {
@@ -65,9 +88,10 @@ class ProfilePageState extends State<ProfilePage> {
   @override
   void dispose() {
     _usernameCtrl.dispose();
+    _firstNameCtrl.dispose();
+    _middleNameCtrl.dispose();
+    _lastNameCtrl.dispose();
     _bioCtrl.dispose();
-    _phoneCtrl.dispose();
-    _phoneFocus.dispose();
     super.dispose();
   }
 
@@ -95,30 +119,32 @@ class ProfilePageState extends State<ProfilePage> {
 
       final data = doc.data();
       final fetchedUsername = (data?['username'] as String?)?.trim();
+      final fetchedFirstName = (data?['first_name'] as String?)?.trim() ?? '';
+      final fetchedMiddleName = (data?['middle_name'] as String?)?.trim() ?? '';
+      final fetchedLastName = (data?['last_name'] as String?)?.trim() ?? '';
       final fetchedPhoto = (data?['photoUrl'] as String?);
       final fetchedBio = (data?['bio'] as String?)?.trim() ?? '';
-      final fetchedPhone = (data?['phone_number'] as String?);
       final fetchedDob = (data?['date_of_birth'] as Timestamp?);
+      final fetchedCreatedAt = (data?['createdAt'] as Timestamp?);
       final fetchedRole = (data?['role'] as String?) ?? 'LEARNER';
 
       if (mounted) {
         setState(() {
-          _displayName = (fetchedUsername?.isNotEmpty == true)
-              ? fetchedUsername!
-              : (widget.user.displayName ?? 'User');
+          final computedFullName = '$fetchedFirstName $fetchedLastName'.trim();
+          _displayName = (computedFullName.isNotEmpty)
+              ? computedFullName
+              : ((fetchedUsername?.isNotEmpty == true)
+                  ? fetchedUsername!
+                  : (widget.user.displayName ?? 'User'));
           _photoUrl = fetchedPhoto ?? widget.user.photoURL;
           _bioCtrl.text = fetchedBio;
-          _usernameCtrl.text = _displayName; // Set username field to current name
-          _phoneNumber = fetchedPhone;
+          _usernameCtrl.text = (fetchedUsername?.isNotEmpty == true) ? fetchedUsername! : _displayName;
+          _firstNameCtrl.text = fetchedFirstName;
+          _middleNameCtrl.text = fetchedMiddleName;
+          _lastNameCtrl.text = fetchedLastName;
           _dob = fetchedDob;
+          _createdAt = fetchedCreatedAt;
           _roleStr = fetchedRole;
-          if (_phoneNumber != null) {
-            String phoneText = _phoneNumber!;
-            if (phoneText.startsWith('+63')) {
-              phoneText = phoneText.substring(3);
-            }
-            _phoneCtrl.text = phoneText;
-          }
         });
       }
     } catch (e) {
@@ -128,47 +154,6 @@ class ProfilePageState extends State<ProfilePage> {
 
   // ... (keeping _updateUsername and _updateBio as is)
 
-  Future<void> _updateUsername() async {
-    final email = widget.user.email;
-    if (email == null) {
-      _showSnack('No email on account', error: true);
-      return;
-    }
-    final newName = _usernameCtrl.text.trim();
-
-    if (newName.isEmpty) {
-      _showSnack('Please enter a username', error: true);
-      return;
-    }
-
-    final password = await showDialog<String?>(
-      context: context,
-      builder: (context) {
-        final pwdCtrl = TextEditingController();
-        return _ReauthDialog(email: email, user: widget.user, pwdCtrl: pwdCtrl);
-      },
-    );
-    if (password == null || password.isEmpty) return;
-
-    try {
-      if (newName != widget.user.displayName) {
-        await widget.user.updateDisplayName(newName);
-      }
-      await RoleService.instance.updateUsername(
-        uid: widget.user.uid,
-        username: newName,
-      );
-      if (!mounted) return;
-      setState(() {
-        _displayName = newName;
-      });
-      _showSnack('Username updated');
-    } on FirebaseAuthException catch (e) {
-      _showSnack(e.message ?? 'Failed to update username', error: true);
-    } catch (_) {
-      _showSnack('Failed to update username', error: true);
-    }
-  }
 
   Future<void> _updateBio() async {
     final newBio = _bioCtrl.text.trim();
@@ -183,30 +168,6 @@ class ProfilePageState extends State<ProfilePage> {
       _showSnack('Bio updated');
     } catch (e) {
       _showSnack('Failed to update bio', error: true);
-    }
-  }
-
-  Future<void> _updatePhone() async {
-    // Use the complete number from IntlPhoneField if available, otherwise fallback to controller
-    final phone = _completePhoneNumber ?? _phoneCtrl.text.trim();
-
-    if (phone.isEmpty) {
-      _showSnack('Please enter a phone number', error: true);
-      return;
-    }
-
-    try {
-      await DatabaseService.instance.updateUserField(
-        widget.user.uid,
-        'phone_number',
-        phone,
-      );
-      if (mounted) {
-        fetchProfile(); // Refresh
-        _showSnack('Phone number updated');
-      }
-    } catch (e) {
-      _showSnack('Failed to update phone number', error: true);
     }
   }
 
@@ -576,7 +537,7 @@ class ProfilePageState extends State<ProfilePage> {
 
           if (!_isEditing) ...[
             // Status Section when not editing
-            if (_phoneNumber == null || _phoneNumber!.isEmpty || _dob == null)
+            if (_dob == null)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
@@ -590,7 +551,7 @@ class ProfilePageState extends State<ProfilePage> {
                   children: [
                     const Text('Profile Incomplete', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF795548))),
                     const SizedBox(height: 8),
-                    const Text('Add phone number and date of birth to unlock educator and validator applications.', style: TextStyle(color: Color(0xFF795548), height: 1.4)),
+                    const Text('Add date of birth to unlock educator and validator applications.', style: TextStyle(color: Color(0xFF795548), height: 1.4)),
                   ],
                 ),
               ),
@@ -606,21 +567,94 @@ class ProfilePageState extends State<ProfilePage> {
             const Divider(),
             const SizedBox(height: 24),
             _buildInfoRow(Icons.calendar_today_outlined, 'Birthday', _dob != null ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}' : 'Not set'),
-            const SizedBox(height: 16),
-            _buildInfoRow(Icons.phone_android_outlined, 'Phone', _phoneNumber ?? 'Not set'),
 
           ] else ...[
             // Edit Mode Fields
             Text('Edit Profile Information', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.black87)),
             const SizedBox(height: 24),
-            
+
+            // First Name and Middle Name (Responsive layout)
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 450;
+                final firstNameWidget = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildEditLabel('First Name *'),
+                    TextField(
+                      controller: _firstNameCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r"[a-zA-Z\s\-']")),
+                        _ProfileCapitalizerFormatter(),
+                      ],
+                      style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+                      decoration: _customInputDecoration(hint: 'First Name'),
+                    ),
+                  ],
+                );
+
+                final middleNameWidget = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildEditLabel('Middle Name'),
+                    TextField(
+                      controller: _middleNameCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r"[a-zA-Z\s\-']")),
+                        _ProfileCapitalizerFormatter(),
+                      ],
+                      style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+                      decoration: _customInputDecoration(hint: 'Middle Name (Optional)'),
+                    ),
+                  ],
+                );
+
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      firstNameWidget,
+                      const SizedBox(height: 18),
+                      middleNameWidget,
+                    ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: firstNameWidget),
+                    const SizedBox(width: 14),
+                    Expanded(flex: 2, child: middleNameWidget),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 18),
+
+            // Last Name
+            _buildEditLabel('Last Name *'),
+            TextField(
+              controller: _lastNameCtrl,
+              textCapitalization: TextCapitalization.words,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r"[a-zA-Z\s\-']")),
+                _ProfileCapitalizerFormatter(),
+              ],
+              style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+              decoration: _customInputDecoration(hint: 'Last Name'),
+            ),
+            const SizedBox(height: 18),
+
             _buildEditLabel('Username *'),
             TextField(
               controller: _usernameCtrl,
               style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
-              decoration: _customInputDecoration(hint: 'New Username'),
+              decoration: _customInputDecoration(hint: 'Username'),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
             
             _buildEditLabel('Bio'),
             TextField(
@@ -629,20 +663,6 @@ class ProfilePageState extends State<ProfilePage> {
               maxLines: 3,
               style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
               decoration: _customInputDecoration(hint: 'Tell us about yourself...'),
-            ),
-            const SizedBox(height: 24),
-            
-            _buildEditLabel('Phone Number *'),
-            IntlPhoneField(
-              controller: _phoneCtrl,
-              focusNode: _phoneFocus,
-              initialCountryCode: 'PH',
-              style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
-              dropdownTextStyle: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
-              decoration: _customInputDecoration(hint: 'Phone Number *'),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
-              onChanged: (phone) => _completePhoneNumber = phone.completeNumber,
             ),
             const SizedBox(height: 24),
             
@@ -661,11 +681,57 @@ class ProfilePageState extends State<ProfilePage> {
             
             const SizedBox(height: 48),
             _buildGreenButton('Save Changes', () async {
-               // Update all fields
-               await _updateUsername();
+               final first = _capitalizeWords(_firstNameCtrl.text);
+               final middle = _capitalizeWords(_middleNameCtrl.text);
+               final last = _capitalizeWords(_lastNameCtrl.text);
+               final username = _usernameCtrl.text.trim();
+
+               _firstNameCtrl.text = first;
+               _middleNameCtrl.text = middle;
+               _lastNameCtrl.text = last;
+
+               if (first.isEmpty) {
+                 _showSnack('Please enter your First Name', error: true);
+                 return;
+               }
+               if (last.isEmpty) {
+                 _showSnack('Please enter your Last Name', error: true);
+                 return;
+               }
+
+               String fullName = first;
+               if (middle.isNotEmpty) fullName += ' $middle';
+               fullName += ' $last';
+
+               try {
+                 await FirebaseFirestore.instance.collection('users').doc(widget.user.uid).set({
+                   'first_name': first,
+                   'middle_name': middle,
+                   'last_name': last,
+                   'full_name': fullName,
+                   if (username.isNotEmpty) 'username': username,
+                 }, SetOptions(merge: true));
+
+                 if (username.isNotEmpty && username != widget.user.displayName) {
+                   await widget.user.updateDisplayName(fullName);
+                 }
+               } catch (e) {
+                 debugPrint('Error updating name fields: $e');
+               }
+
+               if (username.isNotEmpty) {
+                 try {
+                   await RoleService.instance.updateUsername(uid: widget.user.uid, username: username);
+                 } catch (_) {}
+               }
+
                await _updateBio();
-               await _updatePhone();
-               setState(() => _isEditing = false);
+
+               setState(() {
+                 _displayName = fullName;
+                 _isEditing = false;
+               });
+               _showSnack('Profile information updated successfully');
             }),
             const SizedBox(height: 12),
             SizedBox(
@@ -1002,7 +1068,7 @@ class ProfilePageState extends State<ProfilePage> {
         _ChangePasswordCard(user: widget.user),
         _buildAIUsageCard(role),
 
-        if (role != UserRole.educator && role != UserRole.validator)
+        if (role == UserRole.learner)
           _buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1026,17 +1092,67 @@ class ProfilePageState extends State<ProfilePage> {
                 StreamBuilder<EducatorApplication?>(
                   stream: DatabaseService.instance.streamUserApplication(widget.user.uid),
                   builder: (context, appSnap) {
-                    if (appSnap.hasError) return Text('Error: ${appSnap.error}', style: TextStyle(color: Colors.red));
+                    if (appSnap.hasError) return Text('Error: ${appSnap.error}', style: const TextStyle(color: Colors.red));
                     final application = appSnap.data;
-                    if (application != null && (application.status == 'pending' || application.status == 'rejected')) {
-                      return _buildGreenButton(
-                        'View Application Status',
-                        () => _showApplicationStatusDialog(application),
+                    
+                    // If user is already approved as educator or current role is educator
+                    final isApprovedEducator = role == UserRole.educator || application?.status == 'approved';
+
+                    if (isApprovedEducator) {
+                      return SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: null, // Greyed out / disabled
+                          icon: const Icon(Icons.verified_rounded, color: Colors.grey),
+                          label: const Text(
+                            'Educator Status: Approved',
+                            style: TextStyle(fontWeight: FontWeight.w700, color: Colors.grey),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFF334155).withValues(alpha: 0.5)
+                                : const Color(0xFFE2E8F0),
+                            disabledBackgroundColor: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFF334155).withValues(alpha: 0.5)
+                                : const Color(0xFFE2E8F0),
+                            disabledForegroundColor: Colors.grey,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                        ),
                       );
                     }
+
+                    // If user has applied and it's pending or rejected, show status button (no re-application)
+                    if (application != null && (application.status == 'pending' || application.status == 'rejected')) {
+                      final isPending = application.status == 'pending';
+                      return SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showApplicationStatusDialog(application),
+                          icon: Icon(
+                            isPending ? Icons.hourglass_top_rounded : Icons.info_outline_rounded,
+                            color: Colors.white,
+                          ),
+                          label: Text(
+                            isPending ? 'View Application Status (Pending)' : 'View Application Status (Rejected)',
+                            style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isPending ? const Color(0xFFD97706) : const Color(0xFFDC2626),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                        ),
+                      );
+                    }
+
                     return _buildGreenButton(
-                      role == UserRole.educator ? 'Apply as Validator' : 'Apply as an Educator',
-                      () => _showJoinGrammaticaDialog(role),
+                      'Apply as an Educator',
+                      () => _startEducatorApplication(),
                     );
                   },
                 ),
@@ -1277,55 +1393,148 @@ class ProfilePageState extends State<ProfilePage> {
       },
     );
   }
-void _showJoinGrammaticaDialog(UserRole currentRole) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Join Grammatica'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (currentRole != UserRole.educator)
-              ListTile(
-                leading: const Icon(Icons.school),
-                title: const Text('Apply as Educator'),
-                subtitle: const Text('Teach and monetize your content'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RoleApplicationPage(
-                        user: widget.user,
-                        applicationType: 'educator',
+  void _startEducatorApplication() {
+    final age = _userAge;
+    final accountDays = _accountAgeDays;
+    final isAgeValid = age != null && age >= 21;
+    final isAccountAgeValid = accountDays >= 30;
+
+    if (!isAgeValid || !isAccountAgeValid) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 24),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Application Requirements',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'To ensure quality instruction on Grammatica, applicants must meet the following criteria before applying:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            isAgeValid ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                            color: isAgeValid ? const Color(0xFF16A34A) : const Color(0xFFEF4444),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: RichText(
+                              text: TextSpan(
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                ),
+                                children: [
+                                  const TextSpan(text: 'Age 21 or older: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  TextSpan(
+                                    text: age != null ? '$age years old' : 'Date of birth not provided',
+                                    style: TextStyle(
+                                      color: isAgeValid ? const Color(0xFF16A34A) : const Color(0xFFEF4444),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  );
-                },
-              ),
-            if (currentRole == UserRole.educator)
-              ListTile(
-                leading: const Icon(Icons.verified_user),
-                title: const Text('Apply as Validator'),
-                subtitle: const Text('Verify expertise in the English field'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => RoleApplicationPage(
-                        user: widget.user,
-                        applicationType: 'validator',
+                      const Divider(height: 16),
+                      Row(
+                        children: [
+                          Icon(
+                            isAccountAgeValid ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                            color: isAccountAgeValid ? const Color(0xFF16A34A) : const Color(0xFFEF4444),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: RichText(
+                              text: TextSpan(
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                ),
+                                children: [
+                                  const TextSpan(text: 'Joined 30+ days: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  TextSpan(
+                                    text: '$accountDays days as member',
+                                    style: TextStyle(
+                                      color: isAccountAgeValid ? const Color(0xFF16A34A) : const Color(0xFFEF4444),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  );
-                },
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Understood'),
               ),
-          ],
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RoleApplicationPage(
+          user: widget.user,
+          applicationType: 'educator',
         ),
       ),
     );
   }
+
 
   void _showApplicationStatusDialog(EducatorApplication application) {
     final isValidator = application.applicationType == 'validator';
@@ -1373,7 +1582,7 @@ void _showJoinGrammaticaDialog(UserRole currentRole) {
             Text(
               application.status == 'pending'
                   ? 'Your application for the ${isValidator ? 'Validator' : 'Educator'} role is currently being reviewed by our super admins.'
-                  : 'Unfortunately, your application was not approved at this time. You can try applying again with updated credentials.',
+                  : 'Unfortunately, your application was not approved at this time. Please contact support or await further evaluation.',
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 24),
@@ -1434,22 +1643,6 @@ void _showJoinGrammaticaDialog(UserRole currentRole) {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
-          if (application.status == 'rejected')
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RoleApplicationPage(
-                      user: widget.user,
-                      applicationType: application.applicationType,
-                    ),
-                  ),
-                );
-              },
-              child: const Text('Re-apply'),
-            ),
         ],
       ),
     );
@@ -1975,8 +2168,12 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
       setState(() => _error = 'Please enter your current password.');
       return;
     }
-    if (newPass.length < 6) {
-      setState(() => _error = 'Password must be at least 6 characters.');
+    if (!_hasMinLength(newPass)) {
+      setState(() => _error = 'Password must be at least 8 characters.');
+      return;
+    }
+    if (!_isPasswordValid(newPass)) {
+      setState(() => _error = 'Password must meet all 5 security requirements below.');
       return;
     }
     if (newPass != confirm) {
@@ -2008,15 +2205,56 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
     }
   }
 
+  bool _hasMinLength(String p) => p.length >= 8;
+  bool _hasUppercase(String p) => RegExp(r'[A-Z]').hasMatch(p);
+  bool _hasLowercase(String p) => RegExp(r'[a-z]').hasMatch(p);
+  bool _hasDigit(String p) => RegExp(r'[0-9]').hasMatch(p);
+  bool _hasSpecial(String p) => RegExp(r'[!@#\$%^&*(),.?":{}|<>~_\-+=\\/\[\]]').hasMatch(p);
+
+  bool _isPasswordValid(String p) =>
+      _hasMinLength(p) &&
+      _hasUppercase(p) &&
+      _hasLowercase(p) &&
+      _hasDigit(p) &&
+      _hasSpecial(p);
+
+  Widget _buildReqRow(String label, bool met, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5.0),
+      child: Row(
+        children: [
+          Icon(
+            met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            size: 15,
+            color: met ? const Color(0xFF81B655) : (isDark ? Colors.white38 : Colors.grey.shade400),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: met ? FontWeight.w600 : FontWeight.w400,
+                color: met
+                    ? (isDark ? const Color(0xFF98D468) : const Color(0xFF2E7D32))
+                    : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final hasNewPass = _newPasswordCtrl.text.isNotEmpty;
+    final newPass = _newPasswordCtrl.text;
+    final hasNewPass = newPass.isNotEmpty;
     final hasConfirmPass = _confirmPasswordCtrl.text.isNotEmpty;
     final bool passwordsMatch = hasNewPass &&
         hasConfirmPass &&
-        (_newPasswordCtrl.text == _confirmPasswordCtrl.text);
-    final bool hasMinLength = _newPasswordCtrl.text.length >= 6;
+        (newPass == _confirmPasswordCtrl.text);
 
     return Container(
       width: double.infinity,
@@ -2055,16 +2293,19 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
             decoration: _inputDecoration(
               context: context,
               hint: 'Current Password *',
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscureCurrentPassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: isDark ? Colors.white70 : Colors.black54,
-                  size: 20,
-                ),
-                onPressed: () => setState(
-                  () => _obscureCurrentPassword = !_obscureCurrentPassword,
+              suffixIcon: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: IconButton(
+                  icon: Icon(
+                    _obscureCurrentPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(
+                    () => _obscureCurrentPassword = !_obscureCurrentPassword,
+                  ),
                 ),
               ),
             ),
@@ -2081,47 +2322,76 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
             decoration: _inputDecoration(
               context: context,
               hint: 'New Password *',
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscureNewPassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: isDark ? Colors.white70 : Colors.black54,
-                  size: 20,
-                ),
-                onPressed: () => setState(
-                  () => _obscureNewPassword = !_obscureNewPassword,
+              suffixIcon: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: IconButton(
+                  icon: Icon(
+                    _obscureNewPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(
+                    () => _obscureNewPassword = !_obscureNewPassword,
+                  ),
                 ),
               ),
             ),
           ),
           if (hasNewPass) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  hasMinLength
-                      ? Icons.check_circle_rounded
-                      : Icons.info_outline_rounded,
-                  size: 15,
-                  color: hasMinLength
-                      ? const Color(0xFF81B655)
-                      : Colors.orange,
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF22262B) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF384350) : const Color(0xFFE2E8F0),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  hasMinLength
-                      ? 'At least 6 characters met'
-                      : 'Password must be at least 6 characters',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: hasMinLength
-                        ? const Color(0xFF81B655)
-                        : Colors.orange,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.shield_outlined, size: 15, color: Color(0xFF81B655)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Password Requirements',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  _buildReqRow('At least 8 characters', _hasMinLength(newPass), isDark),
+                  _buildReqRow('At least 1 uppercase letter (A-Z)', _hasUppercase(newPass), isDark),
+                  _buildReqRow('At least 1 lowercase letter (a-z)', _hasLowercase(newPass), isDark),
+                  _buildReqRow('At least 1 number (0-9)', _hasDigit(newPass), isDark),
+                  _buildReqRow('At least 1 special character', _hasSpecial(newPass), isDark),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.black26 : const Color(0xFFE2E8F0).withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Allowed special characters: ! @ # \$ % ^ & * ( ) , . ? " : { } | < > ~ _ - + =',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontFamily: 'monospace',
+                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
           const SizedBox(height: 16),
@@ -2136,16 +2406,19 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
             decoration: _inputDecoration(
               context: context,
               hint: 'Confirm New Password *',
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscureConfirmPassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: isDark ? Colors.white70 : Colors.black54,
-                  size: 20,
-                ),
-                onPressed: () => setState(
-                  () => _obscureConfirmPassword = !_obscureConfirmPassword,
+              suffixIcon: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(
+                    () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                  ),
                 ),
               ),
             ),
@@ -2190,33 +2463,36 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _updatePassword,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF81B655),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _updatePassword,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF81B655),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Update Password',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'Update Password',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
             ),
           ),
         ],
@@ -2225,3 +2501,23 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
   }
 }
 
+class _ProfileCapitalizerFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+    final text = newValue.text;
+    final words = text.split(' ');
+    final capitalized = words.map((w) {
+      if (w.isEmpty) return '';
+      return w[0].toUpperCase() + (w.length > 1 ? w.substring(1).toLowerCase() : '');
+    }).join(' ');
+
+    return TextEditingValue(
+      text: capitalized,
+      selection: newValue.selection,
+    );
+  }
+}
