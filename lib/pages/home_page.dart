@@ -25,6 +25,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
+import '../models/playlist.dart';
+import '../widgets/playlist_card.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -381,7 +383,7 @@ class _LessonsListState extends State<_LessonsList> {
             final isDark = Theme.of(context).brightness == Brightness.dark;
             final username = widget.userData['username'] as String? ?? 'Learner';
             final query = _searchQuery.trim().toLowerCase();
-            final matchingLessons = query.isEmpty
+            final matchingLessons = query.isEmpty || _selectedFilter == 'Playlists'
                 ? <Lesson>[]
                 : lessons.where((l) {
                     if (_selectedFilter == 'Grammatica') {
@@ -569,125 +571,136 @@ class _LessonsListState extends State<_LessonsList> {
                           const SizedBox(height: 24),
                         ],
 
-                        // 4. Learning Hubs label
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 4,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF81B655),
-                                  borderRadius: BorderRadius.circular(2),
+                        // 4. Learning Hubs label & Hub Cards (hidden in Playlists filter)
+                        if (_selectedFilter != 'Playlists') ...[
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 4,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF81B655),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Learning Hubs',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                  letterSpacing: -0.3,
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Learning Hubs',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                    letterSpacing: -0.3,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
 
-                        // 5. Hub Cards — responsive row
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isNarrow = constraints.maxWidth < 600;
-                            final cards = <Widget>[
-                              if (_selectedFilter == 'All' ||
-                                  _selectedFilter == 'Grammatica' ||
-                                  (_selectedFilter == 'Completed' && grammaticaCompleted > 0))
-                                _buildHubCard(
-                                  context,
-                                  tag: 'OFFICIAL CURRICULUM',
-                                  title: 'Grammatica Official',
-                                  description:
-                                      'Structured lessons by language experts. Master tenses, punctuation & sentence structure.',
-                                  icon: Icons.verified_rounded,
-                                  brandColor: const Color(0xFFF59E0B),
-                                  gradientEnd: const Color(0xFFD97706),
-                                  lessonCount: grammaticaLessons.length,
-                                  completedCount: grammaticaCompleted,
-                                  onTap: () {
-                                    setState(() {
-                                      _activeFolder = {
-                                        'title': 'Grammatica Lessons',
-                                        'pillLabel': 'From Grammatica',
-                                        'lessons': grammaticaLessons,
-                                      };
-                                    });
-                                    widget.onFolderChanged?.call('Grammatica Lessons');
-                                  },
-                                ),
-                              if (_selectedFilter == 'All' ||
-                                  _selectedFilter == 'Public' ||
-                                  (_selectedFilter == 'Completed' && publicCompleted > 0))
-                                _buildHubCard(
-                                  context,
-                                  tag: 'COMMUNITY & EDUCATORS',
-                                  title: 'Community Hub',
-                                  description:
-                                      'Public lessons by verified educators. Real-world topics & specialized exercises.',
-                                  icon: Icons.public_rounded,
-                                  brandColor: const Color(0xFFEF4444),
-                                  gradientEnd: const Color(0xFFDC2626),
-                                  lessonCount: publicLessons.length,
-                                  completedCount: publicCompleted,
-                                  onTap: () {
-                                    setState(() {
-                                      _activeFolder = {
-                                        'title': 'Public Content',
-                                        'pillLabel': 'Public',
-                                        'lessons': publicLessons,
-                                        'isPublicFolder': true,
-                                      };
-                                    });
-                                    widget.onFolderChanged?.call('Public');
-                                  },
-                                ),
-                            ];
+                          // 5. Hub Cards — responsive row
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isNarrow = constraints.maxWidth < 600;
+                              final cards = <Widget>[
+                                if (_selectedFilter == 'All' ||
+                                    _selectedFilter == 'Grammatica' ||
+                                    (_selectedFilter == 'Completed' && grammaticaCompleted > 0))
+                                  _buildHubCard(
+                                    context,
+                                    tag: 'OFFICIAL CURRICULUM',
+                                    title: 'Grammatica Official',
+                                    description:
+                                        'Structured lessons by language experts. Master tenses, punctuation & sentence structure.',
+                                    icon: Icons.verified_rounded,
+                                    brandColor: const Color(0xFFF59E0B),
+                                    gradientEnd: const Color(0xFFD97706),
+                                    lessonCount: grammaticaLessons.length,
+                                    completedCount: grammaticaCompleted,
+                                    onTap: () {
+                                      setState(() {
+                                        _activeFolder = {
+                                          'title': 'Grammatica Lessons',
+                                          'pillLabel': 'From Grammatica',
+                                          'lessons': grammaticaLessons,
+                                        };
+                                      });
+                                      widget.onFolderChanged?.call('Grammatica Lessons');
+                                    },
+                                  ),
+                                if (_selectedFilter == 'All' ||
+                                    _selectedFilter == 'Public' ||
+                                    (_selectedFilter == 'Completed' && publicCompleted > 0))
+                                  _buildHubCard(
+                                    context,
+                                    tag: 'COMMUNITY & EDUCATORS',
+                                    title: 'Community Hub',
+                                    description:
+                                        'Public lessons by verified educators. Real-world topics & specialized exercises.',
+                                    icon: Icons.public_rounded,
+                                    brandColor: const Color(0xFFEF4444),
+                                    gradientEnd: const Color(0xFFDC2626),
+                                    lessonCount: publicLessons.length,
+                                    completedCount: publicCompleted,
+                                    onTap: () {
+                                      setState(() {
+                                        _activeFolder = {
+                                          'title': 'Public Content',
+                                          'pillLabel': 'Public',
+                                          'lessons': publicLessons,
+                                          'isPublicFolder': true,
+                                        };
+                                      });
+                                      widget.onFolderChanged?.call('Public');
+                                    },
+                                  ),
+                              ];
 
-                            if (isNarrow) {
-                              return Column(
-                                children: cards
-                                    .map((c) => Padding(
-                                          padding: const EdgeInsets.only(bottom: 16),
-                                          child: c,
-                                        ))
-                                    .toList(),
-                              );
-                            }
-                            return IntrinsicHeight(
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: cards
-                                    .map((c) => Expanded(
-                                          child: Padding(
-                                            padding: const EdgeInsets.only(right: 16),
+                              if (isNarrow) {
+                                return Column(
+                                  children: cards
+                                      .map((c) => Padding(
+                                            padding: const EdgeInsets.only(bottom: 16),
                                             child: c,
-                                          ),
-                                        ))
-                                    .toList(),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 24),
-                      ],
+                                          ))
+                                      .toList(),
+                                );
+                              }
+                              return IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: cards
+                                      .map((c) => Expanded(
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(right: 16),
+                                              child: c,
+                                            ),
+                                          ))
+                                      .toList(),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                        ],
 
-                      // Subscribed Educators Easy Access (hidden in Official tab)
-                      if (_selectedFilter != 'Grammatica') ...[
-                        _buildSubscribedEducatorsSection(context, isDark),
+                        // Curated Playlists (shown in 'All' and 'Playlists' filter)
+                        if (_selectedFilter == 'All' || _selectedFilter == 'Playlists') ...[
+                          _buildPlaylistsSection(context, isDark),
+                          const SizedBox(height: 24),
+                        ],
 
-                        // Recent Lessons from Subscribed Educators
-                        _buildSubscribedEducatorLessonsSection(context, lessons, progressMap, isDark),
+                        // Subscribed Educators Easy Access (hidden in Official and Playlists tab)
+                        if (_selectedFilter != 'Grammatica' && _selectedFilter != 'Playlists') ...[
+                          _buildSubscribedEducatorsSection(context, isDark),
+
+                          // Recent Lessons from Subscribed Educators
+                          _buildSubscribedEducatorLessonsSection(context, lessons, progressMap, isDark),
+
+                          // Playlists from Subscribed Educators
+                          _buildSubscribedEducatorPlaylistsSection(context, isDark),
+                        ],
                       ],
 
                       // 6. AI Practice Banner
@@ -701,6 +714,131 @@ class _LessonsListState extends State<_LessonsList> {
           );
 
           },
+        );
+      },
+    );
+  }
+
+  Widget _buildPlaylistsSection(BuildContext context, bool isDark) {
+    return StreamBuilder<List<LessonPlaylist>>(
+      stream: DatabaseService.instance.streamAllPlaylists(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        final allPlaylists = snapshot.data ?? [];
+        final query = _searchQuery.trim().toLowerCase();
+        final playlists = query.isEmpty
+            ? allPlaylists
+            : allPlaylists.where((p) =>
+                p.title.toLowerCase().contains(query) ||
+                p.description.toLowerCase().contains(query) ||
+                p.createdByEmail.toLowerCase().contains(query)
+              ).toList();
+
+        if (playlists.isEmpty) {
+          if (_selectedFilter == 'Playlists') {
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.playlist_play_rounded,
+                    size: 48,
+                    color: isDark ? Colors.white24 : Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    query.isNotEmpty
+                        ? 'No playlists match "$query"'
+                        : 'No learning playlists available yet',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Educators organize sequential lessons into playlists. Check back soon!',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: isDark ? Colors.white38 : Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF81B655),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Curated Playlists (${playlists.length})',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : Colors.black87,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 650;
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: isNarrow ? 1 : 2,
+                    mainAxisExtent: 180,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemCount: playlists.length,
+                  itemBuilder: (context, index) {
+                    final p = playlists[index];
+                    return PlaylistCard(
+                      playlist: p,
+                      isDark: isDark,
+                    );
+                  },
+                );
+              },
+            ),
+          ],
         );
       },
     );
@@ -968,11 +1106,12 @@ class _LessonsListState extends State<_LessonsList> {
 
   Widget _buildSearchBarAndFilters(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final filters = ['All', 'Grammatica', 'Public', 'Completed'];
+    final filters = ['All', 'Grammatica', 'Public', 'Playlists', 'Completed'];
     final filterLabels = {
       'All': 'All Hubs',
       'Grammatica': 'Official',
       'Public': 'Community',
+      'Playlists': 'Playlists',
       'Completed': 'Completed',
     };
 
@@ -1555,6 +1694,89 @@ class _LessonsListState extends State<_LessonsList> {
             ),
             const SizedBox(height: 24),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSubscribedEducatorPlaylistsSection(
+    BuildContext context,
+    bool isDark,
+  ) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid),
+      builder: (context, snapshot) {
+        final subs = snapshot.data ?? [];
+        final activeSubUids = subs
+            .where((s) => s['status'] == 'active')
+            .map((s) => (s['educatorUid'] as String?) ?? '')
+            .where((uid) => uid.isNotEmpty)
+            .toSet();
+
+        if (activeSubUids.isEmpty) return const SizedBox.shrink();
+
+        return StreamBuilder<List<LessonPlaylist>>(
+          stream: DatabaseService.instance.streamAllPlaylists(),
+          builder: (context, pSnap) {
+            final all = pSnap.data ?? [];
+            final educatorPlaylists = all
+                .where((p) => activeSubUids.contains(p.createdByUid))
+                .toList();
+
+            if (educatorPlaylists.isEmpty) return const SizedBox.shrink();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF81B655),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Playlists from Your Educators (${educatorPlaylists.length})',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : Colors.black87,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 650;
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: isNarrow ? 1 : 2,
+                        mainAxisExtent: 180,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                      ),
+                      itemCount: educatorPlaylists.length,
+                      itemBuilder: (context, index) {
+                        return PlaylistCard(
+                          playlist: educatorPlaylists[index],
+                          isDark: isDark,
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+              ],
+            );
+          },
         );
       },
     );

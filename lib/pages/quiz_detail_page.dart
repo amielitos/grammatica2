@@ -1,6 +1,7 @@
 import 'package:confetti/confetti.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
@@ -13,6 +14,13 @@ import '../widgets/universal_drawer.dart';
 import '../widgets/linked_companion_toolbar.dart';
 import 'home_page.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/foundation.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:string_similarity/string_similarity.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../services/navigation_service.dart';
+import '../services/web_service.dart';
 
 class _RenderableQuestion {
   final QuizQuestion question;
@@ -71,9 +79,47 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   late ConfettiController _confettiController;
 
   bool _isReviewing = false;
+
+  String _formatTs(dynamic ts) {
+    if (ts == null) return 'N/A';
+    DateTime d;
+    if (ts is Timestamp) {
+      d = ts.toDate().toLocal();
+    } else if (ts is DateTime) {
+      d = ts.toLocal();
+    } else {
+      return 'N/A';
+    }
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    final hour = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
+    final minute = d.minute.toString().padLeft(2, '0');
+    final amPm = d.hour >= 12 ? 'PM' : 'AM';
+    return '${months[d.month - 1]} ${d.day}, ${d.year} at $hour:$minute $amPm';
+  }
   bool _passageExpanded = true;
   bool get _previewMode => widget.previewMode;
   Map<String, dynamic>? _userData;
+
+  // Speech to Text for pronunciation questions
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isSpeechInitialized = false;
+  bool _isListening = false;
+  int? _listeningQuestionIndex;
+  dynamic _webRecognition;
+  Timer? _watchdogTimer;
+  final Map<int, String> _recognizedTranscripts = {};
+  final FlutterTts _flutterTts = FlutterTts();
+  bool _isPlayingAudio = false;
+
+  // Prerequisite check state
+  bool _prerequisiteMet = true;
+  Lesson? _prerequisiteLesson;
+
+  // Controller map for multi-blank fill-in-the-blank questions
+  final Map<int, List<TextEditingController>> _blankControllers = {};
 
   /// Live user object to preserve auth session continuity.
   User get _effectiveUser => AuthService.maybeLiveUser ?? widget.user;
@@ -199,13 +245,383 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     }
     _checkSubscription();
 
-    if (widget.autoStart || (widget.quiz.isAssessment && !widget.previewMode)) {
+    if (widget.quiz.requiresLessonCompleted && widget.quiz.requiredLessonId != null) {
+      _prerequisiteMet = false;
+      _checkPrerequisiteLesson();
+    }
+
+    final bool shouldBlockForPrereq = widget.quiz.requiresLessonCompleted && !_prerequisiteMet && !_isAdminOrSuperAdmin;
+    if (!shouldBlockForPrereq && (widget.autoStart || (widget.quiz.isAssessment && !widget.previewMode))) {
       _quizStarted = true;
       _startTime = DateTime.now();
       _completedLocal = false;
       _isReviewing = false;
       if (widget.quiz.duration > 0) {
         _startTimer();
+      }
+    }
+  }
+
+  Future<void> _checkPrerequisiteLesson() async {
+    final reqId = widget.quiz.requiredLessonId;
+    if (reqId == null) {
+      if (mounted) setState(() { _prerequisiteMet = true; });
+      return;
+    }
+    try {
+      final role = await RoleService.instance.getRole(_effectiveUser.uid);
+      if (role == UserRole.admin || role == UserRole.superadmin || widget.quiz.createdByUid == _effectiveUser.uid) {
+        if (mounted) {
+          setState(() {
+            _prerequisiteMet = true;
+          });
+        }
+        return;
+      }
+      final progress = await DatabaseService.instance.getLessonProgress(_effectiveUser.uid, reqId);
+      final isCompleted = progress != null && (progress['completed'] == true || (progress['progress'] as num? ?? 0) >= 1.0);
+      final lesson = await DatabaseService.instance.getLesson(reqId);
+      if (mounted) {
+        setState(() {
+          _prerequisiteMet = isCompleted;
+          _prerequisiteLesson = lesson;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking prerequisite lesson: $e');
+    }
+  }
+
+  Future<void> _speakWord(String word) async {
+    if (mounted) setState(() => _isPlayingAudio = true);
+    bool pluginSuccess = false;
+    try {
+      await _flutterTts.stop();
+      await _flutterTts.setLanguage("en-US");
+      await _flutterTts.setSpeechRate(0.42);
+      await _flutterTts.setVolume(1.0);
+      await _flutterTts.speak(word);
+      pluginSuccess = true;
+    } catch (e) {
+      debugPrint("TTS Plugin Error: $e");
+    }
+
+    if (!pluginSuccess && kIsWeb) {
+      WebService.instance.speak(word);
+    }
+
+    Future.delayed(const Duration(milliseconds: 1400), () {
+      if (mounted) setState(() => _isPlayingAudio = false);
+    });
+  }
+
+  void _resetWatchdog() {
+    _watchdogTimer?.cancel();
+    _watchdogTimer = Timer(const Duration(seconds: 15), () {
+      if (mounted && _isListening) {
+        debugPrint('[Speech] Watchdog timeout - stopping listening');
+        _stopListening();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No speech detected. Tap the mic to try again.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    });
+  }
+
+  void _stopListening() {
+    _watchdogTimer?.cancel();
+    if (kIsWeb && _webRecognition != null) {
+      try {
+        WebService.instance.stopSpeechRecognition(_webRecognition);
+      } catch (_) {}
+      _webRecognition = null;
+    }
+    if (!kIsWeb) {
+      try {
+        _speech.stop();
+      } catch (_) {}
+    }
+    if (mounted) {
+      setState(() {
+        _isListening = false;
+        _listeningQuestionIndex = null;
+      });
+    }
+  }
+
+  Future<void> _initSpeech() async {
+    if (_isSpeechInitialized) return;
+    try {
+      if (!kIsWeb) {
+        final status = await Permission.microphone.request();
+        if (!status.isGranted) return;
+      }
+      _isSpeechInitialized = await _speech.initialize(
+        onStatus: (status) {
+          debugPrint('Speech Status: $status');
+          if (status == 'done' || status == 'notListening') {
+            if (mounted && _isListening) {
+              _stopListening();
+            }
+          }
+        },
+        onError: (err) {
+          debugPrint('Speech Error: ${err.errorMsg}');
+          if (mounted && _isListening) {
+            _stopListening();
+          }
+        },
+      );
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('Speech init error: $e');
+    }
+  }
+
+  void _processSpokenWords(String rawWords, String targetWord, int questionIndex) {
+    final cleanWords = rawWords.trim().toLowerCase();
+    final target = targetWord.trim().toLowerCase().replaceAll(RegExp(r'[^\w]'), '');
+
+    final tokens = cleanWords
+        .split(RegExp(r'\s+'))
+        .map((w) => w.replaceAll(RegExp(r'[^\w]'), ''))
+        .where((w) => w.isNotEmpty)
+        .toList();
+
+    String bestWord = tokens.isNotEmpty ? tokens.last : cleanWords;
+    double highestSim = 0.0;
+
+    for (final token in tokens) {
+      if (token == target) {
+        bestWord = token;
+        highestSim = 1.0;
+        break;
+      }
+      final sim = StringSimilarity.compareTwoStrings(token, target);
+      if (sim > highestSim) {
+        highestSim = sim;
+        bestWord = token;
+      }
+    }
+
+    _answerCtrls[questionIndex].text = bestWord;
+  }
+
+  Future<void> _toggleListening(String targetWord, int questionIndex) async {
+    if (_isListening && _listeningQuestionIndex == questionIndex) {
+      _stopListening();
+      return;
+    }
+
+    // Stop TTS if speaking
+    try {
+      await _flutterTts.stop();
+      if (mounted) setState(() => _isPlayingAudio = false);
+    } catch (_) {}
+
+    setState(() {
+      _isListening = true;
+      _listeningQuestionIndex = questionIndex;
+    });
+
+    if (kIsWeb) {
+      _startWebListening(targetWord, questionIndex);
+    } else {
+      await _startMobileListening(targetWord, questionIndex);
+    }
+  }
+
+  void _startWebListening(String targetWord, int questionIndex) {
+    try {
+      if (_webRecognition != null) {
+        try {
+          WebService.instance.stopSpeechRecognition(_webRecognition);
+        } catch (_) {}
+        _webRecognition = null;
+      }
+
+      _resetWatchdog();
+
+      final recognition = WebService.instance.createSpeechRecognition();
+      if (recognition != null) {
+        _webRecognition = recognition;
+        WebService.instance.configureSpeechRecognition(
+          recognition: recognition,
+          onResult: (transcript, isFinal) {
+            debugPrint('[WebSpeech] Recognized: "$transcript", isFinal: $isFinal');
+            if (mounted) {
+              final cleanText = transcript.trim();
+              if (cleanText.isNotEmpty) {
+                setState(() {
+                  _recognizedTranscripts[questionIndex] = cleanText;
+                  _processSpokenWords(cleanText, targetWord, questionIndex);
+                });
+              }
+              if (isFinal && cleanText.isNotEmpty) {
+                Future.delayed(const Duration(milliseconds: 700), () {
+                  if (mounted && _isListening && _listeningQuestionIndex == questionIndex) {
+                    _stopListening();
+                  }
+                });
+              }
+            }
+          },
+          onError: (e) {
+            debugPrint('[WebSpeech] Error: $e');
+            final errStr = e.toString().toLowerCase();
+            if (errStr.contains('not-allowed') || errStr.contains('denied')) {
+              _stopListening();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Microphone permission blocked in browser.')),
+                );
+              }
+            } else if (errStr.contains('no-speech') || errStr.contains('aborted')) {
+              final heard = _recognizedTranscripts[questionIndex];
+              if (heard == null || heard.isEmpty) {
+                _stopListening();
+              }
+            } else {
+              _stopListening();
+            }
+          },
+          onEnd: () {
+            debugPrint('[WebSpeech] onEnd event');
+            if (mounted && _isListening && _listeningQuestionIndex == questionIndex) {
+              _stopListening();
+            }
+          },
+        );
+
+        WebService.instance.startSpeechRecognition(recognition);
+      } else {
+        _startMobileListening(targetWord, questionIndex);
+      }
+    } catch (e) {
+      debugPrint('[WebSpeech] Start failed: $e');
+      _startMobileListening(targetWord, questionIndex);
+    }
+  }
+
+  Future<void> _startMobileListening(String targetWord, int questionIndex) async {
+    final status = await Permission.microphone.request();
+    if (!status.isGranted) {
+      _stopListening();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Microphone permission is required for pronunciation practice.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!_isSpeechInitialized) {
+      await _initSpeech();
+    }
+
+    if (!_isSpeechInitialized && mounted) {
+      _stopListening();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Speech recognition not available on this device.')),
+      );
+      return;
+    }
+
+    try {
+      if (_speech.isListening) {
+        await _speech.cancel();
+        await Future.delayed(const Duration(milliseconds: 150));
+      }
+
+      _resetWatchdog();
+
+      bool started = await _speech.listen(
+        onResult: (result) {
+          debugPrint('[MobileSpeech] Result: "${result.recognizedWords}", isFinal: ${result.finalResult}');
+          if (mounted) {
+            final words = result.recognizedWords.trim();
+            if (words.isNotEmpty) {
+              setState(() {
+                _recognizedTranscripts[questionIndex] = words;
+                _processSpokenWords(words, targetWord, questionIndex);
+              });
+            }
+            if (result.finalResult && words.isNotEmpty) {
+              Future.delayed(const Duration(milliseconds: 700), () {
+                if (mounted && _isListening && _listeningQuestionIndex == questionIndex) {
+                  _stopListening();
+                }
+              });
+            }
+          }
+        },
+        listenOptions: stt.SpeechListenOptions(
+          listenFor: const Duration(seconds: 25),
+          pauseFor: const Duration(seconds: 4),
+          partialResults: true,
+          cancelOnError: false,
+          listenMode: stt.ListenMode.dictation,
+        ),
+      );
+
+      if (!started) {
+        debugPrint('[MobileSpeech] First listen call returned false. Retrying once...');
+        await _speech.cancel();
+        await Future.delayed(const Duration(milliseconds: 250));
+
+        started = await _speech.listen(
+          onResult: (result) {
+            debugPrint('[MobileSpeech-Retry] Result: "${result.recognizedWords}", isFinal: ${result.finalResult}');
+            if (mounted) {
+              final words = result.recognizedWords.trim();
+              if (words.isNotEmpty) {
+                setState(() {
+                  _recognizedTranscripts[questionIndex] = words;
+                  _processSpokenWords(words, targetWord, questionIndex);
+                });
+              }
+              if (result.finalResult && words.isNotEmpty) {
+                Future.delayed(const Duration(milliseconds: 700), () {
+                  if (mounted && _isListening && _listeningQuestionIndex == questionIndex) {
+                    _stopListening();
+                  }
+                });
+              }
+            }
+          },
+          listenOptions: stt.SpeechListenOptions(
+            listenFor: const Duration(seconds: 25),
+            pauseFor: const Duration(seconds: 4),
+            partialResults: true,
+            cancelOnError: false,
+            listenMode: stt.ListenMode.dictation,
+          ),
+        );
+
+        if (!started) {
+          debugPrint('[MobileSpeech] Speech recognizer failed to start after retry.');
+          _stopListening();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Microphone was busy. Please tap the mic again to speak.')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[MobileSpeech] Listen error: $e');
+      _stopListening();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not start speech recognition: $e')),
+        );
       }
     }
   }
@@ -248,8 +664,16 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _watchdogTimer?.cancel();
+    _stopListening();
+    _flutterTts.stop();
     for (var ctrl in _answerCtrls) {
       ctrl.dispose();
+    }
+    for (var ctrls in _blankControllers.values) {
+      for (var ctrl in ctrls) {
+        ctrl.dispose();
+      }
     }
     _confettiController.dispose();
     super.dispose();
@@ -317,7 +741,53 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       scorableCount++;
       final input = _normalize(_answerCtrls[i].text);
       final expected = _normalize(q.answer);
-      if (input == expected) score++;
+
+      bool isPass = false;
+      if (q.type == 'pronunciation') {
+        final target = _normalize(q.targetWord ?? q.answer);
+        final similarity = StringSimilarity.compareTwoStrings(input, target);
+
+        final rawHeard = _normalize(_recognizedTranscripts[i] ?? '');
+        bool containsMatch = false;
+        if (rawHeard.isNotEmpty) {
+          final heardTokens = rawHeard.split(RegExp(r'\s+'));
+          for (final token in heardTokens) {
+            if (token == target ||
+                StringSimilarity.compareTwoStrings(token, target) >= 0.70) {
+              containsMatch = true;
+              break;
+            }
+          }
+        }
+
+        isPass = similarity >= 0.70 || input == target || containsMatch;
+      } else if (q.type == 'fill_in_the_blank') {
+        final reg = RegExp(r'\[([^\]]+)\]');
+        final matches = reg.allMatches(q.question).toList();
+        final expectedBlanks = matches.isNotEmpty
+            ? matches.map((m) => _normalize(m.group(1)!)).toList()
+            : (q.blankAnswers != null && q.blankAnswers!.isNotEmpty
+                ? q.blankAnswers!.map((b) => _normalize(b)).toList()
+                : q.answer.split(',').map((s) => _normalize(s)).where((s) => s.isNotEmpty).toList());
+        final userParts = _answerCtrls[i].text.split(',').map((s) => _normalize(s)).toList();
+
+        if (expectedBlanks.isNotEmpty && userParts.length >= expectedBlanks.length) {
+          bool allMatch = true;
+          for (int b = 0; b < expectedBlanks.length; b++) {
+            if (b >= userParts.length || userParts[b] != expectedBlanks[b]) {
+              allMatch = false;
+              break;
+            }
+          }
+          isPass = allMatch;
+        } else {
+          isPass = input == expected;
+        }
+      } else {
+        isPass = input == expected;
+      }
+
+      if (isPass) score++;
       userAnswers.add(_answerCtrls[i].text.trim());
     }
 
@@ -641,23 +1111,23 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
 
         return Column(
           children: [
-            if (_previewMode)
+            if (_previewMode || widget.quiz.validationStatus == 'awaiting_approval')
               Container(
                 padding: const EdgeInsets.all(16),
                 margin: const EdgeInsets.only(bottom: 32),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: const Color(0xFFE8A838).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  border: Border.all(color: const Color(0xFFE8A838).withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.visibility_rounded, color: AppColors.primary),
+                    const Icon(Icons.schedule_rounded, color: Color(0xFFE8A838)),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'PREVIEW MODE - Contents only view active.',
-                        style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13),
+                        'Pending Approval • Submitted: ${_formatTs(widget.quiz.createdAt)}',
+                        style: GoogleFonts.inter(color: const Color(0xFFB45309), fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                     ),
                   ],
@@ -794,32 +1264,34 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                         const SizedBox(height: 48),
                         if (!_previewMode)
                           (maxAttempts - _attemptsUsed > 0)
-                              ? (_isSubscribed || _isAdminOrSuperAdmin || !widget.quiz.isMembersOnly || widget.quiz.createdByUid == _effectiveUser.uid
-                                  ? Center(
-                                      child: SizedBox(
-                                        width: 340,
-                                        child: ElevatedButton(
-                                          onPressed: _startQuiz,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.primary,
-                                            foregroundColor: Colors.white,
-                                            minimumSize: const Size(double.infinity, 64),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(16),
+                              ? (widget.quiz.requiresLessonCompleted && !_prerequisiteMet && !_isAdminOrSuperAdmin && widget.quiz.createdByUid != _effectiveUser.uid
+                                  ? _buildPrerequisiteRequiredMessage(isDark)
+                                  : (_isSubscribed || _isAdminOrSuperAdmin || !widget.quiz.isMembersOnly || widget.quiz.createdByUid == _effectiveUser.uid
+                                      ? Center(
+                                          child: SizedBox(
+                                            width: 340,
+                                            child: ElevatedButton(
+                                              onPressed: _startQuiz,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: AppColors.primary,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: const Size(double.infinity, 64),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(16),
+                                                ),
+                                                elevation: 0,
+                                              ),
+                                              child: Text(
+                                                'Start Quiz',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 24,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
                                             ),
-                                            elevation: 0,
                                           ),
-                                          child: Text(
-                                            'Start Quiz',
-                                            style: GoogleFonts.outfit(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  : _buildLockMessage(isDark))
+                                        )
+                                      : _buildLockMessage(isDark)))
                               : _buildNoAttemptsMessage(isDark),
                         if (_previewMode)
                           OutlinedButton.icon(
@@ -924,6 +1396,578 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           Text('You have used all available attempts for this quiz.', textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white70 : AppColors.textSecondary)),
         ],
       ),
+    );
+  }
+
+  Widget _buildPrerequisiteRequiredMessage(bool isDark) {
+    final lessonTitle = widget.quiz.requiredLessonTitle ?? _prerequisiteLesson?.title ?? 'the required lesson';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF2C2416) : const Color(0xFFFFF9E6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFFB800).withValues(alpha: 0.4), width: 1.5),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFB800).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.lock_clock_rounded, size: 36, color: Color(0xFFFFB800)),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Prerequisite Lesson Required',
+            style: GoogleFonts.outfit(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : const Color(0xFF2A2A2A),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'You must complete "$lessonTitle" first before taking this quiz.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 20),
+          if (_prerequisiteLesson != null)
+            ElevatedButton.icon(
+              onPressed: () {
+                NavigationService.instance.goToLesson(context, _prerequisiteLesson!);
+              },
+              icon: const Icon(Icons.school_rounded),
+              label: const Text('Go to Lesson'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFillInTheBlankBody({
+    required QuizQuestion question,
+    required int index,
+    required bool isDark,
+    required Color textColor,
+  }) {
+    final reg = RegExp(r'\[([^\]]+)\]');
+    final matches = reg.allMatches(question.question).toList();
+    final List<String> expectedBlanks = matches.isNotEmpty
+        ? matches.map((m) => m.group(1)!.trim()).toList()
+        : (question.blankAnswers != null && question.blankAnswers!.isNotEmpty
+            ? question.blankAnswers!
+            : question.answer.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList());
+
+    if (!_blankControllers.containsKey(index)) {
+      final existingAnswers = _answerCtrls[index].text.split(',').map((s) => s.trim()).toList();
+      _blankControllers[index] = List.generate(
+        expectedBlanks.isNotEmpty ? expectedBlanks.length : 1,
+        (bIdx) => TextEditingController(
+          text: bIdx < existingAnswers.length ? existingAnswers[bIdx] : '',
+        ),
+      );
+    }
+
+    final blankCtrls = _blankControllers[index]!;
+
+    void syncAnswers() {
+      _answerCtrls[index].text = blankCtrls.map((c) => c.text.trim()).join(', ');
+      setState(() {});
+    }
+
+    String displayText = question.question;
+    for (int b = 0; b < matches.length; b++) {
+      displayText = displayText.replaceFirst(matches[b].group(0)!, '___(${b + 1})___');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2C2C2C) : AppColors.primary.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: isDark ? Colors.white12 : AppColors.primary.withValues(alpha: 0.15)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Fill in the Blanks (${expectedBlanks.length} blank${expectedBlanks.length > 1 ? 's' : ''})',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                displayText,
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  height: 1.8,
+                  fontWeight: FontWeight.w500,
+                  color: textColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Your Answers:',
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: textColor,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...List.generate(blankCtrls.length, (bIdx) {
+          final expected = bIdx < expectedBlanks.length ? expectedBlanks[bIdx] : '';
+          final userText = blankCtrls[bIdx].text.trim();
+          final isMatch = userText.toLowerCase() == expected.toLowerCase();
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${bIdx + 1}',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: TextField(
+                    controller: blankCtrls[bIdx],
+                    enabled: !_isReviewing,
+                    style: GoogleFonts.inter(fontSize: 16, color: textColor),
+                    decoration: InputDecoration(
+                      hintText: 'Enter word for blank #${bIdx + 1}',
+                      hintStyle: GoogleFonts.inter(color: Colors.grey.shade400),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF333333) : Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: _isReviewing
+                              ? (isMatch ? AppColors.primary : AppColors.error)
+                              : Colors.grey.shade300,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: _isReviewing
+                              ? (isMatch ? AppColors.primary : AppColors.error)
+                              : Colors.grey.shade300,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                      ),
+                    ),
+                    onChanged: (_) => syncAnswers(),
+                  ),
+                ),
+                if (_isReviewing) ...[
+                  const SizedBox(width: 12),
+                  if (isMatch)
+                    const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 28)
+                  else ...[
+                    const Icon(Icons.cancel_rounded, color: AppColors.error, size: 28),
+                    const SizedBox(width: 8),
+                    Text(
+                      '($expected)',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildPronunciationBody({
+    required QuizQuestion question,
+    required int index,
+    required bool isDark,
+    required Color textColor,
+  }) {
+    final reg = RegExp(r'\[([^\]]+)\]');
+    final match = reg.firstMatch(question.question);
+    final String targetWord = match != null
+        ? match.group(1)!.trim()
+        : (question.targetWord ?? question.answer.trim());
+
+    final String sentenceWithoutWord = match != null
+        ? question.question.replaceFirst(match.group(0)!, '____[Say this word]____')
+        : question.question;
+
+    final String spoken = _answerCtrls[index].text.trim();
+    final String heard = _recognizedTranscripts[index] ?? '';
+    final bool isListeningThis = _isListening && _listeningQuestionIndex == index;
+
+    final String targetClean = targetWord.trim().toLowerCase().replaceAll(RegExp(r'[^\w]'), '');
+    final double directSim = spoken.isNotEmpty
+        ? StringSimilarity.compareTwoStrings(spoken.toLowerCase(), targetClean)
+        : 0.0;
+
+    double bestSim = directSim;
+    String targetMatchedWord = spoken;
+    if (heard.isNotEmpty) {
+      final tokens = heard
+          .toLowerCase()
+          .split(RegExp(r'\s+'))
+          .map((w) => w.replaceAll(RegExp(r'[^\w]'), ''))
+          .where((w) => w.isNotEmpty)
+          .toList();
+      for (final t in tokens) {
+        if (t == targetClean) {
+          bestSim = 1.0;
+          targetMatchedWord = t;
+          break;
+        }
+        final sim = StringSimilarity.compareTwoStrings(t, targetClean);
+        if (sim > bestSim) {
+          bestSim = sim;
+          targetMatchedWord = t;
+        }
+      }
+    }
+
+    final bool isPassed = bestSim >= 0.70 ||
+        spoken.toLowerCase() == targetClean ||
+        heard.toLowerCase().contains(targetClean);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2C2C2C) : AppColors.primary.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: isDark ? Colors.white12 : AppColors.primary.withValues(alpha: 0.15)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.record_voice_over_rounded, color: AppColors.primary, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Pronunciation Exercise',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                sentenceWithoutWord,
+                style: GoogleFonts.inter(fontSize: 18, height: 1.8, fontWeight: FontWeight.w500, color: textColor),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.mic_rounded, size: 18, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Word to pronounce: ',
+                      style: GoogleFonts.inter(fontSize: 14, color: textColor),
+                    ),
+                    Text(
+                      targetWord,
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      icon: Icon(
+                        _isPlayingAudio ? Icons.volume_up_rounded : Icons.volume_up_outlined,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                      tooltip: 'Listen to pronunciation',
+                      onPressed: () => _speakWord(targetWord),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+        Center(
+          child: Column(
+            children: [
+              if (!_isReviewing) ...[
+                GestureDetector(
+                  onTap: () => _toggleListening(targetWord, index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isListeningThis ? Colors.red : AppColors.primary,
+                      boxShadow: [
+                        BoxShadow(
+                          color: (isListeningThis ? Colors.red : AppColors.primary).withValues(alpha: 0.35),
+                          blurRadius: isListeningThis ? 25 : 12,
+                          spreadRadius: isListeningThis ? 6 : 2,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      isListeningThis ? Icons.stop_rounded : Icons.mic_none_rounded,
+                      color: Colors.white,
+                      size: 42,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  isListeningThis
+                      ? 'Listening... Speak the word now (Tap to stop)'
+                      : ((heard.isNotEmpty || spoken.isNotEmpty)
+                          ? 'Tap the microphone to re-record'
+                          : 'Tap the microphone and say the word'),
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isListeningThis ? Colors.red : Colors.grey.shade600,
+                  ),
+                ),
+                if (isListeningThis && heard.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Hearing: "$heard"',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+              const SizedBox(height: 24),
+              if (heard.isNotEmpty || spoken.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 540),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: isPassed
+                        ? Colors.green.withValues(alpha: 0.08)
+                        : (isDark ? const Color(0xFF1E293B) : Colors.orange.withValues(alpha: 0.08)),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: isPassed ? Colors.green.shade400 : Colors.orange.shade400,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            isPassed ? Icons.check_circle_rounded : Icons.hearing_rounded,
+                            color: isPassed ? Colors.green : Colors.orange.shade800,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'What the system heard:',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                                color: isPassed ? Colors.green.shade800 : Colors.orange.shade900,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isPassed
+                                  ? Colors.green.withValues(alpha: 0.15)
+                                  : Colors.orange.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${(bestSim * 100).toInt()}% Match',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isPassed ? Colors.green.shade800 : Colors.orange.shade900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark ? Colors.white12 : Colors.grey.shade200,
+                          ),
+                        ),
+                        child: Text(
+                          '"${heard.isNotEmpty ? heard : spoken}"',
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
+                      ),
+                      if (targetMatchedWord.isNotEmpty &&
+                          targetMatchedWord.toLowerCase() != (heard.isNotEmpty ? heard : spoken).toLowerCase()) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Text(
+                              'Matched word: ',
+                              style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                            Text(
+                              '"$targetMatchedWord"',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isPassed ? Colors.green.shade700 : textColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            isPassed
+                                ? 'Excellent! Pronunciation accepted.'
+                                : 'Needs practice. Aim for 70%+ match.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isPassed ? Colors.green.shade700 : Colors.orange.shade800,
+                            ),
+                          ),
+                          if (!_isReviewing)
+                            TextButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _answerCtrls[index].clear();
+                                  _recognizedTranscripts.remove(index);
+                                });
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 14),
+                              label: const Text('Clear', style: TextStyle(fontSize: 12)),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.grey.shade600,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1046,7 +2090,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           List<String> effectiveOptions = [];
           if (question.options != null && question.options!.isNotEmpty) {
             effectiveOptions = question.options!;
-          } else if (question.type != 'passage') {
+          } else if (question.type != 'passage' && question.type != 'fill_in_the_blank' && question.type != 'pronunciation') {
             final ans = question.answer.trim();
             if (ans.toLowerCase() == 'true' || ans.toLowerCase() == 'false') {
               effectiveOptions = const ['True', 'False'];
@@ -1079,15 +2123,16 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                 if (passageText != null && passageText.isNotEmpty) ...[
                   buildPassageDropdown(),
                 ],
-                Text(
-                  question.question,
-                  style: GoogleFonts.outfit(
-                    fontSize: isWide ? 26 : 22, 
-                    fontWeight: FontWeight.w600, 
-                    color: textColor, 
-                    height: 1.4,
+                if (question.type != 'fill_in_the_blank' && question.type != 'pronunciation')
+                  Text(
+                    question.question,
+                    style: GoogleFonts.outfit(
+                      fontSize: isWide ? 26 : 22, 
+                      fontWeight: FontWeight.w600, 
+                      color: textColor, 
+                      height: 1.4,
+                    ),
                   ),
-                ),
                 if (question.imageUrl != null && question.imageUrl!.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   Center(
@@ -1147,6 +2192,20 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                       color: textColor,
                     ),
                   ),
+                )
+              else if (question.type == 'fill_in_the_blank')
+                _buildFillInTheBlankBody(
+                  question: question,
+                  index: _currentQuestionIndex,
+                  isDark: isDark,
+                  textColor: textColor,
+                )
+              else if (question.type == 'pronunciation')
+                _buildPronunciationBody(
+                  question: question,
+                  index: _currentQuestionIndex,
+                  isDark: isDark,
+                  textColor: textColor,
                 )
               else
                 ...effectiveOptions.map((opt) {
@@ -1287,7 +2346,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   SizedBox(
                     width: 160,
                     child: OutlinedButton.icon(
-                      onPressed: () => setState(() => _currentQuestionIndex--),
+                      onPressed: () {
+                        _stopListening();
+                        setState(() => _currentQuestionIndex--);
+                      },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primary,
                         side: const BorderSide(color: AppColors.primary, width: 2),
@@ -1303,7 +2365,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   width: 160,
                   child: (_currentQuestionIndex < _shuffledQuestions.length - 1)
                       ? ElevatedButton.icon(
-                          onPressed: () => setState(() => _currentQuestionIndex++),
+                          onPressed: () {
+                            _stopListening();
+                            setState(() => _currentQuestionIndex++);
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
@@ -1424,7 +2489,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: InkWell(
-                  onTap: () => setState(() => _currentQuestionIndex = index),
+                  onTap: () {
+                    _stopListening();
+                    setState(() => _currentQuestionIndex = index);
+                  },
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     height: 48,
@@ -1724,6 +2792,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                             for (var ctrl in _answerCtrls) {
                               ctrl.clear();
                             }
+                            _recognizedTranscripts.clear();
                             _secondsRemaining = widget.quiz.duration * 60;
                             _startTime = DateTime.now();
                           });

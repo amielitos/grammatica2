@@ -633,6 +633,54 @@ class EmailSenderService {
     );
   }
 
+  /// Send Temporary Password / Admin Invitation Email
+  static Future<bool> sendAdminInvitationEmail({
+    required String recipientEmail,
+    required String temporaryPassword,
+  }) async {
+    final contentHtml = '''
+      <p style="color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
+        You have been granted <strong>Admin</strong> privileges on the Grammatica platform.
+      </p>
+
+      <div style="background-color: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 18px; padding: 24px; margin-bottom: 24px; text-align: center;">
+        <span style="font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 1px;">Password Reset Confirmation</span>
+        <p style="margin: 12px 0; color: #0F172A; font-size: 16px; font-weight: 700;">A password reset confirmation email has been sent to your inbox.</p>
+        <p style="margin: 0; color: #64748B; font-size: 13px;">Please check your email and click the confirmation link to set your secure password right away.</p>
+        <div style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed #CBD5E1;">
+          <span style="font-size: 11px; font-weight: 600; color: #94A3B8; text-transform: uppercase;">Temporary Backup Key</span>
+          <div style="font-size: 18px; font-weight: 800; color: #334155; margin-top: 4px; font-family: monospace;">$temporaryPassword</div>
+        </div>
+      </div>
+
+      <div style="background-color: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 10px; padding: 14px 18px; margin-bottom: 24px;">
+        <p style="margin: 0; color: #92400E; font-size: 13px; line-height: 1.6;">
+          <strong>Security Notice:</strong> Do not share your credentials with anyone. Grammatica administrators will never ask for your password.
+        </p>
+      </div>
+    ''';
+
+    final body = _buildBrandedEmailTemplate(
+      title: 'Welcome to Grammatica Admin',
+      subtitle: 'Your administrative account has been created',
+      badgeIcon: '🛡️',
+      badgeText: 'Admin Access',
+      recipientName: recipientEmail.split('@').first,
+      contentHtml: contentHtml,
+      badgeBgColor: '#EFF6FF',
+      badgeBorderColor: '#3B82F6',
+      badgeTextColor: '#1D4ED8',
+      headerGradientStart: '#1E293B',
+      headerGradientEnd: '#0F172A',
+    );
+
+    return await sendEmail(
+      toEmail: recipientEmail,
+      subject: '🛡️ Grammatica Admin Credentials - Password Reset Confirmation',
+      body: body,
+    );
+  }
+
   /// Base Core Send Email Function
   static Future<bool> sendEmail({
     required String toEmail,

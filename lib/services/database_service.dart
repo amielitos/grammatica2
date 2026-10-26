@@ -11,6 +11,7 @@ import 'notebook_service.dart';
 import '../models/spelling_word.dart';
 import '../models/notebook_models.dart';
 import '../models/published_content_item.dart';
+import '../models/playlist.dart';
 import '../utils/image_utils.dart';
 import 'idempotency_service.dart';
 
@@ -133,6 +134,9 @@ class EducatorApplication {
     );
   }
 
+  String get prcUrl => certificateUrls.isNotEmpty ? certificateUrls.first : '';
+  String? get prcFileName => certificateFileNames?.isNotEmpty == true ? certificateFileNames!.first : null;
+
   Map<String, dynamic> toMap() {
     return {
       'applicantUid': applicantUid,
@@ -172,6 +176,10 @@ class Lesson {
   final String? notebookId;
   final String? rejectionReason;
   final String? rejectionDescription;
+  final bool isArchived;
+  final Timestamp? archivedAt;
+  final Timestamp? purgeAt;
+  final bool isUpdate;
 
   /// Semantic alias for [notebookId] to identify the unified content bundle.
   String? get bundleId => notebookId;
@@ -199,6 +207,10 @@ class Lesson {
     this.notebookId,
     this.rejectionReason,
     this.rejectionDescription,
+    this.isArchived = false,
+    this.archivedAt,
+    this.purgeAt,
+    this.isUpdate = false,
   });
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -227,6 +239,10 @@ class Lesson {
       notebookId: (data['notebookId'] ?? '') == '' ? null : (data['notebookId'] as String?),
       rejectionReason: (data['rejectionReason'] as String?)?.isNotEmpty == true ? data['rejectionReason'] as String? : null,
       rejectionDescription: (data['rejectionDescription'] as String?)?.isNotEmpty == true ? data['rejectionDescription'] as String? : null,
+      isArchived: (data['isArchived'] as bool?) ?? false,
+      archivedAt: data['archivedAt'] as Timestamp?,
+      purgeAt: data['purgeAt'] as Timestamp?,
+      isUpdate: (data['isUpdate'] as bool?) ?? false,
     );
   }
 }
@@ -259,13 +275,15 @@ class LinkedContentBundle {
 class QuizQuestion {
   final String question;
   final String answer;
-  final String type; // 'text', 'multiple_choice', 'passage', 'image'
+  final String type; // 'text', 'multiple_choice', 'passage', 'image', 'fill_in_the_blank', 'pronunciation'
   final List<String>? options;
   final List<QuizQuestion>? nestedQuestions;
   final String? hint;
   final String? explanation;
   final String? imageUrl;
   final String? imageDescription;
+  final List<String>? blankAnswers;
+  final String? targetWord;
 
   QuizQuestion({
     required this.question,
@@ -277,6 +295,8 @@ class QuizQuestion {
     this.explanation,
     this.imageUrl,
     this.imageDescription,
+    this.blankAnswers,
+    this.targetWord,
   });
 
   factory QuizQuestion.fromMap(Map<String, dynamic> map) {
@@ -296,6 +316,10 @@ class QuizQuestion {
       explanation: map['explanation'] as String?,
       imageUrl: map['imageUrl'] as String?,
       imageDescription: map['imageDescription'] as String?,
+      blankAnswers: map['blankAnswers'] != null
+          ? List<String>.from(map['blankAnswers'])
+          : null,
+      targetWord: map['targetWord'] as String?,
     );
   }
 
@@ -310,6 +334,8 @@ class QuizQuestion {
       if (explanation != null) 'explanation': explanation,
       if (imageUrl != null) 'imageUrl': imageUrl,
       if (imageDescription != null) 'imageDescription': imageDescription,
+      if (blankAnswers != null) 'blankAnswers': blankAnswers,
+      if (targetWord != null) 'targetWord': targetWord,
     };
   }
 }
@@ -335,6 +361,12 @@ class Quiz {
   final bool isAssessment;
   final String? notebookId;
   final String? rejectionReason;
+  final bool isArchived;
+  final Timestamp? archivedAt;
+  final Timestamp? purgeAt;
+  final bool requiresLessonCompleted;
+  final String? requiredLessonId;
+  final String? requiredLessonTitle;
 
   /// Semantic alias for [notebookId] to identify the unified content bundle.
   String? get bundleId => notebookId;
@@ -360,6 +392,12 @@ class Quiz {
     this.isAssessment = false,
     this.notebookId,
     this.rejectionReason,
+    this.isArchived = false,
+    this.archivedAt,
+    this.purgeAt,
+    this.requiresLessonCompleted = false,
+    this.requiredLessonId,
+    this.requiredLessonTitle,
   });
 
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -392,6 +430,12 @@ class Quiz {
       isAssessment: d['isAssessment'] ?? false,
       notebookId: (d['notebookId'] ?? '') == '' ? null : (d['notebookId'] as String?),
       rejectionReason: (d['rejectionReason'] as String?)?.isNotEmpty == true ? d['rejectionReason'] as String? : null,
+      isArchived: (d['isArchived'] as bool?) ?? false,
+      archivedAt: d['archivedAt'] as Timestamp?,
+      purgeAt: d['purgeAt'] as Timestamp?,
+      requiresLessonCompleted: (d['requiresLessonCompleted'] as bool?) ?? false,
+      requiredLessonId: (d['requiredLessonId'] as String?)?.isNotEmpty == true ? d['requiredLessonId'] as String? : null,
+      requiredLessonTitle: (d['requiredLessonTitle'] as String?)?.isNotEmpty == true ? d['requiredLessonTitle'] as String? : null,
     );
   }
 }
@@ -481,6 +525,84 @@ class DatabaseService {
       _firestore.collection('quizzes');
   CollectionReference<Map<String, dynamic>> get _publishedContent =>
       _firestore.collection('published_content');
+  CollectionReference<Map<String, dynamic>> get _playlists =>
+      _firestore.collection('playlists');
+
+  Future<String> createPlaylist({
+    required String title,
+    required String description,
+    required String createdByUid,
+    required String createdByEmail,
+    required List<String> lessonIds,
+  }) async {
+    final doc = await _playlists.add({
+      'title': title,
+      'description': description,
+      'createdByUid': createdByUid,
+      'createdByEmail': createdByEmail,
+      'lessonIds': lessonIds,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    return doc.id;
+  }
+
+  Future<void> updatePlaylist({
+    required String id,
+    String? title,
+    String? description,
+    List<String>? lessonIds,
+  }) async {
+    final data = <String, dynamic>{'updatedAt': FieldValue.serverTimestamp()};
+    if (title != null) data['title'] = title;
+    if (description != null) data['description'] = description;
+    if (lessonIds != null) data['lessonIds'] = lessonIds;
+    await _playlists.doc(id).update(data);
+  }
+
+  Future<void> deletePlaylist(String id) async {
+    await _playlists.doc(id).delete();
+  }
+
+  Stream<List<LessonPlaylist>> streamPlaylistsByCreator(String uid, {String? email}) {
+    return _playlists.snapshots().map((snap) {
+      final list = snap.docs
+          .map(LessonPlaylist.fromDoc)
+          .where((p) {
+            final matchesUid = p.createdByUid.isNotEmpty && p.createdByUid == uid;
+            final matchesEmail = email != null &&
+                email.isNotEmpty &&
+                p.createdByEmail.toLowerCase() == email.toLowerCase();
+            return matchesUid || matchesEmail;
+          })
+          .toList();
+      list.sort((a, b) {
+        final tA = a.createdAt?.millisecondsSinceEpoch ?? 0;
+        final tB = b.createdAt?.millisecondsSinceEpoch ?? 0;
+        return tB.compareTo(tA);
+      });
+      return list;
+    });
+  }
+
+  Stream<List<LessonPlaylist>> streamAllPlaylists() {
+    return _playlists
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map(LessonPlaylist.fromDoc).toList());
+  }
+
+  Future<LessonPlaylist?> getPlaylist(String id) async {
+    final doc = await _playlists.doc(id).get();
+    if (!doc.exists) return null;
+    return LessonPlaylist.fromDoc(doc);
+  }
+
+  Future<Lesson?> getLesson(String id) async {
+    final doc = await _lessons.doc(id).get();
+    if (!doc.exists) return null;
+    return Lesson.fromDoc(doc);
+  }
   CollectionReference<Map<String, dynamic>> _userProgress(String uid) =>
       _firestore.collection('users').doc(uid).collection('progress');
   CollectionReference<Map<String, dynamic>> _userQuizProgress(String uid) =>
@@ -578,6 +700,146 @@ class DatabaseService {
       'videoFileName': ?videoFileName,
       'syllabusFileName': ?syllabusFileName,
     });
+  }
+
+  Future<void> submitValidatorApplication({
+    required String uid,
+    required String email,
+    required String prcUrl,
+    required String prcFileName,
+  }) async {
+    final existingApps = await _educatorApplications.where('applicantUid', isEqualTo: uid).get();
+    for (final doc in existingApps.docs) {
+      final app = EducatorApplication.fromDoc(doc);
+      for (final url in app.certificateUrls) {
+        if (url != prcUrl) await _deleteFileFromUrl(url);
+      }
+      await _educatorApplications.doc(doc.id).delete();
+    }
+
+    await _educatorApplications.add({
+      'applicantUid': uid,
+      'applicantEmail': email,
+      'cvUrl': '',
+      'certificateUrls': [prcUrl],
+      'prcUrl': prcUrl,
+      'videoUrl': '',
+      'syllabusUrl': '',
+      'status': 'pending',
+      'applicationType': 'validator',
+      'appliedAt': FieldValue.serverTimestamp(),
+      'certificateFileNames': [prcFileName],
+      'prcFileName': prcFileName,
+    });
+
+    await _firestore.collection('users').doc(uid).set({
+      'role': 'VALIDATOR',
+      'status': 'Validator in Review',
+      'isVerified': false,
+      'prc_url': prcUrl,
+      'prcUrl': prcUrl,
+      'prc_file_name': prcFileName,
+      'prcFileName': prcFileName,
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> deleteValidatorApplication(String uid) async {
+    final existingApps = await _educatorApplications.where('applicantUid', isEqualTo: uid).get();
+    for (final doc in existingApps.docs) {
+      final app = EducatorApplication.fromDoc(doc);
+      if (app.applicationType == 'validator') {
+        for (final url in app.certificateUrls) {
+          await _deleteFileFromUrl(url);
+        }
+        await _educatorApplications.doc(doc.id).delete();
+      }
+    }
+
+    await _firestore.collection('users').doc(uid).set({
+      'prc_url': FieldValue.delete(),
+      'prcUrl': FieldValue.delete(),
+      'prc_file_name': FieldValue.delete(),
+      'prcFileName': FieldValue.delete(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> validateValidatorApplication({
+    required String uid,
+    String? reviewerEmail,
+  }) async {
+    // 1. Update user document
+    await _firestore.collection('users').doc(uid).set({
+      'role': 'VALIDATOR',
+      'status': 'ACTIVE',
+      'isVerified': true,
+      'verifiedAt': FieldValue.serverTimestamp(),
+      if (reviewerEmail != null && reviewerEmail.isNotEmpty)
+        'verifiedBy': reviewerEmail,
+    }, SetOptions(merge: true));
+
+    // 2. Update educatorApplications
+    final existingApps = await _educatorApplications.where('applicantUid', isEqualTo: uid).get();
+    for (final doc in existingApps.docs) {
+      final app = EducatorApplication.fromDoc(doc);
+      if (app.applicationType == 'validator' || app.status == 'pending') {
+        await _educatorApplications.doc(doc.id).update({
+          'status': 'approved',
+          'reviewedAt': FieldValue.serverTimestamp(),
+          if (reviewerEmail != null && reviewerEmail.isNotEmpty)
+            'reviewedBy': reviewerEmail,
+        });
+      }
+    }
+
+    // 3. Send in-app notification
+    try {
+      await NotificationService.instance.sendNotification(
+        uid: uid,
+        title: 'Validator Application Approved!',
+        message: 'Congratulations! Your validator accreditation has been verified and approved by the Super Admin.',
+        type: NotificationType.appApproved,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> rejectValidatorApplication({
+    required String uid,
+    required String reason,
+    required String description,
+    String? reviewerEmail,
+  }) async {
+    // 1. Update user document
+    await _firestore.collection('users').doc(uid).set({
+      'status': 'REJECTED',
+      'isVerified': false,
+      'rejectedAt': FieldValue.serverTimestamp(),
+      'rejectionReason': reason,
+      'rejectionDescription': description,
+      if (reviewerEmail != null && reviewerEmail.isNotEmpty)
+        'reviewedBy': reviewerEmail,
+    }, SetOptions(merge: true));
+
+    // 2. Reject in educatorApplications
+    final existingApps = await _educatorApplications.where('applicantUid', isEqualTo: uid).get();
+    for (final doc in existingApps.docs) {
+      final app = EducatorApplication.fromDoc(doc);
+      if (app.applicationType == 'validator' || app.status == 'pending') {
+        await rejectEducatorApplication(
+          app,
+          reason: reason,
+          description: description,
+        );
+      }
+    }
+
+    // 3. Send notification
+    try {
+      await NotificationService.instance.sendRejectionNotification(
+        uid: uid,
+        reason: reason,
+        description: description,
+      );
+    } catch (_) {}
   }
 
   Stream<List<EducatorApplication>> streamEducatorApplications({String? type}) {
@@ -917,17 +1179,16 @@ class DatabaseService {
     String? imageUrl,
     String? validationStatus,
     String? notebookId,
+    bool? isUpdate,
   }) async {
-    if (prompt != null) {
-      final doc = await _lessons.doc(id).get();
-      if (doc.exists) {
-        final oldPrompt = (doc.data()?['prompt'] ?? '').toString();
-        final oldUrls = _extractImageUrlsFromPrompt(oldPrompt);
-        final newUrls = _extractImageUrlsFromPrompt(prompt);
-        final removedUrls = oldUrls.difference(newUrls);
-        for (final url in removedUrls) {
-          await _deleteFileFromUrl(url);
-        }
+    final existingDoc = await _lessons.doc(id).get();
+    if (prompt != null && existingDoc.exists) {
+      final oldPrompt = (existingDoc.data()?['prompt'] ?? '').toString();
+      final oldUrls = _extractImageUrlsFromPrompt(oldPrompt);
+      final newUrls = _extractImageUrlsFromPrompt(prompt);
+      final removedUrls = oldUrls.difference(newUrls);
+      for (final url in removedUrls) {
+        await _deleteFileFromUrl(url);
       }
     }
 
@@ -937,6 +1198,8 @@ class DatabaseService {
       userRole = await RoleService.instance.getRole(user.uid);
     }
     final isAdmin = userRole == UserRole.admin || userRole == UserRole.superadmin;
+    final prevStatus = existingDoc.data()?['validationStatus']?.toString();
+    final bool wasApproved = prevStatus == 'approved';
 
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -952,9 +1215,23 @@ class DatabaseService {
     } else if (isGrammaticaLesson != null) {
       data['isGrammaticaLesson'] = isGrammaticaLesson;
     }
-    if (validationStatus != null) {
+
+    // Validation routing:
+    // If not admin and updating an existing approved lesson (or isUpdate explicitly set):
+    // The update MUST run through the validator!
+    if (!isAdmin && (wasApproved || isUpdate == true)) {
+      data['validationStatus'] = 'awaiting_approval';
+      data['isUpdate'] = true;
+      data['reviewedAt'] = null;
+      data['rejectionReason'] = null;
+      data['rejectionDescription'] = null;
+    } else if (validationStatus != null) {
       data['validationStatus'] = validationStatus;
+      if (isUpdate != null) data['isUpdate'] = isUpdate;
+    } else if (isUpdate != null) {
+      data['isUpdate'] = isUpdate;
     }
+
     data['quizId'] = quizId;
     if (imageUrl != null) data['imageUrl'] = imageUrl;
     if (quizId != null) {
@@ -965,6 +1242,15 @@ class DatabaseService {
     }
     if (data.isNotEmpty) {
       await _lessons.doc(id).update(data);
+    }
+
+    if (data['isUpdate'] == true || (data['validationStatus'] == 'awaiting_approval' && wasApproved)) {
+      final authorName = user?.displayName ?? user?.email ?? 'An educator';
+      NotificationService.instance.notifyValidatorsOfNewLesson(
+        authorName: authorName,
+        lessonTitle: (title ?? existingDoc.data()?['title'] ?? 'Lesson').toString(),
+        isUpdate: true,
+      ).catchError((e) => debugPrint('Error notifying validators of lesson update: $e'));
     }
   }
 
@@ -1005,6 +1291,101 @@ class DatabaseService {
     await _lessons.doc(id).delete();
   }
 
+  /// Archives a lesson for 30 days before permanent deletion.
+  Future<void> archiveLesson(String id) async {
+    final now = DateTime.now();
+    final purgeDate = now.add(const Duration(days: 30));
+    await _lessons.doc(id).update({
+      'isArchived': true,
+      'archivedAt': Timestamp.fromDate(now),
+      'purgeAt': Timestamp.fromDate(purgeDate),
+    });
+    final doc = await _lessons.doc(id).get();
+    final quizId = doc.data()?['quizId'] as String?;
+    if (quizId != null && quizId.isNotEmpty) {
+      await archiveQuiz(quizId);
+    }
+  }
+
+  /// Restores an archived lesson back to active status.
+  Future<void> restoreLesson(String id) async {
+    await _lessons.doc(id).update({
+      'isArchived': false,
+      'archivedAt': null,
+      'purgeAt': null,
+    });
+    final doc = await _lessons.doc(id).get();
+    final quizId = doc.data()?['quizId'] as String?;
+    if (quizId != null && quizId.isNotEmpty) {
+      await restoreQuiz(quizId);
+    }
+  }
+
+  /// Archives a quiz for 30 days before permanent deletion.
+  Future<void> archiveQuiz(String id) async {
+    final now = DateTime.now();
+    final purgeDate = now.add(const Duration(days: 30));
+    await _quizzes.doc(id).update({
+      'isArchived': true,
+      'archivedAt': Timestamp.fromDate(now),
+      'purgeAt': Timestamp.fromDate(purgeDate),
+    });
+  }
+
+  /// Restores an archived quiz back to active status.
+  Future<void> restoreQuiz(String id) async {
+    await _quizzes.doc(id).update({
+      'isArchived': false,
+      'archivedAt': null,
+      'purgeAt': null,
+    });
+  }
+
+  /// Stream archived lessons for viewing in the Archive modal/view.
+  Stream<List<Lesson>> streamArchivedLessons({String? uid}) {
+    return _lessons
+        .where('isArchived', isEqualTo: true)
+        .snapshots()
+        .map((snap) {
+      var list = snap.docs.map(Lesson.fromDoc).toList();
+      if (uid != null) {
+        list = list.where((l) => l.createdByUid == uid).toList();
+      }
+      return list;
+    });
+  }
+
+  /// Stream archived quizzes for viewing in the Archive modal/view.
+  Stream<List<Quiz>> streamArchivedQuizzes({String? uid}) {
+    return _quizzes
+        .where('isArchived', isEqualTo: true)
+        .snapshots()
+        .map((snap) {
+      var list = snap.docs.map(Quiz.fromDoc).toList();
+      if (uid != null) {
+        list = list.where((q) => q.createdByUid == uid).toList();
+      }
+      return list;
+    });
+  }
+
+  /// Permanently purges items whose 30-day archive period has elapsed.
+  Future<void> purgeExpiredArchive() async {
+    final now = Timestamp.now();
+    try {
+      final expiredLessons = await _lessons.where('isArchived', isEqualTo: true).where('purgeAt', isLessThanOrEqualTo: now).get();
+      for (final doc in expiredLessons.docs) {
+        await permanentlyDeleteLessonPackage(lesson: Lesson.fromDoc(doc));
+      }
+      final expiredQuizzes = await _quizzes.where('isArchived', isEqualTo: true).where('purgeAt', isLessThanOrEqualTo: now).get();
+      for (final doc in expiredQuizzes.docs) {
+        await deleteQuiz(doc.id);
+      }
+    } catch (e) {
+      debugPrint('Error purging expired archive: $e');
+    }
+  }
+
   /// Permanently purges a lesson and all of its associated content from the site database,
   /// including the primary quiz, companion quizzes, and companion published items (flashcards, mind maps, etc.).
   Future<void> permanentlyDeleteLessonPackage({
@@ -1042,6 +1423,17 @@ class DatabaseService {
       } catch (e) {
         debugPrint('Error deleting companion published items: $e');
       }
+
+      if (lesson.id.isNotEmpty) {
+        try {
+          final pubByLessonSnap = await _publishedContent.where('lessonId', isEqualTo: lesson.id).get();
+          for (final doc in pubByLessonSnap.docs) {
+            await doc.reference.delete();
+          }
+        } catch (e) {
+          debugPrint('Error deleting companion published items by lessonId: $e');
+        }
+      }
     }
   }
 
@@ -1049,7 +1441,7 @@ class DatabaseService {
   /// Does not enforce creator or status filters, ensuring all platform lessons are displayed.
   Stream<List<Lesson>> streamAllLessonsDatabase() {
     return _lessons.snapshots().map((snapshot) {
-      final list = snapshot.docs.map(Lesson.fromDoc).toList();
+      final list = snapshot.docs.map(Lesson.fromDoc).where((l) => !l.isArchived).toList();
       list.sort((a, b) {
         final tsA = a.createdAt;
         final tsB = b.createdAt;
@@ -1072,7 +1464,7 @@ class DatabaseService {
     final snapshot = await _lessons
         .orderBy('createdAt', descending: false)
         .get();
-    return snapshot.docs.map(Lesson.fromDoc).toList();
+    return snapshot.docs.map(Lesson.fromDoc).where((l) => !l.isArchived).toList();
   }
 
   Stream<List<Lesson>> streamLessons({
@@ -1085,7 +1477,7 @@ class DatabaseService {
     return _lessons.orderBy('createdAt', descending: false).snapshots().map((
       snapshot,
     ) {
-      final lessons = snapshot.docs.map(Lesson.fromDoc).toList();
+      final lessons = snapshot.docs.map(Lesson.fromDoc).where((l) => !l.isArchived).toList();
 
       // Admins and Superadmins see all items
       if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
@@ -1132,7 +1524,7 @@ class DatabaseService {
         .map(
           (snapshot) => snapshot.docs
               .map(Lesson.fromDoc)
-              .where((l) => l.validationStatus == 'awaiting_approval')
+              .where((l) => l.validationStatus == 'awaiting_approval' && !l.isArchived)
               .toList(),
         );
   }
@@ -1320,6 +1712,7 @@ class DatabaseService {
     String validationStatus = 'approved',
     String? notebookId,
     String? outputId,
+    String? lessonId,
   }) async {
     final docRef = await _publishedContent.add({
       'type': type.serialName,
@@ -1335,6 +1728,7 @@ class DatabaseService {
       'validationStatus': validationStatus,
       'notebookId': ?notebookId,
       'outputId': ?outputId,
+      'lessonId': ?lessonId,
     });
     return docRef.id;
   }
@@ -1350,6 +1744,7 @@ class DatabaseService {
     String? validationStatus,
     String? notebookId,
     String? outputId,
+    String? lessonId,
   }) async {
     final updateData = <String, dynamic>{};
     if (title != null) updateData['title'] = title;
@@ -1361,6 +1756,7 @@ class DatabaseService {
     if (validationStatus != null) updateData['validationStatus'] = validationStatus;
     if (notebookId != null) updateData['notebookId'] = notebookId;
     if (outputId != null) updateData['outputId'] = outputId;
+    if (lessonId != null) updateData['lessonId'] = lessonId;
     if (updateData.isNotEmpty) {
       await _publishedContent.doc(id).update(updateData);
     }
@@ -1531,11 +1927,11 @@ class DatabaseService {
         debugPrint('Error fetching companion published items: $e');
       }
 
-      // Also check if published items were stored with lesson.id as notebookId
-      if (lesson != null && lesson.id.isNotEmpty && lesson.id != nbId) {
+      // Also check if published items were stored with lesson.id as notebookId or lessonId
+      if (lesson != null && lesson.id.isNotEmpty) {
         try {
           final lessonPubSnap =
-              await _publishedContent.where('notebookId', isEqualTo: lesson.id).get();
+              await _publishedContent.where('lessonId', isEqualTo: lesson.id).get();
           for (final doc in lessonPubSnap.docs) {
             if (!items.any((i) => i.id == doc.id)) {
               items.add(PublishedContentItem.fromDoc(doc));
@@ -1543,6 +1939,20 @@ class DatabaseService {
           }
         } catch (e) {
           debugPrint('Error fetching companion items by lessonId: $e');
+        }
+
+        if (lesson.id != nbId) {
+          try {
+            final lessonNbSnap =
+                await _publishedContent.where('notebookId', isEqualTo: lesson.id).get();
+            for (final doc in lessonNbSnap.docs) {
+              if (!items.any((i) => i.id == doc.id)) {
+                items.add(PublishedContentItem.fromDoc(doc));
+              }
+            }
+          } catch (e) {
+            debugPrint('Error fetching companion items by lesson.id as notebookId: $e');
+          }
         }
       }
 
@@ -1663,6 +2073,9 @@ class DatabaseService {
     bool isAssessment = false,
     String? validationStatus,
     String? notebookId,
+    bool requiresLessonCompleted = false,
+    String? requiredLessonId,
+    String? requiredLessonTitle,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     UserRole userRole = UserRole.learner;
@@ -1695,6 +2108,9 @@ class DatabaseService {
       'isGrammaticaQuiz': effectiveIsGrammaticaQuiz,
       'isAssessment': isAssessment,
       'notebookId': notebookId,
+      'requiresLessonCompleted': requiresLessonCompleted,
+      'requiredLessonId': requiredLessonId,
+      'requiredLessonTitle': requiredLessonTitle,
     });
     return doc.id;
   }
@@ -1715,6 +2131,9 @@ class DatabaseService {
     bool? isAssessment,
     String? validationStatus,
     String? notebookId,
+    bool? requiresLessonCompleted,
+    String? requiredLessonId,
+    String? requiredLessonTitle,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -1737,6 +2156,9 @@ class DatabaseService {
       data['validationStatus'] = 'awaiting_approval';
     }
     if (notebookId != null) data['notebookId'] = notebookId;
+    if (requiresLessonCompleted != null) data['requiresLessonCompleted'] = requiresLessonCompleted;
+    if (requiredLessonId != null) data['requiredLessonId'] = requiredLessonId;
+    if (requiredLessonTitle != null) data['requiredLessonTitle'] = requiredLessonTitle;
 
     if (data.isNotEmpty) {
       await _quizzes.doc(id).update(data);
@@ -1800,15 +2222,9 @@ class DatabaseService {
     return Quiz.fromDoc(doc);
   }
 
-  Future<Lesson?> getLesson(String id) async {
-    final doc = await _lessons.doc(id).get();
-    if (!doc.exists) return null;
-    return Lesson.fromDoc(doc);
-  }
-
   Future<List<Quiz>> fetchQuizzes() async {
     final snap = await _quizzes.orderBy('createdAt', descending: false).get();
-    return snap.docs.map(Quiz.fromDoc).toList();
+    return snap.docs.map(Quiz.fromDoc).where((q) => !q.isArchived).toList();
   }
 
   Stream<List<Quiz>> streamQuizzes({
@@ -1822,7 +2238,7 @@ class DatabaseService {
     return _quizzes.orderBy('createdAt', descending: false).snapshots().map((
       snapshot,
     ) {
-      var quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
+      var quizzes = snapshot.docs.map(Quiz.fromDoc).where((q) => !q.isArchived).toList();
 
       if (isAssessment != null) {
         quizzes = quizzes.where((q) => q.isAssessment == isAssessment).toList();
@@ -1863,7 +2279,7 @@ class DatabaseService {
         .map(
           (snapshot) => snapshot.docs
               .map(Quiz.fromDoc)
-              .where((q) => q.validationStatus == 'awaiting_approval' && !q.isAssessment)
+              .where((q) => q.validationStatus == 'awaiting_approval' && !q.isAssessment && !q.isArchived)
               .toList(),
         );
   }
@@ -1875,7 +2291,7 @@ class DatabaseService {
         .map(
           (snapshot) => snapshot.docs
               .map(Quiz.fromDoc)
-              .where((q) => q.validationStatus == 'awaiting_approval' && q.isAssessment)
+              .where((q) => q.validationStatus == 'awaiting_approval' && q.isAssessment && !q.isArchived)
               .toList(),
         );
   }
@@ -1961,6 +2377,7 @@ class DatabaseService {
     final lessonData = <String, dynamic>{
       'validationStatus': status,
       'reviewedAt': FieldValue.serverTimestamp(),
+      'isUpdate': false,
     };
     if (rejectionReason != null) {
       lessonData['rejectionReason'] = rejectionReason;
@@ -2015,6 +2432,23 @@ class DatabaseService {
         }
       } catch (e) {
         debugPrint('Error finding published companion items to update status: $e');
+      }
+
+      if (lesson.id.isNotEmpty) {
+        try {
+          final pubByLessonSnap = await _publishedContent.where('lessonId', isEqualTo: lesson.id).get();
+          for (final doc in pubByLessonSnap.docs) {
+            final pData = <String, dynamic>{
+              'validationStatus': status,
+              'reviewedAt': FieldValue.serverTimestamp(),
+            };
+            if (rejectionReason != null) pData['rejectionReason'] = rejectionReason;
+            if (rejectionDescription != null) pData['rejectionDescription'] = rejectionDescription;
+            batch.update(doc.reference, pData);
+          }
+        } catch (e) {
+          debugPrint('Error finding published companion items by lessonId to update status: $e');
+        }
       }
     }
 

@@ -15,6 +15,7 @@ import 'notebook/flashcard_study_page.dart';
 import 'notebook/mind_map_view.dart';
 import 'notebook/study_guide_view.dart';
 import 'notebook/timeline_view.dart';
+import 'notebook/presentation_view.dart';
 import '../widgets/linked_companion_toolbar.dart';
 import '../widgets/universal_drawer.dart';
 
@@ -91,6 +92,8 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
         return const Color(0xFF14B8A6);
       case NotebookOutputType.faq:
         return const Color(0xFFF59E0B);
+      case NotebookOutputType.presentation:
+        return const Color(0xFF6366F1);
       default:
         return AppColors.primary;
     }
@@ -110,6 +113,8 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
         return Icons.assignment_rounded;
       case NotebookOutputType.faq:
         return Icons.help_outline_rounded;
+      case NotebookOutputType.presentation:
+        return Icons.slideshow_rounded;
       default:
         return Icons.auto_awesome_rounded;
     }
@@ -176,6 +181,17 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
             : FAQ.fromNotebookOutput(widget.output!);
         return FAQView(
           faq: fq,
+          notebookId: _notebookId,
+          outputId: _outputId,
+          isLearnerView: true,
+        );
+
+      case NotebookOutputType.presentation:
+        final pres = widget.item != null
+            ? widget.item!.presentation
+            : Presentation.fromNotebookOutput(widget.output!);
+        return PresentationView(
+          presentation: pres,
           notebookId: _notebookId,
           outputId: _outputId,
           isLearnerView: true,

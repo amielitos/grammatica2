@@ -19,6 +19,7 @@ import 'pages/admin_dashboard.dart';
 import 'pages/home_page.dart';
 import 'pages/onboarding_page.dart';
 import 'pages/otp_verification_page.dart';
+import 'pages/force_reset_password_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -217,6 +218,11 @@ class _AuthWrapper extends StatelessWidget {
                   themeNotifier.value = mode;
                 });
               }
+            }
+
+            // Mandatory temporary password reset check
+            if (data['mustResetPassword'] == true) {
+              return ForceResetPasswordPage(user: user);
             }
 
             // Derive role and info status

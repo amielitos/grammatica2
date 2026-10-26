@@ -93,6 +93,8 @@ class _LinkedCompanionToolbarState extends State<LinkedCompanionToolbar> {
         return const Color(0xFF14B8A6);
       case NotebookOutputType.faq:
         return const Color(0xFFF59E0B);
+      case NotebookOutputType.presentation:
+        return const Color(0xFF6366F1);
     }
   }
 
@@ -114,6 +116,8 @@ class _LinkedCompanionToolbarState extends State<LinkedCompanionToolbar> {
         return Icons.article_rounded;
       case NotebookOutputType.faq:
         return Icons.help_outline_rounded;
+      case NotebookOutputType.presentation:
+        return Icons.slideshow_rounded;
     }
   }
 
@@ -492,6 +496,8 @@ class _LinkedCompanionSidebarState extends State<LinkedCompanionSidebar> {
         return const Color(0xFF14B8A6);
       case NotebookOutputType.faq:
         return const Color(0xFFF59E0B);
+      case NotebookOutputType.presentation:
+        return const Color(0xFF6366F1);
     }
   }
 
@@ -513,6 +519,8 @@ class _LinkedCompanionSidebarState extends State<LinkedCompanionSidebar> {
         return Icons.article_rounded;
       case NotebookOutputType.faq:
         return Icons.help_outline_rounded;
+      case NotebookOutputType.presentation:
+        return Icons.slideshow_rounded;
     }
   }
 
@@ -534,6 +542,8 @@ class _LinkedCompanionSidebarState extends State<LinkedCompanionSidebar> {
         return 'Take Quiz';
       case NotebookOutputType.lesson:
         return 'Read Lesson';
+      case NotebookOutputType.presentation:
+        return 'View Slides';
     }
   }
 

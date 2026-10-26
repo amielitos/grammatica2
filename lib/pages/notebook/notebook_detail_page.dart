@@ -18,10 +18,12 @@ import 'mind_map_view.dart';
 import 'publish_content_dialogs.dart';
 import 'study_guide_view.dart';
 import 'timeline_view.dart';
+import 'presentation_view.dart';
 import '../../services/ai_rate_limit_service.dart';
 import '../../widgets/ai_quota_badge.dart';
 import '../../widgets/ai_quota_exceeded_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Main interactive workspace for a Notebook, featuring a split-pane layout
 /// inspired by NotebookLM with sources panel, output workspace, and output toolbar.
@@ -200,32 +202,44 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
           ),
         ),
         if (outputs.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.cloud_upload_rounded, size: 16),
-              label: Text(
-                'Publish All to Curriculum',
-                style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (_) => PublishAllOutputsDialog(
-                    notebookId: widget.notebookId,
-                    outputs: outputs,
-                    onPublishedAll: () => setState(() {}),
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('lessons')
+                .where('notebookId', isEqualTo: widget.notebookId)
+                .limit(1)
+                .snapshots(),
+            builder: (context, lessonSnap) {
+              final hasFirestoreLesson = (lessonSnap.data?.docs.isNotEmpty ?? false);
+              final isUploaded = outputs.any((o) => o.isPublished) || hasFirestoreLesson;
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+                child: ElevatedButton.icon(
+                  icon: Icon(isUploaded ? Icons.update_rounded : Icons.cloud_upload_rounded, size: 16),
+                  label: Text(
+                    isUploaded ? 'Update' : 'Publish All to Curriculum',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
-                );
-              },
-            ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => PublishAllOutputsDialog(
+                        notebookId: widget.notebookId,
+                        outputs: outputs,
+                        onPublishedAll: () => setState(() {}),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
           ),
         const SizedBox(width: 8),
       ],
@@ -547,6 +561,15 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
           isLearnerView: false,
         );
 
+      case NotebookOutputType.presentation:
+        final pres = Presentation.fromNotebookOutput(activeOutput);
+        return PresentationView(
+          presentation: pres,
+          notebookId: widget.notebookId,
+          outputId: activeOutput.id,
+          isLearnerView: false,
+        );
+
       case NotebookOutputType.quiz:
         final quiz = AIQuizResponse.fromNotebookOutput(activeOutput);
         return _buildQuizPreview(quiz, activeOutput, isDark, sources);
@@ -571,6 +594,8 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
         return const Color(0xFFF59E0B);
       case NotebookOutputType.mindMap:
         return const Color(0xFFEC4899);
+      case NotebookOutputType.presentation:
+        return const Color(0xFF6366F1);
     }
   }
 
@@ -592,6 +617,8 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
         return Icons.help_outline_rounded;
       case NotebookOutputType.mindMap:
         return Icons.hub_rounded;
+      case NotebookOutputType.presentation:
+        return Icons.slideshow_rounded;
     }
   }
 
@@ -613,6 +640,8 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
         return 'Answers the most frequently asked questions and foundational concepts extracted from your sources.';
       case NotebookOutputType.mindMap:
         return 'Constructs a visual hierarchical mind map connecting central topics to sub-concepts and branches.';
+      case NotebookOutputType.presentation:
+        return 'Generates a clean instructional presentation slide deck with key concepts, bulleted takeaways, and speaker notes.';
     }
   }
 
@@ -1158,6 +1187,15 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
           final mindMap = await AIGenerationService.instance.generateMindMap(combinedText);
           output = mindMap.toNotebookOutput(
             id: 'mindmap_${DateTime.now().millisecondsSinceEpoch}',
+            notebookId: widget.notebookId,
+            sourceIds: sourceIds,
+          );
+          break;
+
+        case NotebookOutputType.presentation:
+          final pres = await AIGenerationService.instance.generatePresentation(combinedText);
+          output = pres.toNotebookOutput(
+            id: 'presentation_${DateTime.now().millisecondsSinceEpoch}',
             notebookId: widget.notebookId,
             sourceIds: sourceIds,
           );

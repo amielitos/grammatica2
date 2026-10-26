@@ -4,7 +4,6 @@ import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/author_name_widget.dart';
 import '../quiz_detail_page.dart';
-import '../../services/navigation_service.dart';
 
 import '../../widgets/application_preview_widgets.dart';
 
@@ -16,6 +15,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/design_ornaments.dart';
 import '../../widgets/content_denial_dialog.dart';
+import '../../widgets/pagination_bar.dart';
 
 class AdminValidationTab extends StatefulWidget {
   final UserRole role;
@@ -45,10 +45,19 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
-    return '${months[d.month - 1]} ${d.day}, ${d.year}';
+    final hour = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
+    final minute = d.minute.toString().padLeft(2, '0');
+    final amPm = d.hour >= 12 ? 'PM' : 'AM';
+    return '${months[d.month - 1]} ${d.day}, ${d.year} at $hour:$minute $amPm';
   }
 
-  static const _tabLabels = ['Lessons & Packages', 'Educator Applications', 'Rejected'];
+  List<String> get _tabLabels {
+    if (widget.role == UserRole.admin) {
+      return ['Validator Applications', 'Rejected Validator Applications'];
+    }
+    return ['Lessons', 'Validator Applications', 'Educator Applications', 'Rejected'];
+  }
+
   int _selectedTab = 0;
 
   @override
@@ -57,16 +66,107 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
     _selectedTab = widget.initialTabIndex.clamp(0, _tabLabels.length - 1);
   }
 
+  IconData _getTabIcon(String label) {
+    switch (label) {
+      case 'Lessons':
+        return Icons.auto_stories_rounded;
+      case 'Validator Applications':
+        return Icons.verified_user_rounded;
+      case 'Educator Applications':
+        return Icons.badge_rounded;
+      case 'Rejected Validator Applications':
+      case 'Rejected':
+      default:
+        return Icons.block_rounded;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isSuperAdmin = widget.role == UserRole.superadmin;
-    if (isSuperAdmin) {
-      return _EducatorApplicationsList(formatDate: _formatTs, type: 'validator');
-    }
-
     final isMobile = MediaQuery.of(context).size.width < 600;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labels = _tabLabels;
+    if (_selectedTab >= labels.length) {
+      _selectedTab = 0;
+    }
 
+    final currentUser = AuthService.instance.currentUser;
+    if (widget.role == UserRole.validator && currentUser != null) {
+      return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          final data = snapshot.data?.data() ?? {};
+          final isVerified = data['isVerified'] == true;
+          final statusStr =
+              ((data['status'] as String?) ?? '').toLowerCase();
+          final isApproved = isVerified && statusStr == 'active';
+
+          if (!isApproved) {
+            return BackgroundWrapper(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.lock_clock_rounded,
+                          color: Colors.amber,
+                          size: 48,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Content Review Locked',
+                        style: GoogleFonts.outfit(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        child: Text(
+                          'Your validator account is currently under review. Content review actions are disabled until your application has been verified by an administrator.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return _buildContent(context, isMobile, isDark, labels);
+        },
+      );
+    }
+
+    return _buildContent(context, isMobile, isDark, labels);
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    bool isMobile,
+    bool isDark,
+    List<String> labels,
+  ) {
     return BackgroundWrapper(
       child: Column(
         children: [
@@ -89,8 +189,8 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                   dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                   icon: Icon(Icons.keyboard_arrow_down_rounded,
                       color: AppColors.primary),
-                  items: List.generate(_tabLabels.length, (i) {
-                    final isRejected = i == 2;
+                  items: List.generate(labels.length, (i) {
+                    final isRejected = labels[i].contains('Rejected');
                     return DropdownMenuItem(
                       value: i,
                       child: Row(
@@ -101,7 +201,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                             const SizedBox(width: 8),
                           ],
                           Text(
-                            _tabLabels[i],
+                            labels[i],
                             style: GoogleFonts.outfit(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
@@ -141,10 +241,11 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: List.generate(_tabLabels.length, (i) {
+                  children: List.generate(labels.length, (i) {
                     final isSelected = _selectedTab == i;
-                    final isRejected = i == 2;
+                    final isRejected = labels[i].contains('Rejected');
                     final activeColor = isRejected ? const Color(0xFFE05050) : const Color(0xFF81B655);
+                    final IconData tabIcon = _getTabIcon(labels[i]);
 
                     return MouseRegion(
                       cursor: SystemMouseCursors.click,
@@ -170,9 +271,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                i == 0
-                                    ? Icons.auto_stories_rounded
-                                    : (i == 1 ? Icons.badge_rounded : Icons.block_rounded),
+                                tabIcon,
                                 size: 16,
                                 color: isSelected
                                     ? Colors.white
@@ -180,7 +279,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                _tabLabels[i],
+                                labels[i],
                                 style: GoogleFonts.outfit(
                                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                                   fontSize: 14.5,
@@ -203,11 +302,43 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
           Expanded(
             child: IndexedStack(
               index: _selectedTab,
-              children: [
-                _ValidationList(stream: DatabaseService.instance.streamAwaitingApprovalLessons(), collection: 'lessons', formatDate: _formatTs),
-                _EducatorApplicationsList(formatDate: _formatTs, type: 'educator', showRejected: false),
-                _AllRejectedTab(formatDate: _formatTs),
-              ],
+              children: widget.role == UserRole.admin
+                  ? [
+                      _EducatorApplicationsList(
+                        formatDate: _formatTs,
+                        type: 'validator',
+                        showRejected: false,
+                        role: widget.role,
+                      ),
+                      _AllRejectedTab(
+                        formatDate: _formatTs,
+                        role: widget.role,
+                      ),
+                    ]
+                  : [
+                      _ValidationList(
+                        stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
+                        collection: 'lessons',
+                        formatDate: _formatTs,
+                        role: widget.role,
+                      ),
+                      _EducatorApplicationsList(
+                        formatDate: _formatTs,
+                        type: 'validator',
+                        showRejected: false,
+                        role: widget.role,
+                      ),
+                      _EducatorApplicationsList(
+                        formatDate: _formatTs,
+                        type: 'educator',
+                        showRejected: false,
+                        role: widget.role,
+                      ),
+                      _AllRejectedTab(
+                        formatDate: _formatTs,
+                        role: widget.role,
+                      ),
+                    ],
             ),
           ),
         ],
@@ -216,22 +347,32 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
   }
 }
 
-class _EducatorApplicationsList extends StatelessWidget {
+class _EducatorApplicationsList extends StatefulWidget {
   final String Function(dynamic) formatDate;
   final String? type;
   final bool showRejected;
+  final UserRole? role;
 
   const _EducatorApplicationsList({
     required this.formatDate,
     this.type,
     this.showRejected = false,
+    this.role,
   });
 
   @override
+  State<_EducatorApplicationsList> createState() => _EducatorApplicationsListState();
+}
+
+class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
+  int _currentPage = 1;
+  static const int _pageSize = 8;
+
+  @override
   Widget build(BuildContext context) {
-    final stream = showRejected
+    final stream = widget.showRejected
         ? DatabaseService.instance.streamRejectedApplications()
-        : DatabaseService.instance.streamEducatorApplications(type: type);
+        : DatabaseService.instance.streamEducatorApplications(type: widget.type);
 
     return StreamBuilder<List<EducatorApplication>>(
       stream: stream,
@@ -265,8 +406,8 @@ class _EducatorApplicationsList extends StatelessWidget {
         final items = snapshot.data ?? [];
         if (items.isEmpty) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
-          final typeStr = type == 'validator' ? 'validator' : 'educator';
-          final msg = showRejected
+          final typeStr = widget.type == 'validator' ? 'validator' : 'educator';
+          final msg = widget.showRejected
               ? 'No rejected $typeStr applications.'
               : 'No $typeStr applications pending.';
           return Center(
@@ -282,16 +423,25 @@ class _EducatorApplicationsList extends StatelessWidget {
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: items.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final app = items[index];
-            final email = app.applicantEmail;
-            final appliedAtStr = app.appliedAt != null
-                ? formatDate(app.appliedAt!)
-                : 'N/A';
+        final totalItems = items.length;
+        final maxPage = (totalItems / _pageSize).ceil().clamp(1, 9999);
+        if (_currentPage > maxPage) _currentPage = maxPage;
+        final startIndex = (_currentPage - 1) * _pageSize;
+        final pageItems = items.skip(startIndex).take(_pageSize).toList();
+
+        return Column(
+          children: [
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: pageItems.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final app = pageItems[index];
+                  final email = app.applicantEmail;
+                  final appliedAtStr = app.appliedAt != null
+                      ? widget.formatDate(app.appliedAt!)
+                      : 'N/A';
 
             return Container(
               margin: const EdgeInsets.only(bottom: 24),
@@ -324,48 +474,101 @@ class _EducatorApplicationsList extends StatelessWidget {
                           appliedAtStr: appliedAtStr,
                         );
 
+                        final isSuperAdmin = widget.role == UserRole.superadmin;
+                        final isAdmin = widget.role == UserRole.admin;
+                        final isValidatorApp = app.applicationType == 'validator';
+                        final canApproveThis = isSuperAdmin || (isAdmin && isValidatorApp);
                         final actions = Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            InkWell(
-                              onTap: () => _approveApplication(context, app),
-                              borderRadius: BorderRadius.circular(50),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF81B655).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(50),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.check_circle_outline, color: Color(0xFF81B655), size: 18),
-                                    SizedBox(width: 6),
-                                    Text('Approve', style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold, fontSize: 13)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            InkWell(
-                              onTap: () => _rejectApplication(context, app),
-                              borderRadius: BorderRadius.circular(50),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(50),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.highlight_off, color: Colors.redAccent, size: 18),
-                                    SizedBox(width: 6),
-                                    Text('Reject', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 13)),
-                                  ],
+                            if (canApproveThis) ...[
+                              InkWell(
+                                onTap: () => _approveApplication(context, app),
+                                borderRadius: BorderRadius.circular(50),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF81B655).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(50),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.check_circle_outline, color: Color(0xFF81B655), size: 18),
+                                      SizedBox(width: 6),
+                                      Text('Approve', style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold, fontSize: 13)),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
+                              InkWell(
+                                onTap: () => _rejectApplication(context, app),
+                                borderRadius: BorderRadius.circular(50),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(50),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.highlight_off, color: Colors.redAccent, size: 18),
+                                      SizedBox(width: 6),
+                                      Text('Reject', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ] else ...[
+                              Tooltip(
+                                message: isValidatorApp
+                                    ? 'Only Super Admin or Admin can approve validator applications'
+                                    : 'Only Super Admin can approve applications',
+                                child: Opacity(
+                                  opacity: 0.4,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(50),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.check_circle_outline, color: Colors.grey, size: 18),
+                                        SizedBox(width: 6),
+                                        Text('Approve', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Tooltip(
+                                message: isValidatorApp
+                                    ? 'Only Super Admin or Admin can reject validator applications'
+                                    : 'Only Super Admin can reject applications',
+                                child: Opacity(
+                                  opacity: 0.4,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(50),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.highlight_off, color: Colors.grey, size: 18),
+                                        SizedBox(width: 6),
+                                        Text('Reject', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         );
 
@@ -392,7 +595,7 @@ class _EducatorApplicationsList extends StatelessWidget {
                   ),
                   Divider(height: 1, color: isDark ? Colors.white12 : Colors.grey.shade200),
                   // ── Credentials section in clean List View (not grid) ──
-                  if (!showRejected) ...[
+                  if (!widget.showRejected) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                       child: Column(
@@ -457,15 +660,43 @@ class _EducatorApplicationsList extends StatelessWidget {
               ),
             );
           },
-        );
-      },
+        ),
+      ),
+      if (totalItems > _pageSize)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: PaginationBar(
+            currentPage: _currentPage,
+            totalItems: totalItems,
+            pageSize: _pageSize,
+            itemName: 'applications',
+            onPageChanged: (newPage) {
+              setState(() => _currentPage = newPage);
+            },
+          ),
+        ),
+      ],
     );
-  }
+  },
+);
+}
 
   Future<void> _approveApplication(
     BuildContext context,
     EducatorApplication app,
   ) async {
+    if (app.applicationType == 'validator' && widget.role != UserRole.superadmin) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only Super Admin can approve validator applications.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -492,23 +723,26 @@ class _EducatorApplicationsList extends StatelessWidget {
 
     if (confirm == true) {
       try {
-        // Update user role
-        await RoleService.instance.setUserRole(
-          uid: app.applicantUid,
-          role: app.applicationType == 'validator'
-              ? UserRole.validator
-              : UserRole.educator,
-        );
-        // Update application status
-        await DatabaseService.instance.updateApplicationStatus(
-          app.id,
-          'approved',
-        );
-
-        // Notify the applicant
-        await NotificationService.instance.sendApprovalNotification(
-          app.applicantUid,
-        );
+        if (app.applicationType == 'validator') {
+          await DatabaseService.instance.validateValidatorApplication(
+            uid: app.applicantUid,
+          );
+        } else {
+          // Update user role
+          await RoleService.instance.setUserRole(
+            uid: app.applicantUid,
+            role: UserRole.educator,
+          );
+          // Update application status
+          await DatabaseService.instance.updateApplicationStatus(
+            app.id,
+            'approved',
+          );
+          // Notify the applicant
+          await NotificationService.instance.sendApprovalNotification(
+            app.applicantUid,
+          );
+        }
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -533,6 +767,20 @@ class _EducatorApplicationsList extends StatelessWidget {
     BuildContext context,
     EducatorApplication app,
   ) async {
+    if (app.applicationType == 'validator' &&
+        widget.role != UserRole.superadmin &&
+        widget.role != UserRole.admin) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only Administrators can reject validator applications.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
+
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(app.applicantUid).get();
     final uData = userDoc.data();
     final fName = (uData?['first_name'] as String?)?.trim() ?? '';
@@ -585,21 +833,31 @@ class _EducatorApplicationsList extends StatelessWidget {
   }
 }
 
-class _ValidationList extends StatelessWidget {
+class _ValidationList extends StatefulWidget {
   final Stream<List<dynamic>> stream;
   final String collection;
   final String Function(dynamic) formatDate;
+  final UserRole? role;
 
   const _ValidationList({
     required this.stream,
     required this.collection,
     required this.formatDate,
+    this.role,
   });
+
+  @override
+  State<_ValidationList> createState() => _ValidationListState();
+}
+
+class _ValidationListState extends State<_ValidationList> {
+  int _currentPage = 1;
+  static const int _pageSize = 8;
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<dynamic>>(
-      stream: stream,
+      stream: widget.stream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -641,27 +899,36 @@ class _ValidationList extends StatelessWidget {
           );
         }
 
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: items.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final item = items[index];
-            final title = item.title;
-            final createdAtStr = item.createdAt != null
-                ? formatDate(item.createdAt!)
-                : 'N/A';
-            final isMobile = MediaQuery.of(context).size.width < 600;
-            final isDark = Theme.of(context).brightness == Brightness.dark;
+        final totalItems = items.length;
+        final maxPage = (totalItems / _pageSize).ceil().clamp(1, 9999);
+        if (_currentPage > maxPage) _currentPage = maxPage;
+        final startIndex = (_currentPage - 1) * _pageSize;
+        final pageItems = items.skip(startIndex).take(_pageSize).toList();
 
-            final actionRow = Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.visibility, color: Colors.blue),
-                  tooltip: 'Review Content',
-                  onPressed: () => _showReviewModal(context, item, collection),
-                ),
+        return Column(
+          children: [
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: pageItems.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final item = pageItems[index];
+                  final title = item.title;
+                  final createdAtStr = item.createdAt != null
+                      ? widget.formatDate(item.createdAt!)
+                      : 'N/A';
+                  final isMobile = MediaQuery.of(context).size.width < 600;
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+
+                  final actionRow = Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.visibility, color: Colors.blue),
+                        tooltip: 'Review Content',
+                        onPressed: () => _showReviewModal(context, item, widget.collection),
+                      ),
                 IconButton(
                   icon: const Icon(Icons.check_circle_outline, color: Colors.green),
                   onPressed: () => _approve(context, item),
@@ -691,7 +958,10 @@ class _ValidationList extends StatelessWidget {
                   style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white54 : Colors.grey.shade500),
                 ),
                 const SizedBox(height: 6),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -710,13 +980,54 @@ class _ValidationList extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Submitted: $createdAtStr',
-                      style: GoogleFonts.inter(fontSize: 11, color: isDark ? Colors.white38 : Colors.grey.shade500),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 13,
+                          color: isDark ? Colors.white38 : Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Submitted: $createdAtStr',
+                          style: GoogleFonts.inter(fontSize: 11, color: isDark ? Colors.white38 : Colors.grey.shade500),
+                        ),
+                      ],
                     ),
                   ],
                 ),
+                if (item is Lesson && item.isUpdate) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.4),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFF6366F1)),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Creator wants to update already existing lesson.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF6366F1),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             );
 
@@ -737,11 +1048,7 @@ class _ValidationList extends StatelessWidget {
               ),
               child: InkWell(
                 onTap: () {
-                  if (collection == 'lessons') {
-                    NavigationService.instance.goToLesson(context, item as Lesson, previewMode: true);
-                  } else {
-                    NavigationService.instance.goToQuiz(context, item as Quiz, previewMode: true);
-                  }
+                  _showReviewModal(context, item, widget.collection);
                 },
                 borderRadius: BorderRadius.circular(16),
                 child: Padding(
@@ -765,9 +1072,59 @@ class _ValidationList extends StatelessWidget {
               ),
             );
           },
-        );
-      },
+        ),
+      ),
+      if (totalItems > _pageSize)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: PaginationBar(
+            currentPage: _currentPage,
+            totalItems: totalItems,
+            pageSize: _pageSize,
+            itemName: 'lessons',
+            onPageChanged: (newPage) {
+              setState(() => _currentPage = newPage);
+            },
+          ),
+        ),
+      ],
     );
+  },
+);
+}
+
+  Future<bool> _ensureCanValidate(BuildContext context) async {
+    final user = AuthService.instance.currentUser;
+    if (user == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please log in to perform this action.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return false;
+    }
+
+    if (widget.role == UserRole.validator) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final data = doc.data() ?? {};
+      final isVerified = data['isVerified'] == true;
+      final statusStr = ((data['status'] as String?) ?? '').toLowerCase();
+      if (!isVerified || statusStr != 'active') {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Action blocked: Your validator account has not been verified yet.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+        return false;
+      }
+    }
+    return true;
   }
 
   Future<void> _showReviewModal(
@@ -777,6 +1134,8 @@ class _ValidationList extends StatelessWidget {
   ) async {
     final user = AuthService.instance.currentUser;
     if (user == null) return;
+    if (!await _ensureCanValidate(context)) return;
+    if (!context.mounted) return;
 
     showDialog(
       context: context,
@@ -785,6 +1144,45 @@ class _ValidationList extends StatelessWidget {
         child: Stack(
           children: [
             Scaffold(
+              appBar: PreferredSize(
+                preferredSize: Size.fromHeight((item is Lesson && item.isUpdate) ? 44 : 38),
+                child: Container(
+                  color: (item is Lesson && item.isUpdate)
+                      ? const Color(0xFF6366F1)
+                      : const Color(0xFF1E293B),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  alignment: Alignment.center,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          (item is Lesson && item.isUpdate)
+                              ? Icons.info_outline_rounded
+                              : Icons.schedule_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            (item is Lesson && item.isUpdate)
+                                ? 'Creator wants to update already existing lesson • Submitted: ${item.createdAt != null ? widget.formatDate(item.createdAt!) : 'N/A'}'
+                                : 'Pending Approval • Submitted: ${item.createdAt != null ? widget.formatDate(item.createdAt!) : 'N/A'}',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
               body: collection == 'lessons'
                   ? LessonPage(
                       user: user,
@@ -853,6 +1251,9 @@ class _ValidationList extends StatelessWidget {
   }
 
   Future<void> _approve(BuildContext context, dynamic item) async {
+    if (!await _ensureCanValidate(context)) return;
+    if (!context.mounted) return;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -881,7 +1282,7 @@ class _ValidationList extends StatelessWidget {
         );
       } else {
         await DatabaseService.instance.updateContentStatus(
-          collection,
+          widget.collection,
           item.id,
           'approved',
         );
@@ -930,6 +1331,9 @@ class _ValidationList extends StatelessWidget {
   }
 
   Future<void> _reject(BuildContext context, dynamic item) async {
+    if (!await _ensureCanValidate(context)) return;
+    if (!context.mounted) return;
+
     final String contentTitle = (item.title as String?) ?? 'Untitled Content';
     final String? authorEmail = (item is Lesson) ? item.createdByEmail : null;
 
@@ -964,7 +1368,7 @@ class _ValidationList extends StatelessWidget {
         } else {
           // Mark as rejected — preserves content for audit trail
           await DatabaseService.instance.updateContentStatus(
-            collection,
+            widget.collection,
             item.id,
             'rejected',
             rejectionReason: result.category,
@@ -997,9 +1401,20 @@ class _ValidationList extends StatelessWidget {
 // ═══════════════════════════════════════════════════════
 //  _AllRejectedTab — unified view of ALL rejected content with reasons
 // ═══════════════════════════════════════════════════════
-class _AllRejectedTab extends StatelessWidget {
+class _AllRejectedTab extends StatefulWidget {
   final String Function(dynamic) formatDate;
-  const _AllRejectedTab({required this.formatDate});
+  final UserRole? role;
+  const _AllRejectedTab({required this.formatDate, this.role});
+
+  @override
+  State<_AllRejectedTab> createState() => _AllRejectedTabState();
+}
+
+class _AllRejectedTabState extends State<_AllRejectedTab> {
+  int _lessonsPage = 1;
+  static const int _lessonsPageSize = 6;
+  int _appsPage = 1;
+  static const int _appsPageSize = 6;
 
   @override
   Widget build(BuildContext context) {
@@ -1014,8 +1429,12 @@ class _AllRejectedTab extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final lessons = lessonSnap.data ?? [];
-            final applications = appSnap.data ?? [];
+            final isAdmin = widget.role == UserRole.admin;
+            final lessons = isAdmin ? <Lesson>[] : (lessonSnap.data ?? []);
+            final allApps = appSnap.data ?? [];
+            final applications = isAdmin
+                ? allApps.where((a) => a.applicationType == 'validator').toList()
+                : allApps;
 
             final bool isEmpty = lessons.isEmpty && applications.isEmpty;
 
@@ -1041,7 +1460,7 @@ class _AllRejectedTab extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'No Rejected Content',
+                      isAdmin ? 'No Rejected Validator Applications' : 'No Rejected Content',
                       style: GoogleFonts.outfit(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
@@ -1050,7 +1469,9 @@ class _AllRejectedTab extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'All submitted content is clean.',
+                      isAdmin
+                          ? 'There are currently no rejected validator applications.'
+                          : 'All submitted content is clean.',
                       style: GoogleFonts.inter(
                         color: isDark ? Colors.white60 : Colors.grey.shade500,
                         fontSize: 14,
@@ -1061,24 +1482,36 @@ class _AllRejectedTab extends StatelessWidget {
               );
             }
 
+            final totalLessons = lessons.length;
+            final maxLessonsPage = (totalLessons / _lessonsPageSize).ceil().clamp(1, 9999);
+            if (_lessonsPage > maxLessonsPage) _lessonsPage = maxLessonsPage;
+            final startLesson = (_lessonsPage - 1) * _lessonsPageSize;
+            final pageLessons = lessons.skip(startLesson).take(_lessonsPageSize).toList();
+
+            final totalApps = applications.length;
+            final maxAppsPage = (totalApps / _appsPageSize).ceil().clamp(1, 9999);
+            if (_appsPage > maxAppsPage) _appsPage = maxAppsPage;
+            final startApp = (_appsPage - 1) * _appsPageSize;
+            final pageApps = applications.skip(startApp).take(_appsPageSize).toList();
+
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                if (lessons.isNotEmpty)
+                if (lessons.isNotEmpty) ...[
                   ..._buildSection(
                     context,
-                    'Lessons & Packages',
+                    'Lessons',
                     Icons.auto_stories_rounded,
-                    lessons
+                    pageLessons
                         .map(
                           (l) => _RejectedItem(
                             title: l.title,
-                            subtitle: 'Lesson Package',
+                            subtitle: 'Lesson',
                             icon: Icons.description_rounded,
                             reason: l.rejectionReason,
                             description: l.rejectionDescription,
                             createdAtStr: l.createdAt != null
-                                ? formatDate(l.createdAt!)
+                                ? widget.formatDate(l.createdAt!)
                                 : 'N/A',
                             createdByUid: l.createdByUid,
                             createdByEmail: l.createdByEmail,
@@ -1086,21 +1519,35 @@ class _AllRejectedTab extends StatelessWidget {
                         )
                         .toList(),
                   ),
-                if (applications.isNotEmpty)
+                  if (totalLessons > _lessonsPageSize)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: PaginationBar(
+                        currentPage: _lessonsPage,
+                        totalItems: totalLessons,
+                        pageSize: _lessonsPageSize,
+                        itemName: 'rejected lessons',
+                        onPageChanged: (p) => setState(() => _lessonsPage = p),
+                      ),
+                    ),
+                ],
+                if (applications.isNotEmpty) ...[
                   ..._buildSection(
                     context,
-                    'Applications',
+                    isAdmin ? 'Rejected Validator Applications' : 'Applications',
                     Icons.person_off_rounded,
-                    applications
+                    pageApps
                         .map(
                           (a) => _RejectedItem(
                             title: a.applicantEmail,
-                            subtitle: 'Educator Application',
+                            subtitle: a.applicationType == 'validator'
+                                ? 'Validator Application'
+                                : 'Educator Application',
                             icon: Icons.person_rounded,
                             reason: a.rejectionReason,
                             description: a.rejectionDescription,
                             createdAtStr: a.appliedAt != null
-                                ? formatDate(a.appliedAt!)
+                                ? widget.formatDate(a.appliedAt!)
                                 : 'N/A',
                             createdByUid: null,
                             createdByEmail: a.applicantEmail,
@@ -1108,6 +1555,18 @@ class _AllRejectedTab extends StatelessWidget {
                         )
                         .toList(),
                   ),
+                  if (totalApps > _appsPageSize)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 20),
+                      child: PaginationBar(
+                        currentPage: _appsPage,
+                        totalItems: totalApps,
+                        pageSize: _appsPageSize,
+                        itemName: 'rejected applications',
+                        onPageChanged: (p) => setState(() => _appsPage = p),
+                      ),
+                    ),
+                ],
               ],
             );
           },
@@ -1520,9 +1979,16 @@ class _ApplicantProfileHeader extends StatelessWidget {
                           color: isDark ? Colors.white10 : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
-                          'Applied: $appliedAtStr',
-                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.schedule_rounded, size: 12, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Applied: $appliedAtStr',
+                              style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.grey.shade600),
+                            ),
+                          ],
                         ),
                       ),
                     ],

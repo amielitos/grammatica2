@@ -5,6 +5,11 @@ import '../../services/database_service.dart';
 import '../../widgets/author_name_widget.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/application_preview_widgets.dart';
+import '../../widgets/pagination_bar.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:file_picker/file_picker.dart';
+import '../../services/auth_service.dart';
 
 // ─────────────────────────────────────────────
 //  Status label helpers
@@ -12,102 +17,524 @@ import '../../widgets/application_preview_widgets.dart';
 const _kPending = Color(0xFFE8A838);
 const _kRejected = Color(0xFFE05050);
 
-class ValidatorDashboardTab extends StatelessWidget {
+String _formatDateTime(dynamic ts) {
+  if (ts == null) return 'N/A';
+  DateTime d;
+  if (ts is Timestamp) {
+    d = ts.toDate().toLocal();
+  } else if (ts is DateTime) {
+    d = ts.toLocal();
+  } else {
+    return 'N/A';
+  }
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  final hour = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
+  final minute = d.minute.toString().padLeft(2, '0');
+  final amPm = d.hour >= 12 ? 'PM' : 'AM';
+  return '${months[d.month - 1]} ${d.day}, ${d.year} at $hour:$minute $amPm';
+}
+
+class ValidatorDashboardTab extends StatefulWidget {
+  final User? user;
+  final Map<String, dynamic>? userData;
   final Function(int)? onReviewRequests;
-  const ValidatorDashboardTab({super.key, this.onReviewRequests});
+  const ValidatorDashboardTab({
+    super.key,
+    this.user,
+    this.userData,
+    this.onReviewRequests,
+  });
+
+  @override
+  State<ValidatorDashboardTab> createState() => _ValidatorDashboardTabState();
+}
+
+class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
+  bool _isUploadingPrc = false;
+  bool _isDeletingPrc = false;
+  int _lessonsPage = 1;
+  static const int _lessonsPageSize = 5;
+  int _validatorAppsPage = 1;
+  static const int _validatorAppsPageSize = 5;
+  int _educatorAppsPage = 1;
+  static const int _educatorAppsPageSize = 5;
+
+  Future<void> _deletePrc(String uid) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Delete Document?',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete your submitted PRC document? Your pending verification document will be removed and you can upload a new one.',
+          style: GoogleFonts.inter(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.delete_forever_rounded, size: 18),
+            label: Text('Delete Document', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      setState(() => _isDeletingPrc = true);
+      await DatabaseService.instance.deleteValidatorApplication(uid);
+      if (!mounted) return;
+      setState(() => _isDeletingPrc = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PRC Document deleted successfully.'),
+          backgroundColor: Color(0xFF16A34A),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isDeletingPrc = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete PRC document: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Future<void> _uploadPrc(String uid, String email) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      if (file.bytes == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to read file data. Please try again.')),
+        );
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File size must be under 20MB.')),
+        );
+        return;
+      }
+
+      setState(() => _isUploadingPrc = true);
+      final ext = (file.extension ?? file.name.split('.').last).toLowerCase();
+      String contentType = 'application/pdf';
+      if (ext == 'jpg' || ext == 'jpeg') {
+        contentType = 'image/jpeg';
+      } else if (ext == 'png') {
+        contentType = 'image/png';
+      }
+
+      final downloadUrl = await DatabaseService.instance.uploadApplicationFile(
+        uid: uid,
+        fileBytes: file.bytes!,
+        fileName: file.name,
+        contentType: contentType,
+      );
+
+      await DatabaseService.instance.submitValidatorApplication(
+        uid: uid,
+        email: email,
+        prcUrl: downloadUrl,
+        prcFileName: file.name,
+      );
+
+      if (!mounted) return;
+      setState(() => _isUploadingPrc = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PRC Document uploaded successfully! Your document is being reviewed.'),
+          backgroundColor: Color(0xFF16A34A),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploadingPrc = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload PRC Document: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final user = widget.user ?? AuthService.instance.currentUser;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary = isDark ? Colors.white : const Color(0xFF2C3E50);
     final textSecondary = isDark ? Colors.white60 : const Color(0xFF7F8C8D);
     final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFFAF9F6);
     final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
 
-    return Container(
-      color: bgColor,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // ── Badge ──────────────────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.verified, color: AppColors.primary, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        'OFFICIAL VALIDATOR PANEL',
-                        style: GoogleFonts.inter(
-                          color: AppColors.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                        ),
+    if (user == null) {
+      return Container(
+        color: bgColor,
+        child: const Center(child: Text('Please log in')),
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() ?? widget.userData ?? {};
+        final isVerified = data['isVerified'] == true;
+        final statusStr = ((data['status'] as String?) ?? '').toLowerCase();
+        final isUnderReview = statusStr == 'validator in review' || !isVerified;
+
+        return Container(
+          color: bgColor,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // ── Badge ──────────────────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: (isUnderReview ? Colors.amber : AppColors.primary).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(100),
                       ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isUnderReview ? Icons.hourglass_top_rounded : Icons.verified,
+                            color: isUnderReview ? Colors.amber.shade800 : AppColors.primary,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isUnderReview ? 'APPLICATION UNDER REVIEW' : 'OFFICIAL VALIDATOR PANEL',
+                            style: GoogleFonts.inter(
+                              color: isUnderReview ? Colors.amber.shade800 : AppColors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Headline ───────────────────────────────────────────
+                    Text(
+                      'Validator Dashboard',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: 48,
+                        fontWeight: FontWeight.w900,
+                        color: textPrimary,
+                        letterSpacing: -1.5,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Review and verify educational content to maintain platform quality.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        color: textSecondary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w400,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+
+                    if (isUnderReview) ...[
+                      // ── Review Notice & PRC Upload Section Inside Dashboard ──
+                      StreamBuilder<EducatorApplication?>(
+                        stream: DatabaseService.instance.streamUserApplication(user.uid),
+                        builder: (context, appSnapshot) {
+                          final app = appSnapshot.data;
+                          final userPrcUrl = data['prc_url'] as String? ?? data['prcUrl'] as String?;
+                          final userPrcName = (data['prc_file_name'] as String?) ?? (data['prcFileName'] as String?);
+
+                          final effectivePrcUrl = (userPrcUrl != null && userPrcUrl.isNotEmpty)
+                              ? userPrcUrl
+                              : (app != null && app.applicationType == 'validator' && app.prcUrl.isNotEmpty ? app.prcUrl : null);
+                          final effectivePrcFileName = userPrcName ??
+                              (app != null && app.applicationType == 'validator' ? app.prcFileName : null) ??
+                              'PRC_Teacher_Certificate';
+
+                          return Container(
+                            width: double.infinity,
+                            constraints: const BoxConstraints(maxWidth: 760),
+                            padding: const EdgeInsets.all(36),
+                            decoration: BoxDecoration(
+                              color: cardColor,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: isDark ? Colors.amber.shade800.withValues(alpha: 0.4) : Colors.amber.shade300,
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 68,
+                                  height: 68,
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.shield_outlined, color: Colors.amber, size: 36),
+                                ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  'Verification in Progress',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  'You are not yet verified as a Validator, your document is still being reviewed by our team and can take 3-5 business days. Thank you for your patience with Grammatica.',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    color: textSecondary,
+                                    height: 1.6,
+                                  ),
+                                ),
+                                const SizedBox(height: 28),
+                                if (effectivePrcUrl != null && effectivePrcUrl.isNotEmpty) ...[
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(18),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(10),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.primary.withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: const Icon(
+                                                Icons.description_rounded,
+                                                color: AppColors.primary,
+                                                size: 22,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'SUBMITTED VERIFICATION DOCUMENT',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: AppColors.primary,
+                                                      letterSpacing: 0.8,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 3),
+                                                  Text(
+                                                    effectivePrcFileName,
+                                                    style: GoogleFonts.outfit(
+                                                      fontSize: 15,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: textPrimary,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.amber.withValues(alpha: 0.15),
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.pending_actions_rounded, size: 13, color: Colors.amber),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'IN REVIEW',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: Colors.amber.shade800,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Wrap(
+                                          spacing: 10,
+                                          runSpacing: 10,
+                                          children: [
+                                            FilledButton.tonalIcon(
+                                              onPressed: () => showFilePreviewModal(
+                                                context,
+                                                effectivePrcUrl,
+                                                effectivePrcFileName,
+                                              ),
+                                              icon: const Icon(Icons.visibility_rounded, size: 16),
+                                              label: Text(
+                                                'View Document',
+                                                style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+                                              ),
+                                              style: FilledButton.styleFrom(
+                                                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                                                foregroundColor: AppColors.primary,
+                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              ),
+                                            ),
+                                            OutlinedButton.icon(
+                                              onPressed: _isDeletingPrc ? null : () => _deletePrc(user.uid),
+                                              icon: _isDeletingPrc
+                                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(color: Colors.redAccent, strokeWidth: 2))
+                                                  : const Icon(Icons.delete_outline_rounded, size: 16),
+                                              label: Text(
+                                                _isDeletingPrc ? 'Deleting...' : 'Delete Document',
+                                                style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+                                              ),
+                                              style: OutlinedButton.styleFrom(
+                                                foregroundColor: Colors.redAccent,
+                                                side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.4)),
+                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                ],
+                                FilledButton.icon(
+                                  onPressed: (_isUploadingPrc || _isDeletingPrc) ? null : () => _uploadPrc(user.uid, user.email ?? ''),
+                                  icon: _isUploadingPrc
+                                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                      : const Icon(Icons.upload_file_rounded),
+                                  label: Text(
+                                    _isUploadingPrc
+                                        ? 'Uploading PRC Document...'
+                                        : (effectivePrcUrl != null && effectivePrcUrl.isNotEmpty ? 'Update PRC Document' : 'Upload PRC Document'),
+                                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
+                                  ),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 80),
+                    ] else ...[
+                      // ── Verified Validator View: Stats row + pending lessons ──
+                      _StatsGrid(onReviewRequests: widget.onReviewRequests, isDark: isDark),
+
+                      const SizedBox(height: 60),
+                      Divider(color: isDark ? Colors.white12 : Colors.black12),
+                      const SizedBox(height: 40),
+
+                      _buildSectionHeader('Pending Lessons', Icons.auto_stories, _kPending, textPrimary),
+                      const SizedBox(height: 16),
+                      _buildLessonsList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary, textSecondary: textSecondary),
+                      const SizedBox(height: 40),
+
+                      _buildSectionHeader('Pending Validator Applications', Icons.verified_user_rounded, Colors.indigo, textPrimary),
+                      const SizedBox(height: 16),
+                      _buildApplicationsList(context, type: 'validator', showRejected: false, cardColor: cardColor, textPrimary: textPrimary),
+                      const SizedBox(height: 40),
+
+                      _buildSectionHeader('Pending Educator Applications', Icons.how_to_reg, Colors.teal, textPrimary),
+                      const SizedBox(height: 16),
+                      _buildApplicationsList(context, type: 'educator', showRejected: false, cardColor: cardColor, textPrimary: textPrimary),
+                      const SizedBox(height: 80),
                     ],
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 24),
-
-                // ── Headline ───────────────────────────────────────────
-                Text(
-                  'Validator Dashboard',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    fontSize: 48,
-                    fontWeight: FontWeight.w900,
-                    color: textPrimary,
-                    letterSpacing: -1.5,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Review and verify educational content to maintain platform quality.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    color: textSecondary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w400,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 60),
-
-                // ── Stats row (pending + rejected) ─────────────────────
-                _StatsGrid(onReviewRequests: onReviewRequests, isDark: isDark),
-
-                const SizedBox(height: 60),
-                Divider(color: isDark ? Colors.white12 : Colors.black12),
-                const SizedBox(height: 40),
-
-                // ── Pending sections ───────────────────────────────────
-                _buildSectionHeader('Pending Lessons & Material Packages', Icons.auto_stories, _kPending, textPrimary),
-                const SizedBox(height: 16),
-                _buildLessonsList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary, textSecondary: textSecondary),
-                const SizedBox(height: 40),
-
-                _buildSectionHeader('Pending Educator Applications', Icons.how_to_reg, Colors.teal, textPrimary),
-                const SizedBox(height: 16),
-                _buildApplicationsList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary),
-
-                const SizedBox(height: 80),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -154,53 +581,164 @@ class ValidatorDashboardTab extends StatelessWidget {
             textSecondary,
           );
         }
+
+        final startIndex = (_lessonsPage - 1) * _lessonsPageSize;
+        final clampedStart = startIndex >= items.length ? 0 : startIndex;
+        if (startIndex >= items.length && _lessonsPage != 1) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _lessonsPage = 1);
+          });
+        }
+        final endIndex = (clampedStart + _lessonsPageSize).clamp(0, items.length);
+        final pageItems = items.sublist(clampedStart, endIndex);
+
         return Column(
-          children: items.map((l) => _buildContentCard(
-            context,
-            title: l.title,
-            subtitleWidget: AuthorName(
-              uid: l.createdByUid,
-              fallbackEmail: l.createdByEmail,
-              style: GoogleFonts.inter(fontSize: 13, color: textSecondary),
+          children: [
+            ...pageItems.map((l) => _buildContentCard(
+              context,
+              title: l.title,
+              subtitleWidget: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AuthorName(
+                    uid: l.createdByUid,
+                    fallbackEmail: l.createdByEmail,
+                    style: GoogleFonts.inter(fontSize: 13, color: textSecondary),
+                  ),
+                  if (l.createdAt != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.schedule_rounded, size: 12, color: textSecondary.withValues(alpha: 0.8)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Submitted: ${_formatDateTime(l.createdAt!)}',
+                          style: GoogleFonts.inter(
+                            fontSize: 11.5,
+                            color: textSecondary.withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (l.isUpdate) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Text(
+                        'Creator wants to update already existing lesson.',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF6366F1),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              icon: Icons.description_rounded,
+              iconColor: showRejected ? _kRejected : _kPending,
+              status: showRejected ? 'rejected' : 'pending',
+              onTap: () => widget.onReviewRequests?.call(showRejected ? 2 : 0),
+              cardColor: cardColor,
+              textPrimary: textPrimary,
+            )),
+            PaginationBar(
+              currentPage: _lessonsPage,
+              totalItems: items.length,
+              pageSize: _lessonsPageSize,
+              itemName: 'lessons',
+              onPageChanged: (newPage) => setState(() => _lessonsPage = newPage),
             ),
-            icon: Icons.description_rounded,
-            iconColor: showRejected ? _kRejected : _kPending,
-            status: showRejected ? 'rejected' : 'pending',
-            onTap: () => onReviewRequests?.call(showRejected ? 2 : 0),
-            cardColor: cardColor,
-            textPrimary: textPrimary,
-          )).toList(),
+          ],
         );
       },
     );
   }
 
-  Widget _buildApplicationsList(BuildContext context, {required bool showRejected, required Color cardColor, required Color textPrimary}) {
+  Widget _buildApplicationsList(
+    BuildContext context, {
+    String type = 'educator',
+    required bool showRejected,
+    required Color cardColor,
+    required Color textPrimary,
+  }) {
     final stream = showRejected
         ? DatabaseService.instance.streamRejectedApplications()
-        : DatabaseService.instance.streamEducatorApplications(type: 'educator');
+        : DatabaseService.instance.streamEducatorApplications(type: type);
     return StreamBuilder<List<EducatorApplication>>(
       stream: stream,
       builder: (ctx, snap) {
         if (snap.connectionState == ConnectionState.waiting) return const _LoadingShimmer();
         final items = snap.data ?? [];
         if (items.isEmpty) {
+          final typeStr = type == 'validator' ? 'validator' : 'educator';
           return _buildEmptyState(
-            showRejected ? 'No rejected applications' : 'No pending educator applications',
+            showRejected ? 'No rejected $typeStr applications' : 'No pending $typeStr applications',
             showRejected ? Icons.check_circle_outlined : Icons.verified_user_rounded,
-            showRejected ? _kRejected : Colors.teal,
+            showRejected ? _kRejected : (type == 'validator' ? Colors.indigo : Colors.teal),
             textPrimary,
           );
         }
+
+        final isValidator = type == 'validator';
+        final currentPage = isValidator ? _validatorAppsPage : _educatorAppsPage;
+        final pageSize = isValidator ? _validatorAppsPageSize : _educatorAppsPageSize;
+
+        final startIndex = (currentPage - 1) * pageSize;
+        final clampedStart = startIndex >= items.length ? 0 : startIndex;
+        if (startIndex >= items.length && currentPage != 1) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                if (isValidator) {
+                  _validatorAppsPage = 1;
+                } else {
+                  _educatorAppsPage = 1;
+                }
+              });
+            }
+          });
+        }
+        final endIndex = (clampedStart + pageSize).clamp(0, items.length);
+        final pageItems = items.sublist(clampedStart, endIndex);
+
         return Column(
-          children: items.map((a) => _buildApplicationCard(
-            context,
-            app: a,
-            showRejected: showRejected,
-            onTap: () => onReviewRequests?.call(showRejected ? 2 : 1),
-            cardColor: cardColor,
-            textPrimary: textPrimary,
-          )).toList(),
+          children: [
+            ...pageItems.map((a) => _buildApplicationCard(
+              context,
+              app: a,
+              showRejected: showRejected,
+              onTap: () => widget.onReviewRequests?.call(showRejected ? 3 : (type == 'validator' ? 1 : 2)),
+              cardColor: cardColor,
+              textPrimary: textPrimary,
+            )),
+            PaginationBar(
+              currentPage: currentPage,
+              totalItems: items.length,
+              pageSize: pageSize,
+              itemName: '$type applications',
+              onPageChanged: (newPage) {
+                setState(() {
+                  if (isValidator) {
+                    _validatorAppsPage = newPage;
+                  } else {
+                    _educatorAppsPage = newPage;
+                  }
+                });
+              },
+            ),
+          ],
         );
       },
     );
@@ -432,9 +970,16 @@ class ValidatorDashboardTab extends StatelessWidget {
                                         borderRadius: BorderRadius.circular(6),
                                         border: Border.all(color: const Color(0xFF81B655).withValues(alpha: 0.2)),
                                       ),
-                                      child: Text(
-                                        'Applied: ${_CredentialThumbnailRow._formatWordDate(app.appliedAt!)}',
-                                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF81B655)),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.schedule_rounded, size: 11, color: Color(0xFF81B655)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Applied: ${_formatDateTime(app.appliedAt!)}',
+                                            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF81B655)),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                 ],
@@ -527,28 +1072,40 @@ class _StatsGrid extends StatelessWidget {
       stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
       builder: (ctx, lessonSnap) {
         return StreamBuilder<List<EducatorApplication>>(
-          stream: DatabaseService.instance.streamEducatorApplications(type: 'educator'),
-          builder: (ctx, appSnap) {
-            return Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              alignment: WrapAlignment.center,
-              children: [
-                _StatCard(
-                  label: 'Pending Lessons & Materials',
-                  value: lessonSnap.data?.length ?? 0,
-                  icon: Icons.auto_stories_rounded,
-                  color: _kPending,
-                  onTap: () => onReviewRequests?.call(0),
-                ),
-                _StatCard(
-                  label: 'Pending Educator Applications',
-                  value: appSnap.data?.length ?? 0,
-                  icon: Icons.how_to_reg_rounded,
-                  color: Colors.teal,
-                  onTap: () => onReviewRequests?.call(1),
-                ),
-              ],
+          stream: DatabaseService.instance.streamEducatorApplications(type: 'validator'),
+          builder: (ctx, valSnap) {
+            return StreamBuilder<List<EducatorApplication>>(
+              stream: DatabaseService.instance.streamEducatorApplications(type: 'educator'),
+              builder: (ctx, eduSnap) {
+                return Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _StatCard(
+                      label: 'Pending Lessons & Materials',
+                      value: lessonSnap.data?.length ?? 0,
+                      icon: Icons.auto_stories_rounded,
+                      color: _kPending,
+                      onTap: () => onReviewRequests?.call(0),
+                    ),
+                    _StatCard(
+                      label: 'Pending Validator Applications',
+                      value: valSnap.data?.length ?? 0,
+                      icon: Icons.verified_user_rounded,
+                      color: Colors.indigo,
+                      onTap: () => onReviewRequests?.call(1),
+                    ),
+                    _StatCard(
+                      label: 'Pending Educator Applications',
+                      value: eduSnap.data?.length ?? 0,
+                      icon: Icons.how_to_reg_rounded,
+                      color: Colors.teal,
+                      onTap: () => onReviewRequests?.call(2),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
@@ -844,15 +1401,6 @@ class _CredentialThumbnailRow extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _formatWordDate(Timestamp ts) {
-    final d = ts.toDate();
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
   static String _extractFileName(String url, String? savedName, String fallback) {

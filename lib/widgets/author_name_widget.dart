@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../pages/educator_profile_page.dart';
 
 class AuthorName extends StatelessWidget {
   final String? uid;
   final String? fallbackEmail;
   final TextStyle? style;
   final String prefix;
+  final bool isClickable;
 
   const AuthorName({
     super.key,
@@ -13,6 +16,7 @@ class AuthorName extends StatelessWidget {
     this.fallbackEmail,
     this.style,
     this.prefix = 'By: ',
+    this.isClickable = false,
   });
 
   @override
@@ -52,7 +56,36 @@ class AuthorName extends StatelessWidget {
           display = email;
         }
 
-        return Text('$prefix$display', style: style);
+        final textWidget = Text('$prefix$display', style: style);
+
+        if (!isClickable) return textWidget;
+
+        return MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: () {
+              final currentUser = FirebaseAuth.instance.currentUser;
+              if (currentUser == null) return;
+              final fullData = {
+                'uid': uid,
+                'email': email,
+                'username': display,
+                ...?data,
+              };
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EducatorProfilePage(
+                    educator: fullData,
+                    currentUser: currentUser,
+                    initialTab: 1, // Opens on Playlists tab
+                  ),
+                ),
+              );
+            },
+            child: textWidget,
+          ),
+        );
       },
     );
   }

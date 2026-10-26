@@ -1,13 +1,28 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/role_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/email_sender_service.dart';
+import '../../services/email_validator_service.dart';
+import '../../widgets/application_preview_widgets.dart';
+import '../../widgets/content_denial_dialog.dart';
 
 class AdminUsersTab extends StatefulWidget {
-  const AdminUsersTab({super.key});
+  final UserRole role;
+  final User? currentUser;
+
+  const AdminUsersTab({
+    super.key,
+    this.role = UserRole.admin,
+    this.currentUser,
+  });
+
   @override
   State<AdminUsersTab> createState() => _AdminUsersTabState();
 }
@@ -20,6 +35,14 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   static const int _pageSize = 10;
 
   final List<String> _filterOptions = ['Name', 'Role', 'Status', 'Create Date'];
+
+  bool _isPendingValidator(Map<String, dynamic> u) {
+    final role = (u['role'] ?? '').toString().toUpperCase();
+    if (role != 'VALIDATOR') return false;
+    final isVerified = u['isVerified'] == true;
+    final status = (u['status'] ?? '').toString().toLowerCase();
+    return !isVerified || status.contains('in review') || status == 'pending';
+  }
 
   String _formatTs(dynamic ts) {
     if (ts is Timestamp) {
@@ -152,6 +175,27 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           ],
                         ),
                       ),
+                      if (widget.role == UserRole.superadmin) ...[
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: _showAddAdminDialog,
+                          icon: const Icon(Icons.person_add_rounded, size: 18),
+                          label: Text(
+                            'Add Admin',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF8B5CF6),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -892,7 +936,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final isLocked = lockedUntilTs != null && lockedUntilTs.toDate().isAfter(DateTime.now());
 
     final isActive = status.toLowerCase() == 'active';
-    final roleColor = _roleColor(role);
+    final isDefaultAdmin = RoleService.isDefaultAdmin(u, uid);
+    final roleColor = _roleColor(isDefaultAdmin ? 'SUPERADMIN' : role);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -949,22 +994,46 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           // ── Role Badge ────────────────────────────────────────────
           Expanded(
             flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: roleColor.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                role,
-                style: GoogleFonts.outfit(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: roleColor,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (isDefaultAdmin ? const Color(0xFFEF4444) : roleColor).withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    isDefaultAdmin ? 'SUPERADMIN' : role,
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isDefaultAdmin ? const Color(0xFFEF4444) : roleColor,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
+                if (isDefaultAdmin) ...[
+                  const SizedBox(height: 3),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'DEFAULT ADMIN',
+                      style: GoogleFonts.inter(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFFEF4444),
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
 
@@ -998,27 +1067,54 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       ),
                     ),
                   )
-                : Row(
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 6,
+                : status.toLowerCase().contains('in review')
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
-                          color: isActive ? const Color(0xFF81B655) : Colors.orange,
-                          shape: BoxShape.circle,
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.amber.shade300),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        status.toUpperCase(),
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: isActive ? const Color(0xFF81B655) : Colors.orange,
-                          fontWeight: FontWeight.w600,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.hourglass_top_rounded, size: 11, color: Colors.amber.shade800),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                status.toUpperCase(),
+                                style: GoogleFonts.inter(
+                                  fontSize: 9.5,
+                                  color: Colors.amber.shade900,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
+                      )
+                    : Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: isActive ? const Color(0xFF81B655) : Colors.orange,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            status.toUpperCase(),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: isActive ? const Color(0xFF81B655) : Colors.orange,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
           ),
 
           // ── Educ Dates ────────────────────────────────────────────
@@ -1033,74 +1129,137 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           // ── Action Buttons ─────────────────────────────────────────
           Expanded(
             flex: 3,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Change Role Button
-                Tooltip(
-                  message: 'Change Role',
-                  child: IconButton(
-                    icon: const Icon(Icons.manage_accounts_rounded, size: 18),
-                    color: const Color(0xFF4B49AC),
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFF4B49AC).withValues(alpha: 0.10),
-                      padding: const EdgeInsets.all(8),
-                      minimumSize: const Size(32, 32),
+            child: Builder(
+              builder: (context) {
+                final isSuperAdmin = widget.role == UserRole.superadmin;
+                final canModifyThisUser = isSuperAdmin && !isDefaultAdmin;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Change Role Button
+                    Tooltip(
+                      message: isDefaultAdmin
+                          ? 'Default Super Admin cannot be modified'
+                          : (isSuperAdmin
+                              ? 'Change Role'
+                              : 'Only Super Admin can change user roles'),
+                      child: IconButton(
+                        icon: const Icon(Icons.manage_accounts_rounded, size: 18),
+                        color: canModifyThisUser ? const Color(0xFF4B49AC) : Colors.grey.shade400,
+                        style: IconButton.styleFrom(
+                          backgroundColor: canModifyThisUser
+                              ? const Color(0xFF4B49AC).withValues(alpha: 0.10)
+                              : Colors.grey.shade100,
+                          padding: const EdgeInsets.all(8),
+                          minimumSize: const Size(32, 32),
+                        ),
+                        onPressed: canModifyThisUser ? () => _showChangeRoleDialog(uid, username, role) : null,
+                      ),
                     ),
-                    onPressed: () => _showChangeRoleDialog(uid, username, role),
-                  ),
-                ),
-                if (isLocked) ...[
-                  const SizedBox(width: 6),
-                  // Unlock Button
-                  Tooltip(
-                    message: 'Unlock Account (Clear Lockout)',
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.lock_open_rounded, size: 14),
-                      label: Text(
-                        'UNLOCK',
-                        style: GoogleFonts.outfit(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
+                    if (isLocked) ...[
+                      const SizedBox(width: 6),
+                      // Unlock Button
+                      Tooltip(
+                        message: isDefaultAdmin
+                            ? 'Default Super Admin'
+                            : (isSuperAdmin
+                                ? 'Unlock Account (Clear Lockout)'
+                                : 'Only Super Admin can unlock accounts'),
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.lock_open_rounded, size: 14),
+                          label: Text(
+                            'UNLOCK',
+                            style: GoogleFonts.outfit(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: canModifyThisUser ? Colors.red.shade50 : Colors.grey.shade100,
+                            foregroundColor: canModifyThisUser ? Colors.red.shade700 : Colors.grey.shade400,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            side: BorderSide(
+                              color: canModifyThisUser ? Colors.red.shade300 : Colors.grey.shade300,
+                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: canModifyThisUser ? () => _showUnlockConfirmation(uid, username, email) : null,
                         ),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade50,
-                        foregroundColor: Colors.red.shade700,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        side: BorderSide(color: Colors.red.shade300),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: () => _showUnlockConfirmation(uid, username, email),
+                    ],
+                    Builder(
+                      builder: (context) {
+                        final isTargetValidator = role.toUpperCase() == 'VALIDATOR';
+                        final isVerified = u['isVerified'] == true;
+                        final isPendingValidator = _isPendingValidator(u);
+                        final isAlreadyValidated = isTargetValidator && isVerified && (status.toLowerCase() == 'active');
+                        final canValidate = (isSuperAdmin || widget.role == UserRole.admin) && !isDefaultAdmin && isPendingValidator;
+
+                        String validateTooltip;
+                        if (isDefaultAdmin) {
+                          validateTooltip = 'Default Super Admin cannot be modified';
+                        } else if (!isSuperAdmin && widget.role != UserRole.admin) {
+                          validateTooltip = 'Only Super Admin or Admin can validate validator applications';
+                        } else if (isAlreadyValidated) {
+                          validateTooltip = 'Validator is already validated & active';
+                        } else if (!isPendingValidator) {
+                          validateTooltip = 'Validation is only available for pending validators';
+                        } else {
+                          validateTooltip = 'Validate Validator Application';
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: Tooltip(
+                            message: validateTooltip,
+                            child: ElevatedButton.icon(
+                              icon: Icon(
+                                isAlreadyValidated
+                                    ? Icons.verified_rounded
+                                    : Icons.check_circle_outline_rounded,
+                                size: 13,
+                              ),
+                              label: Text(isAlreadyValidated ? 'VALIDATED' : 'VALIDATE'),
+                              onPressed: canValidate
+                                  ? () => _showValidateValidatorDialog(u)
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: canValidate
+                                    ? const Color(0xFF81B655)
+                                    : (isAlreadyValidated
+                                        ? const Color(0xFF81B655).withValues(alpha: 0.08)
+                                        : Colors.grey.shade100),
+                                foregroundColor: canValidate
+                                    ? Colors.white
+                                    : (isAlreadyValidated
+                                        ? const Color(0xFF81B655).withValues(alpha: 0.7)
+                                        : Colors.grey.shade400),
+                                elevation: canValidate ? 1 : 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                side: BorderSide(
+                                  color: canValidate
+                                      ? const Color(0xFF81B655)
+                                      : (isAlreadyValidated
+                                          ? const Color(0xFF81B655).withValues(alpha: 0.25)
+                                          : Colors.grey.shade300),
+                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                textStyle: GoogleFonts.outfit(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ),
-                ],
-                const SizedBox(width: 6),
-                // Status Toggle Button
-                ElevatedButton(
-                  onPressed: () => _showStatusToggleConfirmation(uid, username, status),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isActive
-                        ? Colors.orange.shade50
-                        : const Color(0xFF81B655).withValues(alpha: 0.10),
-                    foregroundColor: isActive ? Colors.orange.shade700 : const Color(0xFF81B655),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    side: BorderSide(
-                      color: isActive ? Colors.orange.shade200 : const Color(0xFF81B655).withValues(alpha: 0.3),
-                    ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    textStyle: GoogleFonts.outfit(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  child: Text(isActive ? 'DEACTIVATE' : 'ACTIVATE'),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -1119,7 +1278,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final lockedUntilTs = u['locked_until'] as Timestamp?;
     final isLocked = lockedUntilTs != null && lockedUntilTs.toDate().isAfter(DateTime.now());
     final isActive = status.toLowerCase() == 'active';
-    final roleColor = _roleColor(role);
+    final isDefaultAdmin = RoleService.isDefaultAdmin(u, uid);
+    final roleColor = _roleColor(isDefaultAdmin ? 'SUPERADMIN' : role);
 
     final educStart = u['educatorStartDate'] != null ? _formatTs(u['educatorStartDate']) : null;
 
@@ -1176,16 +1336,40 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   ),
                 ),
                 // Role badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: roleColor.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    role,
-                    style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700, color: roleColor),
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: (isDefaultAdmin ? const Color(0xFFEF4444) : roleColor).withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        isDefaultAdmin ? 'SUPERADMIN' : role,
+                        style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700, color: isDefaultAdmin ? const Color(0xFFEF4444) : roleColor),
+                      ),
+                    ),
+                    if (isDefaultAdmin) ...[
+                      const SizedBox(height: 3),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'DEFAULT ADMIN',
+                          style: GoogleFonts.inter(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFEF4444),
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -1199,6 +1383,30 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   Icon(Icons.lock_rounded, size: 13, color: Colors.red.shade700),
                   const SizedBox(width: 4),
                   Text('LOCKED', style: GoogleFonts.inter(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.w700)),
+                ] else if (status.toLowerCase().contains('in review')) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.shade300),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.hourglass_top_rounded, size: 11, color: Colors.amber.shade800),
+                        const SizedBox(width: 4),
+                        Text(
+                          status.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: Colors.amber.shade900,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ] else ...[
                   Container(
                     width: 7,
@@ -1226,54 +1434,114 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             const Divider(height: 20),
 
             // Action buttons
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                // Change Role
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.manage_accounts_rounded, size: 15),
-                  label: const Text('Change Role'),
-                  onPressed: () => _showChangeRoleDialog(uid, username, role),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF4B49AC),
-                    side: const BorderSide(color: Color(0xFF4B49AC)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-                // Unlock (if locked)
-                if (isLocked)
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.lock_open_rounded, size: 15),
-                    label: const Text('Unlock'),
-                    onPressed: () => _showUnlockConfirmation(uid, username, email),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red.shade700,
-                      side: BorderSide(color: Colors.red.shade300),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            Builder(
+              builder: (context) {
+                final isSuperAdmin = widget.role == UserRole.superadmin;
+                final canModifyThisUser = isSuperAdmin && !isDefaultAdmin;
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    // Change Role
+                    Tooltip(
+                      message: isDefaultAdmin
+                          ? 'Default Super Admin cannot be modified'
+                          : (isSuperAdmin ? 'Change Role' : 'Only Super Admin can change user roles'),
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.manage_accounts_rounded, size: 15),
+                        label: const Text('Change Role'),
+                        onPressed: canModifyThisUser ? () => _showChangeRoleDialog(uid, username, role) : null,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: canModifyThisUser ? const Color(0xFF4B49AC) : Colors.grey.shade400,
+                          side: BorderSide(color: canModifyThisUser ? const Color(0xFF4B49AC) : Colors.grey.shade300),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
                     ),
-                  ),
-                // Activate / Deactivate
-                ElevatedButton(
-                  onPressed: () => _showStatusToggleConfirmation(uid, username, status),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isActive ? Colors.orange.shade50 : const Color(0xFF81B655).withValues(alpha: 0.10),
-                    foregroundColor: isActive ? Colors.orange.shade700 : const Color(0xFF81B655),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    side: BorderSide(
-                      color: isActive ? Colors.orange.shade200 : const Color(0xFF81B655).withValues(alpha: 0.3),
+                    // Unlock (if locked)
+                    if (isLocked)
+                      Tooltip(
+                        message: isDefaultAdmin
+                            ? 'Default Super Admin'
+                            : (isSuperAdmin ? 'Unlock Account' : 'Only Super Admin can unlock accounts'),
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.lock_open_rounded, size: 15),
+                          label: const Text('Unlock'),
+                          onPressed: canModifyThisUser ? () => _showUnlockConfirmation(uid, username, email) : null,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: canModifyThisUser ? Colors.red.shade700 : Colors.grey.shade400,
+                            side: BorderSide(color: canModifyThisUser ? Colors.red.shade300 : Colors.grey.shade300),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    // Validate Validator Button
+                    Builder(
+                      builder: (context) {
+                        final isTargetValidator = role.toUpperCase() == 'VALIDATOR';
+                        final isVerified = u['isVerified'] == true;
+                        final isPendingValidator = _isPendingValidator(u);
+                        final isAlreadyValidated = isTargetValidator && isVerified && (status.toLowerCase() == 'active');
+                        final canValidate = (isSuperAdmin || widget.role == UserRole.admin) && !isDefaultAdmin && isPendingValidator;
+
+                        String validateTooltip;
+                        if (isDefaultAdmin) {
+                          validateTooltip = 'Default Super Admin cannot be modified';
+                        } else if (!isSuperAdmin && widget.role != UserRole.admin) {
+                          validateTooltip = 'Only Super Admin or Admin can validate validator applications';
+                        } else if (isAlreadyValidated) {
+                          validateTooltip = 'Validator is already validated & active';
+                        } else if (!isPendingValidator) {
+                          validateTooltip = 'Validation is only available for pending validators';
+                        } else {
+                          validateTooltip = 'Validate Validator Application';
+                        }
+
+                        return Tooltip(
+                          message: validateTooltip,
+                          child: ElevatedButton.icon(
+                            icon: Icon(
+                              isAlreadyValidated
+                                  ? Icons.verified_rounded
+                                  : Icons.check_circle_outline_rounded,
+                              size: 14,
+                            ),
+                            label: Text(isAlreadyValidated ? 'VALIDATED' : 'VALIDATE'),
+                            onPressed: canValidate ? () => _showValidateValidatorDialog(u) : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: canValidate
+                                  ? const Color(0xFF81B655)
+                                  : (isAlreadyValidated
+                                      ? const Color(0xFF81B655).withValues(alpha: 0.08)
+                                      : Colors.grey.shade100),
+                              foregroundColor: canValidate
+                                  ? Colors.white
+                                  : (isAlreadyValidated
+                                      ? const Color(0xFF81B655).withValues(alpha: 0.7)
+                                      : Colors.grey.shade400),
+                              elevation: canValidate ? 1 : 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              side: BorderSide(
+                                color: canValidate
+                                    ? const Color(0xFF81B655)
+                                    : (isAlreadyValidated
+                                        ? const Color(0xFF81B655).withValues(alpha: 0.25)
+                                        : Colors.grey.shade300),
+                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
-                  ),
-                  child: Text(isActive ? 'DEACTIVATE' : 'ACTIVATE'),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -1283,6 +1551,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
 
   Color _roleColor(String role) {
     switch (role.toUpperCase()) {
+      case 'SUPERADMIN':
+        return const Color(0xFFEF4444);
       case 'ADMIN':
         return const Color(0xFF8B5CF6);
       case 'VALIDATOR':
@@ -1295,6 +1565,15 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   }
 
   void _showChangeRoleDialog(String uid, String username, String currentRoleStr) {
+    if (RoleService.isDefaultAdmin(null, uid)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot modify the role of the default Super Admin.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     String selectedRole = currentRoleStr.toUpperCase();
     final roles = [
       {
@@ -1317,13 +1596,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
         'desc': 'Can review & validate quiz questions',
         'icon': Icons.verified_rounded,
         'color': const Color(0xFF3B82F6),
-      },
-      {
-        'key': 'ADMIN',
-        'label': 'Admin',
-        'desc': 'Full administrative platform control',
-        'icon': Icons.shield_rounded,
-        'color': const Color(0xFF8B5CF6),
       },
     ];
 
@@ -1480,99 +1752,350 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     );
   }
 
-  void _showStatusToggleConfirmation(
-      String uid, String username, String currentStatus) {
-    final isDeactivating = currentStatus.toLowerCase() == 'active';
-    final newStatus = isDeactivating ? 'DEACTIVATED' : 'ACTIVE';
+  Future<void> _showValidateValidatorDialog(Map<String, dynamic> u) async {
+    final uid = (u['uid'] ?? '').toString();
+    final username = (u['username'] ?? u['full_name'] ?? 'Applicant').toString();
+    final email = (u['email'] ?? 'N/A').toString();
+
+    // Look for PRC file in user doc or in educatorApplications collection
+    String prcUrl = (u['prc_url'] ?? u['prcUrl'] ?? '').toString();
+    String prcFileName = (u['prc_file_name'] ?? u['prcFileName'] ?? '').toString();
+    EducatorApplication? app;
+
+    try {
+      final appsSnap = await FirebaseFirestore.instance
+          .collection('educatorApplications')
+          .where('applicantUid', isEqualTo: uid)
+          .get();
+      for (final doc in appsSnap.docs) {
+        final a = EducatorApplication.fromDoc(doc);
+        if (a.applicationType == 'validator' || a.status == 'pending') {
+          app = a;
+          if (prcUrl.isEmpty && a.prcUrl.isNotEmpty) {
+            prcUrl = a.prcUrl;
+          }
+          if (prcFileName.isEmpty && (a.prcFileName ?? '').isNotEmpty) {
+            prcFileName = a.prcFileName!;
+          }
+          break;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error finding application: $e');
+    }
+
+    if (prcFileName.isEmpty && prcUrl.isNotEmpty) {
+      prcFileName = 'PRC_License_Document.pdf';
+    }
+
+    if (!mounted) return;
 
     showDialog(
       context: context,
-      builder: (context) => Dialog(
+      builder: (dialogCtx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
-          width: 380,
+          width: 440,
           padding: const EdgeInsets.all(28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Header ───────────────────────────────────────
               Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: isDeactivating
-                          ? Colors.orange.withValues(alpha: 0.10)
-                          : const Color(0xFF81B655).withValues(alpha: 0.10),
+                      color: const Color(0xFF81B655).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(
-                      isDeactivating ? Icons.block_rounded : Icons.check_circle_rounded,
-                      color: isDeactivating ? Colors.orange : const Color(0xFF81B655),
-                      size: 22,
+                    child: const Icon(
+                      Icons.verified_user_rounded,
+                      color: Color(0xFF81B655),
+                      size: 24,
                     ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Text(
-                      '${isDeactivating ? 'Deactivate' : 'Activate'} Account',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 17,
-                        color: Colors.black87,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Validate Validator',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          'Accreditation Verification',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 20),
+
+              // ── Applicant Info Box ─────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF64748B)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            username,
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 14, color: const Color(0xFF1E293B)),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.amber.shade300),
+                          ),
+                          child: Text(
+                            'IN REVIEW',
+                            style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.amber.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.email_outlined, size: 16, color: Color(0xFF64748B)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            email,
+                            style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 16),
+
+              // ── PRC Document Review ───────────────────────────
               Text(
-                'Are you sure you want to ${isDeactivating ? 'deactivate' : 'activate'} $username\'s account?',
+                'Accreditation Document',
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (prcUrl.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4B49AC).withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.file_present_rounded, color: Color(0xFF4B49AC), size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              prcFileName,
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12, color: const Color(0xFF1E293B)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              'PRC / ID Document',
+                              style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.tonalIcon(
+                        onPressed: () => showFilePreviewModal(context, prcUrl, prcFileName),
+                        icon: const Icon(Icons.visibility_rounded, size: 14),
+                        label: const Text('View', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF4B49AC).withValues(alpha: 0.12),
+                          foregroundColor: const Color(0xFF4B49AC),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 18, color: Colors.amber.shade800),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'No PRC document file found on this profile.',
+                          style: GoogleFonts.inter(fontSize: 12, color: Colors.amber.shade900),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+
+              Text(
+                'Validating this application will officially verify the applicant as a certified Validator, grant access to the Validator Panel, and update their account status to Active.',
                 style: GoogleFonts.inter(
+                  fontSize: 13,
                   color: Colors.grey.shade600,
-                  fontSize: 14,
-                  height: 1.5,
+                  height: 1.4,
                 ),
               ),
               const SizedBox(height: 24),
+
+              // ── Actions ───────────────────────────────────────
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.pop(dialogCtx),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.black54,
                         side: const BorderSide(color: Color(0xFFE2E8F0)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
+                  const SizedBox(width: 8),
+                  if (app != null) ...[
+                    OutlinedButton(
                       onPressed: () async {
-                        Navigator.pop(context);
-                        await DatabaseService.instance
-                            .updateUserField(uid, 'status', newStatus);
+                        Navigator.pop(dialogCtx);
+                        final result = await showContentDenialDialog(
+                          context,
+                          contentTitle: 'Validator Application - $username',
+                          authorName: username,
+                          isPermanentDeletion: false,
+                        );
+                        if (result != null) {
+                          try {
+                            await DatabaseService.instance.rejectValidatorApplication(
+                              uid: uid,
+                              reason: result.category,
+                              description: result.explanation,
+                              reviewerEmail: widget.currentUser?.email,
+                            );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Validator application rejected and applicant notified.'),
+                                  backgroundColor: Color(0xFFE05050),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error rejecting application: $e')),
+                              );
+                            }
+                          }
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.redAccent,
+                        side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.4)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                      child: Text('Reject', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.check_circle_rounded, size: 16),
+                      label: Text('VALIDATE', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                      onPressed: () async {
+                        Navigator.pop(dialogCtx);
+                        try {
+                          await DatabaseService.instance.validateValidatorApplication(
+                            uid: uid,
+                            reviewerEmail: widget.currentUser?.email,
+                          );
+                          if (email.isNotEmpty && email != 'N/A') {
+                            try {
+                              await EmailSenderService.sendEmail(
+                                toEmail: email,
+                                subject: 'Your Grammatica Validator Application Has Been Approved!',
+                                body: 'Hello $username,\n\nYour application to become an official Grammatica Validator has been verified and approved by the Super Admin.\n\nYou now have full access to validate lessons and educational content on Grammatica.\n\nBest regards,\nThe Grammatica Team',
+                              );
+                            } catch (_) {}
+                          }
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Validator application for $username validated successfully!'),
+                                backgroundColor: const Color(0xFF81B655),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to validate validator: $e'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                          }
+                        }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isDeactivating
-                            ? Colors.orange
-                            : const Color(0xFF81B655),
+                        backgroundColor: const Color(0xFF81B655),
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text(
-                        isDeactivating ? 'Deactivate' : 'Activate',
-                        style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
@@ -1587,6 +2110,15 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
 
   void _showUnlockConfirmation(
       String uid, String username, String email) {
+    if (RoleService.isDefaultAdmin(null, uid)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Default Super Admin account is never locked.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -1682,6 +2214,252 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddAdminDialog() {
+    final emailCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Container(
+            width: 440,
+            padding: const EdgeInsets.all(28),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(Icons.person_add_rounded, color: Color(0xFF8B5CF6), size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Add New Admin',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            Text(
+                              'Create an administrator account with limited permissions',
+                              style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline_rounded, color: Color(0xFF8B5CF6), size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'A password reset confirmation link will be sent immediately to the admin\'s email address so they can set their password and sign in.',
+                            style: GoogleFonts.inter(fontSize: 12, color: Colors.black87, height: 1.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'ADMIN EMAIL ADDRESS',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.grey.shade600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    style: GoogleFonts.inter(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'admin@example.com',
+                      prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
+                    validator: (val) {
+                      final email = val?.trim() ?? '';
+                      if (email.isEmpty) return 'Please enter an email address';
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+                        return 'Please enter a valid email address';
+                      }
+                      if (!EmailValidatorService.isAllowedEmail(email)) {
+                        return 'Only @gmail.com, @yahoo.com, and @hotmail.com are allowed';
+                      }
+                      return null;
+                    },
+                  ),
+                  if (errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      errorMessage!,
+                      style: GoogleFonts.inter(fontSize: 12, color: Colors.red.shade700, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.grey.shade700,
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  if (!formKey.currentState!.validate()) return;
+                                  setDialogState(() {
+                                    isSubmitting = true;
+                                    errorMessage = null;
+                                  });
+
+                                  final email = emailCtrl.text.trim();
+                                  try {
+                                    final rand = Random.secure();
+                                    final tempPassword = 'Gramm_${100000 + rand.nextInt(900000)}!';
+
+                                    // Create user via secondary FirebaseApp to preserve current superadmin session
+                                    final tempAppName = 'tempAdminReg_${DateTime.now().millisecondsSinceEpoch}';
+                                    final tempApp = await Firebase.initializeApp(
+                                      name: tempAppName,
+                                      options: Firebase.app().options,
+                                    );
+                                    final tempAuth = FirebaseAuth.instanceFor(app: tempApp);
+                                    final cred = await tempAuth.createUserWithEmailAndPassword(
+                                      email: email,
+                                      password: tempPassword,
+                                    );
+                                    final newUid = cred.user!.uid;
+                                    await tempApp.delete();
+
+                                    // Save admin user record
+                                    await FirebaseFirestore.instance.collection('users').doc(newUid).set({
+                                      'uid': newUid,
+                                      'email': email.toLowerCase(),
+                                      'username': email.split('@').first,
+                                      'role': 'ADMIN',
+                                      'status': 'ACTIVE',
+                                      'mustResetPassword': true,
+                                      'createdAt': FieldValue.serverTimestamp(),
+                                    });
+
+                                    // Immediately send password reset confirmation email
+                                    try {
+                                      await AuthService.instance.sendPasswordResetEmail(email);
+                                    } catch (e) {
+                                      debugPrint('⚠️ sendPasswordResetEmail error: $e');
+                                    }
+
+                                    // Send invitation email with credentials and notification
+                                    try {
+                                      await EmailSenderService.sendAdminInvitationEmail(
+                                        recipientEmail: email,
+                                        temporaryPassword: tempPassword,
+                                      );
+                                    } catch (e) {
+                                      debugPrint('⚠️ sendAdminInvitationEmail error: $e');
+                                    }
+
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Admin account created! Password reset confirmation sent immediately to $email.'),
+                                          backgroundColor: const Color(0xFF81B655),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    setDialogState(() {
+                                      isSubmitting = false;
+                                      errorMessage = e.toString().replaceFirst(RegExp(r'^\[.*?\]\s*'), '');
+                                    });
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF8B5CF6),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            elevation: 0,
+                          ),
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : Text('Create & Email', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

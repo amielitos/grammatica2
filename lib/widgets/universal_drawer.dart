@@ -46,14 +46,21 @@ class UniversalDrawer extends StatelessWidget {
     final username = (effectiveUserData['username'] as String?)?.split(' ').first ?? 'User';
 
     if (isAdmin || isEducator) {
-      final List<ModernNavItem> items = navItems ?? [];
+      final List<ModernNavItem> items =
+          navItems != null ? List<ModernNavItem>.from(navItems!) : [];
       if (items.isEmpty) {
         final isSuperAdmin = role == UserRole.superadmin;
         final isAdminOrSuperAdmin = role == UserRole.admin || role == UserRole.superadmin;
 
         if (role == UserRole.validator) {
+          final isVerified = effectiveUserData['isVerified'] == true;
+          final statusStr = ((effectiveUserData['status'] as String?) ?? '').toLowerCase();
+          final isApprovedValidator = isVerified && statusStr == 'active';
+
           items.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
-          items.add(const ModernNavItem(icon: Icons.verified_user, label: 'Applications'));
+          if (isApprovedValidator) {
+            items.add(const ModernNavItem(icon: Icons.rate_review_rounded, label: 'Content Review'));
+          }
         } else {
           if (isEducator) {
             items.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));

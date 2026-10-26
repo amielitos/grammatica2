@@ -20,6 +20,7 @@ class PublishedContentItem {
   final String validationStatus;
   final String? notebookId;
   final String? outputId;
+  final String? lessonId;
 
   /// Semantic alias for [notebookId] to identify the unified content bundle.
   String? get bundleId => notebookId;
@@ -39,6 +40,7 @@ class PublishedContentItem {
     this.validationStatus = 'approved',
     this.notebookId,
     this.outputId,
+    this.lessonId,
   });
 
   factory PublishedContentItem.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -62,6 +64,7 @@ class PublishedContentItem {
       validationStatus: (map['validationStatus'] ?? 'approved').toString(),
       notebookId: map['notebookId'] as String?,
       outputId: map['outputId'] as String?,
+      lessonId: map['lessonId'] as String?,
     );
   }
 
@@ -84,6 +87,7 @@ class PublishedContentItem {
       validationStatus: 'approved',
       notebookId: output.notebookId,
       outputId: output.id,
+      lessonId: output.publishMetadata?['lessonId'] as String? ?? output.data['lessonId'] as String?,
     );
   }
 
@@ -102,6 +106,7 @@ class PublishedContentItem {
       'validationStatus': validationStatus,
       if (notebookId != null) 'notebookId': notebookId,
       if (outputId != null) 'outputId': outputId,
+      if (lessonId != null) 'lessonId': lessonId,
     };
   }
 
@@ -112,6 +117,7 @@ class PublishedContentItem {
   Timeline get timeline => Timeline.fromJson(data);
   Briefing get briefing => Briefing.fromJson(data);
   FAQ get faq => FAQ.fromJson(data);
+  Presentation get presentation => Presentation.fromJson(data);
 
   /// Converts this published item back into a [NotebookOutput] suitable for existing viewers.
   NotebookOutput toNotebookOutput() {
@@ -135,6 +141,7 @@ class PublishedContentItem {
         'isVisible': isVisible,
         'visibleTo': visibleTo,
         'isMembersOnly': isMembersOnly,
+        if (lessonId != null) 'lessonId': lessonId,
       },
     );
   }

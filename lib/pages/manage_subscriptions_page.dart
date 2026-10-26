@@ -9,6 +9,7 @@ import '../widgets/custom_app_bar.dart';
 import '../widgets/notification_widgets.dart';
 import '../widgets/universal_drawer.dart';
 import 'conference_page.dart';
+import '../widgets/pagination_bar.dart';
 
 class ManageSubscriptionsPage extends StatefulWidget {
   final User user;
@@ -24,6 +25,8 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
   final TextEditingController _premiumController = TextEditingController();
   bool _isEducator = false;
   Map<String, dynamic>? _userData;
+  int _mentorshipPage = 1;
+  static const int _mentorshipPageSize = 4;
 
   @override
   void initState() {
@@ -424,12 +427,18 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             return ta.compareTo(tb);
           });
 
+        final totalSessions = scheduledSessions.length;
+        final maxPage = (totalSessions / _mentorshipPageSize).ceil().clamp(1, 9999);
+        if (_mentorshipPage > maxPage) _mentorshipPage = maxPage;
+        final startIndex = (_mentorshipPage - 1) * _mentorshipPageSize;
+        final pageSessions = scheduledSessions.skip(startIndex).take(_mentorshipPageSize).toList();
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeaderBox(
               Icons.video_call_rounded,
-              'Mentorship Sessions & Meetings',
+              'Mentorship Sessions & Meetings ($totalSessions)',
               const Color(0xFF3B82F6),
               textColor,
               isDark,
@@ -437,8 +446,21 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             const SizedBox(height: 16),
             if (scheduledSessions.isEmpty)
               _buildEmptyCard('No scheduled mentorship meetings.', isDark, cardBg, borderColor, subtitleColor)
-            else
-              ...scheduledSessions.map((s) => _buildMentorshipCard(s, isDark, cardBg, borderColor, textColor, subtitleColor)),
+            else ...[
+              ...pageSessions.map((s) => _buildMentorshipCard(s, isDark, cardBg, borderColor, textColor, subtitleColor)),
+              if (totalSessions > _mentorshipPageSize) ...[
+                const SizedBox(height: 16),
+                PaginationBar(
+                  currentPage: _mentorshipPage,
+                  totalItems: totalSessions,
+                  pageSize: _mentorshipPageSize,
+                  itemName: 'sessions',
+                  onPageChanged: (newPage) {
+                    setState(() => _mentorshipPage = newPage);
+                  },
+                ),
+              ],
+            ],
           ],
         );
       },

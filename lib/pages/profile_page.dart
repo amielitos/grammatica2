@@ -2218,14 +2218,35 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
       _hasDigit(p) &&
       _hasSpecial(p);
 
+  String _getPasswordStrength(String pass) {
+    if (pass.isEmpty) return '';
+    int score = 0;
+    if (_hasMinLength(pass)) score++;
+    if (_hasUppercase(pass)) score++;
+    if (_hasLowercase(pass)) score++;
+    if (_hasDigit(pass)) score++;
+    if (_hasSpecial(pass)) score++;
+    if (score <= 2) return 'Weak';
+    if (score <= 4) return 'Medium';
+    return 'Strong';
+  }
+
+  Color _getStrengthColor(String pass) {
+    final s = _getPasswordStrength(pass);
+    if (s == 'Weak') return Colors.red;
+    if (s == 'Medium') return Colors.orange;
+    if (s == 'Strong') return const Color(0xFF81B655);
+    return Colors.transparent;
+  }
+
   Widget _buildReqRow(String label, bool met, bool isDark) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 5.0),
+      padding: const EdgeInsets.only(bottom: 6.0),
       child: Row(
         children: [
           Icon(
             met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-            size: 15,
+            size: 16,
             color: met ? const Color(0xFF81B655) : (isDark ? Colors.white38 : Colors.grey.shade400),
           ),
           const SizedBox(width: 8),
@@ -2255,6 +2276,12 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
     final bool passwordsMatch = hasNewPass &&
         hasConfirmPass &&
         (newPass == _confirmPasswordCtrl.text);
+
+    final bool isStrongEnough = _isPasswordValid(newPass);
+    final bool canSubmit = !_isLoading &&
+        _currentPasswordCtrl.text.isNotEmpty &&
+        isStrongEnough &&
+        passwordsMatch;
 
     return Container(
       width: double.infinity,
@@ -2286,6 +2313,7 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
           TextField(
             controller: _currentPasswordCtrl,
             obscureText: _obscureCurrentPassword,
+            onChanged: (_) => setState(() {}),
             style: TextStyle(
               fontSize: 14,
               color: isDark ? Colors.white : Colors.black87,
@@ -2340,60 +2368,109 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
             ),
           ),
           if (hasNewPass) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF22262B) : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isDark ? const Color(0xFF384350) : const Color(0xFFE2E8F0),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.shield_outlined, size: 15, color: Color(0xFF81B655)),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Password Requirements',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 4,
+                            color: _getStrengthColor(newPass),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _buildReqRow('At least 8 characters', _hasMinLength(newPass), isDark),
-                  _buildReqRow('At least 1 uppercase letter (A-Z)', _hasUppercase(newPass), isDark),
-                  _buildReqRow('At least 1 lowercase letter (a-z)', _hasLowercase(newPass), isDark),
-                  _buildReqRow('At least 1 number (0-9)', _hasDigit(newPass), isDark),
-                  _buildReqRow('At least 1 special character', _hasSpecial(newPass), isDark),
-                  const SizedBox(height: 6),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.black26 : const Color(0xFFE2E8F0).withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'Allowed special characters: ! @ # \$ % ^ & * ( ) , . ? " : { } | < > ~ _ - + =',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontFamily: 'monospace',
-                        color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                      ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Container(
+                            height: 4,
+                            color: (_getPasswordStrength(newPass) == 'Medium' ||
+                                    _getPasswordStrength(newPass) == 'Strong')
+                                ? _getStrengthColor(newPass)
+                                : (isDark ? Colors.white12 : Colors.grey.shade300),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Container(
+                            height: 4,
+                            color: _getPasswordStrength(newPass) == 'Strong'
+                                ? _getStrengthColor(newPass)
+                                : (isDark ? Colors.white12 : Colors.grey.shade300),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  _getPasswordStrength(newPass),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: _getStrengthColor(newPass),
+                  ),
+                ),
+              ],
             ),
           ],
+          const SizedBox(height: 12),
+          // Persistent Password Requirements Box
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF22262B) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? const Color(0xFF384350) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.shield_outlined, size: 15, color: Color(0xFF81B655)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Password Security Restrictions',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildReqRow('At least 8 characters', _hasMinLength(newPass), isDark),
+                _buildReqRow('At least 1 uppercase letter (A-Z)', _hasUppercase(newPass), isDark),
+                _buildReqRow('At least 1 lowercase letter (a-z)', _hasLowercase(newPass), isDark),
+                _buildReqRow('At least 1 number (0-9)', _hasDigit(newPass), isDark),
+                _buildReqRow('At least 1 special character', _hasSpecial(newPass), isDark),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.black26 : const Color(0xFFE2E8F0).withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Allowed special characters: ! @ # \$ % ^ & * ( ) , . ? " : { } | < > ~ _ - + =',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontFamily: 'monospace',
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: _confirmPasswordCtrl,
@@ -2463,36 +2540,38 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _updatePassword,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF81B655),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+            child: ElevatedButton(
+              onPressed: canSubmit ? _updatePassword : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF81B655),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: isDark
+                    ? const Color(0xFF334155).withValues(alpha: 0.5)
+                    : const Color(0xFFCBD5E1),
+                disabledForegroundColor: isDark ? Colors.white38 : Colors.grey.shade600,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Update Password',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
               ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      'Update Password',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: canSubmit ? Colors.white : (isDark ? Colors.white38 : Colors.grey.shade600),
+                      ),
+                    ),
             ),
           ),
         ],

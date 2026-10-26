@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/published_content_item.dart';
+import '../models/playlist.dart';
 import '../pages/content_viewer_page.dart';
 import '../pages/lesson_page.dart';
 import '../pages/quiz_detail_page.dart';
@@ -24,6 +25,7 @@ class NavigationService {
     Lesson lesson, {
     bool replace = false,
     bool previewMode = false,
+    LessonPlaylist? playlist,
   }) async {
     if (!previewMode) {
       DatabaseService.lastViewedLessonId = lesson.id;
@@ -37,6 +39,7 @@ class NavigationService {
       user: _liveUser,
       lesson: lesson,
       previewMode: previewMode,
+      playlist: playlist,
     );
 
     if (replace) {

@@ -199,6 +199,7 @@ enum QuizQuestionType {
   trueFalse,
   shortAnswer,
   fillInTheBlank,
+  pronunciation,
   matching,
   passage;
 
@@ -212,6 +213,8 @@ enum QuizQuestionType {
         return QuizQuestionType.shortAnswer;
       case 'fill_in_the_blank':
         return QuizQuestionType.fillInTheBlank;
+      case 'pronunciation':
+        return QuizQuestionType.pronunciation;
       case 'matching':
         return QuizQuestionType.matching;
       case 'passage':
@@ -231,6 +234,8 @@ enum QuizQuestionType {
         return 'short_answer';
       case QuizQuestionType.fillInTheBlank:
         return 'fill_in_the_blank';
+      case QuizQuestionType.pronunciation:
+        return 'pronunciation';
       case QuizQuestionType.matching:
         return 'matching';
       case QuizQuestionType.passage:
@@ -246,6 +251,8 @@ class AIQuizQuestion {
   final String correctAnswer;
   final String? hint;
   final String? explanation;
+  final List<String>? blankAnswers;
+  final String? targetWord;
 
   const AIQuizQuestion({
     required this.questionType,
@@ -254,6 +261,8 @@ class AIQuizQuestion {
     required this.correctAnswer,
     this.hint,
     this.explanation,
+    this.blankAnswers,
+    this.targetWord,
   });
 
   factory AIQuizQuestion.fromJson(Map<String, dynamic> json) {
@@ -276,6 +285,11 @@ class AIQuizQuestion {
             ?.map((o) => o.toString())
             .toList() ??
         [];
+    final blankAnswers = (json['blankAnswers'] as List<dynamic>?)
+            ?.map((o) => o.toString())
+            .toList();
+    final targetWord = json['targetWord'] as String?;
+
     return AIQuizQuestion(
       questionType: QuizQuestionType.fromString(
           json['questionType'] as String? ?? 'multiple_choice'),
@@ -284,6 +298,8 @@ class AIQuizQuestion {
       correctAnswer: json['correctAnswer'] as String? ?? '',
       hint: json['hint'] as String?,
       explanation: json['explanation'] as String?,
+      blankAnswers: blankAnswers,
+      targetWord: targetWord,
     );
   }
 
@@ -294,6 +310,8 @@ class AIQuizQuestion {
         'correctAnswer': correctAnswer,
         if (hint != null) 'hint': hint,
         if (explanation != null) 'explanation': explanation,
+        if (blankAnswers != null) 'blankAnswers': blankAnswers,
+        if (targetWord != null) 'targetWord': targetWord,
       };
 }
 
@@ -420,7 +438,10 @@ class AIQuizResponse {
       List<String>? effectiveOptions =
           q.options.isNotEmpty ? List<String>.from(q.options) : null;
       String effectiveType = q.questionType.toJsonString();
-      if (q.questionType != QuizQuestionType.passage) {
+      List<String>? blankAnswers = q.blankAnswers;
+      String? targetWord = q.targetWord;
+
+      if (q.questionType == QuizQuestionType.multipleChoice || q.questionType == QuizQuestionType.trueFalse) {
         effectiveType = 'multiple_choice';
         if (effectiveOptions == null || effectiveOptions.isEmpty) {
           final ans = q.correctAnswer.trim();
@@ -429,12 +450,36 @@ class AIQuizResponse {
           } else if (ans.isNotEmpty) {
             effectiveOptions = [
               ans,
-              'Cannot be determined from the passage',
-              'Not stated in the text',
-              'Contradicts the passage'
+              'Option B',
+              'Option C',
+              'Option D'
             ];
           } else {
             effectiveOptions = ['Option A', 'Option B', 'Option C', 'Option D'];
+          }
+        }
+      } else if (q.questionType == QuizQuestionType.fillInTheBlank) {
+        effectiveType = 'fill_in_the_blank';
+        effectiveOptions = null;
+        if (blankAnswers == null || blankAnswers.isEmpty) {
+          final reg = RegExp(r'\[([^\]]+)\]');
+          final matches = reg.allMatches(cleanText);
+          if (matches.isNotEmpty) {
+            blankAnswers = matches.map((m) => m.group(1)!.trim()).toList();
+          } else if (q.correctAnswer.isNotEmpty) {
+            blankAnswers = q.correctAnswer.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+          }
+        }
+      } else if (q.questionType == QuizQuestionType.pronunciation) {
+        effectiveType = 'pronunciation';
+        effectiveOptions = null;
+        if (targetWord == null || targetWord.isEmpty) {
+          final reg = RegExp(r'\[([^\]]+)\]');
+          final match = reg.firstMatch(cleanText);
+          if (match != null) {
+            targetWord = match.group(1)!.trim();
+          } else {
+            targetWord = q.correctAnswer.trim();
           }
         }
       }
@@ -446,6 +491,8 @@ class AIQuizResponse {
         options: effectiveOptions,
         hint: q.hint,
         explanation: q.explanation,
+        blankAnswers: blankAnswers,
+        targetWord: targetWord,
       );
 
       if (q.questionType == QuizQuestionType.passage) {

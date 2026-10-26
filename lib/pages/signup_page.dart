@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/auth_service.dart';
+import '../services/email_validator_service.dart';
 
 import 'package:flutter/services.dart';
 import '../widgets/google_sign_in_button.dart';
@@ -28,6 +29,9 @@ class _SignupPageState extends State<SignupPage> {
   final _formKey2 = GlobalKey<FormState>();
   final _formKey3 = GlobalKey<FormState>();
 
+  // Role Selection
+  String _selectedRole = 'learner'; // 'learner' or 'validator'
+
   // Step 1 Controllers
   final _firstNameController = TextEditingController();
   final _middleNameController = TextEditingController();
@@ -40,6 +44,7 @@ class _SignupPageState extends State<SignupPage> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   bool _isEmailTaken = false;
+  bool _isInvalidDomain = false;
   bool _isValidatingEmail = false;
 
   // Step 3 Controllers
@@ -73,8 +78,24 @@ class _SignupPageState extends State<SignupPage> {
   void _validateEmailRealTime() async {
     final email = _emailController.text.trim();
     if (email.isEmpty || !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      setState(() => _isEmailTaken = false);
+      setState(() {
+        _isEmailTaken = false;
+        _isInvalidDomain = false;
+      });
       return;
+    }
+
+    if (!EmailValidatorService.isAllowedEmail(email)) {
+      setState(() {
+        _isInvalidDomain = true;
+        _isEmailTaken = false;
+        _isValidatingEmail = false;
+      });
+      return;
+    } else {
+      if (_isInvalidDomain) {
+        setState(() => _isInvalidDomain = false);
+      }
     }
 
     setState(() => _isValidatingEmail = true);
@@ -231,6 +252,18 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> _register() async {
+    final email = _emailController.text.trim();
+    if (!EmailValidatorService.isAllowedEmail(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only @gmail.com, @yahoo.com, and @hotmail.com emails are accepted.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      setState(() => _isInvalidDomain = true);
+      return;
+    }
+
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please read and agree to the Terms')));
       return;
@@ -250,11 +283,12 @@ class _SignupPageState extends State<SignupPage> {
 
       // Register directly via Firebase Authentication
       final cred = await AuthService.instance.registerWithEmailPassword(
-        email: _emailController.text.trim(),
+        email: email,
         password: _passwordController.text,
         fullName: fullName,
         phoneNumber: '',
         dateOfBirth: _selectedDate ?? DateTime.now(),
+        role: _selectedRole,
       );
 
       final user = cred.user;
@@ -268,7 +302,7 @@ class _SignupPageState extends State<SignupPage> {
           context,
           MaterialPageRoute(
             builder: (_) => OtpVerificationPage(
-              email: _emailController.text.trim(),
+              email: email,
               fullName: fullName,
             ),
           ),
@@ -303,7 +337,19 @@ class _SignupPageState extends State<SignupPage> {
         _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
       }
     } else if (_currentStep == 1) {
-      if (_formKey2.currentState!.validate() && !_isEmailTaken && !_isValidatingEmail) {
+      final email = _emailController.text.trim();
+      if (!EmailValidatorService.isAllowedEmail(email)) {
+        setState(() => _isInvalidDomain = true);
+        _formKey2.currentState?.validate();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Only @gmail.com, @yahoo.com, and @hotmail.com emails are accepted.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+      if (_formKey2.currentState!.validate() && !_isEmailTaken && !_isValidatingEmail && !_isInvalidDomain) {
         _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
       }
     }
@@ -509,13 +555,13 @@ class _SignupPageState extends State<SignupPage> {
   double _getStepHeight() {
     switch (_currentStep) {
       case 0:
-        return 390;
+        return _selectedRole == 'validator' ? 490 : 470;
       case 1:
-        return 170;
+        return 190;
       case 2:
         return 530;
       default:
-        return 390;
+        return 470;
     }
   }
 
@@ -529,6 +575,87 @@ class _SignupPageState extends State<SignupPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text("Register As", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedRole = 'learner'),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedRole == 'learner'
+                            ? const Color(0xFF81B655).withValues(alpha: 0.12)
+                            : (isDark ? Colors.white10 : Colors.grey.shade100),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _selectedRole == 'learner' ? const Color(0xFF81B655) : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.school_rounded, size: 20, color: _selectedRole == 'learner' ? const Color(0xFF81B655) : Colors.grey),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Learner',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _selectedRole == 'learner' ? const Color(0xFF81B655) : (isDark ? Colors.white70 : Colors.black87),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() => _selectedRole = 'validator'),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedRole == 'validator'
+                            ? const Color(0xFF3B82F6).withValues(alpha: 0.12)
+                            : (isDark ? Colors.white10 : Colors.grey.shade100),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _selectedRole == 'validator' ? const Color(0xFF3B82F6) : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.verified_rounded, size: 20, color: _selectedRole == 'validator' ? const Color(0xFF3B82F6) : Colors.grey),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Validator',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _selectedRole == 'validator' ? const Color(0xFF3B82F6) : (isDark ? Colors.white70 : Colors.black87),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (_selectedRole == 'validator') ...[
+              const SizedBox(height: 6),
+              Text(
+                'Note: Validators must upload a PRC Teacher Certificate after account setup.',
+                style: TextStyle(fontSize: 11, color: Colors.blue.shade400, fontStyle: FontStyle.italic),
+              ),
+            ],
+            const SizedBox(height: 16),
             Text("Personal Information", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54)),
             const SizedBox(height: 16),
             _buildTextField(
@@ -617,15 +744,21 @@ class _SignupPageState extends State<SignupPage> {
               prefixIcon: const Icon(Icons.email_outlined),
               keyboardType: TextInputType.emailAddress,
               validator: (val) {
-                if (val == null || val.isEmpty) return 'Enter email';
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val)) return 'Enter valid email';
+                if (val == null || val.trim().isEmpty) return 'Enter email';
+                final clean = val.trim();
+                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(clean)) return 'Enter valid email';
+                if (!EmailValidatorService.isAllowedEmail(clean) || _isInvalidDomain) {
+                  return 'Only @gmail.com, @yahoo.com, and @hotmail.com are allowed';
+                }
                 if (_isEmailTaken) return 'Email already registered';
                 return null;
               },
               onChanged: (val) => _validateEmailRealTime(),
               suffixIcon: _isValidatingEmail 
                 ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
-                : _isEmailTaken ? const Icon(Icons.error_outline, color: Colors.red) : null,
+                : _isInvalidDomain
+                  ? const Tooltip(message: 'Only @gmail.com, @yahoo.com, and @hotmail.com allowed', child: Icon(Icons.block_rounded, color: Colors.red))
+                  : _isEmailTaken ? const Icon(Icons.error_outline, color: Colors.red) : null,
             ),
           ],
         ),

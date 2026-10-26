@@ -83,6 +83,7 @@ class QuestionType(str, Enum):
     TRUE_FALSE = "true_false"
     SHORT_ANSWER = "short_answer"
     FILL_IN_THE_BLANK = "fill_in_the_blank"
+    PRONUNCIATION = "pronunciation"
     MATCHING = "matching"
 
 
@@ -92,6 +93,8 @@ class QuizQuestion(BaseModel):
     content: List[ContentBlock]
     options: List[str] = []
     correctAnswer: str
+    blankAnswers: List[str] = []
+    targetWord: str | None = None
 
     @field_validator("options")
     @classmethod

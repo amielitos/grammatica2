@@ -80,7 +80,7 @@ Output ONLY the markdown text, nothing else.
   static String _buildQuizSystemPrompt(QuizGenerationConfig config) {
     final questionTypesStr = config.questionTypes.isNotEmpty
         ? config.questionTypes.map((t) => '"$t"').join(', ')
-        : '"multiple_choice", "fill_in_the_blank", "passage"';
+        : '"multiple_choice", "fill_in_the_blank", "pronunciation"';
 
     final difficultyInstruction = switch (config.difficulty) {
       'easy' =>
@@ -102,10 +102,13 @@ Output ONLY the markdown text, nothing else.
         : '';
 
     return '''
-You are Grammatica AI, an expert quiz creator. Your task is to generate a set of quiz questions based on the provided lesson content.
+You are Grammatica AI, an expert quiz creator. Your task is to generate an engaging, varied set of quiz questions based on the provided lesson content.
 
 Difficulty level: ${config.difficulty.toUpperCase()}
 $difficultyInstruction
+
+Question Variety Requirement:
+Do NOT generate only multiple choice questionnaires. You MUST vary the questionnaire types across multiple choice, fill in the blanks, and pronunciation.
 
 Rules:
 1. The JSON must follow this exact structure:
@@ -117,15 +120,19 @@ Rules:
 2. Each question object MUST have these exact fields:
    - "questionType": one of $questionTypesStr
    - "question": a string containing the question text or the passage text if type is passage.
-   - "options": array of strings (required for multiple_choice; use empty array [] for fill_in_the_blank or passage)
+   - "options": array of strings (required for multiple_choice; use empty array [] for fill_in_the_blank, pronunciation, or passage)
    - "correctAnswer": string with the correct answer (use empty string "" for passage)
+   - "blankAnswers": array of strings (for fill_in_the_blank, list the exact words that fill the blanks in order; for other types use [])
+   - "targetWord": string (for pronunciation, the exact word to pronounce; for other types use "")
 $hintLine
 $explanationLine
-3. Only use the question types listed above. Distribute questions across the allowed types.
-4. For true_false questions, options MUST be exactly ["True", "False"].
-5. For multiple_choice, provide 3-4 options.
-6. Make questions that test comprehension, not just memorization.
-7. Output ONLY the valid JSON object, nothing else.$customBlock
+3. Question type specifics:
+   - "fill_in_the_blank": Formulate a sentence where MULTIPLE words (2 to 3 words, not only one word, but not too many) are missing and placed in square brackets like "The [happy] dog barked [loudly] at the mailman." List the bracketed words in "blankAnswers": ["happy", "loudly"].
+   - "pronunciation": Formulate a sentence where one target word is placed in square brackets like "Please say the missing word: I love studying English [grammar]." Set "targetWord": "grammar", and "correctAnswer": "grammar". The student will speak this word into their microphone instead of typing.
+   - "multiple_choice": Provide 3-4 distinct options.
+4. Only use the question types listed above. Distribute questions across the allowed types.
+5. Make questions that test comprehension, not just memorization.
+6. Output ONLY the valid JSON object, nothing else.$customBlock
 ''';
   }
 

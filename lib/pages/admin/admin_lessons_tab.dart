@@ -120,14 +120,66 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
 
   ContentVisibility _visibility = ContentVisibility.public;
   int _tabIndex = 0;
- 
+
+  List<Lesson> _creatorLessons = [];
+  String? _existingLessonIdForSameCreator;
 
   @override
   void initState() {
     super.initState();
     _tabIndex = widget.initialTabIndex;
+    _title.addListener(_checkExistingLessonTitle);
+    _fetchCreatorLessons();
     if (widget.initialLesson != null) {
       _loadInitialLesson();
+    }
+  }
+
+  Future<void> _fetchCreatorLessons() async {
+    final user = AuthService.instance.currentUser;
+    if (user == null) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('lessons')
+          .where('createdByUid', isEqualTo: user.uid)
+          .get();
+      if (mounted) {
+        setState(() {
+          _creatorLessons = snap.docs.map((d) => Lesson.fromDoc(d)).toList();
+          _checkExistingLessonTitle();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching creator lessons: $e');
+    }
+  }
+
+  void _checkExistingLessonTitle() {
+    final enteredTitle = _title.text.trim().toLowerCase();
+    if (enteredTitle.isEmpty) {
+      if (_existingLessonIdForSameCreator != null) {
+        setState(() => _existingLessonIdForSameCreator = null);
+      }
+      return;
+    }
+
+    final user = AuthService.instance.currentUser;
+    if (user == null) return;
+
+    Lesson? match;
+    for (final l in _creatorLessons) {
+      if (l.id == _selectedLessonId) continue;
+      if (l.createdByUid == user.uid && l.title.trim().toLowerCase() == enteredTitle) {
+        match = l;
+        break;
+      }
+    }
+
+    final newId = match?.id;
+    if (newId != _existingLessonIdForSameCreator) {
+      setState(() {
+        _existingLessonIdForSameCreator = newId;
+      });
     }
   }
 
@@ -317,6 +369,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Widget _buildLessonForm(UserRole? role, bool isDark) {
+    final bool isUpdateAction = _selectedLessonId != null || _existingLessonIdForSameCreator != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -373,8 +426,13 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                 ),
                 icon: _creatingLesson
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.check_circle_rounded, size: 20),
-                label: Text('Save Content', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
+                    : Icon(isUpdateAction ? Icons.update_rounded : Icons.cloud_upload_rounded, size: 20),
+                label: Text(
+                  _creatingLesson
+                      ? (isUpdateAction ? 'Updating...' : 'Uploading...')
+                      : (isUpdateAction ? 'Update' : 'Upload'),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
               ),
             ],
           ),
@@ -417,6 +475,33 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             icon: Icons.menu_book_rounded,
             isDark: isDark,
           ),
+          if (_existingLessonIdForSameCreator != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF6366F1)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Existing lesson with this title found in your account. Saving will Update your existing lesson.',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF6366F1),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           _buildTitlePageImagePicker(isDark),
           const SizedBox(height: 24),
@@ -1504,6 +1589,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     _selectedLessonId = null;
     _selectedLesson = null;
     _selectedQuizId = null;
+    _existingLessonIdForSameCreator = null;
     _title.clear();
     _prompt.clear();
     _lessonImageUrl = null;
@@ -1623,7 +1709,9 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         createdAt: _selectedLesson?.createdAt ?? Timestamp.now(),
       );
 
-      if (_selectedLessonId == null) {
+      final targetLessonId = _selectedLessonId ?? _existingLessonIdForSameCreator;
+
+      if (targetLessonId == null) {
         await DatabaseService.instance.createLesson(
           title: lessonData.title,
           prompt: lessonData.prompt,
@@ -1637,7 +1725,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
         );
       } else {
         await DatabaseService.instance.updateLesson(
-          id: _selectedLessonId!,
+          id: targetLessonId,
           title: lessonData.title,
           prompt: lessonData.prompt,
           answer: lessonData.answer,
@@ -1649,6 +1737,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           imageUrl: lessonData.imageUrl,
         );
       }
+      await _fetchCreatorLessons();
       _resetForm();
     } catch (e) {
       if (mounted) {

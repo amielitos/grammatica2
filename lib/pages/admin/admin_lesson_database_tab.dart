@@ -4,22 +4,18 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/role_service.dart';
 import '../../widgets/author_name_widget.dart';
 import '../../widgets/content_denial_dialog.dart';
 import '../../widgets/interactive_markdown.dart';
+import '../../widgets/archive_management_dialog.dart';
 import '../../theme/app_colors.dart';
 import '../lesson_page.dart';
 
 /// Database view for Admins showing the entire collection of platform lessons.
-///
-/// Features:
-/// 1. Warning banner notifying that deletion is permanent.
-/// 2. Search criteria: Author name, Title, Creation Date, Status.
-/// 3. Database layout (responsive data table / database cards).
-/// 4. "View Content" viewer to inspect full lesson markdown, prompt, and companion materials.
-/// 5. Overhauled permanent deletion with mandatory denial category, 30+ character explanation, and author notification.
 class AdminLessonDatabaseTab extends StatefulWidget {
-  const AdminLessonDatabaseTab({super.key});
+  final UserRole role;
+  const AdminLessonDatabaseTab({super.key, this.role = UserRole.admin});
 
   @override
   State<AdminLessonDatabaseTab> createState() => _AdminLessonDatabaseTabState();
@@ -30,6 +26,23 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
   String _searchCriteria = 'all'; // 'all', 'title', 'author'
   String _statusFilter = 'all'; // 'all', 'approved', 'awaiting_approval', 'rejected'
   DateTime? _selectedDate;
+  final Set<String> _superAdminUids = {};
+
+  @override
+  void initState() {
+    super.initState();
+    FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'SUPERADMIN')
+        .get()
+        .then((snap) {
+      if (mounted) {
+        setState(() {
+          _superAdminUids.addAll(snap.docs.map((d) => d.id));
+        });
+      }
+    });
+  }
 
   String _formatDate(dynamic ts) {
     if (ts == null) return 'N/A';
@@ -108,8 +121,8 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
     if (result == null) return;
 
     try {
-      // 1. Permanently wipe lesson package from Firestore & Storage
-      await DatabaseService.instance.permanentlyDeleteLessonPackage(lesson: lesson);
+      // 1. Move lesson package to Archive for 30 days
+      await DatabaseService.instance.archiveLesson(lesson.id);
 
       // 2. Deliver notification to author if author UID is available
       if (lesson.createdByUid != null && lesson.createdByUid!.isNotEmpty) {
@@ -126,11 +139,11 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.delete_forever_rounded, color: Colors.white),
+                const Icon(Icons.archive_outlined, color: Colors.white),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Lesson "${lesson.title}" permanently deleted. Author notified.',
+                    'Lesson "${lesson.title}" moved to Archive. After 30 days, the content will be permanently deleted from Grammatica.',
                     style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -145,7 +158,7 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error deleting lesson: $e'),
+            content: Text('Error archiving lesson: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -489,27 +502,61 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                 ),
                 child: Row(
                   children: [
-                    // Delete Button
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _handleDeleteLesson(context, lesson);
+                    // Delete/Archive Button
+                    Builder(
+                      builder: (ctxBtn) {
+                        final isSuperAdminContent = _superAdminUids.contains(lesson.createdByUid);
+                        final canDelete = widget.role == UserRole.superadmin || !isSuperAdminContent;
+
+                        if (!canDelete) {
+                          return Tooltip(
+                            message: 'Only Super Admin can delete content created by Super Admin',
+                            child: Opacity(
+                              opacity: 0.4,
+                              child: OutlinedButton.icon(
+                                onPressed: null,
+                                icon: const Icon(Icons.archive_outlined, color: Colors.grey, size: 18),
+                                label: Text(
+                                  'Move to Archive',
+                                  style: GoogleFonts.inter(
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.grey),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        return OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _handleDeleteLesson(context, lesson);
+                          },
+                          icon: const Icon(Icons.archive_outlined, color: Color(0xFFD32F2F), size: 18),
+                          label: Text(
+                            'Move to Archive',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFD32F2F),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFE57373)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
                       },
-                      icon: const Icon(Icons.delete_forever_rounded, color: Color(0xFFD32F2F), size: 18),
-                      label: Text(
-                        'Permanently Delete',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFD32F2F),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFE57373)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
                     ),
                     const Spacer(),
 
@@ -588,6 +635,11 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
 
         // Apply Search & Filters
         var filteredLessons = allLessons.where((lesson) {
+          // Admin (non-superadmin) should not view lessons for approval
+          if (widget.role == UserRole.admin && lesson.validationStatus == 'awaiting_approval') {
+            return false;
+          }
+
           // Status filter
           if (_statusFilter != 'all') {
             if (_statusFilter == 'approved') {
@@ -673,35 +725,48 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                             ],
                           ),
                         ),
+                        const SizedBox(width: 16),
+                        FilledButton.tonalIcon(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => ArchiveManagementDialog(role: widget.role),
+                            );
+                          },
+                          icon: const Icon(Icons.archive_outlined, size: 18),
+                          label: Text(
+                            'Open Archive',
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFE05050).withValues(alpha: 0.12),
+                            foregroundColor: const Color(0xFFE05050),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 20),
 
-                    // ── Warning Message: Permanent Deletion ──────────────────
+                    // ── 30-Day Archive Retention Notice ──────────────────────
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF3CD),
+                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: const Color(0xFFFFC107).withValues(alpha: 0.6),
+                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
                           width: 1.2,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFFFC107).withValues(alpha: 0.08),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Icon(
-                            Icons.warning_amber_rounded,
-                            color: Color(0xFF856404),
+                            Icons.archive_outlined,
+                            color: Color(0xFFE05050),
                             size: 26,
                           ),
                           const SizedBox(width: 14),
@@ -710,20 +775,20 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'PERMANENT DELETION WARNING',
+                                  'CONTENT ARCHIVE & 30-DAY RETENTION',
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.8,
-                                    color: const Color(0xFF856404),
+                                    color: const Color(0xFFE05050),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Lessons deleted from this database are permanently removed from the site along with all companion quizzes and progression records. Deletion cannot be undone. The original author will automatically receive a detailed notification explaining the deletion.',
+                                  'Deleted lessons are moved to the Archive. After 30 days, the content will be permanently deleted from Grammatica. You can restore archived content at any time before expiration.',
                                   style: GoogleFonts.inter(
                                     fontSize: 13,
-                                    color: const Color(0xFF533F03),
+                                    color: isDark ? Colors.white70 : const Color(0xFF475569),
                                     height: 1.45,
                                   ),
                                 ),
@@ -877,11 +942,12 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                                         color: isDark ? Colors.white : AppColors.textPrimary,
                                       ),
                                       dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                      items: const [
-                                        DropdownMenuItem(value: 'all', child: Text('All Statuses')),
-                                        DropdownMenuItem(value: 'approved', child: Text('Published')),
-                                        DropdownMenuItem(value: 'awaiting_approval', child: Text('Pending Review')),
-                                        DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+                                      items: [
+                                        const DropdownMenuItem(value: 'all', child: Text('All Statuses')),
+                                        const DropdownMenuItem(value: 'approved', child: Text('Published')),
+                                        if (widget.role != UserRole.admin)
+                                          const DropdownMenuItem(value: 'awaiting_approval', child: Text('Pending Review')),
+                                        const DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
                                       ],
                                       onChanged: (v) {
                                         if (v != null) setState(() => _statusFilter = v);
@@ -1209,14 +1275,38 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      IconButton(
-                        tooltip: 'Permanently Delete',
-                        icon: const Icon(
-                          Icons.delete_outline_rounded,
-                          color: Color(0xFFD32F2F),
-                          size: 20,
-                        ),
-                        onPressed: () => _handleDeleteLesson(context, lesson),
+                      Builder(
+                        builder: (ctxBtn) {
+                          final isSuperAdminContent = _superAdminUids.contains(lesson.createdByUid);
+                          final canDelete = widget.role == UserRole.superadmin || !isSuperAdminContent;
+
+                          if (!canDelete) {
+                            return const Tooltip(
+                              message: 'Only Super Admin can delete content created by Super Admin',
+                              child: Opacity(
+                                opacity: 0.35,
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.archive_outlined,
+                                    color: Colors.grey,
+                                    size: 20,
+                                  ),
+                                  onPressed: null,
+                                ),
+                              ),
+                            );
+                          }
+
+                          return IconButton(
+                            tooltip: 'Move to Archive (30-day retention)',
+                            icon: const Icon(
+                              Icons.archive_outlined,
+                              color: Color(0xFFD32F2F),
+                              size: 20,
+                            ),
+                            onPressed: () => _handleDeleteLesson(context, lesson),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -1299,19 +1389,49 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    OutlinedButton.icon(
-                      onPressed: () => _handleDeleteLesson(context, lesson),
-                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFD32F2F), size: 16),
-                      label: Text(
-                        'Delete',
-                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFD32F2F)),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFEF9A9A)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
+                    Builder(
+                      builder: (ctxBtn) {
+                        final isSuperAdminContent = _superAdminUids.contains(lesson.createdByUid);
+                        final canDelete = widget.role == UserRole.superadmin || !isSuperAdminContent;
+
+                        if (!canDelete) {
+                          return Tooltip(
+                            message: 'Only Super Admin can delete content created by Super Admin',
+                            child: Opacity(
+                              opacity: 0.4,
+                              child: OutlinedButton.icon(
+                                onPressed: null,
+                                icon: const Icon(Icons.archive_outlined, color: Colors.grey, size: 16),
+                                label: Text(
+                                  'Archive',
+                                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.grey),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        return OutlinedButton.icon(
+                          onPressed: () => _handleDeleteLesson(context, lesson),
+                          icon: const Icon(Icons.archive_outlined, color: Color(0xFFD32F2F), size: 16),
+                          label: Text(
+                            'Archive',
+                            style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFD32F2F)),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFEF9A9A)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -39,12 +40,46 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
   bool _isLoadingQuiz = true;
   bool _isPublishing = false;
   String? _errorMessage;
+  String? _existingLessonIdForSameCreator;
 
   @override
   void initState() {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.output.title);
+    _titleCtrl.addListener(_checkExistingLessonTitle);
     _checkNotebookCompanions();
+    _checkExistingLessonTitle();
+  }
+
+  Future<void> _checkExistingLessonTitle() async {
+    final title = _titleCtrl.text.trim().toLowerCase();
+    if (title.isEmpty) {
+      if (mounted) setState(() => _existingLessonIdForSameCreator = null);
+      return;
+    }
+    final user = AuthService.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('lessons')
+          .where('createdByUid', isEqualTo: user.uid)
+          .get();
+
+      final match = snap.docs.cast<DocumentSnapshot?>().firstWhere(
+        (d) {
+          final data = d?.data() as Map<String, dynamic>?;
+          return data?['title']?.toString().trim().toLowerCase() == title;
+        },
+        orElse: () => null,
+      );
+
+      if (mounted) {
+        setState(() {
+          _existingLessonIdForSameCreator = match?.id;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkNotebookCompanions() async {
@@ -120,6 +155,7 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
         visibility: _visibility,
         visibleTo: _visibleTo,
         quizId: _selectedQuizId,
+        existingLessonId: _existingLessonIdForSameCreator,
       );
 
       // Auto-publish all companion outputs (Flashcards, Mind Maps, Study Guides, etc.) generated in this notebook!
@@ -133,6 +169,7 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
             data: out.data,
             visibility: _visibility,
             visibleTo: _visibleTo,
+            lessonId: lessonId,
           );
         } catch (e) {
           debugPrint('Error auto-publishing companion ${out.type}: $e');
@@ -163,6 +200,7 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = AuthService.instance.currentUser;
+    final bool isUpdate = widget.output.isPublished || _existingLessonIdForSameCreator != null;
 
     return Dialog(
       backgroundColor: isDark ? const Color(0xFF1E261D) : Colors.white,
@@ -252,6 +290,33 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
                   ),
                 ),
               ),
+              if (_existingLessonIdForSameCreator != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF6366F1)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'A lesson with this title created by you already exists. Saving will Update your existing lesson.',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF6366F1),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
 
               // Visibility Selection
@@ -508,9 +573,11 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
                             height: 18,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
-                        : const Icon(Icons.cloud_upload_rounded, size: 20),
+                        : Icon(isUpdate ? Icons.update_rounded : Icons.cloud_upload_rounded, size: 20),
                     label: Text(
-                      _isPublishing ? 'Publishing...' : 'Publish to Curriculum',
+                      _isPublishing
+                          ? (isUpdate ? 'Updating...' : 'Uploading...')
+                          : (isUpdate ? 'Update' : 'Upload'),
                       style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -1036,6 +1103,10 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
         typeIcon = Icons.help_outline_rounded;
         typeColor = const Color(0xFFF59E0B);
         break;
+      case NotebookOutputType.presentation:
+        typeIcon = Icons.slideshow_rounded;
+        typeColor = const Color(0xFF6366F1);
+        break;
       default:
         typeIcon = Icons.auto_awesome_rounded;
         typeColor = AppColors.primary;
@@ -1269,6 +1340,103 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
   bool _isPublishing = false;
   String _publishingStatus = '';
   String? _errorMessage;
+  bool _isAlreadyUploaded = false;
+  String? _existingLessonId;
+  String? _existingLessonStatus;
+  String? _existingQuizId;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfAlreadyUploaded();
+  }
+
+  Future<void> _checkIfAlreadyUploaded() async {
+    try {
+      final user = AuthService.instance.currentUser;
+      bool localUploaded = widget.outputs.any((o) => o.isPublished);
+      String? foundLessonId;
+      String? foundStatus;
+      String? foundQuizId;
+
+      for (final o in widget.outputs) {
+        if (o.type == NotebookOutputType.lesson && o.publishedId != null && o.publishedId!.isNotEmpty) {
+          foundLessonId = o.publishedId;
+        }
+        if (o.type == NotebookOutputType.quiz && o.publishedId != null && o.publishedId!.isNotEmpty) {
+          foundQuizId = o.publishedId;
+        }
+      }
+
+      if (user != null) {
+        final lessonSnap = await FirebaseFirestore.instance
+            .collection('lessons')
+            .where('notebookId', isEqualTo: widget.notebookId)
+            .get();
+        if (lessonSnap.docs.isNotEmpty) {
+          foundLessonId ??= lessonSnap.docs.first.id;
+          foundStatus ??= lessonSnap.docs.first.data()['validationStatus']?.toString();
+          localUploaded = true;
+        }
+
+        if (foundQuizId == null) {
+          final quizSnap = await FirebaseFirestore.instance
+              .collection('quizzes')
+              .where('notebookId', isEqualTo: widget.notebookId)
+              .get();
+          if (quizSnap.docs.isNotEmpty) {
+            foundQuizId = quizSnap.docs.first.id;
+            localUploaded = true;
+          }
+        }
+
+        if (foundLessonId == null) {
+          final lessonOut = widget.outputs.where((o) => o.type == NotebookOutputType.lesson).firstOrNull;
+          if (lessonOut != null) {
+            final titleMatchSnap = await FirebaseFirestore.instance
+                .collection('lessons')
+                .where('createdByUid', isEqualTo: user.uid)
+                .get();
+            final match = titleMatchSnap.docs.cast<DocumentSnapshot?>().firstWhere(
+              (d) =>
+                  (d?.data() as Map<String, dynamic>?)?['title']?.toString().trim().toLowerCase() ==
+                  lessonOut.title.trim().toLowerCase(),
+              orElse: () => null,
+            );
+            if (match != null) {
+              foundLessonId = match.id;
+              foundStatus = (match.data() as Map<String, dynamic>?)?['validationStatus']?.toString();
+              localUploaded = true;
+            }
+          }
+        }
+      }
+
+      if (foundLessonId != null && foundStatus == null) {
+        final lDoc = await FirebaseFirestore.instance.collection('lessons').doc(foundLessonId).get();
+        if (lDoc.exists) {
+          foundStatus = lDoc.data()?['validationStatus']?.toString();
+          localUploaded = true;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _isAlreadyUploaded = localUploaded;
+          _existingLessonId = foundLessonId;
+          _existingQuizId = foundQuizId;
+          _existingLessonStatus = foundStatus;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking upload status: $e');
+      if (mounted) {
+        setState(() {
+          _isAlreadyUploaded = widget.outputs.any((o) => o.isPublished);
+        });
+      }
+    }
+  }
 
   IconData _getTypeIcon(NotebookOutputType type) {
     switch (type) {
@@ -1288,6 +1456,8 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
         return Icons.help_outline_rounded;
       case NotebookOutputType.mindMap:
         return Icons.hub_rounded;
+      case NotebookOutputType.presentation:
+        return Icons.slideshow_rounded;
     }
   }
 
@@ -1309,6 +1479,8 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
         return const Color(0xFFF59E0B);
       case NotebookOutputType.mindMap:
         return const Color(0xFFEC4899);
+      case NotebookOutputType.presentation:
+        return const Color(0xFF6366F1);
     }
   }
 
@@ -1322,7 +1494,7 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
 
     try {
       // 1. Publish quiz first if present to acquire publishedQuizId
-      String? publishedQuizId;
+      String? publishedQuizId = _existingQuizId;
       final quizOutputs = widget.outputs.where((o) => o.type == NotebookOutputType.quiz).toList();
       if (quizOutputs.isNotEmpty) {
         final quizOut = quizOutputs.first;
@@ -1339,16 +1511,18 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
             visibility: _visibility,
             visibleTo: _visibleTo,
             isAssessment: quizOut.data['isAssessment'] as bool? ?? false,
+            existingQuizId: _existingQuizId,
           );
         }
       }
 
       // 2. Publish lessons with automatic link to the published quiz
       final lessonOutputs = widget.outputs.where((o) => o.type == NotebookOutputType.lesson).toList();
+      String? publishedLessonId = _existingLessonId;
       for (final lessonOut in lessonOutputs) {
         setState(() => _publishingStatus = 'Publishing lesson: ${lessonOut.title}...');
         final lesson = AILessonResponse.fromNotebookOutput(lessonOut);
-        await NotebookService.instance.publishLesson(
+        publishedLessonId = await NotebookService.instance.publishLesson(
           notebookId: widget.notebookId,
           outputId: lessonOut.id,
           title: lessonOut.title.isNotEmpty ? lessonOut.title : 'Notebook Lesson',
@@ -1356,6 +1530,7 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
           visibility: _visibility,
           visibleTo: _visibleTo,
           quizId: publishedQuizId,
+          existingLessonId: _existingLessonId,
         );
       }
 
@@ -1374,14 +1549,18 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
           data: out.data,
           visibility: _visibility,
           visibleTo: _visibleTo,
+          lessonId: publishedLessonId,
         );
       }
 
       if (mounted) {
         Navigator.pop(context, true);
+        final successMsg = _isAlreadyUploaded
+            ? 'Successfully updated all ${widget.outputs.length} notebook materials! Submitted for validator review.'
+            : 'Successfully published all ${widget.outputs.length} notebook materials to the curriculum!';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully published all ${widget.outputs.length} notebook materials to the curriculum!'),
+            content: Text(successMsg),
             backgroundColor: const Color(0xFF10B981),
           ),
         );
@@ -1424,7 +1603,11 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
                       color: AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Icon(Icons.cloud_upload_rounded, color: AppColors.primary, size: 26),
+                    child: Icon(
+                      _isAlreadyUploaded ? Icons.update_rounded : Icons.cloud_upload_rounded,
+                      color: AppColors.primary,
+                      size: 26,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -1432,7 +1615,7 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Publish All to Curriculum',
+                          _isAlreadyUploaded ? 'Update All in Curriculum' : 'Publish All to Curriculum',
                           style: GoogleFonts.outfit(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -1441,7 +1624,9 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Upload all ${widget.outputs.length} generated outputs directly to live curriculum.',
+                          _isAlreadyUploaded
+                              ? 'Update all ${widget.outputs.length} generated outputs in the live curriculum.'
+                              : 'Upload all ${widget.outputs.length} generated outputs directly to live curriculum.',
                           style: GoogleFonts.inter(
                             fontSize: 13,
                             color: isDark ? Colors.white60 : AppColors.textSecondary,
@@ -1452,7 +1637,56 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
+              if (_isAlreadyUploaded) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: (_existingLessonStatus == 'approved'
+                            ? const Color(0xFF6366F1)
+                            : Colors.amber)
+                        .withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: (_existingLessonStatus == 'approved'
+                              ? const Color(0xFF6366F1)
+                              : Colors.amber)
+                          .withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _existingLessonStatus == 'approved'
+                            ? Icons.info_outline_rounded
+                            : Icons.hourglass_top_rounded,
+                        size: 20,
+                        color: _existingLessonStatus == 'approved'
+                            ? const Color(0xFF6366F1)
+                            : Colors.amber.shade800,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _existingLessonStatus == 'approved'
+                              ? 'This lesson was previously approved. Submitting this update will route it through the validator for review before updates go live.'
+                              : 'This lesson was already uploaded and is currently pending review. Submitting will update your pending submission.',
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: _existingLessonStatus == 'approved'
+                                ? const Color(0xFF6366F1)
+                                : Colors.amber.shade900,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               if (_errorMessage != null) ...[
                 Container(
@@ -1702,9 +1936,11 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
                             height: 18,
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
-                        : const Icon(Icons.cloud_upload_rounded, size: 20),
+                        : Icon(_isAlreadyUploaded ? Icons.update_rounded : Icons.cloud_upload_rounded, size: 20),
                     label: Text(
-                      _isPublishing ? 'Publishing All...' : 'Publish All (${widget.outputs.length})',
+                      _isPublishing
+                          ? (_isAlreadyUploaded ? 'Updating All...' : 'Publishing All...')
+                          : (_isAlreadyUploaded ? 'Update' : 'Publish All (${widget.outputs.length})'),
                       style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(

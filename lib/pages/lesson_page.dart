@@ -12,17 +12,20 @@ import '../services/navigation_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import '../widgets/linked_companion_toolbar.dart';
+import '../models/playlist.dart';
 
 class LessonPage extends StatefulWidget {
   final User user;
   final Lesson lesson;
   final bool previewMode;
+  final LessonPlaylist? playlist;
 
   const LessonPage({
     super.key,
     required this.user,
     required this.lesson,
     this.previewMode = false,
+    this.playlist,
   });
 
   @override
@@ -124,8 +127,14 @@ class _LessonPageState extends State<LessonPage> {
 
   String _fmt(Timestamp ts) {
     final d = ts.toDate().toLocal();
-    final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return '${months[d.month - 1]} ${d.day}, ${d.year}';
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    final hour = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
+    final minute = d.minute.toString().padLeft(2, '0');
+    final amPm = d.hour >= 12 ? 'PM' : 'AM';
+    return '${months[d.month - 1]} ${d.day}, ${d.year} at $hour:$minute $amPm';
   }
 
   Widget _authorName({required String? uid, required String? fallbackEmail, TextStyle? style}) {
@@ -168,6 +177,40 @@ class _LessonPageState extends State<LessonPage> {
       ),
       body: Column(
         children: [
+          if (widget.previewMode || _lesson.validationStatus == 'awaiting_approval')
+            Container(
+              width: double.infinity,
+              color: _lesson.isUpdate ? const Color(0xFF6366F1) : const Color(0xFFE8A838),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: SafeArea(
+                bottom: false,
+                top: false,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _lesson.isUpdate ? Icons.edit_note_rounded : Icons.schedule_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        _lesson.isUpdate
+                            ? 'Creator wants to update already existing lesson • Submitted: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}'
+                            : 'Pending Approval • Submitted: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (!widget.previewMode)
             LinearProgressIndicator(
               value: _progress,
@@ -390,7 +433,177 @@ class _LessonPageState extends State<LessonPage> {
           // ── Body Content (Interactive Block Cards) ──
           Padding(
             padding: EdgeInsets.symmetric(horizontal: isWide ? 32 : 16, vertical: isWide ? 32 : 24),
-            child: _buildContentBlockCards(_lesson.prompt.trim(), isDark),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_lesson.isUpdate) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.4),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit_note_rounded, color: Color(0xFF6366F1), size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Creator wants to update already existing lesson.',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.5,
+                              color: const Color(0xFF6366F1),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                if (widget.playlist != null) ...[
+                  _buildPlaylistTopBanner(context, isDark),
+                  const SizedBox(height: 20),
+                ],
+                _buildContentBlockCards(_lesson.prompt.trim(), isDark),
+                if (widget.playlist != null) ...[
+                  const SizedBox(height: 24),
+                  _buildPlaylistControls(context, isDark),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaylistTopBanner(BuildContext context, bool isDark) {
+    final playlist = widget.playlist!;
+    final currentIndex = playlist.lessonIds.indexOf(_lesson.id);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Playlist: ${playlist.title}',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(100),
+            ),
+            child: Text(
+              currentIndex != -1 ? 'Lesson ${currentIndex + 1} of ${playlist.lessonIds.length}' : 'Playlist Mode',
+              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaylistControls(BuildContext context, bool isDark) {
+    final playlist = widget.playlist!;
+    final currentIndex = playlist.lessonIds.indexOf(_lesson.id);
+    final hasNext = currentIndex != -1 && currentIndex < playlist.lessonIds.length - 1;
+    final hasPrev = currentIndex > 0;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Sequential Journey: ${playlist.title}',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Keep going in the order intended by the creator.',
+            style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              if (hasPrev)
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final prevId = playlist.lessonIds[currentIndex - 1];
+                    final prevLesson = await DatabaseService.instance.getLesson(prevId);
+                    if (prevLesson != null && context.mounted) {
+                      NavigationService.instance.goToLesson(context, prevLesson, replace: true, playlist: playlist);
+                    }
+                  },
+                  icon: const Icon(Icons.skip_previous_rounded),
+                  label: const Text('Previous Lesson'),
+                ),
+              const Spacer(),
+              if (hasNext)
+                FilledButton.icon(
+                  onPressed: () async {
+                    final nextId = playlist.lessonIds[currentIndex + 1];
+                    final nextLesson = await DatabaseService.instance.getLesson(nextId);
+                    if (nextLesson != null && context.mounted) {
+                      NavigationService.instance.goToLesson(context, nextLesson, replace: true, playlist: playlist);
+                    }
+                  },
+                  icon: const Icon(Icons.skip_next_rounded),
+                  label: const Text('Next in Playlist'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.celebration_rounded, color: Colors.green, size: 20),
+                      const SizedBox(width: 8),
+                      Text('You finished all lessons in this playlist!',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.green)),
+                    ],
+                  ),
+                ),
+            ],
           ),
         ],
       ),

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'database_service.dart';
 import 'email_sender_service.dart';
+import 'email_validator_service.dart';
 import 'device_session_service.dart';
 import '../pages/home_page.dart';
 import '../pages/admin_dashboard.dart';
@@ -639,6 +640,13 @@ class AuthService {
     required DateTime dateOfBirth,
     String role = 'learner',
   }) async {
+    if (!EmailValidatorService.isAllowedEmail(email)) {
+      throw FirebaseAuthException(
+        code: 'ERROR_INVALID_EMAIL',
+        message: 'Only @gmail.com, @yahoo.com, and @hotmail.com email addresses are allowed.',
+      );
+    }
+
     final cred = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
@@ -646,12 +654,14 @@ class AuthService {
     final user = cred
         .user!; // User is guaranteed to be non-null after successful creation
     // Create users/{uid} with defaults and new fields
+    final isValidator = role.toUpperCase() == 'VALIDATOR';
     await _firestore.collection('users').doc(user.uid).set({
       'uid': user.uid,
       'email': user.email,
       'createdAt': FieldValue.serverTimestamp(),
       'role': role.toUpperCase(),
-      'status': 'ACTIVE',
+      'status': isValidator ? 'Validator in Review' : 'ACTIVE',
+      'isVerified': !isValidator,
       'subscription_status': 'NONE',
       'username': fullName,
       'full_name': fullName,

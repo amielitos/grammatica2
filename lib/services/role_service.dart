@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 enum UserRole { learner, educator, admin, superadmin, validator }
 
 UserRole roleFromString(String? value) {
-  switch (value) {
+  switch (value?.trim().toUpperCase()) {
     case 'ADMIN':
       return UserRole.admin;
     case 'EDUCATOR':
@@ -61,16 +61,32 @@ class RoleService {
     });
   }
 
+  static bool isDefaultAdmin(Map<String, dynamic>? data, [String? uid]) {
+    if (data != null && data['isDefaultAdmin'] == true) return true;
+    final effectiveUid = uid ?? data?['uid'] as String?;
+    if (effectiveUid == 'Rv82Fsd9b4hhVHmzqjwon89lKgj2') return true;
+    final email = data?['email'] as String?;
+    if (email == 'amiel@gmail.com') return true;
+    return false;
+  }
+
   Stream<UserRole> roleStream(String uid) {
     return _users.doc(uid).snapshots().map((snap) {
       final data = snap.data();
+      if (isDefaultAdmin(data, uid)) {
+        return UserRole.superadmin;
+      }
       return roleFromString(data?['role'] as String?);
     });
   }
 
   Future<UserRole> getRole(String uid) async {
     final snap = await _users.doc(uid).get();
-    return roleFromString(snap.data()?['role'] as String?);
+    final data = snap.data();
+    if (isDefaultAdmin(data, uid)) {
+      return UserRole.superadmin;
+    }
+    return roleFromString(data?['role'] as String?);
   }
 
   Stream<List<Map<String, dynamic>>> allUsersStream() {
@@ -86,10 +102,19 @@ class RoleService {
   }) async {
     final docRef = _users.doc(uid);
     final doc = await docRef.get();
-    final currentRole = doc.data()?['role'];
+    final data = doc.data();
+    if (isDefaultAdmin(data, uid)) {
+      throw Exception('Cannot modify the role of the default Super Admin.');
+    }
+    final currentRole = data?['role'];
     
     final updates = <String, dynamic>{'role': roleToString(role)};
     
+    if (role == UserRole.educator || role == UserRole.validator) {
+      updates['isVerified'] = true;
+      updates['status'] = 'ACTIVE';
+    }
+
     if (role == UserRole.educator && currentRole != 'EDUCATOR') {
       updates['educatorStartDate'] = FieldValue.serverTimestamp();
       updates['educatorEndDate'] = null;

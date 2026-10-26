@@ -313,15 +313,18 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Assessment?'),
-        content: Text('Are you sure you want to delete "${quiz.title}"?'),
+        content: Text(
+          'Are you sure you want to delete "${quiz.title}"?\n\nAfter 30days, the content will be permanently deleted from Grammatica.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -329,11 +332,13 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
 
     if (ok == true) {
       try {
-        await DatabaseService.instance.deleteQuiz(quiz.id);
+        await DatabaseService.instance.archiveQuiz(quiz.id);
         if (_selectedQuizId == quiz.id) resetForm();
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Assessment deleted')),
+            const SnackBar(
+              content: Text('Assessment moved to Archive. After 30days, the content will be permanently deleted from Grammatica.'),
+            ),
           );
         }
       } catch (e) {

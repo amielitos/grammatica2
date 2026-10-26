@@ -521,3 +521,95 @@ class MindMap {
     return MindMap.fromJson(output.data);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Presentation (Slideshow)
+// ---------------------------------------------------------------------------
+
+class PresentationSlide {
+  final String title;
+  final String? subtitle;
+  final List<String> bulletPoints;
+  final String? speakerNotes;
+
+  const PresentationSlide({
+    required this.title,
+    this.subtitle,
+    this.bulletPoints = const [],
+    this.speakerNotes,
+  });
+
+  factory PresentationSlide.fromJson(Map<String, dynamic> json) {
+    return PresentationSlide(
+      title: json['title'] as String? ?? 'Slide',
+      subtitle: json['subtitle'] as String?,
+      bulletPoints: (json['bulletPoints'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      speakerNotes: json['speakerNotes'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        if (subtitle != null) 'subtitle': subtitle,
+        'bulletPoints': bulletPoints,
+        if (speakerNotes != null) 'speakerNotes': speakerNotes,
+      };
+}
+
+class Presentation {
+  final String title;
+  final String? subtitle;
+  final List<PresentationSlide> slides;
+
+  const Presentation({
+    required this.title,
+    this.subtitle,
+    required this.slides,
+  });
+
+  factory Presentation.fromJson(Map<String, dynamic> json) {
+    return Presentation(
+      title: json['title'] as String? ?? 'Presentation',
+      subtitle: json['subtitle'] as String?,
+      slides: (json['slides'] as List<dynamic>? ?? [])
+          .map((s) => PresentationSlide.fromJson(Map<String, dynamic>.from(s as Map)))
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        if (subtitle != null) 'subtitle': subtitle,
+        'slides': slides.map((s) => s.toJson()).toList(),
+      };
+
+  NotebookOutput toNotebookOutput({
+    required String id,
+    required String notebookId,
+    List<String> sourceIds = const [],
+    bool isShared = false,
+    DateTime? sharedAt,
+    List<String> sharedTo = const [],
+  }) {
+    return NotebookOutput(
+      id: id,
+      notebookId: notebookId,
+      type: NotebookOutputType.presentation,
+      title: title,
+      data: toJson(),
+      generatedAt: DateTime.now(),
+      sourceIds: sourceIds,
+      isShared: isShared,
+      sharedAt: sharedAt,
+      sharedTo: sharedTo,
+    );
+  }
+
+  factory Presentation.fromNotebookOutput(NotebookOutput output) {
+    return Presentation.fromJson(output.data);
+  }
+}
+

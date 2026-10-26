@@ -304,10 +304,11 @@ class NotificationService {
     }
   }
 
-  /// Real-time alert to validators and admins when a lesson is submitted for validation
+  /// Real-time alert to validators and admins when a lesson is submitted or updated for validation
   Future<void> notifyValidatorsOfNewLesson({
     required String authorName,
     required String lessonTitle,
+    bool isUpdate = false,
   }) async {
     try {
       final validatorsSnap = await _firestore
@@ -318,8 +319,10 @@ class NotificationService {
       for (final doc in validatorsSnap.docs) {
         await sendNotification(
           uid: doc.id,
-          title: 'Lesson Awaiting Validation',
-          message: '$authorName submitted "$lessonTitle" for validation review.',
+          title: isUpdate ? 'Lesson Update Awaiting Validation' : 'Lesson Awaiting Validation',
+          message: isUpdate
+              ? '$authorName updated "$lessonTitle" (Creator wants to update already existing lesson).'
+              : '$authorName submitted "$lessonTitle" for validation review.',
           type: NotificationType.general,
         );
       }

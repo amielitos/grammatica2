@@ -85,7 +85,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   int _aiNumQuestions = 10;
   final _aiCustomInstructionsCtrl = TextEditingController();
   bool _aiIncludeHints = true;
-  final List<String> _aiQuestionTypes = ['multiple_choice'];
+  final List<String> _aiQuestionTypes = ['multiple_choice', 'fill_in_the_blank', 'pronunciation'];
+
+  // Prerequisite Lesson Requirement
+  bool _requiresLessonCompleted = false;
+  String? _requiredLessonId;
+  String? _requiredLessonTitle;
 
   @override
   void dispose() {
@@ -238,6 +243,100 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 child: _buildMaxAttemptsCounter(),
               ),
             ],
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Lesson required to be finished?',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF2A2A2A),
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Learners must finish a specific lesson first before this quiz unlocks.',
+                    style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                  value: _requiresLessonCompleted,
+                  activeThumbColor: const Color(0xFF88B342),
+                  onChanged: (val) {
+                    setState(() {
+                      _requiresLessonCompleted = val;
+                      if (!val) {
+                        _requiredLessonId = null;
+                        _requiredLessonTitle = null;
+                      } else if (_availableLessons.isNotEmpty && _requiredLessonId == null) {
+                        _requiredLessonId = _availableLessons.first.id;
+                        _requiredLessonTitle = _availableLessons.first.title;
+                      }
+                    });
+                  },
+                ),
+                if (_requiresLessonCompleted) ...[
+                  const SizedBox(height: 12),
+                  if (_availableLessons.isEmpty)
+                    Text(
+                      'No published lessons available to select as prerequisite.',
+                      style: GoogleFonts.inter(fontSize: 13, color: Colors.orange.shade700),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      initialValue: _availableLessons.any((l) => l.id == _requiredLessonId)
+                          ? _requiredLessonId
+                          : _availableLessons.first.id,
+                      decoration: InputDecoration(
+                        labelText: 'Select Prerequisite Lesson *',
+                        prefixIcon: const Icon(Icons.school_outlined, color: Color(0xFF88B342)),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFF88B342), width: 2),
+                        ),
+                      ),
+                      items: _availableLessons.map((lesson) {
+                        return DropdownMenuItem<String>(
+                          value: lesson.id,
+                          child: Text(
+                            lesson.title,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(fontSize: 14),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          final selected = _availableLessons.firstWhere((l) => l.id == val);
+                          setState(() {
+                            _requiredLessonId = selected.id;
+                            _requiredLessonTitle = selected.title;
+                          });
+                        }
+                      },
+                    ),
+                ],
+              ],
+            ),
           ),
           if (!widget.isEmbedded) ...[
             const SizedBox(height: 32),
@@ -681,6 +780,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 const DropdownMenuItem(value: 'text', child: Text('Identification')),
                 const DropdownMenuItem(value: 'multiple_choice', child: Text('Multiple Choice')),
                 const DropdownMenuItem(value: 'fill_in_the_blank', child: Text('Fill in the Blank')),
+                const DropdownMenuItem(value: 'pronunciation', child: Text('Pronunciation (Speech)')),
                 if (!isNested) const DropdownMenuItem(value: 'image', child: Text('Image Question')),
                 if (!isNested) const DropdownMenuItem(value: 'passage', child: Text('Passage')),
               ],
@@ -900,6 +1000,40 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 ),
               ),
             ],
+            // --- FILL IN THE BLANK ---
+            if (q.type == 'fill_in_the_blank') ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: q.answerCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Correct Answers (comma-separated if multiple blanks) *',
+                  hintText: 'e.g. was, reading, quietly',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Tip: You can specify blanks in the question using brackets, e.g. "She [was] [reading] a book [quietly].". Words inside brackets will become blank fields for learners.',
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+              ),
+            ],
+            // --- PRONUNCIATION ---
+            if (q.type == 'pronunciation') ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: q.answerCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Target Word to Pronounce *',
+                  hintText: 'e.g. grammar',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Tip: For pronunciation, formulate the question as a fill-in-the-blank (e.g. "I love studying English [grammar].") and write the missing word above. The learner will pronounce that word instead of typing it.',
+                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+              ),
+            ],
             // --- PASSAGE ---
             if (q.type == 'passage') ...[
               const SizedBox(height: 16),
@@ -1111,6 +1245,23 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                         _aiQuestionTypes.add('passage');
                       } else {
                         _aiQuestionTypes.remove('passage');
+                      }
+                    });
+                  },
+                  activeColor: const Color(0xFF88B342),
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                CheckboxListTile(
+                  title: Text('Pronunciation (Speech)', style: GoogleFonts.inter(fontSize: 13)),
+                  value: _aiQuestionTypes.contains('pronunciation'),
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) {
+                        _aiQuestionTypes.add('pronunciation');
+                      } else {
+                        _aiQuestionTypes.remove('pronunciation');
                       }
                     });
                   },
@@ -1472,6 +1623,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _visibility = ContentVisibility.public;
     _visibleTo = [];
     _aiCustomInstructionsCtrl.clear();
+    _requiresLessonCompleted = false;
+    _requiredLessonId = null;
+    _requiredLessonTitle = null;
     setState(() {});
   }
 
@@ -1734,6 +1888,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
           isGrammaticaQuiz: _isGrammaticaQuiz,
+          requiresLessonCompleted: _requiresLessonCompleted,
+          requiredLessonId: _requiresLessonCompleted ? _requiredLessonId : null,
+          requiredLessonTitle: _requiresLessonCompleted ? _requiredLessonTitle : null,
         );
         // Upload images if any were targeted at temp ID, then re-update quiz
         bool hasImagesToUpload = false;
@@ -1771,6 +1928,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           visibleTo: _visibleTo,
           isMembersOnly: _isMembersOnly,
           isGrammaticaQuiz: _isGrammaticaQuiz,
+          requiresLessonCompleted: _requiresLessonCompleted,
+          requiredLessonId: _requiresLessonCompleted ? _requiredLessonId : null,
+          requiredLessonTitle: _requiresLessonCompleted ? _requiredLessonTitle : null,
         );
         if (mounted && !widget.isEmbedded) {
           ScaffoldMessenger.of(
@@ -1824,6 +1984,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           _isMembersOnly = quiz.isMembersOnly;
           _isGrammaticaQuiz = quiz.isGrammaticaQuiz;
           _visibleTo = quiz.visibleTo;
+          _requiresLessonCompleted = quiz.requiresLessonCompleted;
+          _requiredLessonId = quiz.requiredLessonId;
+          _requiredLessonTitle = quiz.requiredLessonTitle;
           for (final q in _questions) {
             q.dispose();
           }
@@ -1836,6 +1999,27 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   }
 
   QuizQuestion _mapToQuizQuestion(_QuestionState q) {
+    List<String>? blankAnswers;
+    if (q.type == 'fill_in_the_blank') {
+      final reg = RegExp(r'\[([^\]]+)\]');
+      final matches = reg.allMatches(q.questionCtrl.text);
+      if (matches.isNotEmpty) {
+        blankAnswers = matches.map((m) => m.group(1)!.trim()).toList();
+      } else if (q.answerCtrl.text.isNotEmpty) {
+        blankAnswers = q.answerCtrl.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      }
+    }
+    String? targetWord;
+    if (q.type == 'pronunciation') {
+      final reg = RegExp(r'\[([^\]]+)\]');
+      final match = reg.firstMatch(q.questionCtrl.text);
+      if (match != null) {
+        targetWord = match.group(1)!.trim();
+      } else {
+        targetWord = q.answerCtrl.text.trim();
+      }
+    }
+
     return QuizQuestion(
       question: q.questionCtrl.text.trim(),
       answer: q.answerCtrl.text.trim(),
@@ -1856,13 +2040,21 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       explanation: q.explanationCtrl?.text.trim().isNotEmpty == true ? q.explanationCtrl!.text.trim() : null,
       imageUrl: q.imageUrl,
       imageDescription: q.imageDescription,
+      blankAnswers: blankAnswers,
+      targetWord: targetWord,
     );
   }
 
   _QuestionState _loadQuestionState(QuizQuestion q) {
+    String answerText = q.answer;
+    if (q.type == 'fill_in_the_blank' && (q.blankAnswers?.isNotEmpty ?? false)) {
+      answerText = q.blankAnswers!.join(', ');
+    } else if (q.type == 'pronunciation' && q.targetWord != null) {
+      answerText = q.targetWord!;
+    }
     return _QuestionState(
       questionCtrl: TextEditingController(text: q.question),
-      answerCtrl: TextEditingController(text: q.answer),
+      answerCtrl: TextEditingController(text: answerText),
       type: q.type,
       optionsCtrls: (q.options ?? [])
           .map((opt) => TextEditingController(text: opt))

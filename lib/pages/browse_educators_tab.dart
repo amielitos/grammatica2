@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/database_service.dart';
+import '../models/playlist.dart';
 import 'educator_profile_page.dart';
 
 class BrowseEducatorsTab extends StatefulWidget {
@@ -241,7 +242,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                         padding: const EdgeInsets.fromLTRB(24, 0, 24, 64),
                         gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 300,
-                          childAspectRatio: MediaQuery.of(context).size.width <= 600 ? 0.58 : 0.68,
+                          childAspectRatio: MediaQuery.of(context).size.width <= 600 ? 0.54 : 0.63,
                           crossAxisSpacing: 20,
                           mainAxisSpacing: 20,
                         ),
@@ -468,54 +469,176 @@ class _EducatorCardState extends State<_EducatorCard>
                         ),
                       ],
                     ),
+
+                    // ── Playlist Count Chip ────────────────────────────────
+                    StreamBuilder<List<LessonPlaylist>>(
+                      stream: DatabaseService.instance.streamPlaylistsByCreator(
+                        (widget.educator['uid'] ?? widget.educator['id'] ?? '') as String,
+                        email: widget.educator['email'] as String?,
+                      ),
+                      builder: (context, pSnap) {
+                        final pCount = pSnap.data?.length ?? 0;
+                        if (pCount == 0) return const SizedBox(height: 6);
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.playlist_play_rounded, size: 14, color: Color(0xFF81B655)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$pCount ${pCount == 1 ? "Playlist" : "Playlists"}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF81B655),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
 
                 const SizedBox(height: 10),
 
-                // ── CTA Button ─────────────────────────────────────────
-                SizedBox(
-                  width: double.infinity,
-                  height: 38,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    decoration: BoxDecoration(
-                      color: _hovered
-                          ? const Color(0xFF81B655)
-                          : const Color(0xFF81B655).withValues(alpha: 0.09),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: _hovered
-                            ? Colors.transparent
-                            : const Color(0xFF81B655).withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                // ── CTA Buttons ─────────────────────────────────────────
+                StreamBuilder<List<LessonPlaylist>>(
+                  stream: DatabaseService.instance.streamPlaylistsByCreator(
+                    (widget.educator['uid'] ?? widget.educator['id'] ?? '') as String,
+                    email: widget.educator['email'] as String?,
+                  ),
+                  builder: (context, pSnap) {
+                    final pCount = pSnap.data?.length ?? 0;
+                    if (pCount > 0) {
+                      return Row(
                         children: [
-                          Text(
-                            'View Profile',
-                            style: GoogleFonts.outfit(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: _hovered
-                                  ? Colors.white
-                                  : const Color(0xFF81B655),
+                          Expanded(
+                            child: SizedBox(
+                              height: 38,
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => EducatorProfilePage(
+                                      educator: widget.educator,
+                                      currentUser: widget.currentUser,
+                                      initialTab: 0,
+                                    ),
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: isDark ? Colors.white70 : const Color(0xFF0F172A),
+                                  side: BorderSide(
+                                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                ),
+                                child: Text(
+                                  'Profile',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 5),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 14,
-                            color: _hovered
-                                ? Colors.white
-                                : const Color(0xFF81B655),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: SizedBox(
+                              height: 38,
+                              child: ElevatedButton.icon(
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => EducatorProfilePage(
+                                      educator: widget.educator,
+                                      currentUser: widget.currentUser,
+                                      initialTab: 1, // Opens directly on Playlists tab!
+                                    ),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.playlist_play_rounded, size: 16),
+                                label: Text(
+                                  'Playlists',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF81B655),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
+                      );
+                    }
+
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 38,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          color: _hovered
+                              ? const Color(0xFF81B655)
+                              : const Color(0xFF81B655).withValues(alpha: 0.09),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: _hovered
+                                ? Colors.transparent
+                                : const Color(0xFF81B655).withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'View Profile',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: _hovered
+                                      ? Colors.white
+                                      : const Color(0xFF81B655),
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 14,
+                                color: _hovered
+                                    ? Colors.white
+                                    : const Color(0xFF81B655),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ],
             ),

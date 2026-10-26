@@ -5,6 +5,7 @@ import '../../services/database_service.dart';
 import '../../services/agora_service.dart';
 import 'package:intl/intl.dart';
 import '../conference_page.dart';
+import '../../widgets/pagination_bar.dart';
 
 Widget buildConferenceAppBadge(String? app, {bool compact = false}) {
   const brand = Color(0xFF81B655);
@@ -67,6 +68,8 @@ class EducatorGroupsTab extends StatefulWidget {
 class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
   DateTime _focusedDate = DateTime.now();
   String _calendarView = 'Week'; // 'Week' or 'Month'
+  int _agendaPage = 1;
+  static const int _agendaPageSize = 5;
   
   final List<Color> _sessionColors = [
     const Color(0xFF6366F1), // Indigo
@@ -682,17 +685,40 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
           return end.isAfter(now.subtract(const Duration(days: 1)));
         }).toList();
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(24),
-          itemCount: upcomingSessions.length,
-          itemBuilder: (context, index) {
-            final s = upcomingSessions[index];
-            final start = (s['startTime'] as Timestamp).toDate();
-            final end = (s['endTime'] as Timestamp).toDate();
-            final dateString = DateFormat('EEEE, MMMM d').format(start);
-            final timeString = '${DateFormat('h:mm a').format(start)} - ${DateFormat('h:mm a').format(end)}';
-            final color = _sessionColors[index % _sessionColors.length];
-            final meetingLink = s['meetingLink']?.toString() ?? '';
+        final totalSessions = upcomingSessions.length;
+        if (totalSessions == 0) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.event_busy, size: 64, color: Colors.grey.withValues(alpha: 0.5)),
+                const SizedBox(height: 16),
+                const Text('No upcoming mentorship sessions', style: TextStyle(color: Colors.grey, fontSize: 16)),
+              ],
+            ),
+          );
+        }
+
+        final maxPage = (totalSessions / _agendaPageSize).ceil().clamp(1, 9999);
+        if (_agendaPage > maxPage) _agendaPage = maxPage;
+        final startIndex = (_agendaPage - 1) * _agendaPageSize;
+        final pageSessions = upcomingSessions.skip(startIndex).take(_agendaPageSize).toList();
+
+        return Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(24),
+                itemCount: pageSessions.length,
+                itemBuilder: (context, index) {
+                  final s = pageSessions[index];
+                  final originalIndex = startIndex + index;
+                  final start = (s['startTime'] as Timestamp).toDate();
+                  final end = (s['endTime'] as Timestamp).toDate();
+                  final dateString = DateFormat('EEEE, MMMM d').format(start);
+                  final timeString = '${DateFormat('h:mm a').format(start)} - ${DateFormat('h:mm a').format(end)}';
+                  final color = _sessionColors[originalIndex % _sessionColors.length];
+                  final meetingLink = s['meetingLink']?.toString() ?? '';
 
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
@@ -810,10 +836,26 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
               ),
             );
           },
-        );
-      }
+        ),
+      ),
+      if (totalSessions > _agendaPageSize)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: PaginationBar(
+            currentPage: _agendaPage,
+            totalItems: totalSessions,
+            pageSize: _agendaPageSize,
+            itemName: 'sessions',
+            onPageChanged: (newPage) {
+              setState(() => _agendaPage = newPage);
+            },
+          ),
+        ),
+      ],
     );
-  }
+  },
+);
+}
 
   Widget _buildSessionBlock(Map<String, dynamic> s, Color color) {
     final start = (s['startTime'] as Timestamp).toDate();

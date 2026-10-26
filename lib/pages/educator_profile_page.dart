@@ -15,36 +15,41 @@ import '../services/email_sender_service.dart';
 import '../services/paymongo_service.dart';
 import '../services/idempotency_service.dart';
 import 'conference_page.dart';
+import '../models/playlist.dart';
+import '../widgets/playlist_card.dart';
+import '../widgets/pagination_bar.dart';
 
 class EducatorProfilePage extends StatefulWidget {
   final Map<String, dynamic> educator;
   final User currentUser;
+  final int initialTab;
 
   const EducatorProfilePage({
     super.key,
     required this.educator,
     required this.currentUser,
+    this.initialTab = 0,
   });
 
   @override
   State<EducatorProfilePage> createState() => _EducatorProfilePageState();
 }
 
-class _EducatorProfilePageState extends State<EducatorProfilePage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _EducatorProfilePageState extends State<EducatorProfilePage> {
+  late int _selectedTab; // 0 = Lessons, 1 = Playlists, 2 = Reviews
   int? _starFilter; // null means "All Ratings"
   bool _mentorshipSortNewestFirst = false;
+  int _mentorshipPage = 1;
+  static const int _mentorshipPageSize = 3;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _selectedTab = widget.initialTab.clamp(0, 2);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -314,17 +319,45 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                                             final counts = subSnapshot.data ??
                                                 {'Basic': 0, 'Standard': 0, 'Premium': 0};
 
-                                            return Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                              children: [
-                                                _buildStatItem('Viewers', '${counts['Basic']}', Icons.remove_red_eye_rounded, const Color(0xFF3B82F6), isDark, textColor, subtitleColor),
-                                                _buildVerticalDivider(borderColor),
-                                                _buildStatItem('Subscribers', '${counts['Standard']}', Icons.people_rounded, const Color(0xFF81B655), isDark, textColor, subtitleColor),
-                                                _buildVerticalDivider(borderColor),
-                                                _buildStatItem('Mentors', '${counts['Premium']}', Icons.school_rounded, const Color(0xFF8B5CF6), isDark, textColor, subtitleColor),
-                                                _buildVerticalDivider(borderColor),
-                                                _buildStatItem('Rating', avgRating.toStringAsFixed(1), Icons.star_rounded, Colors.amber, isDark, textColor, subtitleColor),
-                                              ],
+                                            return StreamBuilder<List<LessonPlaylist>>(
+                                              stream: DatabaseService.instance.streamPlaylistsByCreator(
+                                                uid,
+                                                email: widget.educator['email'] as String?,
+                                              ),
+                                              builder: (context, pSnap) {
+                                                final pCount = pSnap.data?.length ?? 0;
+
+                                                return Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                                  children: [
+                                                    _buildStatItem('Viewers', '${counts['Basic']}', Icons.remove_red_eye_rounded, const Color(0xFF3B82F6), isDark, textColor, subtitleColor),
+                                                    _buildVerticalDivider(borderColor),
+                                                    _buildStatItem('Subscribers', '${counts['Standard']}', Icons.people_rounded, const Color(0xFF81B655), isDark, textColor, subtitleColor),
+                                                    _buildVerticalDivider(borderColor),
+                                                    _buildStatItem(
+                                                      'Playlists',
+                                                      '$pCount',
+                                                      Icons.playlist_play_rounded,
+                                                      const Color(0xFF10B981),
+                                                      isDark,
+                                                      textColor,
+                                                      subtitleColor,
+                                                      onTap: () => setState(() => _selectedTab = 1),
+                                                    ),
+                                                    _buildVerticalDivider(borderColor),
+                                                    _buildStatItem(
+                                                      'Rating',
+                                                      avgRating.toStringAsFixed(1),
+                                                      Icons.star_rounded,
+                                                      Colors.amber,
+                                                      isDark,
+                                                      textColor,
+                                                      subtitleColor,
+                                                      onTap: () => setState(() => _selectedTab = 2),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
                                             );
                                           },
                                         );
@@ -353,93 +386,66 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                     child: Column(
                       children: [
                         _buildMentorshipBanner(uid, isDark, cardBg, borderColor, textColor, subtitleColor),
-                        // Tab Selector Pills
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0).withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: TabBar(
-                            controller: _tabController,
-                            indicator: BoxDecoration(
-                              color: const Color(0xFF81B655),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF81B655).withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            labelColor: Colors.white,
-                            unselectedLabelColor: isDark ? Colors.white60 : const Color(0xFF64748B),
-                            labelStyle: GoogleFonts.outfit(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                            unselectedLabelStyle: GoogleFonts.outfit(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            dividerColor: Colors.transparent,
-                            tabs: const [
-                              Tab(
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.auto_stories_rounded, size: 18),
-                                    SizedBox(width: 8),
-                                    Text('Public Content'),
-                                  ],
-                                ),
-                              ),
-                              Tab(
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.star_rounded, size: 18),
-                                    SizedBox(width: 8),
-                                    Text('Ratings & Reviews'),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
+                        StreamBuilder<List<Lesson>>(
+                          stream: DatabaseService.instance.streamEducatorLessons(uid, publicOnly: true),
+                          builder: (context, lessonSnap) {
+                            final lessons = lessonSnap.data ?? [];
+                            final educatorEmail = widget.educator['email'] as String?;
 
-                        // Tab Views
-                        SizedBox(
-                          height: 600,
-                          child: TabBarView(
-                            controller: _tabController,
-                            children: [
-                              // ── Tab 1: Public Content ──────────────────────
-                              _buildPublicContentTab(
-                                uid,
-                                widget.currentUser,
-                                isDark,
-                                cardBg,
-                                borderColor,
-                                textColor,
-                                subtitleColor,
-                              ),
+                            return StreamBuilder<List<LessonPlaylist>>(
+                              stream: DatabaseService.instance.streamPlaylistsByCreator(uid, email: educatorEmail),
+                              builder: (context, playlistSnap) {
+                                final playlists = playlistSnap.data ?? [];
 
-                              // ── Tab 2: Ratings & Reviews ────────────────────
-                              _buildReviewsTab(
-                                uid,
-                                isDark,
-                                cardBg,
-                                borderColor,
-                                textColor,
-                                subtitleColor,
-                              ),
-                            ],
-                          ),
+                                return Column(
+                                  children: [
+                                    // Tab Selector Pills
+                                    _buildTabPillBar(
+                                      isDark: isDark,
+                                      textColor: textColor,
+                                      lessonsCount: lessons.length,
+                                      playlistsCount: playlists.length,
+                                      uid: uid,
+                                    ),
+                                    const SizedBox(height: 24),
+
+                                    // Tab Views
+                                    if (_selectedTab == 0)
+                                      _buildLessonsTab(
+                                        lessons,
+                                        lessonSnap.connectionState == ConnectionState.waiting,
+                                        isDark,
+                                        cardBg,
+                                        borderColor,
+                                        textColor,
+                                        subtitleColor,
+                                      )
+                                    else if (_selectedTab == 1)
+                                      _buildPlaylistsTab(
+                                        playlists,
+                                        playlistSnap.connectionState == ConnectionState.waiting,
+                                        isDark,
+                                        cardBg,
+                                        borderColor,
+                                        textColor,
+                                        subtitleColor,
+                                      )
+                                    else
+                                      _buildReviewsTab(
+                                        uid,
+                                        isDark,
+                                        cardBg,
+                                        borderColor,
+                                        textColor,
+                                        subtitleColor,
+                                      ),
+                                    const SizedBox(height: 48),
+                                  ],
+                                );
+                              },
+                            );
+                          },
                         ),
-                        const SizedBox(height: 48),
                       ],
                     ),
                   ),
@@ -689,6 +695,29 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                 ),
               ),
             ),
+            const SizedBox(width: 10),
+            SizedBox(
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: () => setState(() => _selectedTab = 1),
+                icon: const Icon(Icons.playlist_play_rounded, size: 18, color: Color(0xFF81B655)),
+                label: Text(
+                  'Playlists',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: textColor,
+                  side: BorderSide(color: borderColor),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
           ],
         );
       },
@@ -702,9 +731,10 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
     Color color,
     bool isDark,
     Color textColor,
-    Color subtitleColor,
-  ) {
-    return Column(
+    Color subtitleColor, {
+    VoidCallback? onTap,
+  }) {
+    final item = Column(
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -732,6 +762,17 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
         ),
       ],
     );
+
+    if (onTap == null) return item;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: item,
+      ),
+    );
   }
 
   Widget _buildVerticalDivider(Color borderColor) {
@@ -742,141 +783,306 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
     );
   }
 
-  // ── Public Content Tab View ───────────────────────────────────────────────
+  // ── Tab Bar & Content Views ───────────────────────────────────────────────
 
-  Widget _buildPublicContentTab(
-    String uid,
-    User currentUser,
+  Widget _buildTabPillBar({
+    required bool isDark,
+    required Color textColor,
+    required int lessonsCount,
+    required int playlistsCount,
+    required String uid,
+  }) {
+    Widget buildTabPill(String label, IconData icon, int index, int count) {
+      final isSel = _selectedTab == index;
+      return Expanded(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => setState(() => _selectedTab = index),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: isSel ? const Color(0xFF81B655) : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: isSel
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF81B655).withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: isSel ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '$label ($count)',
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                    color: isSel ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return StreamBuilder<List<Review>>(
+      stream: DatabaseService.instance.streamReviews(uid),
+      builder: (context, rSnap) {
+        final reviewCount = rSnap.data?.length ?? 0;
+        return Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              buildTabPill('Lessons', Icons.auto_stories_rounded, 0, lessonsCount),
+              buildTabPill('Playlists', Icons.playlist_play_rounded, 1, playlistsCount),
+              buildTabPill('Reviews', Icons.star_rounded, 2, reviewCount),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLessonsTab(
+    List<Lesson> lessons,
+    bool isLoading,
     bool isDark,
     Color cardBg,
     Color borderColor,
     Color textColor,
     Color subtitleColor,
   ) {
-    return StreamBuilder<List<Lesson>>(
-      stream: DatabaseService.instance.streamEducatorLessons(uid, publicOnly: true),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final lessons = snapshot.data ?? [];
-        if (lessons.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.auto_stories_outlined, size: 48, color: subtitleColor),
-                const SizedBox(height: 12),
-                Text(
-                  'No public lessons published yet',
-                  style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
+    if (isLoading && lessons.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(48),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (lessons.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 56),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.auto_stories_outlined, size: 48, color: subtitleColor),
+              const SizedBox(height: 12),
+              Text(
+                'No public lessons published yet',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 360,
+        mainAxisExtent: 245,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: lessons.length,
+      itemBuilder: (context, index) {
+        final lesson = lessons[index];
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.0 : 0.03),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'LESSON',
+                      style: GoogleFonts.outfit(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF81B655),
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.book_rounded, color: Color(0xFF81B655), size: 20),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                lesson.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: textColor,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                lesson.prompt,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontSize: 12.5,
+                  color: subtitleColor,
+                  height: 1.4,
+                ),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 38,
+                child: ElevatedButton(
+                  onPressed: () => NavigationService.instance.goToLesson(context, lesson),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF81B655),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    'Start Lesson',
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ],
-            ),
-          );
-        }
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
+  Widget _buildPlaylistsTab(
+    List<LessonPlaylist> playlists,
+    bool isLoading,
+    bool isDark,
+    Color cardBg,
+    Color borderColor,
+    Color textColor,
+    Color subtitleColor,
+  ) {
+    if (isLoading && playlists.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(48),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (playlists.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 56),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF81B655).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.playlist_play_rounded,
+                  size: 52,
+                  color: Color(0xFF81B655),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No playlists published yet',
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'This educator has not created sequential lesson playlists yet.',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: subtitleColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 650;
         return GridView.builder(
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 360,
-            mainAxisExtent: 245,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: isNarrow ? 1 : 2,
+            mainAxisExtent: 185,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
           ),
-          itemCount: lessons.length,
+          itemCount: playlists.length,
           itemBuilder: (context, index) {
-            final lesson = lessons[index];
-            return Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: borderColor),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.0 : 0.03),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF81B655).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'LESSON',
-                          style: GoogleFonts.outfit(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF81B655),
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ),
-                      Icon(Icons.book_rounded, color: const Color(0xFF81B655), size: 20),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    lesson.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.outfit(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: textColor,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    lesson.prompt,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 12.5,
-                      color: subtitleColor,
-                      height: 1.4,
-                    ),
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 38,
-                    child: ElevatedButton(
-                      onPressed: () => NavigationService.instance.goToLesson(context, lesson),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF81B655),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text(
-                        'Start Lesson',
-                        style: GoogleFonts.outfit(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            final playlist = playlists[index];
+            return PlaylistCard(
+              playlist: playlist,
+              isDark: isDark,
             );
           },
         );
@@ -1238,6 +1444,12 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
 
         if (eduSessions.isEmpty) return const SizedBox.shrink();
 
+        final totalSessions = eduSessions.length;
+        final maxPage = (totalSessions / _mentorshipPageSize).ceil().clamp(1, 9999);
+        if (_mentorshipPage > maxPage) _mentorshipPage = maxPage;
+        final startIndex = (_mentorshipPage - 1) * _mentorshipPageSize;
+        final pageSessions = eduSessions.skip(startIndex).take(_mentorshipPageSize).toList();
+
         return Container(
           width: double.infinity,
           margin: const EdgeInsets.only(bottom: 24),
@@ -1263,7 +1475,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Scheduled Mentorship Session',
+                      'Scheduled Mentorship Session ($totalSessions)',
                       style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -1314,7 +1526,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                 ],
               ),
               const SizedBox(height: 12),
-              ...eduSessions.map((s) {
+              ...pageSessions.map((s) {
                 final title = s['meetingTitle'] as String? ?? 'Mentorship Meeting';
                 final app = s['conferenceApp'] as String? ?? 'agora';
                 final startTime = (s['startTime'] as Timestamp?)?.toDate();
@@ -1431,6 +1643,18 @@ class _EducatorProfilePageState extends State<EducatorProfilePage>
                   ),
                 );
               }),
+              if (totalSessions > _mentorshipPageSize) ...[
+                const SizedBox(height: 16),
+                PaginationBar(
+                  currentPage: _mentorshipPage,
+                  totalItems: totalSessions,
+                  pageSize: _mentorshipPageSize,
+                  itemName: 'sessions',
+                  onPageChanged: (newPage) {
+                    setState(() => _mentorshipPage = newPage);
+                  },
+                ),
+              ],
             ],
           ),
         );

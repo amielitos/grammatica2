@@ -44,6 +44,8 @@ class _GenerationConfirmDialogState extends State<GenerationConfirmDialog> {
         return 'Answers the most frequently asked questions and foundational concepts extracted from your sources.';
       case NotebookOutputType.mindMap:
         return 'Constructs a visual hierarchical mind map connecting central topics to sub-concepts and branches.';
+      case NotebookOutputType.presentation:
+        return 'Generates a clean instructional presentation slide deck with key concepts, bulleted takeaways, and speaker notes.';
     }
   }
 
@@ -65,6 +67,8 @@ class _GenerationConfirmDialogState extends State<GenerationConfirmDialog> {
         return Icons.help_outline_rounded;
       case NotebookOutputType.mindMap:
         return Icons.hub_rounded;
+      case NotebookOutputType.presentation:
+        return Icons.slideshow_rounded;
     }
   }
 
@@ -86,6 +90,8 @@ class _GenerationConfirmDialogState extends State<GenerationConfirmDialog> {
         return const Color(0xFFF59E0B);
       case NotebookOutputType.mindMap:
         return const Color(0xFFEC4899);
+      case NotebookOutputType.presentation:
+        return const Color(0xFF6366F1);
     }
   }
 

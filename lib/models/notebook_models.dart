@@ -195,7 +195,8 @@ enum NotebookOutputType {
   timeline,
   briefing,
   faq,
-  mindMap;
+  mindMap,
+  presentation;
 
   static NotebookOutputType fromString(String value) {
     switch (value.toLowerCase()) {
@@ -217,6 +218,9 @@ enum NotebookOutputType {
       case 'mind_map':
       case 'mindmap':
         return NotebookOutputType.mindMap;
+      case 'presentation':
+      case 'slideshow':
+        return NotebookOutputType.presentation;
       default:
         return NotebookOutputType.studyGuide;
     }
@@ -240,6 +244,8 @@ enum NotebookOutputType {
         return 'FAQ';
       case NotebookOutputType.mindMap:
         return 'Mind Map';
+      case NotebookOutputType.presentation:
+        return 'Presentation';
     }
   }
 
@@ -261,6 +267,8 @@ enum NotebookOutputType {
         return 'faq';
       case NotebookOutputType.mindMap:
         return 'mind_map';
+      case NotebookOutputType.presentation:
+        return 'presentation';
     }
   }
 }

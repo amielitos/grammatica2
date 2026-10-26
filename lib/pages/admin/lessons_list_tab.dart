@@ -8,11 +8,19 @@ import '../../services/navigation_service.dart';
 import '../../theme/app_colors.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/content_denial_dialog.dart';
+import '../../widgets/archive_management_dialog.dart';
+import '../../models/playlist.dart';
 
 class LessonsListTab extends StatefulWidget {
+  final UserRole role;
   final Function(Lesson)? onEdit;
   final Function(Lesson)? onEditQuiz;
-  const LessonsListTab({super.key, this.onEdit, this.onEditQuiz});
+  const LessonsListTab({
+    super.key,
+    this.role = UserRole.learner,
+    this.onEdit,
+    this.onEditQuiz,
+  });
   @override
   State<LessonsListTab> createState() => _LessonsListTabState();
 }
@@ -21,6 +29,24 @@ class _LessonsListTabState extends State<LessonsListTab> {
   String _searchQuery = '';
   String _selectedFilter = 'Create Date';
   final List<String> _filterOptions = ['Name', 'Status', 'Create Date'];
+  final Set<String> _superAdminUids = {};
+  int _activeView = 0; // 0: Lessons, 1: Playlists
+
+  @override
+  void initState() {
+    super.initState();
+    FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'SUPERADMIN')
+        .get()
+        .then((snap) {
+      if (mounted) {
+        setState(() {
+          _superAdminUids.addAll(snap.docs.map((d) => d.id));
+        });
+      }
+    });
+  }
 
   String _formatTs(dynamic ts) {
     if (ts == null) return 'N/A';
@@ -85,6 +111,9 @@ class _LessonsListTabState extends State<LessonsListTab> {
             if (role == UserRole.admin || role == UserRole.superadmin) {
               lessons = lessons.where((l) => l.isGrammaticaLesson == true).toList();
             }
+            if (role == UserRole.admin) {
+              lessons = lessons.where((l) => l.validationStatus != 'awaiting_approval').toList();
+            }
 
             // Educators only see their own lessons
             if (role == UserRole.educator && user != null) {
@@ -128,102 +157,200 @@ class _LessonsListTabState extends State<LessonsListTab> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Lessons',
-                          style: GoogleFonts.outfit(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            color: isDark ? Colors.white : AppColors.textPrimary,
-                            letterSpacing: -1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${lessons.length} lesson${lessons.length == 1 ? '' : 's'} found',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // ── Search + Filter Bar ──
-                        Container(
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              const SizedBox(width: 16),
-                              Icon(Icons.search_rounded,
-                                  color: AppColors.textSecondary, size: 20),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  onChanged: (v) => setState(() => _searchQuery = v),
-                                  style: GoogleFonts.inter(fontSize: 14),
-                                  decoration: InputDecoration(
-                                    hintText: 'Search by title or author…',
-                                    hintStyle: GoogleFonts.inter(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 14,
-                                    ),
-                                    border: InputBorder.none,
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                                    fillColor: Colors.transparent,
-                                    filled: true,
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 16,
+                          runSpacing: 16,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _activeView == 0 ? 'Lessons' : 'Playlists',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w900,
+                                    color: isDark ? Colors.white : AppColors.textPrimary,
+                                    letterSpacing: -1.0,
                                   ),
                                 ),
-                              ),
-                              // Filter Chip
-                              GestureDetector(
-                                onTap: () => _showFilterSheet(context),
-                                child: Container(
-                                  margin: const EdgeInsets.all(8),
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _activeView == 0
+                                      ? '${lessons.length} lesson${lessons.length == 1 ? '' : 's'} found'
+                                      : 'Ordered learning journeys curated for students',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: AppColors.textSecondary,
                                   ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // View switcher
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.all(4),
                                   child: Row(
-                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.tune_rounded,
-                                          color: AppColors.primary, size: 16),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        _selectedFilter,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.primary,
+                                      ChoiceChip(
+                                        label: const Text('Lessons'),
+                                        selected: _activeView == 0,
+                                        onSelected: (val) {
+                                          if (val) setState(() => _activeView = 0);
+                                        },
+                                        selectedColor: AppColors.primary,
+                                        labelStyle: TextStyle(
+                                          color: _activeView == 0 ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
                                         ),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        showCheckmark: false,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      ChoiceChip(
+                                        label: const Text('Playlists'),
+                                        selected: _activeView == 1,
+                                        onSelected: (val) {
+                                          if (val) setState(() => _activeView = 1);
+                                        },
+                                        selectedColor: AppColors.primary,
+                                        labelStyle: TextStyle(
+                                          color: _activeView == 1 ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        showCheckmark: false,
                                       ),
                                     ],
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
+                                const SizedBox(width: 12),
+                                // Create Playlist button
+                                FilledButton.icon(
+                                  onPressed: () => _showPlaylistDialog(context, lessons),
+                                  icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                                  label: const Text('New Playlist'),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                // Archive dialog button
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => ArchiveManagementDialog(role: widget.role),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.archive_outlined, size: 18),
+                                  label: const Text('Archive'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.amber.shade700,
+                                    side: BorderSide(color: Colors.amber.shade700.withValues(alpha: 0.5)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
+
+                        if (_activeView == 0) ...[
+                          // ── Search + Filter Bar ──
+                          Container(
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                const SizedBox(width: 16),
+                                Icon(Icons.search_rounded,
+                                    color: AppColors.textSecondary, size: 20),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: TextField(
+                                    onChanged: (v) => setState(() => _searchQuery = v),
+                                    style: GoogleFonts.inter(fontSize: 14),
+                                    decoration: InputDecoration(
+                                      hintText: 'Search by title or author…',
+                                      hintStyle: GoogleFonts.inter(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 14,
+                                      ),
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                                      fillColor: Colors.transparent,
+                                      filled: true,
+                                    ),
+                                  ),
+                                ),
+                                // Filter Chip
+                                GestureDetector(
+                                  onTap: () => _showFilterSheet(context),
+                                  child: Container(
+                                    margin: const EdgeInsets.all(8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.tune_rounded,
+                                            color: AppColors.primary, size: 16),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          _selectedFilter,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                        ],
                       ],
                     ),
                   ),
                 ),
 
-                // ── Empty State ──
-                if (lessons.isEmpty)
+                if (_activeView == 1)
+                  _buildPlaylistsSection(context, lessons, isDark, user?.uid ?? '')
+                else if (lessons.isEmpty)
+                  // ── Empty State ──
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(48),
@@ -273,6 +400,9 @@ class _LessonsListTabState extends State<LessonsListTab> {
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
                               final l = lessons[index];
+                              final isSuperAdminContent = _superAdminUids.contains(l.createdByUid);
+                              final isDeleteBlocked = widget.role == UserRole.admin && isSuperAdminContent;
+
                               return _LessonCard(
                                 lesson: l,
                                 canEdit: canEdit,
@@ -288,7 +418,11 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                 onEditQuiz: (canEdit && l.quizId != null)
                                     ? () => widget.onEditQuiz?.call(l)
                                     : null,
-                                onDelete: canEdit ? () => _confirmDelete(context, l) : null,
+                                isDeleteDisabled: isDeleteBlocked,
+                                deleteTooltip: isDeleteBlocked
+                                    ? 'Only Super Admin can delete content created by Super Admin'
+                                    : 'Archive Lesson',
+                                onDelete: (canEdit && !isDeleteBlocked) ? () => _confirmDelete(context, l) : null,
                               );
                             },
                             childCount: lessons.length,
@@ -400,7 +534,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
 
       if (result != null) {
         try {
-          await DatabaseService.instance.permanentlyDeleteLessonPackage(lesson: lesson);
+          await DatabaseService.instance.archiveLesson(lesson.id);
 
           if (lesson.createdByUid != null && lesson.createdByUid!.isNotEmpty) {
             await NotificationService.instance.sendContentDeletedNotification(
@@ -414,7 +548,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Lesson deleted and author notified.'),
+                content: Text('Lesson moved to archive. After 30 days, the content will be permanently deleted from Grammatica.'),
                 backgroundColor: Color(0xFFD32F2F),
               ),
             );
@@ -422,7 +556,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
         } catch (e) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error deleting lesson: $e'), backgroundColor: Colors.red),
+              SnackBar(content: Text('Error archiving lesson: $e'), backgroundColor: Colors.red),
             );
           }
         }
@@ -444,16 +578,16 @@ class _LessonsListTabState extends State<LessonsListTab> {
                 color: const Color(0xFFD32F2F).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.delete_outline_rounded,
+              child: const Icon(Icons.archive_outlined,
                   color: Color(0xFFD32F2F), size: 22),
             ),
             const SizedBox(width: 12),
-            Text('Delete Lesson?',
+            Text('Archive Lesson?',
                 style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           ],
         ),
         content: Text(
-          'Are you sure you want to delete "${lesson.title}" and its integrated quiz? This cannot be undone.',
+          'Are you sure you want to delete "${lesson.title}"? After 30 days, the content will be permanently deleted from Grammatica.',
           style: GoogleFonts.inter(fontSize: 14, height: 1.5),
         ),
         actions: [
@@ -470,7 +604,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
             ),
-            child: Text('Delete',
+            child: Text('Archive',
                 style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           ),
         ],
@@ -479,10 +613,10 @@ class _LessonsListTabState extends State<LessonsListTab> {
 
     if (ok == true) {
       try {
-        await DatabaseService.instance.permanentlyDeleteLessonPackage(lesson: lesson);
+        await DatabaseService.instance.archiveLesson(lesson.id);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lesson deleted successfully')),
+            const SnackBar(content: Text('Lesson moved to archive. After 30 days, the content will be permanently deleted from Grammatica.')),
           );
         }
       } catch (e) {
@@ -493,6 +627,367 @@ class _LessonsListTabState extends State<LessonsListTab> {
         }
       }
     }
+  }
+
+  void _showPlaylistDialog(BuildContext context, List<Lesson> allLessons, {LessonPlaylist? existing}) {
+    final user = AuthService.instance.currentUser;
+    if (user == null) return;
+
+    // Preference: Playlists can only include lessons authored by the creator (or official Grammatica lessons)
+    final allowedLessons = allLessons.where((l) =>
+      l.createdByUid == user.uid || l.isGrammaticaLesson == true
+    ).toList();
+
+    final titleCtrl = TextEditingController(text: existing?.title ?? '');
+    final descCtrl = TextEditingController(text: existing?.description ?? '');
+    final selectedLessonIds = List<String>.from(existing?.lessonIds ?? []);
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            backgroundColor: isDark ? const Color(0xFF242424) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 650, maxHeight: 720),
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 24),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            existing == null ? 'Create Lesson Playlist' : 'Edit Playlist',
+                            style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(dialogCtx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Playlist Title',
+                        hintText: 'e.g. Master English Tenses in Order',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descCtrl,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: 'Description (Optional)',
+                        hintText: 'Describe the sequence or goal of this playlist',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Select & Arrange Lessons (${selectedLessonIds.length} selected)',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Lessons will be viewed sequentially in this order by learners.',
+                      style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: allowedLessons.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No authored or official Grammatica lessons available to add.',
+                                style: GoogleFonts.inter(color: AppColors.textSecondary),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: allowedLessons.length,
+                              itemBuilder: (ctx, i) {
+                                final lesson = allowedLessons[i];
+                                final isSelected = selectedLessonIds.contains(lesson.id);
+                                final orderIndex = selectedLessonIds.indexOf(lesson.id);
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? AppColors.primary.withValues(alpha: 0.08)
+                                        : (isDark ? const Color(0xFF2E2E2E) : const Color(0xFFF8FAFC)),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? AppColors.primary
+                                          : (isDark ? Colors.white12 : Colors.black12),
+                                    ),
+                                  ),
+                                  child: ListTile(
+                                    leading: isSelected
+                                        ? CircleAvatar(
+                                            radius: 14,
+                                            backgroundColor: AppColors.primary,
+                                            child: Text(
+                                              '${orderIndex + 1}',
+                                              style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+                                            ),
+                                          )
+                                        : const Icon(Icons.circle_outlined, size: 20, color: Colors.grey),
+                                    title: Text(
+                                      lesson.title,
+                                      style: GoogleFonts.inter(
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      lesson.isGrammaticaLesson ? 'Official Grammatica' : (lesson.createdByEmail ?? ''),
+                                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                                    ),
+                                    trailing: isSelected
+                                        ? Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (orderIndex > 0)
+                                                IconButton(
+                                                  icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+                                                  tooltip: 'Move up',
+                                                  onPressed: () {
+                                                    setDialogState(() {
+                                                      final id = selectedLessonIds.removeAt(orderIndex);
+                                                      selectedLessonIds.insert(orderIndex - 1, id);
+                                                    });
+                                                  },
+                                                ),
+                                              if (orderIndex < selectedLessonIds.length - 1)
+                                                IconButton(
+                                                  icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+                                                  tooltip: 'Move down',
+                                                  onPressed: () {
+                                                    setDialogState(() {
+                                                      final id = selectedLessonIds.removeAt(orderIndex);
+                                                      selectedLessonIds.insert(orderIndex + 1, id);
+                                                    });
+                                                  },
+                                                ),
+                                              IconButton(
+                                                icon: const Icon(Icons.remove_circle_outline_rounded, color: Colors.red, size: 20),
+                                                tooltip: 'Remove',
+                                                onPressed: () {
+                                                  setDialogState(() {
+                                                    selectedLessonIds.remove(lesson.id);
+                                                  });
+                                                },
+                                              ),
+                                            ],
+                                          )
+                                        : TextButton(
+                                            onPressed: () {
+                                              setDialogState(() {
+                                                selectedLessonIds.add(lesson.id);
+                                              });
+                                            },
+                                            child: const Text('Add'),
+                                          ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogCtx),
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: 12),
+                        FilledButton(
+                          onPressed: selectedLessonIds.isEmpty || titleCtrl.text.trim().isEmpty
+                              ? null
+                              : () async {
+                                  try {
+                                    if (existing == null) {
+                                      await DatabaseService.instance.createPlaylist(
+                                        title: titleCtrl.text.trim(),
+                                        description: descCtrl.text.trim(),
+                                        createdByUid: user.uid,
+                                        createdByEmail: user.email ?? '',
+                                        lessonIds: selectedLessonIds,
+                                      );
+                                    } else {
+                                      await DatabaseService.instance.updatePlaylist(
+                                        id: existing.id,
+                                        title: titleCtrl.text.trim(),
+                                        description: descCtrl.text.trim(),
+                                        lessonIds: selectedLessonIds,
+                                      );
+                                    }
+                                    if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(existing == null ? 'Playlist created!' : 'Playlist updated!'),
+                                          backgroundColor: AppColors.primary,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Error saving playlist: $e'), backgroundColor: Colors.red),
+                                      );
+                                    }
+                                  }
+                                },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          ),
+                          child: Text(existing == null ? 'Create Playlist' : 'Save Changes'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPlaylistsSection(BuildContext context, List<Lesson> allLessons, bool isDark, String currentUid) {
+    final stream = (widget.role == UserRole.admin || widget.role == UserRole.superadmin)
+        ? DatabaseService.instance.streamAllPlaylists()
+        : DatabaseService.instance.streamPlaylistsByCreator(currentUid);
+
+    return StreamBuilder<List<LessonPlaylist>>(
+      stream: stream,
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+
+        final playlists = snap.data!;
+        if (playlists.isEmpty) {
+          return SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(48),
+              child: Column(
+                children: [
+                  Icon(Icons.playlist_play_rounded, size: 72, color: AppColors.primary.withValues(alpha: 0.2)),
+                  const SizedBox(height: 16),
+                  Text('No playlists created yet', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('Organize your lessons into ordered playlist folders for sequential student learning.',
+                      textAlign: TextAlign.center, style: GoogleFonts.inter(color: AppColors.textSecondary)),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () => _showPlaylistDialog(context, allLessons),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create First Playlist'),
+                    style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return SliverPadding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 1.6,
+              crossAxisSpacing: 20,
+              mainAxisSpacing: 20,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final p = playlists[index];
+                return _PlaylistCard(
+                  playlist: p,
+                  isDark: isDark,
+                  canEdit: p.createdByUid == currentUid || widget.role == UserRole.superadmin || widget.role == UserRole.admin,
+                  onEdit: () => _showPlaylistDialog(context, allLessons, existing: p),
+                  onDelete: () async {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Delete Playlist?'),
+                        content: Text('Are you sure you want to delete playlist "${p.title}"? Lessons inside the playlist will NOT be deleted.'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (ok == true) {
+                      await DatabaseService.instance.deletePlaylist(p.id);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Playlist deleted.')));
+                      }
+                    }
+                  },
+                  onTap: () async {
+                    if (p.lessonIds.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This playlist has no lessons yet.')));
+                      return;
+                    }
+                    final firstLessonId = p.lessonIds.first;
+                    final matches = allLessons.where((l) => l.id == firstLessonId);
+                    final Lesson? lesson = matches.isNotEmpty
+                        ? matches.first
+                        : await DatabaseService.instance.getLesson(firstLessonId);
+                    if (lesson == null) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not load the first lesson in this playlist.')));
+                      }
+                      return;
+                    }
+                    if (context.mounted) {
+                      NavigationService.instance.goToLesson(context, lesson, playlist: p);
+                    }
+                  },
+                );
+              },
+              childCount: playlists.length,
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -510,6 +1005,8 @@ class _LessonCard extends StatefulWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onEditQuiz;
   final VoidCallback? onDelete;
+  final bool isDeleteDisabled;
+  final String? deleteTooltip;
 
   const _LessonCard({
     required this.lesson,
@@ -523,6 +1020,8 @@ class _LessonCard extends StatefulWidget {
     this.onEdit,
     this.onEditQuiz,
     this.onDelete,
+    this.isDeleteDisabled = false,
+    this.deleteTooltip,
   });
 
   @override
@@ -620,13 +1119,21 @@ class _LessonCardState extends State<_LessonCard> {
                               tooltip: 'Edit Lesson',
                             ),
                           ],
-                          if (widget.onDelete != null) ...[
+                          if (widget.isDeleteDisabled) ...[
+                            const SizedBox(width: 6),
+                            _iconBtn(
+                              Icons.delete_outline_rounded,
+                              Colors.grey.shade400,
+                              () {},
+                              tooltip: widget.deleteTooltip ?? 'Delete',
+                            ),
+                          ] else if (widget.onDelete != null) ...[
                             const SizedBox(width: 6),
                             _iconBtn(
                               Icons.delete_outline_rounded,
                               const Color(0xFFD32F2F),
                               widget.onDelete!,
-                              tooltip: 'Delete',
+                              tooltip: widget.deleteTooltip ?? 'Delete',
                             ),
                           ],
                         ],
@@ -738,6 +1245,137 @@ class _LessonCardState extends State<_LessonCard> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 16, color: color),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Playlist Card ────────────────────────────────────────────────────────────
+
+class _PlaylistCard extends StatelessWidget {
+  final LessonPlaylist playlist;
+  final bool isDark;
+  final bool canEdit;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _PlaylistCard({
+    required this.playlist,
+    required this.isDark,
+    required this.canEdit,
+    required this.onTap,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cardBg = isDark ? const Color(0xFF2A2A2A) : Colors.white;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.withValues(alpha: 0.15),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${playlist.lessonIds.length} Lessons',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        Text(
+                          playlist.createdByEmail.isNotEmpty ? playlist.createdByEmail : 'Creator',
+                          style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (canEdit) ...[
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, size: 18),
+                      tooltip: 'Edit Playlist',
+                      onPressed: onEdit,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                      tooltip: 'Delete Playlist',
+                      onPressed: onDelete,
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                playlist.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Expanded(
+                child: Text(
+                  playlist.description.isNotEmpty ? playlist.description : 'Sequential learning playlist folder.',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Text(
+                    'Start Sequential Journey',
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primary),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

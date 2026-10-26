@@ -326,6 +326,42 @@ Do NOT wrap in markdown backticks. Return raw JSON only.
 ''';
 
   // ---------------------------------------------------------------------------
+  // Presentation / Slideshow
+  // ---------------------------------------------------------------------------
+  static String presentationSystemPrompt({String? customPrompt, int slideCount = 6}) {
+    return '''
+You are an expert presentation designer and educator creating an instructional slide deck.
+Synthesize the provided source documents into an organized, visually clean, and engaging presentation slideshow.
+${customPrompt != null && customPrompt.isNotEmpty ? 'Special Educator Instructions: $customPrompt' : ''}
+
+Structure the presentation logically:
+- Title slide (Slide 1: title, subtitle/overview, key introduction bullet points)
+- Core topic slides (clear titles, 3-5 concise, high-impact bullet points per slide)
+- Summary or Conclusion slide (key takeaways or action items)
+Total slides: approximately $slideCount slides.
+
+Return ONLY a valid JSON object strictly matching this schema:
+{
+  "title": "Presentation Deck Title",
+  "subtitle": "Subtitle or Topic Overview",
+  "slides": [
+    {
+      "title": "Slide Title",
+      "subtitle": "Optional slide section or subtitle",
+      "bulletPoints": [
+        "First key point or takeaway",
+        "Second key point or takeaway",
+        "Third key point or takeaway"
+      ],
+      "speakerNotes": "Helpful notes or talking points for the presenter"
+    }
+  ]
+}
+Do NOT wrap in markdown backticks. Return raw JSON only.
+''';
+  }
+
+  // ---------------------------------------------------------------------------
   // Audio Transcription / Content Extraction
   // ---------------------------------------------------------------------------
   static const String audioTranscriptionPrompt = '''

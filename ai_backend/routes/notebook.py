@@ -64,6 +64,13 @@ class MindMapRequest(BaseModel):
     sourceText: str
 
 
+class PresentationRequest(BaseModel):
+    sourceText: str
+    customPrompt: Optional[str] = None
+    slideCount: int = 6
+
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -262,6 +269,44 @@ async def generate_mind_map(body: MindMapRequest):
         return _extract_json_from_response(response.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate mind map: {str(e)}")
+
+
+@router.post("/generate-presentation", dependencies=[Depends(verify_api_key)])
+async def generate_presentation(body: PresentationRequest):
+    """Generate an instructional presentation slide deck from source material."""
+    client = _get_client()
+    system_prompt = (
+        "You are an expert presentation designer and educator creating an instructional slide deck.\n"
+        f"Synthesize the provided source documents into a slideshow of approximately {body.slideCount} slides.\n"
+        f"{f'Special Instructions: {body.customPrompt}' if body.customPrompt else ''}\n"
+        "Return ONLY a valid JSON object matching:\n"
+        "{\n"
+        '  "title": "Presentation Title",\n'
+        '  "subtitle": "Subtitle or Overview",\n'
+        '  "slides": [\n'
+        '    {\n'
+        '      "title": "Slide Title",\n'
+        '      "subtitle": "Optional subtitle",\n'
+        '      "bulletPoints": ["Key point 1", "Key point 2", "Key point 3"],\n'
+        '      "speakerNotes": "Presenter talking points"\n'
+        '    }\n'
+        "  ]\n"
+        "}\n"
+    )
+
+    try:
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=f"Generate presentation for:\n\n{body.sourceText}",
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+                temperature=0.7,
+            ),
+        )
+        return _extract_json_from_response(response.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate presentation: {str(e)}")
 
 
 @router.post("/transcribe", dependencies=[Depends(verify_api_key)])

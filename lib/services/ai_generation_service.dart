@@ -230,6 +230,35 @@ class AIGenerationService {
   }
 
   // ---------------------------------------------------------------------------
+  // Presentation / Slideshow Generation
+  // ---------------------------------------------------------------------------
+
+  Future<Presentation> generatePresentation(
+    String sourceText, {
+    String? customPrompt,
+    int slideCount = 6,
+  }) async {
+    final systemPrompt = NotebookPrompts.presentationSystemPrompt(
+      customPrompt: customPrompt,
+      slideCount: slideCount,
+    );
+
+    final rawJson = await _executeGeneration(
+      systemPrompt: systemPrompt,
+      userPrompt: 'Construct an instructional slideshow presentation from these sources:\n\n$sourceText',
+      backendEndpoint: '/api/v1/generate-presentation',
+      backendPayload: {
+        'sourceText': sourceText,
+        'customPrompt': customPrompt,
+        'slideCount': slideCount,
+      },
+    );
+
+    final parsed = _decodeJsonMap(rawJson);
+    return Presentation.fromJson(parsed);
+  }
+
+  // ---------------------------------------------------------------------------
   // Internal Multi-Mode Execution Pipeline
   // ---------------------------------------------------------------------------
 

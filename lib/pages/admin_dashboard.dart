@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'profile_page.dart';
 import 'admin/admin_users_tab.dart';
 import 'admin/lessons_list_tab.dart';
@@ -138,43 +139,60 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin =
-        widget.role == UserRole.admin || widget.role == UserRole.superadmin;
-    final isEducator = widget.role == UserRole.educator;
-    final isValidator = widget.role == UserRole.validator;
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.user.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final currentData = snapshot.data?.data() ?? widget.userData;
+        final isAdmin =
+            widget.role == UserRole.admin || widget.role == UserRole.superadmin;
+        final isEducator = widget.role == UserRole.educator;
+        final isValidator = widget.role == UserRole.validator;
 
-    final List<Widget> tabs = [];
-    final List<ModernNavItem> navItems = [];
+        final isVerified = currentData['isVerified'] == true;
+        final statusStr = ((currentData['status'] as String?) ?? '').toLowerCase();
+        final isApprovedValidator = isVerified && statusStr == 'active';
 
-    if (isValidator) {
-      tabs.add(
-        ValidatorDashboardTab(
-          onReviewRequests: (subIndex) => setState(() {
-            _index = 1;
-            _initialValidationTabIndex = subIndex;
-          }),
-        ),
-      );
-      navItems.add(
-        const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'),
-      );
+        final List<Widget> tabs = [];
+        final List<ModernNavItem> navItems = [];
 
-      tabs.add(
-        AdminValidationTab(
-          key: ValueKey('validation_$_initialValidationTabIndex'),
-          role: widget.role,
-          initialTabIndex: _initialValidationTabIndex,
-        ),
-      );
-      navItems.add(
-        const ModernNavItem(icon: Icons.verified_user, label: 'Applications'),
-      );
-    } else {
-      // 0: Dashboard (Educator)
-      if (isEducator) {
-        tabs.add(
-          EducatorDashboardTab(
-            userData: widget.userData,
+        if (isValidator) {
+          tabs.add(
+            ValidatorDashboardTab(
+              user: widget.user,
+              userData: currentData,
+              onReviewRequests: isApprovedValidator
+                  ? (subIndex) => setState(() {
+                      _index = 1;
+                      _initialValidationTabIndex = subIndex;
+                    })
+                  : null,
+            ),
+          );
+          navItems.add(
+            const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'),
+          );
+
+          if (isApprovedValidator) {
+            tabs.add(
+              AdminValidationTab(
+                key: ValueKey('validation_$_initialValidationTabIndex'),
+                role: widget.role,
+                initialTabIndex: _initialValidationTabIndex,
+              ),
+            );
+            navItems.add(
+              const ModernNavItem(icon: Icons.rate_review_rounded, label: 'Content Review'),
+            );
+          }
+        } else {
+          // 0: Dashboard (Educator)
+          if (isEducator) {
+            tabs.add(
+              EducatorDashboardTab(
+                userData: currentData,
             onTabChange: (i) {
               setState(() {
                 _initialPracticeSubTab = null;
@@ -205,14 +223,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       // 0: Users (Admin only)
       if (isAdmin) {
-        tabs.add(const AdminUsersTab());
+        tabs.add(AdminUsersTab(role: widget.role, currentUser: widget.user));
         navItems.add(
           const ModernNavItem(icon: Icons.people, label: 'User Management'),
         );
       }
 
-      // Validation (Super Admin only - Validators handled above)
-      if (widget.role == UserRole.superadmin) {
+      // Validation (Applications - visible to Admin & Super Admin)
+      if (isAdmin) {
         tabs.add(
           AdminValidationTab(
             key: ValueKey('validation_$_initialValidationTabIndex'),
@@ -228,6 +246,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       // Lessons List / Content (Admin / Educator)
       tabs.add(
         LessonsListTab(
+          role: widget.role,
           onEdit: (l) => _showEditLessonModal(context, l, 0),
           onEditQuiz: (l) => _showEditLessonModal(context, l, 1),
         ),
@@ -236,7 +255,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       // Lesson Database (Admin only - entire platform collection)
       if (isAdmin) {
-        tabs.add(const AdminLessonDatabaseTab());
+        tabs.add(AdminLessonDatabaseTab(role: widget.role));
         navItems.add(
           const ModernNavItem(
             icon: Icons.table_chart_rounded,
@@ -309,7 +328,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: CustomAppBar(
         user: widget.user,
-        userData: widget.userData,
+        userData: currentData,
         onNotificationTap: () {
           showDialog(
             context: context,
@@ -335,7 +354,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
       drawer: UniversalDrawer(
         user: widget.user,
-        userData: widget.userData,
+        userData: currentData,
         currentIndex: _index,
         navItems: navItems,
         onTap: (i) {
@@ -348,6 +367,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         },
       ),
       body: IndexedStack(index: _index, children: tabs),
+    );
+      },
     );
   }
 }

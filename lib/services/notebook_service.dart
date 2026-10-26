@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -490,6 +491,7 @@ class NotebookService {
     ContentVisibility visibility = ContentVisibility.public,
     List<String> visibleTo = const [],
     String? quizId,
+    String? existingLessonId,
   }) async {
     await _loadFromLocalSession();
     final outputs = _localOutputs[notebookId] ?? [];
@@ -505,9 +507,34 @@ class NotebookService {
         role == UserRole.admin || role == UserRole.superadmin;
 
     String lessonId;
-    if (existingOutput.publishedId != null &&
-        existingOutput.publishedId!.isNotEmpty) {
-      lessonId = existingOutput.publishedId!;
+    String? resolvedExistingId = existingOutput.publishedId;
+    if ((resolvedExistingId == null || resolvedExistingId.isEmpty) && user != null) {
+      if (existingLessonId != null && existingLessonId.isNotEmpty) {
+        resolvedExistingId = existingLessonId;
+      } else {
+        try {
+          final snap = await FirebaseFirestore.instance
+              .collection('lessons')
+              .where('createdByUid', isEqualTo: user.uid)
+              .get();
+          final match = snap.docs.cast<DocumentSnapshot?>().firstWhere(
+            (d) {
+              final dData = d?.data() as Map<String, dynamic>?;
+              final nbMatch = dData?['notebookId'] != null && dData?['notebookId'] == notebookId;
+              final titleMatch = dData?['title']?.toString().trim().toLowerCase() == title.trim().toLowerCase();
+              return nbMatch || titleMatch;
+            },
+            orElse: () => null,
+          );
+          if (match != null) {
+            resolvedExistingId = match.id;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (resolvedExistingId != null && resolvedExistingId.isNotEmpty) {
+      lessonId = resolvedExistingId;
       await DatabaseService.instance.updateLesson(
         id: lessonId,
         title: title.trim(),
@@ -519,6 +546,8 @@ class NotebookService {
         isGrammaticaLesson: isGrammaticaLesson,
         quizId: quizId,
         notebookId: notebookId,
+        isUpdate: true,
+        validationStatus: 'awaiting_approval',
       );
     } else {
       lessonId = await DatabaseService.instance.createLesson(
@@ -563,6 +592,7 @@ class NotebookService {
     ContentVisibility visibility = ContentVisibility.public,
     List<String> visibleTo = const [],
     bool isAssessment = false,
+    String? existingQuizId,
   }) async {
     await _loadFromLocalSession();
     final outputs = _localOutputs[notebookId] ?? [];
@@ -578,9 +608,25 @@ class NotebookService {
         role == UserRole.admin || role == UserRole.superadmin;
 
     String quizId;
-    if (existingOutput.publishedId != null &&
-        existingOutput.publishedId!.isNotEmpty) {
-      quizId = existingOutput.publishedId!;
+    String? resolvedQuizId = existingOutput.publishedId;
+    if ((resolvedQuizId == null || resolvedQuizId.isEmpty) && user != null) {
+      if (existingQuizId != null && existingQuizId.isNotEmpty) {
+        resolvedQuizId = existingQuizId;
+      } else {
+        try {
+          final snap = await FirebaseFirestore.instance
+              .collection('quizzes')
+              .where('notebookId', isEqualTo: notebookId)
+              .get();
+          if (snap.docs.isNotEmpty) {
+            resolvedQuizId = snap.docs.first.id;
+          }
+        } catch (_) {}
+      }
+    }
+
+    if (resolvedQuizId != null && resolvedQuizId.isNotEmpty) {
+      quizId = resolvedQuizId;
       await DatabaseService.instance.updateQuiz(
         id: quizId,
         title: title.trim(),
@@ -594,6 +640,7 @@ class NotebookService {
         isGrammaticaQuiz: isGrammaticaQuiz,
         isAssessment: isAssessment,
         notebookId: notebookId,
+        validationStatus: 'awaiting_approval',
       );
     } else {
       quizId = await DatabaseService.instance.createQuiz(
@@ -658,6 +705,7 @@ class NotebookService {
     required Map<String, dynamic> data,
     ContentVisibility visibility = ContentVisibility.public,
     List<String> visibleTo = const [],
+    String? lessonId,
   }) async {
     await _loadFromLocalSession();
     final outputs = _localOutputs[notebookId] ?? [];
@@ -671,6 +719,29 @@ class NotebookService {
         : UserRole.learner;
     final isGrammaticaContent =
         role == UserRole.admin || role == UserRole.superadmin;
+
+    // Resolve linked lessonId if not explicitly provided
+    String? resolvedLessonId = lessonId;
+    if (resolvedLessonId == null || resolvedLessonId.isEmpty) {
+      final lessonMatches = outputs.where(
+        (o) => o.type == NotebookOutputType.lesson && o.publishedId != null && o.publishedId!.isNotEmpty,
+      );
+      if (lessonMatches.isNotEmpty) {
+        resolvedLessonId = lessonMatches.first.publishedId;
+      }
+    }
+    if (resolvedLessonId == null || resolvedLessonId.isEmpty) {
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection('lessons')
+            .where('notebookId', isEqualTo: notebookId)
+            .limit(1)
+            .get();
+        if (snap.docs.isNotEmpty) {
+          resolvedLessonId = snap.docs.first.id;
+        }
+      } catch (_) {}
+    }
 
     String publishedId;
     if (existingOutput.publishedId != null &&
@@ -686,6 +757,8 @@ class NotebookService {
         isGrammaticaContent: isGrammaticaContent,
         notebookId: notebookId,
         outputId: outputId,
+        lessonId: resolvedLessonId,
+        validationStatus: 'awaiting_approval',
       );
     } else {
       publishedId = await DatabaseService.instance.createPublishedContent(
@@ -700,6 +773,7 @@ class NotebookService {
         isGrammaticaContent: isGrammaticaContent,
         notebookId: notebookId,
         outputId: outputId,
+        lessonId: resolvedLessonId,
       );
     }
 
@@ -712,6 +786,7 @@ class NotebookService {
         'visibleTo': visibleTo,
         'isMembersOnly': isMembersOnly,
         'isGrammaticaContent': isGrammaticaContent,
+        'lessonId': ?resolvedLessonId,
         'publishedAt': DateTime.now().toIso8601String(),
       },
     );

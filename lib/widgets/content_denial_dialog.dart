@@ -122,7 +122,7 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                       ),
                       child: Icon(
                         widget.isPermanentDeletion
-                            ? Icons.delete_forever_rounded
+                            ? Icons.archive_outlined
                             : Icons.block_rounded,
                         color: primaryActionColor,
                         size: 28,
@@ -135,7 +135,7 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                         children: [
                           Text(
                             widget.isPermanentDeletion
-                                ? 'Permanently Delete Lesson'
+                                ? 'Archive Content'
                                 : 'Deny & Reject Content',
                             style: GoogleFonts.outfit(
                               fontSize: 22,
@@ -145,12 +145,14 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            widget.authorName != null && widget.authorName!.isNotEmpty
-                                ? widget.authorName!
-                                : widget.contentTitle,
+                            widget.isPermanentDeletion
+                                ? 'After 30 days, the content will be permanently deleted from Grammatica.'
+                                : (widget.authorName != null && widget.authorName!.isNotEmpty
+                                    ? widget.authorName!
+                                    : widget.contentTitle),
                             style: GoogleFonts.inter(
                               fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               color: primaryActionColor,
                             ),
                             maxLines: 2,
@@ -402,13 +404,13 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                         ),
                         icon: Icon(
                           widget.isPermanentDeletion
-                              ? Icons.delete_forever_rounded
+                              ? Icons.archive_outlined
                               : Icons.send_rounded,
                           size: 18,
                         ),
                         label: Text(
                           widget.isPermanentDeletion
-                              ? 'Permanently Delete & Notify'
+                              ? 'Archive & Notify'
                               : 'Deny Content & Notify',
                           style: GoogleFonts.outfit(
                             fontSize: 14,

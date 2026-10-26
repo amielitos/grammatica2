@@ -6,7 +6,6 @@ import '../../theme/app_colors.dart';
 import '../../widgets/notebook/flashcard_widget.dart';
 import 'flashcard_study_page.dart';
 
-import 'publish_content_dialogs.dart';
 
 /// Deck preview and card browser page, providing deck mastery stats
 /// and the primary launchpad into spaced-repetition study sessions.
@@ -58,14 +57,6 @@ class _FlashcardDeckViewerState extends State<FlashcardDeckViewer> {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          if (!widget.isLearnerView)
-            IconButton(
-              icon: const Icon(Icons.cloud_upload_outlined),
-              tooltip: 'Publish to Curriculum',
-              onPressed: () => _publishDeckDialog(context),
-            ),
-        ],
       ),
       body: StreamBuilder<Map<String, FlashcardProgress>>(
         stream: SpacedRepetitionService.instance.streamDeckProgress(
@@ -319,16 +310,4 @@ class _FlashcardDeckViewerState extends State<FlashcardDeckViewer> {
     );
   }
 
-  void _publishDeckDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => PublishContentDialog(
-        notebookId: widget.notebookId,
-        output: widget.deck.toNotebookOutput(),
-        onPublished: () {
-          setState(() {});
-        },
-      ),
-    );
-  }
 }
