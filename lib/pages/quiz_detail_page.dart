@@ -73,7 +73,15 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   int? _lastScore;
   bool _isSubscribed = false;
   bool _isAdminOrSuperAdmin = false;
+  bool _isEducator = false;
   bool _checkingSubscription = true;
+
+  bool get _isEducatorOrPreview =>
+      _previewMode ||
+      _isEducator ||
+      _isAdminOrSuperAdmin ||
+      widget.quiz.createdByUid == _effectiveUser.uid ||
+      widget.lesson?.createdByUid == _effectiveUser.uid;
 
   late Stream<Map<String, Map<String, dynamic>>> _quizProgressStream;
   late ConfettiController _confettiController;
@@ -238,6 +246,21 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     _quizProgressStream = DatabaseService.instance.quizProgressStream(_effectiveUser);
     _confettiController = ConfettiController(duration: const Duration(milliseconds: 2500));
     
+    // Load existing attempt progress immediately
+    DatabaseService.instance.getQuizProgress(_effectiveUser.uid, widget.quiz.id).then((pData) {
+      if (pData != null && mounted) {
+        setState(() {
+          _attemptsUsed = (pData['attemptsUsed'] as num?)?.toInt() ?? _attemptsUsed;
+          _lastScore = (pData['score'] as num?)?.toInt() ?? _lastScore;
+          _timeTaken = (pData['timeTaken'] as num?)?.toInt() ?? _timeTaken;
+          _isCorrect = pData['isCorrect'] == true;
+          if (_attemptsUsed > 0 && !_isReviewing) {
+            _quizStarted = false; // Always preserve and display previous attempts
+          }
+        });
+      }
+    });
+
     if (!widget.quiz.isMembersOnly ||
         widget.quiz.createdByUid == _effectiveUser.uid ||
         widget.quiz.isAssessment) {
@@ -251,7 +274,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     }
 
     final bool shouldBlockForPrereq = widget.quiz.requiresLessonCompleted && !_prerequisiteMet && !_isAdminOrSuperAdmin;
-    if (!shouldBlockForPrereq && (widget.autoStart || (widget.quiz.isAssessment && !widget.previewMode))) {
+    final bool isCreator = widget.quiz.createdByUid == _effectiveUser.uid || widget.lesson?.createdByUid == _effectiveUser.uid;
+    if (!shouldBlockForPrereq && !widget.previewMode && !isCreator && _attemptsUsed == 0 && (widget.autoStart || widget.quiz.isAssessment)) {
       _quizStarted = true;
       _startTime = DateTime.now();
       _completedLocal = false;
@@ -637,10 +661,19 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   Future<void> _checkSubscription() async {
     final role = await RoleService.instance.getRole(_effectiveUser.uid);
     if (!mounted) return;
-    if (role == UserRole.admin || role == UserRole.superadmin) {
+    final isEducatorRole = role == UserRole.educator ||
+        role == UserRole.admin ||
+        role == UserRole.superadmin ||
+        widget.quiz.createdByUid == _effectiveUser.uid ||
+        widget.lesson?.createdByUid == _effectiveUser.uid;
+
+    if (isEducatorRole) {
       setState(() {
+        _isEducator = true;
         _isSubscribed = true;
-        _isAdminOrSuperAdmin = true;
+        if (role == UserRole.admin || role == UserRole.superadmin) {
+          _isAdminOrSuperAdmin = true;
+        }
         _checkingSubscription = false;
       });
       return;
@@ -917,11 +950,12 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         width: double.infinity,
         height: double.infinity,
         color: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFF1E1E1E)
+            ? const Color(0xFF0F172A)
             : AppColors.backgroundBase,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final bool isWide = constraints.maxWidth >= 900;
+            final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
             return Stack(
               children: [
@@ -940,11 +974,11 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: Colors.black.withValues(alpha: 0.6)),
+                                  Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: isDark ? Colors.white70 : Colors.black.withValues(alpha: 0.6)),
                                   const SizedBox(width: 8),
                                   Text(
                                     'Back to Lessons',
-                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.black.withValues(alpha: 0.7)),
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: isDark ? Colors.white70 : Colors.black.withValues(alpha: 0.7)),
                                   ),
                                 ],
                               ),
@@ -955,11 +989,14 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                           child: Container(
                             padding: EdgeInsets.all(constraints.maxWidth < 600 ? 16 : (constraints.maxWidth < 900 ? 32 : 64)),
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(constraints.maxWidth < 600 ? 16 : 32),
+                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              borderRadius: BorderRadius.circular(constraints.maxWidth < 600 ? 16 : 24),
+                              border: Border.all(
+                                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
+                                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.05),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
@@ -997,7 +1034,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                                           final maxAttempts = widget.quiz.maxAttempts;
 
                                           if (_completedLocal || (_attemptsUsed > 0 && !_quizStarted)) {
-                                            return _buildResultsArea(maxAttempts);
+                                            return _buildResultsArea(maxAttempts, progress: myProgress);
                                           }
 
                                           if (_checkingSubscription) {
@@ -1262,7 +1299,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                           ),
                         ],
                         const SizedBox(height: 48),
-                        if (!_previewMode)
+                        if (!_isEducatorOrPreview)
                           (maxAttempts - _attemptsUsed > 0)
                               ? (widget.quiz.requiresLessonCompleted && !_prerequisiteMet && !_isAdminOrSuperAdmin && widget.quiz.createdByUid != _effectiveUser.uid
                                   ? _buildPrerequisiteRequiredMessage(isDark)
@@ -1293,7 +1330,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                                         )
                                       : _buildLockMessage(isDark)))
                               : _buildNoAttemptsMessage(isDark),
-                        if (_previewMode)
+                        if (_isEducatorOrPreview)
                           OutlinedButton.icon(
                             onPressed: _startReview,
                             style: OutlinedButton.styleFrom(
@@ -1302,8 +1339,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                               foregroundColor: AppColors.primary,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             ),
-                            icon: const Icon(Icons.rate_review_rounded),
-                            label: Text('Review Questions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
+                            icon: const Icon(Icons.visibility_rounded),
+                            label: Text('View Quiz Questions', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
                           ),
                       ],
                     ),
@@ -2393,7 +2430,24 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                                   : Text('Finish Quiz', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
                             )
-                          : const SizedBox(),
+                          : ElevatedButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _quizStarted = false;
+                                  _isReviewing = false;
+                                  _completedLocal = true;
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 20),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                              icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
+                              label: Text('Back to Results', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ),
                 ),
               ],
             ),
@@ -2555,7 +2609,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     }
   }
 
-  Widget _buildResultsArea(int maxAttempts) {
+  Widget _buildResultsArea(int maxAttempts, {Map<String, dynamic>? progress}) {
     final minutes = _timeTaken ~/ 60;
     final seconds = _timeTaken % 60;
     final timeStr = minutes > 0 ? '${minutes}m ${seconds}s' : '${seconds}s';
@@ -2575,7 +2629,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       feedbackMessage = 'Stellar performance! You have a solid grasp of this topic.';
       performanceBadge = 'Great Job! ⭐';
       badgeColor = const Color(0xFF10B981);
-    } else if (percentage >= 0.6) {
+    } else if (percentage >= 0.6 || _isCorrect) {
       feedbackMessage = "Good effort! You're making steady progress toward mastery.";
       performanceBadge = 'Passed 👍';
       badgeColor = const Color(0xFFF59E0B);
@@ -2587,7 +2641,8 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final canRetake = !_isCorrect && (maxAttempts - _attemptsUsed) > 0;
+    // Allow retake whenever more than one attempt is configured or attempts remain
+    final canRetake = (maxAttempts <= 0) || (maxAttempts > 1 && _attemptsUsed < maxAttempts) || ((maxAttempts - _attemptsUsed) > 0);
 
     return Center(
       child: ConstrainedBox(
@@ -2780,6 +2835,50 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                       ),
                     ),
                   ),
+                  // View Last Attempt / Review button
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        List<dynamic>? savedAnswers;
+                        if (progress != null && progress['lastAnswers'] is List) {
+                          savedAnswers = (progress['lastAnswers'] as List).cast<dynamic>();
+                        } else {
+                          final pData = await DatabaseService.instance.getQuizProgress(_effectiveUser.uid, widget.quiz.id);
+                          if (pData != null && pData['lastAnswers'] is List) {
+                            savedAnswers = (pData['lastAnswers'] as List).cast<dynamic>();
+                          }
+                        }
+                        if (savedAnswers != null) {
+                          for (int i = 0; i < _answerCtrls.length; i++) {
+                            if (i < savedAnswers.length) {
+                              _answerCtrls[i].text = savedAnswers[i]?.toString() ?? '';
+                            }
+                          }
+                        }
+                        _blankControllers.clear();
+                        if (mounted) {
+                          setState(() {
+                            _quizStarted = true;
+                            _isReviewing = true;
+                            _completedLocal = false;
+                            _currentQuestionIndex = 0;
+                          });
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary, width: 1.5),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: const Icon(Icons.visibility_rounded, size: 18),
+                      label: Text(
+                        'View Last Attempt',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                  ),
                   if (canRetake)
                     MouseRegion(
                       cursor: SystemMouseCursors.click,
@@ -2788,10 +2887,12 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                           setState(() {
                             _quizStarted = true;
                             _completedLocal = false;
+                            _isReviewing = false;
                             _currentQuestionIndex = 0;
                             for (var ctrl in _answerCtrls) {
                               ctrl.clear();
                             }
+                            _blankControllers.clear();
                             _recognizedTranscripts.clear();
                             _secondsRemaining = widget.quiz.duration * 60;
                             _startTime = DateTime.now();
@@ -2807,7 +2908,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                         ),
                         icon: const Icon(Icons.refresh_rounded, size: 18),
                         label: Text(
-                          'Try Again',
+                          'Retake Quiz',
                           style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                       ),

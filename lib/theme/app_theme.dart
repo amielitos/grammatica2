@@ -105,17 +105,80 @@ class AppTheme {
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(88, 56),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) return Colors.grey.shade300;
+            return AppColors.primary;
+          }),
+          foregroundColor: WidgetStateProperty.all(Colors.white),
+          mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+          elevation: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return 1.0;
+            if (states.contains(WidgetState.hovered)) return 4.0;
+            return 2.0;
+          }),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return Colors.black.withValues(alpha: 0.16);
+            if (states.contains(WidgetState.hovered)) return Colors.black.withValues(alpha: 0.08);
+            return null;
+          }),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
-          textStyle: GoogleFonts.outfit(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+          textStyle: WidgetStateProperty.all(
+            GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
           ),
+          animationDuration: const Duration(milliseconds: 180),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: ButtonStyle(
+          mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return Colors.black.withValues(alpha: 0.16);
+            if (states.contains(WidgetState.hovered)) return Colors.black.withValues(alpha: 0.08);
+            return null;
+          }),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          animationDuration: const Duration(milliseconds: 180),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(
+          mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return AppColors.primary.withValues(alpha: 0.15);
+            if (states.contains(WidgetState.hovered)) return AppColors.primary.withValues(alpha: 0.06);
+            return null;
+          }),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          animationDuration: const Duration(milliseconds: 180),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(
+          mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return AppColors.primary.withValues(alpha: 0.15);
+            if (states.contains(WidgetState.hovered)) return AppColors.primary.withValues(alpha: 0.08);
+            return null;
+          }),
+          animationDuration: const Duration(milliseconds: 180),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return Colors.black.withValues(alpha: 0.12);
+            if (states.contains(WidgetState.hovered)) return Colors.black.withValues(alpha: 0.06);
+            return null;
+          }),
+          animationDuration: const Duration(milliseconds: 180),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -178,17 +241,80 @@ class AppTheme {
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(88, 56),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) return Colors.grey.shade800;
+            return AppColors.primary;
+          }),
+          foregroundColor: WidgetStateProperty.all(Colors.white),
+          mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+          elevation: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return 1.0;
+            if (states.contains(WidgetState.hovered)) return 4.0;
+            return 2.0;
+          }),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return Colors.white.withValues(alpha: 0.22);
+            if (states.contains(WidgetState.hovered)) return Colors.white.withValues(alpha: 0.1);
+            return null;
+          }),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
-          textStyle: GoogleFonts.outfit(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+          textStyle: WidgetStateProperty.all(
+            GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
           ),
+          animationDuration: const Duration(milliseconds: 180),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: ButtonStyle(
+          mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return Colors.white.withValues(alpha: 0.22);
+            if (states.contains(WidgetState.hovered)) return Colors.white.withValues(alpha: 0.1);
+            return null;
+          }),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          animationDuration: const Duration(milliseconds: 180),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(
+          mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return AppColors.primary.withValues(alpha: 0.2);
+            if (states.contains(WidgetState.hovered)) return AppColors.primary.withValues(alpha: 0.08);
+            return null;
+          }),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          animationDuration: const Duration(milliseconds: 180),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: ButtonStyle(
+          mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return AppColors.primary.withValues(alpha: 0.2);
+            if (states.contains(WidgetState.hovered)) return AppColors.primary.withValues(alpha: 0.1);
+            return null;
+          }),
+          animationDuration: const Duration(milliseconds: 180),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) return Colors.white.withValues(alpha: 0.16);
+            if (states.contains(WidgetState.hovered)) return Colors.white.withValues(alpha: 0.08);
+            return null;
+          }),
+          animationDuration: const Duration(milliseconds: 180),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

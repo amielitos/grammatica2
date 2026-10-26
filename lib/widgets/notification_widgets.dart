@@ -7,7 +7,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/notification.dart';
 import '../services/notification_service.dart';
 import '../services/agora_service.dart';
+import '../services/auth_service.dart';
+import '../services/database_service.dart';
 import '../pages/conference_page.dart';
+import '../pages/educator_profile_page.dart';
+import '../pages/lesson_page.dart';
 import 'package:intl/intl.dart';
 
 class NotificationIconButton extends StatefulWidget {
@@ -268,8 +272,38 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                       children: [
                         if (!_showArchived)
                           TextButton(
-                            onPressed: () {
-                              NotificationService.instance.markAllAsRead(widget.userId);
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  title: const Row(
+                                    children: [
+                                      Icon(Icons.done_all, color: Colors.blueAccent),
+                                      SizedBox(width: 8),
+                                      Text('Mark All as Read', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  content: const Text(
+                                    'Are you sure you want to mark all notifications as read?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    FilledButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Mark All Read'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                NotificationService.instance.markAllAsRead(widget.userId);
+                              }
                             },
                             child: const Text('Mark all as read', style: TextStyle(fontSize: 12)),
                           ),
@@ -357,22 +391,143 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
   }
 }
 
+Future<void> openLessonFromNotification(BuildContext context, NotificationModel n) async {
+  if (!n.isRead) {
+    NotificationService.instance.markAsRead(n.id);
+  }
+
+  String lessonTitle = '';
+  if (n.title.startsWith('New Lesson: ')) {
+    lessonTitle = n.title.substring('New Lesson: '.length).trim();
+  } else if (n.message.contains('"')) {
+    final match = RegExp(r'"([^"]*)"').firstMatch(n.message);
+    if (match != null) {
+      lessonTitle = match.group(1) ?? '';
+    }
+  }
+  if (lessonTitle.isEmpty) {
+    lessonTitle = n.title.trim();
+  }
+
+  final nav = Navigator.of(context, rootNavigator: true);
+  Lesson? resolvedLesson;
+
+  // 1. Try finding by lessonId
+  if (n.lessonId != null && n.lessonId!.isNotEmpty) {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('lessons').doc(n.lessonId).get();
+      if (doc.exists && doc.data() != null) {
+        resolvedLesson = Lesson.fromDoc(doc);
+      }
+    } catch (_) {}
+  }
+
+  // 2. Try finding by exact title
+  if (resolvedLesson == null && lessonTitle.isNotEmpty) {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('lessons')
+          .where('title', isEqualTo: lessonTitle)
+          .limit(1)
+          .get();
+      if (snap.docs.isNotEmpty) {
+        resolvedLesson = Lesson.fromDoc(snap.docs.first);
+      }
+    } catch (_) {}
+  }
+
+  // 3. Try finding within educator lessons
+  if (resolvedLesson == null && n.educatorId != null && n.educatorId!.isNotEmpty) {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('lessons')
+          .where('createdByUid', isEqualTo: n.educatorId)
+          .limit(10)
+          .get();
+      for (final doc in snap.docs) {
+        final cand = Lesson.fromDoc(doc);
+        if (cand.title.toLowerCase().trim() == lessonTitle.toLowerCase().trim() ||
+            cand.title.toLowerCase().contains(lessonTitle.toLowerCase()) ||
+            lessonTitle.toLowerCase().contains(cand.title.toLowerCase())) {
+          resolvedLesson = cand;
+          break;
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 4. Try finding across all recent lessons
+  if (resolvedLesson == null && lessonTitle.isNotEmpty) {
+    try {
+      final snap = await FirebaseFirestore.instance.collection('lessons').limit(50).get();
+      final target = lessonTitle.toLowerCase().trim();
+      for (final doc in snap.docs) {
+        final cand = Lesson.fromDoc(doc);
+        final candTitle = cand.title.toLowerCase().trim();
+        if (candTitle == target || candTitle.contains(target) || target.contains(candTitle)) {
+          resolvedLesson = cand;
+          break;
+        }
+      }
+    } catch (_) {}
+  }
+
+  // Close open dialog/sheet
+  try {
+    nav.pop();
+  } catch (_) {}
+
+  if (!nav.mounted) return;
+
+  if (resolvedLesson != null) {
+    DatabaseService.lastViewedLessonId = resolvedLesson.id;
+    final liveUser = AuthService.liveUser;
+    DatabaseService.instance.recordLessonViewed(
+      user: liveUser,
+      lessonId: resolvedLesson.id,
+    );
+    nav.push(
+      MaterialPageRoute(
+        builder: (_) => LessonPage(
+          user: liveUser,
+          lesson: resolvedLesson!,
+        ),
+      ),
+    );
+  } else {
+    // Fallback: if educatorId is known, go to educator profile
+    if (n.educatorId != null && n.educatorId!.isNotEmpty) {
+      final eduDoc = await DatabaseService.instance.getUserDoc(n.educatorId!);
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (eduDoc != null && currentUser != null && nav.mounted) {
+        nav.push(
+          MaterialPageRoute(
+            builder: (_) => EducatorProfilePage(
+              educator: eduDoc,
+              currentUser: currentUser,
+            ),
+          ),
+        );
+      }
+    }
+  }
+}
+
 Future<void> _navigateToNotificationTarget(BuildContext context, NotificationModel n) async {
   if (!n.isRead) {
     NotificationService.instance.markAsRead(n.id);
   }
 
   final isMentorship = n.type == NotificationType.mentorship ||
-      (n.educatorId != null && n.educatorId!.isNotEmpty) ||
       n.title.toLowerCase().contains('mentorship') ||
       n.message.toLowerCase().contains('scheduled');
 
-  if (isMentorship) {
-    final nav = Navigator.of(context, rootNavigator: true);
-    // Dismiss the notifications sheet or dialog
+  final nav = Navigator.of(context, rootNavigator: true);
+  if (nav.canPop()) {
     nav.pop();
+  }
 
-    // Show the mentorship schedule pop-up dialog with time and JOIN button
+  if (isMentorship) {
     showDialog(
       context: nav.context,
       builder: (_) => MentorshipScheduleDialog(notification: n),
@@ -380,13 +535,11 @@ Future<void> _navigateToNotificationTarget(BuildContext context, NotificationMod
     return;
   }
 
-  // Fallback: If not mentorship, show detail dialog
-  if (context.mounted) {
-    showDialog(
-      context: context,
-      builder: (context) => NotificationDetailDialog(notification: n),
-    );
-  }
+  // Pop-up modal containing "VIEW LESSON" button
+  showDialog(
+    context: nav.context,
+    builder: (context) => NotificationDetailDialog(notification: n),
+  );
 }
 
 class MentorshipScheduleDialog extends StatefulWidget {
@@ -1178,10 +1331,29 @@ class NotificationDetailDialog extends StatelessWidget {
     final typeLabel = _getTypeLabel(notification.type);
     final iconData = _getIcon(notification.type);
 
-    final isMentorship = notification.educatorId != null && notification.educatorId!.isNotEmpty ||
+    final isLessonUpload = notification.type == NotificationType.lessonUpload ||
+        (notification.lessonId != null && notification.lessonId!.isNotEmpty) ||
+        notification.title.toLowerCase().contains('lesson');
+
+    final isMentorship = !isLessonUpload && (
         notification.type == NotificationType.mentorship ||
         notification.title.toLowerCase().contains('mentorship') ||
-        notification.message.toLowerCase().contains('scheduled');
+        notification.message.toLowerCase().contains('scheduled'));
+
+    String lessonTitle = '';
+    if (isLessonUpload) {
+      if (notification.title.startsWith('New Lesson: ')) {
+        lessonTitle = notification.title.substring('New Lesson: '.length).trim();
+      } else if (notification.message.contains('"')) {
+        final match = RegExp(r'"([^"]*)"').firstMatch(notification.message);
+        if (match != null) {
+          lessonTitle = match.group(1) ?? '';
+        }
+      }
+      if (lessonTitle.isEmpty) {
+        lessonTitle = notification.title;
+      }
+    }
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -1344,6 +1516,62 @@ class NotificationDetailDialog extends StatelessWidget {
                       ),
                     ),
 
+                    if (isLessonUpload && lessonTitle.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.15 : 0.08),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.35 : 0.25),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(9),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.menu_book_rounded,
+                                color: Color(0xFF10B981),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'LESSON TITLE',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF10B981),
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    lessonTitle,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     // Rejection info if applicable
                     if (notification.type == NotificationType.appRejected) ...[
                       const SizedBox(height: 16),
@@ -1474,6 +1702,28 @@ class NotificationDetailDialog extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (isLessonUpload)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                icon: const Icon(Icons.menu_book_rounded, size: 18),
+                                label: Text(
+                                  'VIEW LESSON',
+                                  style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.5),
+                                ),
+                                onPressed: () => openLessonFromNotification(context, notification),
+                              ),
+                            ),
+                          ),
                         if (isMentorship)
                           Padding(
                             padding: const EdgeInsets.only(right: 8),

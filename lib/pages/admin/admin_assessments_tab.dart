@@ -5,7 +5,6 @@ import 'package:file_picker/file_picker.dart';
 import '../../models/content_visibility.dart';
 import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
-import '../../widgets/user_visibility_selector.dart';
 import '../../services/ai_logic_service.dart';
 import '../../services/ai_rate_limit_service.dart';
 import '../../models/ai_models.dart';
@@ -403,7 +402,6 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                 AuthService.instance.currentUser?.uid ?? '',
               ),
               builder: (context, roleSnap) {
-                final isEducator = roleSnap.data == UserRole.educator;
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -434,8 +432,8 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                           },
                         ),
                         ChoiceChip(
-                          label: Text('Standard', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                          avatar: const Icon(Icons.people_outline, size: 18),
+                          label: Text('Members Only (Standard & Premium)', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                          avatar: const Icon(Icons.lock_outline_rounded, size: 18),
                           selected: _visibility == ContentVisibility.membersOnly,
                           selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
                           checkmarkColor: const Color(0xFF88B342),
@@ -450,35 +448,8 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                             }
                           },
                         ),
-                        ChoiceChip(
-                          label: Text('Premium', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                          avatar: const Icon(Icons.star_rounded, size: 18),
-                          selected: _visibility == ContentVisibility.certainUsers,
-                          selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
-                          checkmarkColor: const Color(0xFF88B342),
-                          labelStyle: TextStyle(color: _visibility == ContentVisibility.certainUsers ? const Color(0xFF88B342) : Colors.black87),
-                          onSelected: (val) {
-                            if (val) {
-                              setState(() {
-                                _visibility = ContentVisibility.certainUsers;
-                                _isVisible = false;
-                                _isMembersOnly = false;
-                              });
-                            }
-                          },
-                        ),
                       ],
                     ),
-                    if (_visibility == ContentVisibility.certainUsers) ...[
-                      const SizedBox(height: 16),
-                      UserVisibilitySelector(
-                        selectedUserIds: _visibleTo,
-                        educatorUid: isEducator ? AuthService.instance.currentUser?.uid : null,
-                        onChanged: (users) {
-                          setState(() => _visibleTo = users);
-                        },
-                      ),
-                    ],
                   ],
                 );
               },

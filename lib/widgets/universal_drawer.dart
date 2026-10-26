@@ -111,7 +111,7 @@ class UniversalDrawer extends StatelessWidget {
         },
         userName: username,
         items: items,
-        onSignOut: () => AuthService.instance.signOut(),
+        onSignOut: () => AuthService.instance.confirmAndSignOut(context),
       );
     } else {
       // Logic from HomePage
@@ -134,7 +134,7 @@ class UniversalDrawer extends StatelessWidget {
         },
         items: items,
         isDrawer: true,
-        onSignOut: () => AuthService.instance.signOut(),
+        onSignOut: () => AuthService.instance.confirmAndSignOut(context),
       );
     }
   }

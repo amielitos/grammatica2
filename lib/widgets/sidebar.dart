@@ -101,13 +101,10 @@ class Sidebar extends StatelessWidget {
                 ),
               ),
               onTap: () {
-                if (isDrawer) {
-                  Navigator.pop(context);
-                }
                 if (onSignOut != null) {
                   onSignOut!();
                 } else {
-                  AuthService.instance.signOut();
+                  AuthService.instance.confirmAndSignOut(context);
                 }
               },
             ),

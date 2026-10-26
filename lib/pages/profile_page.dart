@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/role_service.dart';
 import '../services/auth_service.dart';
 import '../main.dart';
@@ -130,12 +131,16 @@ class ProfilePageState extends State<ProfilePage> {
 
       if (mounted) {
         setState(() {
-          final computedFullName = '$fetchedFirstName $fetchedLastName'.trim();
+          final computedFullName = [fetchedFirstName, fetchedMiddleName, fetchedLastName]
+              .where((s) => s.isNotEmpty)
+              .join(' ');
           _displayName = (computedFullName.isNotEmpty)
               ? computedFullName
-              : ((fetchedUsername?.isNotEmpty == true)
-                  ? fetchedUsername!
-                  : (widget.user.displayName ?? 'User'));
+              : ((data?['full_name'] as String?)?.trim().isNotEmpty == true)
+                  ? (data?['full_name'] as String).trim()
+                  : ((fetchedUsername?.isNotEmpty == true)
+                      ? fetchedUsername!
+                      : (widget.user.displayName ?? 'User'));
           _photoUrl = fetchedPhoto ?? widget.user.photoURL;
           _bioCtrl.text = fetchedBio;
           _usernameCtrl.text = (fetchedUsername?.isNotEmpty == true) ? fetchedUsername! : _displayName;
@@ -168,6 +173,43 @@ class ProfilePageState extends State<ProfilePage> {
       _showSnack('Bio updated');
     } catch (e) {
       _showSnack('Failed to update bio', error: true);
+    }
+  }
+
+  Future<void> _confirmCancelEdit() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
+            SizedBox(width: 8),
+            Text('Discard Changes?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to cancel? Any unsaved edits will be discarded.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep Editing'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      fetchProfile();
+      setState(() {
+        _isEditing = false;
+      });
     }
   }
 
@@ -514,7 +556,13 @@ class ProfilePageState extends State<ProfilePage> {
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
-                          onPressed: () => setState(() => _isEditing = !_isEditing),
+                          onPressed: () {
+                            if (_isEditing) {
+                              _confirmCancelEdit();
+                            } else {
+                              setState(() => _isEditing = true);
+                            }
+                          },
                           icon: Icon(_isEditing ? Icons.close : Icons.edit_outlined, size: 16),
                           label: Text(_isEditing ? 'Cancel Edit' : 'Edit'),
                           style: ElevatedButton.styleFrom(
@@ -648,14 +696,6 @@ class ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 18),
 
-            _buildEditLabel('Username *'),
-            TextField(
-              controller: _usernameCtrl,
-              style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
-              decoration: _customInputDecoration(hint: 'Username'),
-            ),
-            const SizedBox(height: 18),
-            
             _buildEditLabel('Bio'),
             TextField(
               controller: _bioCtrl,
@@ -684,7 +724,6 @@ class ProfilePageState extends State<ProfilePage> {
                final first = _capitalizeWords(_firstNameCtrl.text);
                final middle = _capitalizeWords(_middleNameCtrl.text);
                final last = _capitalizeWords(_lastNameCtrl.text);
-               final username = _usernameCtrl.text.trim();
 
                _firstNameCtrl.text = first;
                _middleNameCtrl.text = middle;
@@ -699,6 +738,47 @@ class ProfilePageState extends State<ProfilePage> {
                  return;
                }
 
+               // Confirmation dialog before saving changes
+               final confirm = await showDialog<bool>(
+                 context: context,
+                 builder: (ctx) => AlertDialog(
+                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                   title: Row(
+                     children: [
+                       Container(
+                         padding: const EdgeInsets.all(8),
+                         decoration: BoxDecoration(
+                           color: const Color(0xFF81B655).withValues(alpha: 0.15),
+                           shape: BoxShape.circle,
+                         ),
+                         child: const Icon(Icons.help_outline_rounded, color: Color(0xFF81B655), size: 24),
+                       ),
+                       const SizedBox(width: 12),
+                       Text('Save Changes?', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                     ],
+                   ),
+                   content: Text(
+                     'Are you sure you want to save the changes to your profile information?',
+                     style: GoogleFonts.inter(fontSize: 14, height: 1.5),
+                   ),
+                   actions: [
+                     TextButton(
+                       onPressed: () => Navigator.pop(ctx, false),
+                       child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                     ),
+                     FilledButton(
+                       style: FilledButton.styleFrom(
+                         backgroundColor: const Color(0xFF81B655),
+                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                       ),
+                       onPressed: () => Navigator.pop(ctx, true),
+                       child: Text('Yes, Save', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+                     ),
+                   ],
+                 ),
+               );
+               if (confirm != true) return;
+
                String fullName = first;
                if (middle.isNotEmpty) fullName += ' $middle';
                fullName += ' $last';
@@ -709,35 +789,34 @@ class ProfilePageState extends State<ProfilePage> {
                    'middle_name': middle,
                    'last_name': last,
                    'full_name': fullName,
-                   if (username.isNotEmpty) 'username': username,
+                   'name': fullName,
+                   'displayName': fullName,
+                   'username': fullName,
+                   'updatedAt': FieldValue.serverTimestamp(),
                  }, SetOptions(merge: true));
 
-                 if (username.isNotEmpty && username != widget.user.displayName) {
-                   await widget.user.updateDisplayName(fullName);
-                 }
+                 await widget.user.updateDisplayName(fullName);
+                 await widget.user.reload();
                } catch (e) {
                  debugPrint('Error updating name fields: $e');
                }
 
-               if (username.isNotEmpty) {
-                 try {
-                   await RoleService.instance.updateUsername(uid: widget.user.uid, username: username);
-                 } catch (_) {}
-               }
-
                await _updateBio();
+               await fetchProfile();
 
-               setState(() {
-                 _displayName = fullName;
-                 _isEditing = false;
-               });
-               _showSnack('Profile information updated successfully');
+               if (mounted) {
+                 setState(() {
+                   _displayName = fullName;
+                   _isEditing = false;
+                 });
+                 _showSnack('Profile information updated successfully');
+               }
             }),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: TextButton(
-                onPressed: () => setState(() => _isEditing = false),
+                onPressed: _confirmCancelEdit,
                 child: const Text('Cancel Request', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
               ),
             ),
@@ -1173,7 +1252,7 @@ class ProfilePageState extends State<ProfilePage> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: () => AuthService.instance.signOut(),
+                    onPressed: () => AuthService.instance.confirmAndSignOut(context),
                     child: const Text('Sign out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   ),
                 ),
@@ -1211,7 +1290,7 @@ class ProfilePageState extends State<ProfilePage> {
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  onPressed: () => AuthService.instance.signOut(),
+                  onPressed: () => AuthService.instance.confirmAndSignOut(context),
                   child: const Text('Sign out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),

@@ -37,6 +37,7 @@ class NotificationService {
     String? rejectionReason,
     String? rejectionDescription,
     String? educatorId,
+    String? lessonId,
   }) async {
     try {
       final notification = NotificationModel(
@@ -49,6 +50,7 @@ class NotificationService {
         rejectionReason: rejectionReason,
         rejectionDescription: rejectionDescription,
         educatorId: educatorId,
+        lessonId: lessonId,
       );
       await _notifications.add(notification.toMap());
     } catch (e) {
@@ -268,10 +270,11 @@ class NotificationService {
         final subscriberUid = subDoc.id;
         await sendNotification(
           uid: subscriberUid,
-          title: 'New Lesson Uploaded!',
-          message: '$educatorName just published a new lesson: "$lessonTitle". Tap to check it out!',
+          title: 'New Lesson: $lessonTitle',
+          message: '$educatorName just published "$lessonTitle". Tap to view lesson!',
           type: NotificationType.lessonUpload,
           educatorId: educatorUid,
+          lessonId: lessonId,
         );
       }
     } catch (e) {

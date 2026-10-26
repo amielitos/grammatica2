@@ -7,9 +7,7 @@ import '../../models/content_visibility.dart';
 import '../../models/notebook_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/notebook_service.dart';
-import '../../services/role_service.dart';
 import '../../theme/app_colors.dart';
-import '../../widgets/user_visibility_selector.dart';
 
 /// Modal dialog for configuring and publishing a generated Lesson directly to Firestore curriculum.
 class PublishLessonDialog extends StatefulWidget {
@@ -33,7 +31,7 @@ class PublishLessonDialog extends StatefulWidget {
 class _PublishLessonDialogState extends State<PublishLessonDialog> {
   late final TextEditingController _titleCtrl;
   ContentVisibility _visibility = ContentVisibility.public;
-  List<String> _visibleTo = [];
+  final List<String> _visibleTo = const [];
   String? _selectedQuizId;
   NotebookOutput? _notebookQuizOutput;
   List<NotebookOutput> _companionOutputs = [];
@@ -199,7 +197,6 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final user = AuthService.instance.currentUser;
     final bool isUpdate = widget.output.isPublished || _existingLessonIdForSameCreator != null;
 
     return Dialog(
@@ -340,8 +337,8 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Standard / Members'),
-                    avatar: const Icon(Icons.people_outline, size: 16),
+                    label: const Text('Members Only (Standard & Premium)'),
+                    avatar: const Icon(Icons.card_membership_rounded, size: 16),
                     selected: _visibility == ContentVisibility.membersOnly,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
                     checkmarkColor: AppColors.primary,
@@ -349,32 +346,8 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
                       if (val) setState(() => _visibility = ContentVisibility.membersOnly);
                     },
                   ),
-                  ChoiceChip(
-                    label: const Text('Premium / Specific Users'),
-                    avatar: const Icon(Icons.star_outline_rounded, size: 16),
-                    selected: _visibility == ContentVisibility.certainUsers,
-                    selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                    checkmarkColor: AppColors.primary,
-                    onSelected: (val) {
-                      if (val) setState(() => _visibility = ContentVisibility.certainUsers);
-                    },
-                  ),
                 ],
               ),
-              if (_visibility == ContentVisibility.certainUsers) ...[
-                const SizedBox(height: 16),
-                StreamBuilder<UserRole>(
-                  stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
-                  builder: (context, snapshot) {
-                    final isEducator = snapshot.data == UserRole.educator;
-                    return UserVisibilitySelector(
-                      selectedUserIds: _visibleTo,
-                      educatorUid: isEducator ? user?.uid : null,
-                      onChanged: (users) => setState(() => _visibleTo = users),
-                    );
-                  },
-                ),
-              ],
               const SizedBox(height: 20),
 
               // In-Notebook Quiz Link
@@ -620,7 +593,7 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
   int _durationMinutes = 30;
   int _maxAttempts = 1;
   ContentVisibility _visibility = ContentVisibility.public;
-  List<String> _visibleTo = [];
+  final List<String> _visibleTo = const [];
   bool _isAssessment = false;
   bool _isPublishing = false;
   String? _errorMessage;
@@ -698,7 +671,6 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final user = AuthService.instance.currentUser;
 
     final durationOptions = {
       5: '5 Minutes',
@@ -902,8 +874,8 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Standard / Members'),
-                    avatar: const Icon(Icons.people_outline, size: 16),
+                    label: const Text('Members Only (Standard & Premium)'),
+                    avatar: const Icon(Icons.card_membership_rounded, size: 16),
                     selected: _visibility == ContentVisibility.membersOnly,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
                     checkmarkColor: AppColors.primary,
@@ -911,32 +883,8 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
                       if (val) setState(() => _visibility = ContentVisibility.membersOnly);
                     },
                   ),
-                  ChoiceChip(
-                    label: const Text('Premium / Specific Users'),
-                    avatar: const Icon(Icons.star_outline_rounded, size: 16),
-                    selected: _visibility == ContentVisibility.certainUsers,
-                    selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                    checkmarkColor: AppColors.primary,
-                    onSelected: (val) {
-                      if (val) setState(() => _visibility = ContentVisibility.certainUsers);
-                    },
-                  ),
                 ],
               ),
-              if (_visibility == ContentVisibility.certainUsers) ...[
-                const SizedBox(height: 16),
-                StreamBuilder<UserRole>(
-                  stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
-                  builder: (context, snapshot) {
-                    final isEducator = snapshot.data == UserRole.educator;
-                    return UserVisibilitySelector(
-                      selectedUserIds: _visibleTo,
-                      educatorUid: isEducator ? user?.uid : null,
-                      onChanged: (users) => setState(() => _visibleTo = users),
-                    );
-                  },
-                ),
-              ],
               const SizedBox(height: 28),
 
               // Action Buttons
@@ -1074,7 +1022,6 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final user = AuthService.instance.currentUser;
 
     IconData typeIcon;
     Color typeColor;
@@ -1243,7 +1190,7 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Members Only'),
+                    label: const Text('Members Only (Standard & Premium)'),
                     selected: _visibility == ContentVisibility.membersOnly,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
                     checkmarkColor: AppColors.primary,
@@ -1251,31 +1198,8 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
                       if (val) setState(() => _visibility = ContentVisibility.membersOnly);
                     },
                   ),
-                  ChoiceChip(
-                    label: const Text('Certain Users'),
-                    selected: _visibility == ContentVisibility.certainUsers,
-                    selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                    checkmarkColor: AppColors.primary,
-                    onSelected: (val) {
-                      if (val) setState(() => _visibility = ContentVisibility.certainUsers);
-                    },
-                  ),
                 ],
               ),
-              if (_visibility == ContentVisibility.certainUsers) ...[
-                const SizedBox(height: 16),
-                StreamBuilder<UserRole>(
-                  stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
-                  builder: (context, snapshot) {
-                    final isEducator = snapshot.data == UserRole.educator;
-                    return UserVisibilitySelector(
-                      selectedUserIds: _visibleTo,
-                      educatorUid: isEducator ? user?.uid : null,
-                      onChanged: (users) => setState(() => _visibleTo = users),
-                    );
-                  },
-                ),
-              ],
               const SizedBox(height: 28),
 
               // Action Buttons
@@ -1336,7 +1260,7 @@ class PublishAllOutputsDialog extends StatefulWidget {
 
 class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
   ContentVisibility _visibility = ContentVisibility.public;
-  List<String> _visibleTo = [];
+  final List<String> _visibleTo = const [];
   bool _isPublishing = false;
   String _publishingStatus = '';
   String? _errorMessage;
@@ -1579,7 +1503,6 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final user = AuthService.instance.currentUser;
     final hasQuiz = widget.outputs.any((o) => o.type == NotebookOutputType.quiz);
     final hasLesson = widget.outputs.any((o) => o.type == NotebookOutputType.lesson);
 
@@ -1862,7 +1785,7 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Members Only'),
+                    label: const Text('Members Only (Standard & Premium)'),
                     selected: _visibility == ContentVisibility.membersOnly,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
                     checkmarkColor: AppColors.primary,
@@ -1870,31 +1793,8 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
                       if (val) setState(() => _visibility = ContentVisibility.membersOnly);
                     },
                   ),
-                  ChoiceChip(
-                    label: const Text('Certain Users'),
-                    selected: _visibility == ContentVisibility.certainUsers,
-                    selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                    checkmarkColor: AppColors.primary,
-                    onSelected: (val) {
-                      if (val) setState(() => _visibility = ContentVisibility.certainUsers);
-                    },
-                  ),
                 ],
               ),
-              if (_visibility == ContentVisibility.certainUsers) ...[
-                const SizedBox(height: 16),
-                StreamBuilder<UserRole>(
-                  stream: user != null ? RoleService.instance.roleStream(user.uid) : null,
-                  builder: (context, snapshot) {
-                    final isEducator = snapshot.data == UserRole.educator;
-                    return UserVisibilitySelector(
-                      selectedUserIds: _visibleTo,
-                      educatorUid: isEducator ? user?.uid : null,
-                      onChanged: (users) => setState(() => _visibleTo = users),
-                    );
-                  },
-                ),
-              ],
               const SizedBox(height: 28),
 
               if (_isPublishing) ...[

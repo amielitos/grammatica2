@@ -85,8 +85,8 @@ class TaglineHeroText extends StatelessWidget {
                 isMobile: isMobile,
               ),
               _buildFeatureChip(
-                icon: Icons.auto_awesome,
-                iconColor: const Color(0xFFFFB300),
+                icon: Icons.menu_book_rounded,
+                iconColor: const Color(0xFF81B655),
                 label: 'Grammar Mastery',
                 isMobile: isMobile,
               ),

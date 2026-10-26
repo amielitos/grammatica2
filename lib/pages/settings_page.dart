@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/role_service.dart';
+import '../services/auth_service.dart';
 import '../main.dart';
 import '../theme/app_colors.dart';
 
@@ -67,6 +68,54 @@ class _SettingsPageState extends State<SettingsPage> {
                    _buildLinkTile(Icons.privacy_tip_outlined, 'Privacy Policy'),
                    const Divider(indent: 56),
                    _buildLinkTile(Icons.info_outline, 'App Version', trailing: 'v1.2.0'),
+                ]),
+                const SizedBox(height: 32),
+                _buildSectionHeader('Account'),
+                _buildSettingsCard([
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                    ),
+                    title: const Text(
+                      'Sign Out',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent),
+                    ),
+                    subtitle: const Text('Sign out of your Grammatica account on this device'),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.redAccent),
+                    onTap: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          title: const Text('Sign Out'),
+                          content: const Text('Are you sure you want to sign out of Grammatica?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.redAccent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Sign Out'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true && context.mounted) {
+                        AuthService.instance.signOut(context);
+                      }
+                    },
+                  ),
                 ]),
               ],
             ),

@@ -37,8 +37,13 @@ class AuthorName extends StatelessWidget {
 
         final data = snap.data?.data();
         final firstName = (data?['first_name'] as String?)?.trim() ?? '';
+        final middleName = (data?['middle_name'] as String?)?.trim() ?? '';
         final lastName = (data?['last_name'] as String?)?.trim() ?? '';
-        final fullName = '$firstName $lastName'.trim();
+        final computedFullName = [firstName, middleName, lastName].where((s) => s.isNotEmpty).join(' ');
+        final rawFullName = (data?['full_name'] as String?)?.trim();
+        final fullName = computedFullName.isNotEmpty
+            ? computedFullName
+            : (rawFullName != null && rawFullName.isNotEmpty ? rawFullName : '');
         final username = (data?['username'] as String?)?.trim();
         final displayName = (data?['displayName'] as String?)?.trim();
         final email = data?['email'] as String? ?? fallbackEmail;
@@ -53,7 +58,7 @@ class AuthorName extends StatelessWidget {
             username != 'Firstname Lastname') {
           display = username;
         } else if (email != null && email.isNotEmpty) {
-          display = email;
+          display = email.contains('@') ? email.split('@')[0] : email;
         }
 
         final textWidget = Text('$prefix$display', style: style);

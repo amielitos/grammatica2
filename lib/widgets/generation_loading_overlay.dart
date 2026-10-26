@@ -129,35 +129,37 @@ class _GenerationLoadingOverlayState extends State<GenerationLoadingOverlay>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Pulsing AI Icon
+            // Educational Progress Indicator
             ScaleTransition(
               scale: _pulseAnimation,
               child: Container(
-                width: 90,
-                height: 90,
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      Color(0xFF5B8A38),
-                      Color(0xFF3B82F6),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                  color: AppColors.primary.withValues(alpha: isDark ? 0.18 : 0.10),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    width: 2,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.35),
-                      blurRadius: 28,
-                      spreadRadius: 4,
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const SizedBox(
+                      width: 72,
+                      height: 72,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
+                    ),
+                    Icon(
+                      Icons.auto_stories_rounded,
+                      color: AppColors.primary,
+                      size: 34,
                     ),
                   ],
-                ),
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  color: Colors.white,
-                  size: 44,
                 ),
               ),
             ),

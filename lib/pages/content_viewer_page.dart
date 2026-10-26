@@ -18,6 +18,7 @@ import 'notebook/timeline_view.dart';
 import 'notebook/presentation_view.dart';
 import '../widgets/linked_companion_toolbar.dart';
 import '../widgets/universal_drawer.dart';
+import '../widgets/author_name_widget.dart';
 
 /// Universal content viewer for all published non-lesson/non-quiz output types
 /// (Mind Maps, Flashcards, Study Guides, Timelines, Briefings, FAQs).
@@ -582,8 +583,11 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
                                   Icon(Icons.person_outline_rounded,
                                       color: isDark ? Colors.white60 : Colors.black54, size: 14),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    'By: $_authorEmail',
+                                  AuthorName(
+                                    uid: widget.item?.createdByUid,
+                                    fallbackEmail: _authorEmail,
+                                    prefix: 'By: ',
+                                    isClickable: true,
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: isDark ? Colors.white70 : AppColors.textSecondary,

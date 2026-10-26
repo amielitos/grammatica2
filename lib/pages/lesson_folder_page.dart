@@ -47,7 +47,7 @@ class LessonFolderPage extends StatefulWidget {
 
 class _LessonFolderPageState extends State<LessonFolderPage> {
   String _searchQuery = '';
-  String _selectedDateFilter = 'All Time'; // Date filter: All Time, Past 7 Days, Past 30 Days, This Year
+  String _selectedDateFilter = 'All Materials'; // Filter: All Materials, Not Started, In Progress, Completed ✓
   bool _sortNewestFirst = true;
 
 
@@ -55,11 +55,13 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
   final _searchController = TextEditingController();
   Timer? _debounceTimer;
   late Stream<Map<String, Map<String, dynamic>>> _progressStream;
+  late Stream<Map<String, Map<String, dynamic>>> _quizProgressStream;
 
   @override
   void initState() {
     super.initState();
     _progressStream = DatabaseService.instance.progressStream(widget.user);
+    _quizProgressStream = DatabaseService.instance.quizProgressStream(widget.user);
   }
 
   @override
@@ -83,6 +85,14 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: CustomAppBar(
         user: widget.user,
+        onLogoTap: () {
+          if (widget.onBack != null) {
+            widget.onBack!();
+          }
+          if (Navigator.canPop(context)) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        },
         onNotificationTap: () {
           showDialog(
             context: context,
@@ -420,11 +430,11 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
     final gradientColors = isGrammatica
         ? (isDark
-            ? [const Color(0xFF142E20), const Color(0xFF0B1912)]
-            : [const Color(0xFF6AAF3D), const Color(0xFF437A20)])
+            ? [const Color(0xFF1E3A20), const Color(0xFF0F1E14)]
+            : [const Color(0xFF81B655), const Color(0xFF5A8E30)])
         : (isDark
             ? [const Color(0xFF381A28), const Color(0xFF1D0E16)]
-            : [const Color(0xFFF97316), const Color(0xFFEF4444)]);
+            : [const Color(0xFFF59E0B), const Color(0xFFD97706)]);
 
     final tagLabel = isGrammatica ? '✨ OFFICIAL CURRICULUM' : '🌟 COMMUNITY HUB';
     final subtitle = isGrammatica
@@ -433,15 +443,15 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
     return Container(
       width: double.infinity,
-      margin: EdgeInsets.fromLTRB(28, widget.onBack != null ? 16 : 32, 28, 12),
-      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 24),
+      margin: EdgeInsets.fromLTRB(20, widget.onBack != null ? 14 : 24, 20, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 26),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: gradientColors,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: gradientColors.first.withValues(alpha: isDark ? 0.35 : 0.28),
@@ -564,10 +574,11 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
   Widget _buildBannerBadge(IconData icon, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5.5),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.18),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -589,15 +600,15 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
   Widget _buildDateFilterChips(bool isDark) {
     final filters = [
-      'All Time',
-      'Past 7 Days',
-      'Past 30 Days',
-      'This Year',
+      'All Materials',
+      'Not Started',
+      'In Progress',
+      'Completed ✓',
     ];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
           ...filters.map((filter) {
@@ -701,92 +712,93 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
   Widget _buildLessonListBody(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final now = DateTime.now();
-
-    final filteredLessons = widget.lessons.where((l) {
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final matches = l.title.toLowerCase().contains(q) ||
-            (l.createdByEmail ?? '').toLowerCase().contains(q) ||
-            l.prompt.toLowerCase().contains(q);
-        if (!matches) return false;
-      }
-      if (_selectedDateFilter == 'All Time') return true;
-      if (l.createdAt == null) return false;
-      final lessonDate = l.createdAt!.toDate();
-      final diff = now.difference(lessonDate).inDays;
-      if (_selectedDateFilter == 'Past 7 Days') return diff <= 7;
-      if (_selectedDateFilter == 'Past 30 Days') return diff <= 30;
-      if (_selectedDateFilter == 'This Year') return lessonDate.year == now.year;
-      return true;
-    }).toList();
-
-    final filteredPublished = widget.publishedItems.where((item) {
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final matches = item.title.toLowerCase().contains(q) ||
-            (item.createdByEmail ?? '').toLowerCase().contains(q);
-        if (!matches) return false;
-      }
-      if (_selectedDateFilter == 'All Time') return true;
-      if (item.createdAt == null) return false;
-      final itemDate = item.createdAt!.toDate();
-      final diff = now.difference(itemDate).inDays;
-      if (_selectedDateFilter == 'Past 7 Days') return diff <= 7;
-      if (_selectedDateFilter == 'Past 30 Days') return diff <= 30;
-      if (_selectedDateFilter == 'This Year') return itemDate.year == now.year;
-      return true;
-    }).toList();
-
-    filteredLessons.sort((a, b) {
-      final tsA = a.createdAt;
-      final tsB = b.createdAt;
-      if (tsA == null && tsB == null) return a.title.compareTo(b.title);
-      if (tsA == null) return 1;
-      if (tsB == null) return -1;
-      return _sortNewestFirst ? tsB.compareTo(tsA) : tsA.compareTo(tsB);
-    });
-
-    filteredPublished.sort((a, b) {
-      final tsA = a.createdAt;
-      final tsB = b.createdAt;
-      if (tsA == null && tsB == null) return a.title.compareTo(b.title);
-      if (tsA == null) return 1;
-      if (tsB == null) return -1;
-      return _sortNewestFirst ? tsB.compareTo(tsA) : tsA.compareTo(tsB);
-    });
-
-    final flashcards = filteredPublished
-        .where((p) => p.type == NotebookOutputType.flashcards)
-        .toList();
-    final mindMaps = filteredPublished
-        .where((p) => p.type == NotebookOutputType.mindMap)
-        .toList();
-    final studyGuides = filteredPublished
-        .where((p) => p.type == NotebookOutputType.studyGuide)
-        .toList();
-    final timelines = filteredPublished
-        .where((p) => p.type == NotebookOutputType.timeline)
-        .toList();
-    final briefings = filteredPublished
-        .where((p) => p.type == NotebookOutputType.briefing)
-        .toList();
-    final faqs = filteredPublished
-        .where((p) => p.type == NotebookOutputType.faq)
-        .toList();
-
-    final hasAnyItems = filteredLessons.isNotEmpty ||
-        flashcards.isNotEmpty ||
-        mindMaps.isNotEmpty ||
-        studyGuides.isNotEmpty ||
-        timelines.isNotEmpty ||
-        briefings.isNotEmpty ||
-        faqs.isNotEmpty;
 
     return StreamBuilder<Map<String, Map<String, dynamic>>>(
       stream: _progressStream,
       builder: (context, progressSnap) {
         final progress = progressSnap.data ?? const {};
+        return StreamBuilder<Map<String, Map<String, dynamic>>>(
+          stream: _quizProgressStream,
+          builder: (context, quizSnap) {
+            final quizProgress = quizSnap.data ?? const {};
+
+            final filteredLessons = widget.lessons.where((l) {
+          if (_searchQuery.isNotEmpty) {
+            final q = _searchQuery.toLowerCase();
+            final matches = l.title.toLowerCase().contains(q) ||
+                (l.createdByEmail ?? '').toLowerCase().contains(q) ||
+                l.prompt.toLowerCase().contains(q);
+            if (!matches) return false;
+          }
+          final isCompleted = progress[l.id]?['completed'] == true;
+          final isStarted = progress[l.id] != null && !isCompleted;
+          final isNotStarted = progress[l.id] == null;
+          if (_selectedDateFilter == 'Completed ✓') return isCompleted;
+          if (_selectedDateFilter == 'In Progress') return isStarted;
+          if (_selectedDateFilter == 'Not Started') return isNotStarted;
+          return true;
+        }).toList();
+
+        final filteredPublished = widget.publishedItems.where((item) {
+          if (_searchQuery.isNotEmpty) {
+            final q = _searchQuery.toLowerCase();
+            final matches = item.title.toLowerCase().contains(q) ||
+                (item.createdByEmail ?? '').toLowerCase().contains(q);
+            if (!matches) return false;
+          }
+          final isCompleted = progress[item.id]?['completed'] == true;
+          final isStarted = progress[item.id] != null && !isCompleted;
+          final isNotStarted = progress[item.id] == null;
+          if (_selectedDateFilter == 'Completed ✓') return isCompleted;
+          if (_selectedDateFilter == 'In Progress') return isStarted;
+          if (_selectedDateFilter == 'Not Started') return isNotStarted;
+          return true;
+        }).toList();
+
+        filteredLessons.sort((a, b) {
+          final tsA = a.createdAt;
+          final tsB = b.createdAt;
+          if (tsA == null && tsB == null) return a.title.compareTo(b.title);
+          if (tsA == null) return 1;
+          if (tsB == null) return -1;
+          return _sortNewestFirst ? tsB.compareTo(tsA) : tsA.compareTo(tsB);
+        });
+
+        filteredPublished.sort((a, b) {
+          final tsA = a.createdAt;
+          final tsB = b.createdAt;
+          if (tsA == null && tsB == null) return a.title.compareTo(b.title);
+          if (tsA == null) return 1;
+          if (tsB == null) return -1;
+          return _sortNewestFirst ? tsB.compareTo(tsA) : tsA.compareTo(tsB);
+        });
+
+        final flashcards = filteredPublished
+            .where((p) => p.type == NotebookOutputType.flashcards)
+            .toList();
+        final mindMaps = filteredPublished
+            .where((p) => p.type == NotebookOutputType.mindMap)
+            .toList();
+        final studyGuides = filteredPublished
+            .where((p) => p.type == NotebookOutputType.studyGuide)
+            .toList();
+        final timelines = filteredPublished
+            .where((p) => p.type == NotebookOutputType.timeline)
+            .toList();
+        final briefings = filteredPublished
+            .where((p) => p.type == NotebookOutputType.briefing)
+            .toList();
+        final faqs = filteredPublished
+            .where((p) => p.type == NotebookOutputType.faq)
+            .toList();
+
+        final hasAnyItems = filteredLessons.isNotEmpty ||
+            flashcards.isNotEmpty ||
+            mindMaps.isNotEmpty ||
+            studyGuides.isNotEmpty ||
+            timelines.isNotEmpty ||
+            briefings.isNotEmpty ||
+            faqs.isNotEmpty;
 
         final authorLabel = (widget.pillLabel == 'From Grammatica' ||
                 widget.pillLabel == 'Grammatica')
@@ -905,6 +917,24 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
               );
             }
 
+            Widget buildStatusLegendItem(IconData icon, String label, Color color) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 14, color: color),
+                  const SizedBox(width: 4),
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ],
+              );
+            }
+
             Widget buildContentItems({required bool isMobile}) {
               if (!hasAnyItems) {
                 return Center(
@@ -921,16 +951,95 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // STI eLMS Inspired Modules Header Bar
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 18),
+                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Modules',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Modules and sections can be completed in any order.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!isMobile)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  buildStatusLegendItem(Icons.chevron_right_rounded, 'Available', isDark ? Colors.white70 : const Color(0xFF64748B)),
+                                  const SizedBox(width: 14),
+                                  buildStatusLegendItem(Icons.waves_rounded, 'Partial', const Color(0xFFF59E0B)),
+                                  const SizedBox(width: 14),
+                                  buildStatusLegendItem(Icons.check_rounded, 'Completed', const Color(0xFF10B981)),
+                                ],
+                              ),
+                          ],
+                        ),
+                        if (isMobile) ...[
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              buildStatusLegendItem(Icons.chevron_right_rounded, 'Available', isDark ? Colors.white70 : const Color(0xFF64748B)),
+                              const SizedBox(width: 12),
+                              buildStatusLegendItem(Icons.waves_rounded, 'Partial', const Color(0xFFF59E0B)),
+                              const SizedBox(width: 12),
+                              buildStatusLegendItem(Icons.check_rounded, 'Completed', const Color(0xFF10B981)),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                   if (filteredLessons.isNotEmpty)
                     buildSection(
                       'Lessons (${filteredLessons.length})',
                       filteredLessons.map((l) {
                         final completed =
                             progress[l.id]?['completed'] == true;
+                        final isStarted = progress[l.id] != null && !completed;
                         return _buildSmallLessonCard(
                           context,
                           lesson: l,
                           completed: completed,
+                          isStarted: isStarted,
                           authorLabel: authorLabel,
                           isMobile: isMobile,
                         );
@@ -942,10 +1051,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       flashcards.map((f) {
                         final completed =
                             progress[f.id]?['completed'] == true;
+                        final isStarted = progress[f.id] != null && !completed;
                         return _buildSmallPublishedItemCard(
                           context,
                           item: f,
                           completed: completed,
+                          isStarted: isStarted,
                           authorLabel: authorLabel,
                           isMobile: isMobile,
                         );
@@ -957,10 +1068,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       mindMaps.map((m) {
                         final completed =
                             progress[m.id]?['completed'] == true;
+                        final isStarted = progress[m.id] != null && !completed;
                         return _buildSmallPublishedItemCard(
                           context,
                           item: m,
                           completed: completed,
+                          isStarted: isStarted,
                           authorLabel: authorLabel,
                           isMobile: isMobile,
                         );
@@ -972,10 +1085,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       studyGuides.map((g) {
                         final completed =
                             progress[g.id]?['completed'] == true;
+                        final isStarted = progress[g.id] != null && !completed;
                         return _buildSmallPublishedItemCard(
                           context,
                           item: g,
                           completed: completed,
+                          isStarted: isStarted,
                           authorLabel: authorLabel,
                           isMobile: isMobile,
                         );
@@ -987,10 +1102,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       timelines.map((t) {
                         final completed =
                             progress[t.id]?['completed'] == true;
+                        final isStarted = progress[t.id] != null && !completed;
                         return _buildSmallPublishedItemCard(
                           context,
                           item: t,
                           completed: completed,
+                          isStarted: isStarted,
                           authorLabel: authorLabel,
                           isMobile: isMobile,
                         );
@@ -1002,10 +1119,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       briefings.map((b) {
                         final completed =
                             progress[b.id]?['completed'] == true;
+                        final isStarted = progress[b.id] != null && !completed;
                         return _buildSmallPublishedItemCard(
                           context,
                           item: b,
                           completed: completed,
+                          isStarted: isStarted,
                           authorLabel: authorLabel,
                           isMobile: isMobile,
                         );
@@ -1017,10 +1136,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                       faqs.map((q) {
                         final completed =
                             progress[q.id]?['completed'] == true;
+                        final isStarted = progress[q.id] != null && !completed;
                         return _buildSmallPublishedItemCard(
                           context,
                           item: q,
                           completed: completed,
+                          isStarted: isStarted,
                           authorLabel: authorLabel,
                           isMobile: isMobile,
                         );
@@ -1031,7 +1152,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
             }
 
             final metricsBlock = _buildMetricsSection(
-                context, widget.lessons, widget.publishedItems, progress);
+                context, widget.lessons, widget.publishedItems, progress, quizProgress);
 
             return SingleChildScrollView(
               padding: EdgeInsets.zero,
@@ -1074,12 +1195,15 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
         );
       },
     );
+  },
+);
   }
 
   Widget _buildSmallLessonCard(
     BuildContext context, {
     required Lesson lesson,
     required bool completed,
+    bool isStarted = false,
     String? authorLabel,
     bool isMobile = false,
   }) {
@@ -1165,29 +1289,47 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                               ),
                               if (completed)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 9, vertical: 3.5),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981)
-                                        .withValues(alpha: 0.12),
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: const Color(0xFF10B981)
-                                          .withValues(alpha: 0.3),
-                                    ),
+                                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.check_circle_rounded,
-                                          color: Color(0xFF10B981), size: 13),
+                                      const Icon(Icons.check_rounded, color: Color(0xFF10B981), size: 12),
                                       const SizedBox(width: 4),
                                       Text(
-                                        'COMPLETED',
+                                        'Completed',
                                         style: GoogleFonts.inter(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w800,
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
                                           color: const Color(0xFF10B981),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else if (isStarted)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.waves_rounded, color: Color(0xFFF59E0B), size: 12),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Partial',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFFF59E0B),
                                         ),
                                       ),
                                     ],
@@ -1195,20 +1337,26 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                 )
                               else
                                 Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 9, vertical: 3.5),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: accentColor.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                                   ),
-                                  child: Text(
-                                    'LESSON',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: accentColor,
-                                      letterSpacing: 0.6,
-                                    ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white70 : const Color(0xFF64748B), size: 13),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        'Available',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                             ],
@@ -1277,18 +1425,32 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                       ],
                                     ),
                                     const SizedBox(height: 3),
-                                    Text(
-                                      'by: ${authorLabel ?? lesson.createdByEmail ?? 'Unknown'}',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 11,
-                                        color: isDark
-                                            ? Colors.white70
-                                            : const Color(0xFF475569),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                    authorLabel != null
+                                        ? Text(
+                                            'by: $authorLabel',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              color: isDark
+                                                  ? Colors.white70
+                                                  : const Color(0xFF475569),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          )
+                                        : AuthorName(
+                                            uid: lesson.createdByUid,
+                                            fallbackEmail: lesson.createdByEmail,
+                                            prefix: 'by: ',
+                                            isClickable: true,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              color: isDark
+                                                  ? Colors.white70
+                                                  : const Color(0xFF475569),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
                                   ],
                                 ),
                               ),
@@ -1326,6 +1488,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     BuildContext context, {
     required PublishedContentItem item,
     required bool completed,
+    bool isStarted = false,
     String? authorLabel,
     bool isMobile = false,
   }) {
@@ -1333,7 +1496,6 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
     Color typeColor;
     IconData typeIcon;
-    String badgeLabel = item.type.displayName.toUpperCase();
     String subtitle = '';
 
     switch (item.type) {
@@ -1442,29 +1604,47 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                               ),
                               if (completed)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981)
-                                        .withValues(alpha: 0.12),
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: const Color(0xFF10B981)
-                                          .withValues(alpha: 0.3),
-                                    ),
+                                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.check_circle_rounded,
-                                          color: Color(0xFF10B981), size: 12),
+                                      const Icon(Icons.check_rounded, color: Color(0xFF10B981), size: 12),
                                       const SizedBox(width: 3),
                                       Text(
-                                        'COMPLETED',
+                                        'Completed',
                                         style: GoogleFonts.inter(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w800,
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w700,
                                           color: const Color(0xFF10B981),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else if (isStarted)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.waves_rounded, color: Color(0xFFF59E0B), size: 11),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        'Partial',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFFF59E0B),
                                         ),
                                       ),
                                     ],
@@ -1472,20 +1652,26 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                 )
                               else
                                 Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                   decoration: BoxDecoration(
-                                    color: typeColor.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
                                   ),
-                                  child: Text(
-                                    badgeLabel,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w800,
-                                      color: typeColor,
-                                      letterSpacing: 0.5,
-                                    ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white70 : const Color(0xFF64748B), size: 12),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        'Available',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                             ],
@@ -1518,15 +1704,26 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Expanded(
-                                child: Text(
-                                  'by: ${authorLabel ?? item.createdByEmail ?? 'Grammatica'}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                child: authorLabel != null
+                                    ? Text(
+                                        'by: $authorLabel',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      )
+                                    : AuthorName(
+                                        uid: item.createdByUid,
+                                        fallbackEmail: item.createdByEmail,
+                                        prefix: 'by: ',
+                                        isClickable: true,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                                        ),
+                                      ),
                               ),
                               MouseRegion(
                                 cursor: SystemMouseCursors.click,
@@ -1563,24 +1760,52 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     List<Lesson> lessons,
     List<PublishedContentItem> publishedItems,
     Map<String, dynamic> progress,
+    Map<String, dynamic> quizProgress,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     int completedCount = 0;
+    double totalProgressSum = 0.0;
     List<Map<String, dynamic>> recentActivities = [];
+    Lesson? nextUncompletedLesson;
 
     for (var l in lessons) {
       final p = progress[l.id];
-      if (p != null) {
-        final isCompleted = p['completed'] == true;
-        if (isCompleted) {
-          completedCount++;
+      final isCompleted = p != null && p['completed'] == true;
+      if (isCompleted) {
+        completedCount++;
+        totalProgressSum += 1.0;
+      } else {
+        nextUncompletedLesson ??= l;
+        if (p != null) {
+          final prog = (p['progress'] as num?)?.toDouble() ?? 0.0;
+          if (prog > 0) {
+            totalProgressSum += prog.clamp(0.0, 0.95);
+          } else if (p['lastReadAt'] != null) {
+            totalProgressSum += 0.2; // Viewed/Started
+          }
         }
+      }
+
+      if (p != null) {
         final dynamic rawTs = p['lastReadAt'] ?? p['completedAt'];
+        DateTime? parsedDate;
         if (rawTs is Timestamp) {
+          parsedDate = rawTs.toDate();
+        } else if (rawTs is DateTime) {
+          parsedDate = rawTs;
+        } else if (rawTs is String) {
+          parsedDate = DateTime.tryParse(rawTs);
+        } else if (rawTs is int) {
+          parsedDate = DateTime.fromMillisecondsSinceEpoch(rawTs);
+        } else if (isCompleted) {
+          parsedDate = DateTime.now();
+        }
+
+        if (parsedDate != null) {
           recentActivities.add({
             'title': l.title,
             'completed': isCompleted,
-            'timestamp': rawTs,
+            'date': parsedDate,
             'lesson': l,
             'type': 'Lesson',
           });
@@ -1594,13 +1819,34 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
         final isCompleted = p['completed'] == true;
         if (isCompleted) {
           completedCount++;
+          totalProgressSum += 1.0;
+        } else {
+          final prog = (p['progress'] as num?)?.toDouble() ?? 0.0;
+          if (prog > 0) {
+            totalProgressSum += prog.clamp(0.0, 0.95);
+          } else if (p['lastReadAt'] != null) {
+            totalProgressSum += 0.2;
+          }
         }
         final dynamic rawTs = p['lastReadAt'] ?? p['completedAt'];
+        DateTime? parsedDate;
         if (rawTs is Timestamp) {
+          parsedDate = rawTs.toDate();
+        } else if (rawTs is DateTime) {
+          parsedDate = rawTs;
+        } else if (rawTs is String) {
+          parsedDate = DateTime.tryParse(rawTs);
+        } else if (rawTs is int) {
+          parsedDate = DateTime.fromMillisecondsSinceEpoch(rawTs);
+        } else if (isCompleted) {
+          parsedDate = DateTime.now();
+        }
+
+        if (parsedDate != null) {
           recentActivities.add({
             'title': item.title,
             'completed': isCompleted,
-            'timestamp': rawTs,
+            'date': parsedDate,
             'item': item,
             'type': item.type.displayName,
           });
@@ -1609,12 +1855,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     }
 
     final totalItems = lessons.length + publishedItems.length;
-    double percent = totalItems == 0 ? 0 : (completedCount / totalItems).clamp(0.0, 1.0);
+    double percent = totalItems == 0 ? 0.0 : (totalProgressSum / totalItems).clamp(0.0, 1.0);
     final percentInt = (percent * 100).toInt();
 
     recentActivities.sort(
-      (a, b) => (b['timestamp'] as Timestamp).compareTo(
-        a['timestamp'] as Timestamp,
+      (a, b) => (b['date'] as DateTime).compareTo(
+        a['date'] as DateTime,
       ),
     );
 
@@ -1622,8 +1868,17 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       recentActivities = recentActivities.sublist(0, 5);
     }
 
-    String formatTime(Timestamp ts) {
-      final dt = ts.toDate();
+    String formatTime(dynamic raw) {
+      DateTime dt;
+      if (raw is Timestamp) {
+        dt = raw.toDate();
+      } else if (raw is DateTime) {
+        dt = raw;
+      } else if (raw is String) {
+        dt = DateTime.tryParse(raw) ?? DateTime.now();
+      } else {
+        dt = DateTime.now();
+      }
       final now = DateTime.now();
       final diff = now.difference(dt);
       if (diff.inSeconds < 60) return 'Just now';
@@ -1636,380 +1891,428 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ── STI eLMS: Activity Widget ──
         Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
             ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.track_changes_rounded,
-                            size: 17,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Folder Progress',
-                          style: GoogleFonts.outfit(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6AAF3D), Color(0xFF4A8A24)],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6AAF3D).withValues(alpha: 0.25),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        '$percentInt%',
-                        style: GoogleFonts.outfit(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Stack(
-                    children: [
-                      Container(
-                        height: 10,
-                        width: double.infinity,
-                        color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-                      ),
-                      FractionallySizedBox(
-                        widthFactor: percent.clamp(0.0, 1.0),
-                        child: Container(
-                          height: 10,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6AAF3D), Color(0xFF81B655)],
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: (percent >= 1.0
-                            ? const Color(0xFF10B981)
-                            : (percent > 0 ? AppColors.primary : const Color(0xFF6366F1)))
-                        .withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: (percent >= 1.0
-                              ? const Color(0xFF10B981)
-                              : (percent > 0 ? AppColors.primary : const Color(0xFF6366F1)))
-                          .withValues(alpha: 0.18),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.waves_rounded, size: 18, color: Color(0xFF06B6D4)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Activity',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Text(
-                        percent >= 1.0 ? '🏆' : (percent > 0.5 ? '🔥' : (percent > 0 ? '⚡' : '🚀')),
-                        style: const TextStyle(fontSize: 15),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          percent >= 1.0
-                              ? 'All materials completed! Excellent job!'
-                              : (percent >= 0.5
-                                  ? 'More than halfway! Keep the momentum!'
-                                  : (percent > 0
-                                      ? 'Good progress! Keep learning!'
-                                      : 'Ready to level up? Start reading!')),
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white70 : const Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    if (percent >= 1.0 && totalItems > 0) ...[
-                      const Icon(Icons.verified_rounded, size: 15, color: AppColors.primary),
-                      const SizedBox(width: 5),
-                    ],
-                    Text(
-                      '$completedCount / $totalItems Materials Completed',
-                      style: GoogleFonts.inter(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
+                ],
               ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF06B6D4).withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person_rounded, size: 16, color: Color(0xFF06B6D4)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.bolt_rounded,
-                            size: 17,
-                            color: Color(0xFFF59E0B),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
                         Text(
-                          'Recent Activity',
-                          style: GoogleFonts.outfit(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
+                          widget.user.displayName ?? 'A user',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12.5,
                             color: isDark ? Colors.white : const Color(0xFF0F172A),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
-                    if (recentActivities.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '${recentActivities.length} recent',
+                        Text(
+                          recentActivities.isNotEmpty
+                              ? 'Viewed: ${recentActivities.first['title']}'
+                              : 'Viewed modules overview',
                           style: GoogleFonts.inter(
                             fontSize: 11,
-                            fontWeight: FontWeight.w600,
                             color: isDark ? Colors.white54 : const Color(0xFF64748B),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (recentActivities.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Divider(color: isDark ? Colors.white10 : const Color(0xFFF1F5F9), height: 12),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: recentActivities.take(3).length,
+                  separatorBuilder: (c, i) => Divider(
+                    color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+                    height: 12,
+                  ),
+                  itemBuilder: (context, index) {
+                    final act = recentActivities[index];
+                    final isComp = act['completed'] == true;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () {
+                        if (act['lesson'] != null) {
+                          NavigationService.instance.goToLesson(context, act['lesson'] as Lesson);
+                        } else if (act['item'] != null) {
+                          NavigationService.instance.goToContent(context, act['item'] as PublishedContentItem);
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isComp ? Icons.check_circle_rounded : Icons.schedule_rounded,
+                              color: isComp ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                              size: 14,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                act['title'] as String,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white70 : const Color(0xFF334155),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              formatTime(act['date']),
+                              style: GoogleFonts.inter(fontSize: 10, color: isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                            ),
+                          ],
                         ),
                       ),
-                  ],
+                    );
+                  },
                 ),
-                const SizedBox(height: 16),
-                if (recentActivities.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.auto_stories_rounded,
-                              size: 32,
-                              color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Your Learning Journey Starts Here!',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white70 : const Color(0xFF475569),
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'Pick any lesson above to begin learning.',
-                            style: GoogleFonts.inter(
-                              fontSize: 11.5,
-                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-                            ),
-                          ),
-                        ],
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // ── STI eLMS: Progress Widget (Circular Gauge) ──
+        Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 18),
+          child: Column(
+            children: [
+              Text(
+                'Progress',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: 86,
+                height: 86,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 86,
+                      height: 86,
+                      child: CircularProgressIndicator(
+                        value: percent.clamp(0.0, 1.0),
+                        strokeWidth: 8,
+                        backgroundColor: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          percent >= 1.0 ? const Color(0xFF10B981) : const Color(0xFF6AAF3D),
+                        ),
                       ),
                     ),
-                  )
-                else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: recentActivities.length,
-                    separatorBuilder: (c, i) => Divider(
-                        color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
-                        height: 16),
-                    itemBuilder: (context, index) {
-                      final act = recentActivities[index];
-                      final isComp = act['completed'] == true;
-                      return MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            if (act['lesson'] != null) {
-                              NavigationService.instance.goToLesson(context, act['lesson'] as Lesson);
-                            } else if (act['item'] != null) {
-                              NavigationService.instance.goToContent(context, act['item'] as PublishedContentItem);
-                            }
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: isComp
-                                        ? AppColors.primary.withValues(alpha: 0.12)
-                                        : const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    isComp
-                                        ? Icons.check_circle_rounded
-                                        : Icons.schedule_rounded,
-                                    color: isComp ? AppColors.primary : const Color(0xFFF59E0B),
-                                    size: 16,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        act['title'] as String,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 13.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            act['type'] as String,
-                                            style: GoogleFonts.inter(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w500,
-                                              color: isComp ? AppColors.primary : const Color(0xFFF59E0B),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '•',
-                                            style: TextStyle(
-                                              color: isDark ? Colors.white24 : Colors.grey.shade400,
-                                              fontSize: 10,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            formatTime(act['timestamp'] as Timestamp),
-                                            style: GoogleFonts.inter(
-                                              fontSize: 11,
-                                              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 18,
-                                  color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
+                    Text(
+                      '$percentInt%',
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                '$completedCount of $totalItems completed',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                ),
+              ),
+              if (nextUncompletedLesson != null) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                    label: Text(
+                      'Resume: ${nextUncompletedLesson.title}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 11),
+                    ),
+                    onPressed: () {
+                      NavigationService.instance.goToLesson(context, nextUncompletedLesson!);
                     },
                   ),
+                ),
               ],
-            ),
+            ],
           ),
+        ),
+        const SizedBox(height: 16),
+
+        // ── STI eLMS: Grade & Scores Dual Gauges ──
+        Builder(
+          builder: (context) {
+            final folderQuizIds = lessons
+                .map((l) => l.quizId)
+                .where((id) => id != null && id.isNotEmpty)
+                .cast<String>()
+                .toSet();
+
+            int quizzesTaken = 0;
+            double scorePercentageSum = 0.0;
+
+            for (final qId in folderQuizIds) {
+              final qp = quizProgress[qId];
+              if (qp != null && (qp['attemptsUsed'] as num? ?? 0) > 0) {
+                final score = (qp['score'] as num?)?.toDouble() ?? 0.0;
+                final total = (qp['totalQuestions'] as num?)?.toDouble() ?? 0.0;
+                if (total > 0) {
+                  quizzesTaken++;
+                  scorePercentageSum += (score / total) * 100.0;
+                }
+              }
+            }
+
+            // Fallback: If folder lessons don't define linked quizIds, check learner's quizProgress overall
+            if (quizzesTaken == 0 && folderQuizIds.isEmpty) {
+              for (final qp in quizProgress.values) {
+                if ((qp['attemptsUsed'] as num? ?? 0) > 0) {
+                  final score = (qp['score'] as num?)?.toDouble() ?? 0.0;
+                  final total = (qp['totalQuestions'] as num?)?.toDouble() ?? 0.0;
+                  if (total > 0) {
+                    quizzesTaken++;
+                    scorePercentageSum += (score / total) * 100.0;
+                  }
+                }
+              }
+            }
+
+            final String gradeDisplay;
+            final String scoresDisplay;
+            final double gradeGaugeValue;
+            final double scoresGaugeValue;
+
+            if (quizzesTaken == 0) {
+              gradeDisplay = '0.0';
+              scoresDisplay = '0%';
+              gradeGaugeValue = 0.0;
+              scoresGaugeValue = 0.0;
+            } else {
+              final double avgScore = (scorePercentageSum / quizzesTaken).clamp(0.0, 100.0);
+              scoresDisplay = '${avgScore.round()}%';
+              scoresGaugeValue = (avgScore / 100.0).clamp(0.0, 1.0);
+
+              if (avgScore >= 97.5) {
+                gradeDisplay = '1.00';
+              } else if (avgScore >= 94.5) {
+                gradeDisplay = '1.25';
+              } else if (avgScore >= 91.5) {
+                gradeDisplay = '1.50';
+              } else if (avgScore >= 88.5) {
+                gradeDisplay = '1.75';
+              } else if (avgScore >= 85.5) {
+                gradeDisplay = '2.00';
+              } else if (avgScore >= 81.5) {
+                gradeDisplay = '2.25';
+              } else if (avgScore >= 77.5) {
+                gradeDisplay = '2.50';
+              } else if (avgScore >= 74.5) {
+                gradeDisplay = '2.75';
+              } else if (avgScore >= 70.0) {
+                gradeDisplay = '3.00';
+              } else {
+                gradeDisplay = '5.00';
+              }
+              gradeGaugeValue = (avgScore / 100.0).clamp(0.0, 1.0);
+            }
+
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Grade Circular Gauge
+                  Column(
+                    children: [
+                      Text(
+                        'Grade',
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: 74,
+                        height: 74,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            SizedBox(
+                              width: 74,
+                              height: 74,
+                              child: CircularProgressIndicator(
+                                value: gradeGaugeValue,
+                                strokeWidth: 6,
+                                backgroundColor: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  quizzesTaken > 0 ? const Color(0xFF6AAF3D) : (isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              gradeDisplay,
+                              style: GoogleFonts.outfit(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Scores Circular Gauge
+                  Column(
+                    children: [
+                      Text(
+                        'Scores',
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: 74,
+                        height: 74,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            SizedBox(
+                              width: 74,
+                              height: 74,
+                              child: CircularProgressIndicator(
+                                value: scoresGaugeValue,
+                                strokeWidth: 6,
+                                backgroundColor: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  scoresGaugeValue >= 0.8
+                                      ? const Color(0xFF10B981)
+                                      : (scoresGaugeValue > 0 ? const Color(0xFFF59E0B) : (isDark ? Colors.white24 : const Color(0xFFCBD5E1))),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              scoresDisplay,
+                              style: GoogleFonts.outfit(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ],
     );

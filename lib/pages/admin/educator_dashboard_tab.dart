@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
+import '../../services/navigation_service.dart';
 import '../../services/role_service.dart';
-import '../../theme/app_colors.dart';
 import '../../widgets/design_ornaments.dart';
 
 class EducatorDashboardTab extends StatelessWidget {
@@ -25,115 +25,54 @@ class EducatorDashboardTab extends StatelessWidget {
     final uid = AuthService.instance.currentUser?.uid ?? '';
     final username = (userData['username'] as String?)?.split(' ').first ?? 'Educator';
     final isPremium = (userData['subscription'] as String?)?.toLowerCase() == 'premium';
-
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return BackgroundWrapper(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1100),
+            constraints: const BoxConstraints(maxWidth: 960),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // — Badge —
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.school_rounded, color: AppColors.primary, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        'EDUCATOR PANEL',
-                        style: GoogleFonts.inter(
-                          color: AppColors.primary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // 1. Hero Header Banner (Uniform with Learner Dashboard)
+                _buildHeroHeader(context, username: username, isDark: isDark),
+                const SizedBox(height: 16),
+
+                // 2. Live Stats Overview (4 cards in responsive grid matching Learner Dashboard)
+                _StatsOverview(uid: uid, isDark: isDark),
                 const SizedBox(height: 24),
 
-                // — Title —
-                Text(
-                  'Welcome, $username!',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    fontSize: 48,
-                    fontWeight: FontWeight.w900,
-                    color: isDark ? Colors.white : AppColors.textPrimary,
-                    letterSpacing: -1.5,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Track your lessons, ratings, and teaching impact in one place.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    color: isDark ? Colors.white70 : AppColors.textSecondary,
-                    fontSize: 18,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 60),
-
-                // — Stats Grid —
-                _StatsRow(uid: uid),
-                const SizedBox(height: 80),
-
-                // — Quick Actions —
-                _SectionHeader(
-                  title: 'Quick Actions',
-                  icon: Icons.bolt_rounded,
-                  color: AppColors.secondary,
-                ),
-                const SizedBox(height: 28),
+                // 3. Quick Actions
+                _buildSectionTitle('Quick Actions', isDark),
+                const SizedBox(height: 12),
                 QuickActionsGrid(
                   onTabChange: onTabChange,
                   onNamedNavigation: onNamedNavigation,
                   isPremium: isPremium,
                 ),
-                const SizedBox(height: 80),
+                const SizedBox(height: 24),
 
-                // — Recent Lessons —
-                _SectionHeader(
-                  title: 'Your Recent Lessons',
-                  icon: Icons.auto_stories_rounded,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(height: 28),
+                // 4. Your Recent Lessons
+                _buildSectionTitle('Your Recent Lessons', isDark),
+                const SizedBox(height: 12),
                 _RecentLessonsList(
                   uid: uid,
                   onTabChange: onTabChange,
                   onNamedNavigation: onNamedNavigation,
                 ),
+                const SizedBox(height: 24),
 
-                const SizedBox(height: 80),
-
-                // — My Quizzes —
-                _SectionHeader(
-                  title: 'My Quizzes',
-                  icon: Icons.quiz_rounded,
-                  color: const Color(0xFFF5A623),
-                ),
-                const SizedBox(height: 28),
+                // 5. My Quizzes
+                _buildSectionTitle('My Quizzes', isDark),
+                const SizedBox(height: 12),
                 _MyQuizzesSection(
                   uid: uid,
                   onTabChange: onTabChange,
                   onNamedNavigation: onNamedNavigation,
                 ),
-
-                const SizedBox(height: 80),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -141,13 +80,132 @@ class EducatorDashboardTab extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildSectionTitle(String title, bool isDark) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+            color: const Color(0xFF81B655),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : Colors.black87,
+            letterSpacing: -0.3,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeroHeader(
+    BuildContext context, {
+    required String username,
+    required bool isDark,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1B2838), const Color(0xFF0D1117)]
+              : [const Color(0xFF6AAF3D), const Color(0xFF4A8A24)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: (isDark ? Colors.black : const Color(0xFF6AAF3D))
+                .withValues(alpha: 0.22),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.school_rounded, color: Colors.amberAccent, size: 13),
+                      SizedBox(width: 5),
+                      Text(
+                        'EDUCATOR DASHBOARD',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Welcome back, $username',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Track your curriculum, create interactive quizzes, and engage your learners.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.school_rounded, color: Colors.white, size: 28),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-// ─── Stats Row ────────────────────────────────────────────────────────────────
+// ─── Stats Overview ──────────────────────────────────────────────────────────
 
-class _StatsRow extends StatelessWidget {
+class _StatsOverview extends StatelessWidget {
   final String uid;
-  const _StatsRow({required this.uid});
+  final bool isDark;
+
+  const _StatsOverview({required this.uid, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -163,158 +221,158 @@ class _StatsRow extends StatelessWidget {
               .where('createdByUid', isEqualTo: uid)
               .snapshots(),
           builder: (context, lessonSnap) {
-            final lessonCount = lessonSnap.data?.docs.length ?? 0;
+            final lessonDocs = lessonSnap.data?.docs ?? [];
+            final approvedLessonCount = lessonDocs.where((d) {
+              final data = d.data() as Map<String, dynamic>?;
+              return data?['validationStatus'] == 'approved';
+            }).length;
 
-            // Live subscriber count from correct subcollection path
             return StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .collection('subscribers')
+                  .collection('quizzes')
+                  .where('createdByUid', isEqualTo: uid)
                   .snapshots(),
-              builder: (context, subSnap) {
-                final subscriberCount = subSnap.data?.docs.length ?? 0;
+              builder: (context, quizSnap) {
+                final quizCount = quizSnap.data?.docs.length ?? 0;
 
-                return Wrap(
-                  spacing: 24,
-                  runSpacing: 24,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    _StatCard(
-                      label: 'Total Lessons',
-                      value: lessonCount.toString(),
-                      icon: Icons.book_rounded,
-                      color: AppColors.primary,
-                    ),
-                    _StatCard(
-                      label: 'Educator Rating',
-                      value: avgRating.toStringAsFixed(1),
-                      icon: Icons.star_rounded,
-                      color: const Color(0xFFF5A623),
-                    ),
-                    _StatCard(
-                      label: 'Subscribers',
-                      value: subscriberCount.toString(),
-                      icon: Icons.people_alt_rounded,
-                      color: const Color(0xFF4A90E2),
-                    ),
-                  ],
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(uid)
+                      .collection('subscribers')
+                      .snapshots(),
+                  builder: (context, subSnap) {
+                    final subscriberCount = subSnap.data?.docs.length ?? 0;
+
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isNarrow = constraints.maxWidth < 600;
+
+                        Widget buildStatItem({
+                          required IconData icon,
+                          required Color color,
+                          required String label,
+                          required String value,
+                        }) {
+                          return Container(
+                            height: 85,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.03),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.all(isNarrow ? 7 : 10),
+                                  decoration: BoxDecoration(
+                                    color: color.withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(icon, color: color, size: isNarrow ? 17 : 20),
+                                ),
+                                SizedBox(width: isNarrow ? 8 : 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        value,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: isNarrow ? 15 : 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        label,
+                                        style: GoogleFonts.inter(
+                                          fontSize: isNarrow ? 10 : 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark ? Colors.white60 : Colors.black54,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        final items = [
+                          buildStatItem(
+                            icon: Icons.menu_book_rounded,
+                            color: const Color(0xFF10B981),
+                            label: 'Published Lessons',
+                            value: '$approvedLessonCount',
+                          ),
+                          buildStatItem(
+                            icon: Icons.quiz_rounded,
+                            color: const Color(0xFFF59E0B),
+                            label: 'My Quizzes',
+                            value: '$quizCount',
+                          ),
+                          buildStatItem(
+                            icon: Icons.people_alt_rounded,
+                            color: const Color(0xFF8B5CF6),
+                            label: 'Active Subscribers',
+                            value: '$subscriberCount',
+                          ),
+                          buildStatItem(
+                            icon: Icons.star_rounded,
+                            color: const Color(0xFFEAB308),
+                            label: 'Educator Rating',
+                            value: avgRating > 0 ? avgRating.toStringAsFixed(1) : '5.0',
+                          ),
+                        ];
+
+                        if (isNarrow) {
+                          return Column(
+                            children: items
+                                .map((w) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 10),
+                                      child: w,
+                                    ))
+                                .toList(),
+                          );
+                        }
+
+                        return Row(
+                          children: items
+                              .map((w) => Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                                      child: w,
+                                    ),
+                                  ))
+                              .toList(),
+                        );
+                      },
+                    );
+                  },
                 );
               },
             );
           },
         );
       },
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: 300,
-      padding: const EdgeInsets.all(40),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF242C35) : Colors.white,
-        borderRadius: BorderRadius.circular(40),
-        border: Border.all(
-          color: isDark ? color.withValues(alpha: 0.25) : color.withValues(alpha: 0.06),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isDark ? Colors.black26 : color.withValues(alpha: 0.08),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.2 : 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 40),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            value,
-            style: GoogleFonts.outfit(
-              fontSize: 56,
-              fontWeight: FontWeight.w900,
-              color: isDark ? Colors.white : AppColors.textPrimary,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label.toUpperCase(),
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              color: isDark ? Colors.white70 : AppColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Section Header ───────────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
-
-  const _SectionHeader({
-    required this.title,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: isDark ? 0.2 : 0.1),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, color: color, size: 22),
-        ),
-        const SizedBox(width: 16),
-        Text(
-          title,
-          style: GoogleFonts.outfit(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : AppColors.textPrimary,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -338,9 +396,9 @@ class QuickActionsGrid extends StatelessWidget {
     final actions = [
       _ActionItem(
         label: 'AI Notebooks',
-        description: 'Create lessons, quizzes & study aids',
+        description: 'Generate lessons, quizzes & study aids with AI',
         icon: Icons.auto_stories_rounded,
-        color: AppColors.primary,
+        color: const Color(0xFF81B655),
         onTap: () {
           if (onNamedNavigation != null) {
             onNamedNavigation!('AI Notebooks');
@@ -351,9 +409,9 @@ class QuickActionsGrid extends StatelessWidget {
       ),
       _ActionItem(
         label: 'My Lessons',
-        description: 'View published curriculum lessons',
+        description: 'Manage curriculum modules and publish content',
         icon: Icons.library_books_rounded,
-        color: const Color(0xFF4A90E2),
+        color: const Color(0xFF3B82F6),
         onTap: () {
           if (onNamedNavigation != null) {
             onNamedNavigation!('Lessons');
@@ -364,9 +422,9 @@ class QuickActionsGrid extends StatelessWidget {
       ),
       _ActionItem(
         label: 'Mentorship',
-        description: 'Manage student sessions',
+        description: 'Review and schedule 1-on-1 student sessions',
         icon: Icons.event_rounded,
-        color: const Color(0xFF9B59B6),
+        color: const Color(0xFF8B5CF6),
         onTap: () {
           if (onNamedNavigation != null) {
             onNamedNavigation!('Mentorship');
@@ -377,9 +435,9 @@ class QuickActionsGrid extends StatelessWidget {
       ),
       _ActionItem(
         label: 'Practice & Quizzes',
-        description: 'Interactive student practice',
-        icon: Icons.auto_awesome_rounded,
-        color: const Color(0xFFF5A623),
+        description: 'Interactive quizzes and student evaluation tests',
+        icon: Icons.quiz_rounded,
+        color: const Color(0xFFF59E0B),
         onTap: () {
           if (onNamedNavigation != null) {
             onNamedNavigation!('Practice');
@@ -393,14 +451,14 @@ class QuickActionsGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 600;
+        final cardWidth = isNarrow ? constraints.maxWidth : (constraints.maxWidth - 12) / 2;
+
         return Wrap(
-          spacing: 20,
-          runSpacing: 20,
+          spacing: 12,
+          runSpacing: 12,
           children: actions.map((a) {
             return SizedBox(
-              width: isNarrow
-                  ? double.infinity
-                  : (constraints.maxWidth - 20) / 2,
+              width: cardWidth,
               child: _QuickActionCard(item: a),
             );
           }).toList(),
@@ -433,41 +491,40 @@ class _QuickActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF242C35) : Colors.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(28),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: item.color.withValues(alpha: isDark ? 0.35 : 0.12),
-          width: 1.5,
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
         ),
         boxShadow: [
           BoxShadow(
-            color: isDark ? Colors.black26 : item.color.withValues(alpha: 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(28),
         child: InkWell(
           onTap: item.onTap,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(28),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: item.color.withValues(alpha: isDark ? 0.2 : 0.1),
-                    borderRadius: BorderRadius.circular(18),
+                    color: item.color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(item.icon, color: item.color, size: 30),
+                  child: Icon(item.icon, color: item.color, size: 22),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,26 +532,30 @@ class _QuickActionCard extends StatelessWidget {
                       Text(
                         item.label,
                         style: GoogleFonts.outfit(
-                          fontSize: 18,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : AppColors.textPrimary,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         item.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: isDark ? Colors.white70 : AppColors.textSecondary,
-                          height: 1.4,
+                          fontSize: 12,
+                          color: isDark ? Colors.white60 : Colors.black54,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Icon(Icons.arrow_forward_ios_rounded,
-                    color: item.color.withValues(alpha: 0.4), size: 16),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: isDark ? Colors.white30 : Colors.black26,
+                ),
               ],
             ),
           ),
@@ -504,7 +565,7 @@ class _QuickActionCard extends StatelessWidget {
   }
 }
 
-// ─── Recent Lessons List ──────────────────────────────────────────────────────
+// ─── Recent Lessons List ─────────────────────────────────────────────────────
 
 class _RecentLessonsList extends StatelessWidget {
   final String uid;
@@ -519,9 +580,10 @@ class _RecentLessonsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return StreamBuilder<List<Lesson>>(
       stream: DatabaseService.instance.streamLessons(
-        approvedOnly: true,
         userRole: UserRole.educator,
         userId: uid,
       ),
@@ -529,7 +591,7 @@ class _RecentLessonsList extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
             child: Padding(
-              padding: EdgeInsets.all(48),
+              padding: EdgeInsets.all(32),
               child: CircularProgressIndicator(),
             ),
           );
@@ -537,25 +599,22 @@ class _RecentLessonsList extends StatelessWidget {
 
         final allLessons = snapshot.data ?? [];
 
-        // Filter for approved lessons created by this educator (or fallback to any approved lesson)
-        var approvedLessons = allLessons
-            .where((l) => (l.createdByUid == uid || uid.isEmpty) && l.validationStatus == 'approved')
+        // STRICT FILTER: Only show lessons created by this educator
+        // When an educator account is newly made and has 0 lessons, do NOT fallback to other users' lessons.
+        final myLessons = allLessons
+            .where((l) => l.createdByUid == uid)
             .toList();
 
-        if (approvedLessons.isEmpty) {
-          approvedLessons = allLessons.where((l) => l.validationStatus == 'approved').toList();
-        }
-
-        approvedLessons.sort((a, b) {
+        myLessons.sort((a, b) {
           final tA = a.createdAt?.millisecondsSinceEpoch ?? 0;
           final tB = b.createdAt?.millisecondsSinceEpoch ?? 0;
           return tB.compareTo(tA);
         });
 
-        final recentLessons = approvedLessons.take(5).toList();
+        final recentLessons = myLessons.take(5).toList();
 
         if (recentLessons.isEmpty) {
-          return _buildEmptyLessons(context);
+          return _buildEmptyLessons(context, isDark);
         }
 
         return Column(
@@ -576,44 +635,47 @@ class _RecentLessonsList extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyLessons(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildEmptyLessons(BuildContext context, bool isDark) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF242C35) : Colors.white.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(32),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? const Color(0xFF334155) : Colors.white,
-          width: 2,
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
         ),
       ),
       child: Column(
         children: [
-          Icon(Icons.menu_book_rounded,
-              size: 56, color: AppColors.primary.withValues(alpha: isDark ? 0.35 : 0.2)),
-          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF81B655).withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.menu_book_rounded, size: 32, color: Color(0xFF81B655)),
+          ),
+          const SizedBox(height: 14),
           Text(
-            'No approved lessons yet',
+            'No lessons published yet',
             style: GoogleFonts.outfit(
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : AppColors.textSecondary,
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
-            'Start sharing your knowledge — create your first lesson!',
+            'Start sharing your knowledge — create your first lesson with AI Notebooks.',
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
-              color: isDark ? Colors.white70 : AppColors.textSecondary,
-              fontSize: 15,
-              height: 1.5,
+              color: isDark ? Colors.white60 : Colors.black54,
+              fontSize: 13,
             ),
           ),
-          const SizedBox(height: 28),
-          ElevatedButton.icon(
+          const SizedBox(height: 20),
+          FilledButton.icon(
             onPressed: () {
               if (onNamedNavigation != null) {
                 onNamedNavigation!('AI Notebooks');
@@ -621,13 +683,13 @@ class _RecentLessonsList extends StatelessWidget {
                 onTabChange?.call(4);
               }
             },
-            icon: const Icon(Icons.add_rounded),
+            icon: const Icon(Icons.add_rounded, size: 18),
             label: const Text('Create First Lesson'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF81B655),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
           ),
         ],
@@ -651,6 +713,8 @@ class _MyQuizzesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return StreamBuilder<List<Quiz>>(
       stream: DatabaseService.instance.streamQuizzes(
         userRole: UserRole.educator,
@@ -668,51 +732,54 @@ class _MyQuizzesSection extends StatelessWidget {
         }
 
         final quizzes = snapshot.data ?? [];
-        var myQuizzes = quizzes
-            .where((q) => (q.createdByUid == uid || uid.isEmpty) && !q.isAssessment)
+
+        // STRICT FILTER: Only show quizzes created by this educator
+        // When newly made, show empty state instead of other educators' quizzes.
+        final myQuizzes = quizzes
+            .where((q) => q.createdByUid == uid && !q.isAssessment)
             .toList();
 
         if (myQuizzes.isEmpty) {
-          myQuizzes = quizzes.where((q) => !q.isAssessment).toList();
-        }
-
-        if (myQuizzes.isEmpty) {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
           return Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF242C35) : Colors.white.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(32),
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isDark ? const Color(0xFF334155) : Colors.white,
-                width: 2,
+                color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
               ),
             ),
             child: Column(
               children: [
-                Icon(Icons.quiz_rounded,
-                    size: 56, color: const Color(0xFFF5A623).withValues(alpha: isDark ? 0.4 : 0.3)),
-                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5A623).withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.quiz_rounded, size: 32, color: Color(0xFFF5A623)),
+                ),
+                const SizedBox(height: 14),
                 Text(
-                  'No Quizzes Found',
+                  'No quizzes created yet',
                   style: GoogleFonts.outfit(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : AppColors.textSecondary,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
-                  'Create interactive quizzes to test student comprehension.',
+                  'Generate interactive quizzes from your lessons and evaluate your learners.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
-                    color: isDark ? Colors.white70 : AppColors.textSecondary,
-                    fontSize: 14,
+                    color: isDark ? Colors.white60 : Colors.black54,
+                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 24),
-                ElevatedButton.icon(
+                const SizedBox(height: 20),
+                FilledButton.icon(
                   onPressed: () {
                     if (onNamedNavigation != null) {
                       onNamedNavigation!('AI Notebooks');
@@ -720,13 +787,13 @@ class _MyQuizzesSection extends StatelessWidget {
                       onTabChange?.call(4);
                     }
                   },
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Create Quiz'),
-                  style: ElevatedButton.styleFrom(
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Create New Quiz'),
+                  style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFFF5A623),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
                 ),
               ],
@@ -734,106 +801,119 @@ class _MyQuizzesSection extends StatelessWidget {
           );
         }
 
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        return Wrap(
-          spacing: 20,
-          runSpacing: 20,
-          children: myQuizzes.take(6).map((quiz) {
-            return SizedBox(
-              width: 320,
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF242C35) : Colors.white.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: const Color(0xFFF5A623).withValues(alpha: isDark ? 0.35 : 0.2),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5A623).withValues(alpha: isDark ? 0.2 : 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.quiz_rounded,
-                              color: Color(0xFFF5A623), size: 22),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            quiz.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      quiz.description.isNotEmpty
-                          ? quiz.description
-                          : 'Interactive practice quiz.',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: isDark ? Colors.white70 : AppColors.textSecondary,
-                        height: 1.4,
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 600;
+            final cardWidth = isNarrow ? constraints.maxWidth : (constraints.maxWidth - 12) / 2;
+
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: myQuizzes.take(6).map((quiz) {
+                return SizedBox(
+                  width: cardWidth,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${quiz.questions.length} Questions',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            if (onNamedNavigation != null) {
-                              onNamedNavigation!('Practice');
-                            } else {
-                              onTabChange?.call(3);
-                            }
-                          },
-                          child: const Text('Practice'),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF5A623).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.quiz_rounded, color: Color(0xFFF5A623), size: 18),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                quiz.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          quiz.description.isNotEmpty ? quiz.description : 'Interactive practice quiz.',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            color: isDark ? Colors.white60 : Colors.black54,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '${quiz.questions.length} Questions',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF81B655),
+                                ),
+                              ),
+                            ),
+                            // VIEW QUIZ: Let educator inspect their quiz questions and answers
+                            FilledButton.tonalIcon(
+                              onPressed: () {
+                                NavigationService.instance.goToQuiz(context, quiz, previewMode: true);
+                              },
+                              icon: const Icon(Icons.visibility_outlined, size: 14),
+                              label: const Text('View Quiz', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFF81B655).withValues(alpha: 0.15),
+                                foregroundColor: const Color(0xFF81B655),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
             );
-          }).toList(),
+          },
         );
       },
     );
   }
 }
-
 
 class _LessonRow extends StatelessWidget {
   final Lesson lesson;
@@ -844,13 +924,13 @@ class _LessonRow extends StatelessWidget {
   Color get _statusColor {
     switch (lesson.validationStatus) {
       case 'approved':
-        return AppColors.primary;
+        return const Color(0xFF10B981);
       case 'awaiting_approval':
         return const Color(0xFFF5A623);
       case 'rejected':
-        return const Color(0xFFD32F2F);
+        return const Color(0xFFEF4444);
       default:
-        return AppColors.textSecondary;
+        return Colors.grey;
     }
   }
 
@@ -861,7 +941,7 @@ class _LessonRow extends StatelessWidget {
       case 'awaiting_approval':
         return 'Pending Review';
       case 'rejected':
-        return 'Rejected';
+        return 'Needs Revision';
       default:
         return 'Draft';
     }
@@ -883,20 +963,20 @@ class _LessonRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF242C35) : Colors.white.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(24),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? const Color(0xFF334155) : Colors.white,
-          width: 1.5,
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
         ),
         boxShadow: [
           BoxShadow(
-            color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.03),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -904,24 +984,20 @@ class _LessonRow extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                // Icon
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1),
-                    borderRadius: BorderRadius.circular(16),
+                    color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.description_rounded,
-                      color: AppColors.primary, size: 28),
+                  child: const Icon(Icons.description_rounded, color: Color(0xFF81B655), size: 22),
                 ),
-                const SizedBox(width: 20),
-
-                // Info
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -931,32 +1007,53 @@ class _LessonRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.outfit(
-                          fontSize: 17,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : AppColors.textPrimary,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 3),
                       Row(
                         children: [
-                          Icon(_statusIcon, color: _statusColor, size: 14),
-                          const SizedBox(width: 6),
+                          Icon(_statusIcon, color: _statusColor, size: 13),
+                          const SizedBox(width: 4),
                           Text(
                             _statusLabel,
                             style: GoogleFonts.inter(
-                              fontSize: 13,
+                              fontSize: 12,
                               color: _statusColor,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                          if (lesson.isMembersOnly) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'MEMBERS ONLY',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF8B5CF6),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Icon(Icons.chevron_right_rounded,
-                    color: isDark ? Colors.white38 : AppColors.divider, size: 32),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: isDark ? Colors.white30 : Colors.black26,
+                ),
               ],
             ),
           ),

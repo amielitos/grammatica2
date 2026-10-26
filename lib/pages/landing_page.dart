@@ -21,12 +21,8 @@ class _LandingPageState extends State<LandingPage>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  // Background image slideshow (defaults to built-in assets, updated from admin site settings)
-  List<String> _bgImages = [
-    'assets/people4.png',
-    'assets/student_teacher_bg2.png',
-    'assets/student_teacher_bg3.png',
-  ];
+  // Background slideshow (configured from admin site settings, or clean geometric default)
+  List<String> _bgImages = [];
   int _currentBgIndex = 0;
   Timer? _bgTimer;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _landingSettingsSub;
@@ -88,16 +84,10 @@ class _LandingPageState extends State<LandingPage>
           }
         }
       }
-      // Fallback to built-in images if no admin images configured
+      // Fallback if no custom admin images configured
       setState(() {
-        _bgImages = [
-          'assets/people4.png',
-          'assets/student_teacher_bg2.png',
-          'assets/student_teacher_bg3.png',
-        ];
-        if (_currentBgIndex >= _bgImages.length) {
-          _currentBgIndex = 0;
-        }
+        _bgImages = [];
+        _currentBgIndex = 0;
       });
     }, onError: (err) {
       debugPrint('Error listening to landing settings: $err');
@@ -359,10 +349,38 @@ class _LandingPageState extends State<LandingPage>
       return Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF0F2618), Color(0xFF0B1120)],
+            colors: [Color(0xFF0B1910), Color(0xFF0F1E28), Color(0xFF090E17)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -60,
+              top: -60,
+              child: Container(
+                width: 480,
+                height: 480,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF81B655).withValues(alpha: 0.10),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 180,
+              bottom: -40,
+              child: Container(
+                width: 320,
+                height: 320,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF4A90D9).withValues(alpha: 0.08),
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -382,7 +400,7 @@ class _LandingPageState extends State<LandingPage>
         errorBuilder: (context, error, stackTrace) => Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0F2618), Color(0xFF0B1120)],
+              colors: [Color(0xFF0B1910), Color(0xFF090E17)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -391,20 +409,12 @@ class _LandingPageState extends State<LandingPage>
       );
     }
 
-    return Image.asset(
-      imagePath,
-      key: ValueKey<String>('hero_bg_asset_$safeIndex'),
-      fit: BoxFit.cover,
-      alignment: const Alignment(0, 0.35),
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (context, error, stackTrace) => Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0F2618), Color(0xFF0B1120)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0B1910), Color(0xFF0F1E28), Color(0xFF090E17)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
       ),
     );

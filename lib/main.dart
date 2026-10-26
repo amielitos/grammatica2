@@ -68,6 +68,7 @@ class GrammaticaApp extends StatelessWidget {
       valueListenable: themeNotifier,
       builder: (context, currentMode, _) {
         return MaterialApp(
+          navigatorKey: AuthService.navigatorKey,
           scaffoldMessengerKey: AuthService.messengerKey,
           title: 'Grammatica',
           debugShowCheckedModeBanner: false,

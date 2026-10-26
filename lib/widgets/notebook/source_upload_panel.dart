@@ -415,6 +415,17 @@ class _SourceUploadPanelState extends State<SourceUploadPanel> {
 
     if (result != null && result.files.single.bytes != null) {
       final file = result.files.single;
+
+      // Check if a source with the same PDF name already exists
+      final isDuplicate = await NotebookService.instance.hasSourceWithTitle(
+        widget.notebookId,
+        file.name,
+      );
+      if (isDuplicate) {
+        _showErrorSnackBar('A PDF named "${file.name}" has already been added to this notebook.');
+        return;
+      }
+
       setState(() {
         _isUploading = true;
         _uploadStatus = 'Extracting text from ${file.name}...';

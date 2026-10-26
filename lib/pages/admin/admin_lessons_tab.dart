@@ -13,7 +13,6 @@ import '../../services/auth_service.dart';
 import '../../services/role_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/interactive_markdown.dart';
-import '../../widgets/user_visibility_selector.dart';
 import '../../models/content_visibility.dart';
 import '../../models/ai_models.dart';
 
@@ -1339,8 +1338,6 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Widget _buildVisibilitySettings(UserRole? userRole, bool isDark) {
-    final isEducator = userRole == UserRole.educator;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1370,8 +1367,8 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               },
             ),
             ChoiceChip(
-              label: Text('Standard', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-              avatar: const Icon(Icons.people_alt_rounded, size: 18),
+              label: Text('Members Only (Standard & Premium)', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              avatar: const Icon(Icons.lock_outline_rounded, size: 18),
               selected: _visibility == ContentVisibility.membersOnly,
               selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
               backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
@@ -1388,35 +1385,8 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                 }
               },
             ),
-            ChoiceChip(
-              label: Text('Premium', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-              avatar: const Icon(Icons.star_rounded, size: 18),
-              selected: _visibility == ContentVisibility.certainUsers,
-              selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
-              backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
-              checkmarkColor: const Color(0xFF88B342),
-              labelStyle: TextStyle(color: _visibility == ContentVisibility.certainUsers ? const Color(0xFF88B342) : (isDark ? Colors.white : Colors.black87)),
-              side: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
-              onSelected: (val) {
-                if (val) {
-                  setState(() {
-                    _visibility = ContentVisibility.certainUsers;
-                    _isVisible = false;
-                    _isMembersOnly = false;
-                  });
-                }
-              },
-            ),
           ],
         ),
-        if (_visibility == ContentVisibility.certainUsers) ...[
-          const SizedBox(height: 20),
-          UserVisibilitySelector(
-            selectedUserIds: _visibleTo,
-            educatorUid: isEducator ? AuthService.instance.currentUser?.uid : null,
-            onChanged: (users) => setState(() => _visibleTo = users),
-          ),
-        ],
       ],
     );
   }

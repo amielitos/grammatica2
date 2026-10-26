@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_colors.dart';
 import 'notification_widgets.dart';
 import '../pages/settings_page.dart';
+import '../pages/home_page.dart';
+import '../pages/admin_dashboard.dart';
 import '../services/auth_service.dart';
 import 'universal_drawer.dart';
 
@@ -26,20 +29,34 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String fullName = userData?['username'] ??
-        userData?['full_name'] ??
-        user.displayName ??
-        ((user.email != null && user.email!.contains('@'))
-            ? user.email!.split('@')[0]
-            : 'User');
-    final String profileImageUrl = userData?['photoUrl'] ?? userData?['profile_image_url'] ?? user.photoURL ?? '';
     final screenWidth = MediaQuery.of(context).size.width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    // Only open drawer if we are not on a wide screen that already shows the sidebar
-    
-    return AppBar(
-      backgroundColor: isDark ? const Color(0xFF333333) : Colors.white,
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      builder: (context, snapshot) {
+        final liveData = snapshot.data?.data() ?? userData ?? {};
+        final firstName = (liveData['first_name'] as String?)?.trim() ?? '';
+        final middleName = (liveData['middle_name'] as String?)?.trim() ?? '';
+        final lastName = (liveData['last_name'] as String?)?.trim() ?? '';
+        final computedName = [firstName, middleName, lastName].where((s) => s.isNotEmpty).join(' ');
+        final String fullName = computedName.isNotEmpty
+            ? computedName
+            : ((liveData['full_name'] as String?)?.trim().isNotEmpty == true)
+                ? (liveData['full_name'] as String).trim()
+                : ((liveData['name'] as String?)?.trim().isNotEmpty == true)
+                    ? (liveData['name'] as String).trim()
+                    : (user.displayName != null && user.displayName!.trim().isNotEmpty)
+                        ? user.displayName!.trim()
+                        : ((liveData['username'] as String?)?.trim().isNotEmpty == true)
+                            ? (liveData['username'] as String).trim()
+                            : ((user.email != null && user.email!.contains('@'))
+                                ? user.email!.split('@')[0]
+                                : 'User');
+        final String profileImageUrl = liveData['photoUrl'] ?? liveData['profile_image_url'] ?? user.photoURL ?? '';
+
+        return AppBar(
+          backgroundColor: isDark ? const Color(0xFF333333) : Colors.white,
       elevation: 0,
       centerTitle: true,
       automaticallyImplyLeading: false,
@@ -80,11 +97,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       hoverColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
                       mouseCursor: SystemMouseCursors.click,
                       onTap: () {
+                        AdminDashboard.resetToDashboard();
+                        HomePage.resetToDashboard();
                         if (onLogoTap != null) {
                           onLogoTap!();
-                        } else {
-                          Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
                         }
+                        Navigator.of(context).popUntil((route) => route.isFirst);
                       },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -120,7 +138,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                               ),
                             );
                           } else if (value == 'logout') {
-                            AuthService.instance.signOut();
+                            AuthService.instance.confirmAndSignOut(context);
                           }
                         },
                         itemBuilder: (context) => [
@@ -165,13 +183,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (screenWidth > 800)
-                              Text(
-                                fullName,
-                                style: TextStyle(
-                                  color: isDark ? Colors.white : Colors.black87,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                            if (screenWidth > 600)
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 200),
+                                child: Text(
+                                  fullName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white : Colors.black87,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
                             const SizedBox(width: 12),
@@ -195,9 +218,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

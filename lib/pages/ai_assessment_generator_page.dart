@@ -51,14 +51,37 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (_isLoading) {
-      return _buildLoadingView(isDark);
+    Widget body;
+    if (_selectedMode == null) {
+      body = _buildSelectionView(isDark);
+    } else {
+      body = _buildDifficultySelectionView(isDark);
     }
 
-    if (_selectedMode == null) {
-      return _buildSelectionView(isDark);
-    }
-    return _buildDifficultySelectionView(isDark);
+    return PopScope(
+      canPop: !_isLoading,
+      child: Stack(
+        children: [
+          body,
+          if (_isLoading)
+            Positioned.fill(
+              child: AbsorbPointer(
+                absorbing: true,
+                child: Container(
+                  color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.9),
+                  child: GenerationLoadingOverlay(
+                    title: _selectedMode == 'ielts'
+                        ? 'Generating IELTS Assessment...'
+                        : 'Generating English Assessment...',
+                    subtitle:
+                        'Creating reading passages, comprehension questions, and scoring keys...',
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -78,7 +101,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
             Icons.arrow_back_rounded,
             color: isDark ? Colors.white : AppColors.textPrimary,
           ),
-          onPressed: widget.onBack,
+          onPressed: _isLoading ? null : widget.onBack,
         ),
         title: Text(
           'AI Assessment',
@@ -236,7 +259,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
             Icons.arrow_back_rounded,
             color: isDark ? Colors.white : AppColors.textPrimary,
           ),
-          onPressed: () => setState(() {
+          onPressed: _isLoading ? null : () => setState(() {
             _selectedMode = null;
             _selectedDifficulty = null;
           }),
@@ -356,23 +379,6 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Loading View
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildLoadingView(bool isDark) {
-    return Scaffold(
-      backgroundColor: isDark
-          ? const Color(0xFF1A1A1A)
-          : const Color(0xFFF8F9FA),
-      body: GenerationLoadingOverlay(
-        title: _selectedMode == 'ielts'
-            ? 'Generating IELTS Assessment...'
-            : 'Generating English Assessment...',
-        subtitle: 'Creating reading passages, comprehension questions, and scoring keys...',
-      ),
-    );
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Error card

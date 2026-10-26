@@ -24,6 +24,7 @@ class NotificationModel {
   final String? rejectionReason;
   final String? rejectionDescription;
   final String? educatorId;
+  final String? lessonId;
 
   NotificationModel({
     required this.id,
@@ -37,6 +38,7 @@ class NotificationModel {
     this.rejectionReason,
     this.rejectionDescription,
     this.educatorId,
+    this.lessonId,
   });
 
   factory NotificationModel.fromDoc(
@@ -55,6 +57,7 @@ class NotificationModel {
       rejectionReason: data['rejectionReason'],
       rejectionDescription: data['rejectionDescription'],
       educatorId: data['educatorId'],
+      lessonId: data['lessonId'],
     );
   }
 
@@ -70,6 +73,7 @@ class NotificationModel {
       'rejectionReason': rejectionReason,
       'rejectionDescription': rejectionDescription,
       'educatorId': educatorId,
+      'lessonId': lessonId,
     };
   }
 
@@ -96,7 +100,7 @@ class NotificationModel {
     }
   }
 
-  NotificationModel copyWith({bool? isRead, bool? isArchived}) {
+  NotificationModel copyWith({bool? isRead, bool? isArchived, String? lessonId}) {
     return NotificationModel(
       id: id,
       uid: uid,
@@ -109,6 +113,7 @@ class NotificationModel {
       rejectionReason: rejectionReason,
       rejectionDescription: rejectionDescription,
       educatorId: educatorId,
+      lessonId: lessonId ?? this.lessonId,
     );
   }
 }

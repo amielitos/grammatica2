@@ -41,7 +41,7 @@ class NotebookDetailPage extends StatefulWidget {
 
 class _NotebookDetailPageState extends State<NotebookDetailPage> {
   NotebookSource? _selectedSource;
-  NotebookOutputType _selectedOutputType = NotebookOutputType.flashcards;
+  NotebookOutputType _selectedOutputType = NotebookOutputType.lesson;
 
   bool _isGenerating = false;
   String _generationMessage = '';

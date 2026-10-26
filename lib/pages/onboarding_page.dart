@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/design_ornaments.dart';
-import '../widgets/terms_and_conditions_dialog.dart';
 import '../services/auth_service.dart';
 
 class OnboardingPage extends StatefulWidget {
@@ -17,7 +16,6 @@ class OnboardingPage extends StatefulWidget {
 class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  bool _agreedToTerms = false;
   bool _isCompleting = false;
 
   @override
@@ -65,7 +63,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     ],
                   ),
                   child: const Center(
-                    child: Icon(Icons.check_circle_rounded, color: Colors.white, size: 52),
+                    child: Icon(Icons.stars_rounded, color: Colors.white, size: 52),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -81,7 +79,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "We've sent a temporary password to your email. You can use it to login directly next time!",
+                  "We've sent your account details to your email. You can use your credentials to login anytime!",
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     color: isDark ? Colors.white70 : const Color(0xFF64748B),
@@ -93,22 +91,19 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 SizedBox(
                   width: double.infinity,
                   height: 52,
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF81B655),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: Text(
-                        "Let's Explore!",
-                        style: GoogleFonts.outfit(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF81B655),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: Text(
+                      "Let's Explore! 🚀",
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
@@ -123,39 +118,49 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   final List<OnboardingStep> _steps = [
     OnboardingStep(
-      pill: 'WELCOME',
-      title: 'Welcome to Grammatica',
-      description: 'Your journey to mastering the English language starts here. Let\'s get you settled into your new learning sanctuary.',
-      icon: Icons.auto_awesome_rounded,
-      accentColor: const Color(0xFF81B655),
-    ),
-    OnboardingStep(
-      pill: 'LESSONS',
-      title: 'Interactive Lessons',
-      description: 'Explore bite-sized, engaging lessons designed by experts to make grammar intuitive, structured, and fun.',
-      icon: Icons.menu_book_rounded,
-      accentColor: const Color(0xFF3B82F6),
-    ),
-    OnboardingStep(
-      pill: 'CHALLENGES',
-      title: 'Real-time Challenges',
-      description: 'Test your skills with interactive quizzes, spelling bee tests, and track your achievements as you level up.',
-      icon: Icons.psychology_rounded,
-      accentColor: const Color(0xFFF59E0B),
-    ),
-    OnboardingStep(
-      pill: 'COMMUNITY',
-      title: 'Expert Community',
-      description: 'Connect with verified educators and fellow learners in a supportive, growth-oriented environment.',
-      icon: Icons.groups_rounded,
-      accentColor: const Color(0xFF8B5CF6),
-    ),
-    OnboardingStep(
-      pill: 'GET STARTED',
-      title: 'Ready to Begin?',
-      description: 'Dive into your first lesson and unlock your full linguistic potential with verified feedback.',
+      emoji: '🚀',
+      pill: 'START ADVENTURE',
+      title: 'Level Up Your English!',
+      description: 'Step into a modern, gamified world crafted to help you write, speak, and express yourself with crystal clarity.',
       icon: Icons.rocket_launch_rounded,
+      accentColor: const Color(0xFF81B655),
+      highlightCard: '✨ Gamified & interactive learning paths',
+    ),
+    OnboardingStep(
+      emoji: '📚',
+      pill: 'INTERACTIVE LESSONS',
+      title: 'Bite-Sized Lessons & AI',
+      description: 'Master complex grammar, punctuation, and idioms with interactive visual decks and intelligent AI learning assistants.',
+      icon: Icons.auto_stories_rounded,
+      accentColor: const Color(0xFF3B82F6),
+      highlightCard: '⚡ Flashcards, mind maps & companion guides',
+    ),
+    OnboardingStep(
+      emoji: '🐝',
+      pill: 'PRACTICE ARENA',
+      title: 'Spelling Bee & Speech Quizzes',
+      description: 'Sharpen your ear and voice! Test real-time speech pronunciation and compete in the interactive Spelling Bee challenge.',
+      icon: Icons.military_tech_rounded,
+      accentColor: const Color(0xFFF59E0B),
+      highlightCard: '🎤 Speech recognition & instant scoring',
+    ),
+    OnboardingStep(
+      emoji: '🎓',
+      pill: 'VERIFIED EDUCATORS',
+      title: 'Learn from Top Teachers',
+      description: 'Subscribe to certified educators, book 1-on-1 mentorship sessions, and access premium curated study materials.',
+      icon: Icons.school_rounded,
+      accentColor: const Color(0xFF8B5CF6),
+      highlightCard: '👥 Community hubs & personalized mentoring',
+    ),
+    OnboardingStep(
+      emoji: '🎉',
+      pill: 'YOU\'RE READY',
+      title: 'Ready to Dominate?',
+      description: 'Your learning sanctuary is all set up. Let\'s embark on this exciting linguistic adventure together!',
+      icon: Icons.celebration_rounded,
       accentColor: const Color(0xFF10B981),
+      highlightCard: '🌟 Jump right into your first module!',
       isLast: true,
     ),
   ];
@@ -180,6 +185,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final size = MediaQuery.of(context).size;
     final isLarge = size.width >= 768;
+    final currentStep = _steps[_currentPage];
 
     return Scaffold(
       body: BackgroundWrapper(
@@ -198,12 +204,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     borderRadius: BorderRadius.circular(32),
                     border: Border.all(
                       color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                        blurRadius: 30,
-                        offset: const Offset(0, 12),
+                        color: currentStep.accentColor.withValues(alpha: isDark ? 0.25 : 0.12),
+                        blurRadius: 36,
+                        offset: const Offset(0, 14),
                       ),
                     ],
                   ),
@@ -232,27 +239,24 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                 Text(
                                   'Grammatica',
                                   style: GoogleFonts.outfit(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w900,
                                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   ),
                                 ),
                               ],
                             ),
-                            MouseRegion(
-                              cursor: SystemMouseCursors.click,
-                              child: TextButton(
-                                onPressed: _completeOnboarding,
-                                style: TextButton.styleFrom(
-                                  foregroundColor: isDark ? Colors.white60 : const Color(0xFF64748B),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                ),
-                                child: Text(
-                                  'Skip',
-                                  style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                  ),
+                            TextButton(
+                              onPressed: _completeOnboarding,
+                              style: TextButton.styleFrom(
+                                foregroundColor: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              ),
+                              child: Text(
+                                'Skip',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
                                 ),
                               ),
                             ),
@@ -264,7 +268,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
                       // Carousel Body
                       SizedBox(
-                        height: 400,
+                        height: 430,
                         child: PageView.builder(
                           controller: _pageController,
                           onPageChanged: (index) {
@@ -274,80 +278,83 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           itemBuilder: (context, index) {
                             final step = _steps[index];
                             return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 20),
+                              padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  // Step Category Badge
+                                  // Fun Step Category Badge
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                                     decoration: BoxDecoration(
                                       color: step.accentColor.withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(100),
                                       border: Border.all(
-                                        color: step.accentColor.withValues(alpha: 0.25),
+                                        color: step.accentColor.withValues(alpha: 0.3),
                                       ),
                                     ),
-                                    child: Text(
-                                      'STEP ${index + 1} OF ${_steps.length} • ${step.pill}',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                        color: step.accentColor,
-                                        letterSpacing: 0.8,
-                                      ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(step.emoji, style: const TextStyle(fontSize: 14)),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'STEP ${index + 1} OF ${_steps.length} • ${step.pill}',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: step.accentColor,
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(height: 24),
+                                  const SizedBox(height: 20),
 
-                                  // Glowing Themed Icon
+                                  // Glowing Themed Icon with pulsating ring effect
                                   Container(
-                                    width: 100,
-                                    height: 100,
+                                    width: 104,
+                                    height: 104,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       gradient: LinearGradient(
                                         colors: [
-                                          step.accentColor.withValues(alpha: 0.2),
-                                          step.accentColor.withValues(alpha: 0.05),
+                                          step.accentColor,
+                                          step.accentColor.withValues(alpha: 0.7),
                                         ],
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                       ),
-                                      border: Border.all(
-                                        color: step.accentColor.withValues(alpha: 0.3),
-                                        width: 2,
-                                      ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: step.accentColor.withValues(alpha: 0.15),
-                                          blurRadius: 20,
-                                          offset: const Offset(0, 6),
+                                          color: step.accentColor.withValues(alpha: 0.4),
+                                          blurRadius: 28,
+                                          offset: const Offset(0, 10),
                                         ),
                                       ],
                                     ),
                                     child: Center(
                                       child: Icon(
                                         step.icon,
-                                        size: 46,
-                                        color: step.accentColor,
+                                        size: 50,
+                                        color: Colors.white,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 28),
+                                  const SizedBox(height: 24),
 
                                   // Title
                                   Text(
                                     step.title,
                                     textAlign: TextAlign.center,
                                     style: GoogleFonts.outfit(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w800,
+                                      fontSize: 25,
+                                      fontWeight: FontWeight.w900,
                                       color: isDark ? Colors.white : const Color(0xFF0F172A),
                                       letterSpacing: -0.5,
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 10),
 
                                   // Description
                                   Text(
@@ -356,85 +363,27 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                     style: GoogleFonts.inter(
                                       fontSize: 14,
                                       color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                                      height: 1.55,
+                                      height: 1.5,
                                     ),
                                   ),
+                                  const SizedBox(height: 16),
 
-                                  // Terms and conditions on last step
-                                  if (step.isLast) ...[
-                                    const SizedBox(height: 18),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.6) : const Color(0xFFF8FAFC),
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(
-                                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          MouseRegion(
-                                            cursor: SystemMouseCursors.click,
-                                            child: Checkbox(
-                                              value: _agreedToTerms,
-                                              activeColor: const Color(0xFF81B655),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                              onChanged: (val) async {
-                                                if (val == true) {
-                                                  final accepted = await showDialog<bool>(
-                                                    context: context,
-                                                    builder: (context) => const TermsAndConditionsDialog(),
-                                                  );
-                                                  if (accepted == true) {
-                                                    setState(() => _agreedToTerms = true);
-                                                  }
-                                                } else {
-                                                  setState(() => _agreedToTerms = false);
-                                                }
-                                              },
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: MouseRegion(
-                                              cursor: SystemMouseCursors.click,
-                                              child: GestureDetector(
-                                                onTap: () async {
-                                                  if (!_agreedToTerms) {
-                                                    final accepted = await showDialog<bool>(
-                                                      context: context,
-                                                      builder: (context) => const TermsAndConditionsDialog(),
-                                                    );
-                                                    if (accepted == true) {
-                                                      setState(() => _agreedToTerms = true);
-                                                    }
-                                                  } else {
-                                                    setState(() => _agreedToTerms = false);
-                                                  }
-                                                },
-                                                child: Text.rich(
-                                                  TextSpan(
-                                                    text: 'I agree to the ',
-                                                    style: GoogleFonts.inter(fontSize: 12.5, color: isDark ? Colors.white70 : const Color(0xFF64748B)),
-                                                    children: const [
-                                                      TextSpan(
-                                                        text: 'Terms & Conditions',
-                                                        style: TextStyle(
-                                                          fontWeight: FontWeight.bold,
-                                                          color: Color(0xFF81B655),
-                                                          decoration: TextDecoration.underline,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                                  // Highlight Feature Pill
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: step.accentColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      step.highlightCard,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: step.accentColor,
                                       ),
                                     ),
-                                  ],
+                                  ),
                                 ],
                               ),
                             );
@@ -471,64 +420,63 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
                             // Next / Finish Button
                             if (_steps[_currentPage].isLast)
-                              MouseRegion(
-                                cursor: _agreedToTerms ? SystemMouseCursors.click : SystemMouseCursors.basic,
-                                child: ElevatedButton(
-                                  onPressed: _agreedToTerms ? _completeOnboarding : null,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF81B655),
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                  child: _isCompleting
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                        )
-                                      : Text(
-                                          'GET STARTED',
-                                          style: GoogleFonts.outfit(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
+                              FilledButton(
+                                onPressed: _isCompleting ? null : _completeOnboarding,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                 ),
+                                child: _isCompleting
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            "LET'S GO! 🚀",
+                                            style: GoogleFonts.outfit(
+                                              fontWeight: FontWeight.w900,
+                                              fontSize: 14,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                               )
                             else
-                              MouseRegion(
-                                cursor: SystemMouseCursors.click,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    _pageController.nextPage(
-                                      duration: const Duration(milliseconds: 400),
-                                      curve: Curves.fastOutSlowIn,
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: _steps[_currentPage].accentColor,
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Next',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                              FilledButton(
+                                onPressed: () {
+                                  _pageController.nextPage(
+                                    duration: const Duration(milliseconds: 400),
+                                    curve: Curves.fastOutSlowIn,
+                                  );
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: _steps[_currentPage].accentColor,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Next',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                      const SizedBox(width: 6),
-                                      const Icon(Icons.arrow_forward_rounded, size: 16),
-                                    ],
-                                  ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.arrow_forward_rounded, size: 16),
+                                  ],
                                 ),
                               ),
                           ],
@@ -547,19 +495,23 @@ class _OnboardingPageState extends State<OnboardingPage> {
 }
 
 class OnboardingStep {
+  final String emoji;
   final String pill;
   final String title;
   final String description;
   final IconData icon;
   final Color accentColor;
+  final String highlightCard;
   final bool isLast;
 
   OnboardingStep({
+    required this.emoji,
     required this.pill,
     required this.title,
     required this.description,
     required this.icon,
     required this.accentColor,
+    required this.highlightCard,
     this.isLast = false,
   });
 }

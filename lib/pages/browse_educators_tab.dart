@@ -57,8 +57,8 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
             if (query.isEmpty) return true;
             final username = (e['username'] as String? ?? '').toLowerCase();
             final displayName = (e['displayName'] as String? ?? '').toLowerCase();
-            final firstName = (e['firstName'] as String? ?? '').toLowerCase();
-            final lastName = (e['lastName'] as String? ?? '').toLowerCase();
+            final firstName = ((e['first_name'] ?? e['firstName']) as String? ?? '').toLowerCase();
+            final lastName = ((e['last_name'] ?? e['lastName']) as String? ?? '').toLowerCase();
             final fullName = '$firstName $lastName'.trim();
             final email = (e['email'] as String? ?? '').toLowerCase();
             final bio = (e['bio'] as String? ?? '').toLowerCase();
@@ -310,7 +310,12 @@ class _EducatorCardState extends State<_EducatorCard>
   @override
   Widget build(BuildContext context) {
     final photoUrl = widget.educator['photoUrl'] as String?;
-    final name = widget.educator['username'] as String? ?? 'Educator';
+    final firstName = ((widget.educator['first_name'] ?? widget.educator['firstName']) as String?)?.trim() ?? '';
+    final lastName = ((widget.educator['last_name'] ?? widget.educator['lastName']) as String?)?.trim() ?? '';
+    final fullName = '$firstName $lastName'.trim();
+    final name = fullName.isNotEmpty
+        ? fullName
+        : ((widget.educator['full_name'] ?? widget.educator['displayName'] ?? widget.educator['username']) as String? ?? 'Educator');
     String bio = widget.educator['bio'] as String? ?? '';
     if (bio.trim().isEmpty) bio = 'Educator & Content Creator';
     

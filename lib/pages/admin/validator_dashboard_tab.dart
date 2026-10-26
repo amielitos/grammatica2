@@ -226,67 +226,108 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
         return Container(
           color: bgColor,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
+                constraints: const BoxConstraints(maxWidth: 960),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── Badge ──────────────────────────────────────────────
+                    // ── Hero Header Banner ─────────────────────────────────
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
                       decoration: BoxDecoration(
-                        color: (isUnderReview ? Colors.amber : AppColors.primary).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(100),
+                        gradient: LinearGradient(
+                          colors: isDark
+                              ? [const Color(0xFF1B2838), const Color(0xFF0D1117)]
+                              : [const Color(0xFF6AAF3D), const Color(0xFF4A8A24)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isDark ? Colors.black : const Color(0xFF6AAF3D))
+                                .withValues(alpha: 0.22),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Icon(
-                            isUnderReview ? Icons.hourglass_top_rounded : Icons.verified,
-                            color: isUnderReview ? Colors.amber.shade800 : AppColors.primary,
-                            size: 16,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isUnderReview ? Icons.hourglass_top_rounded : Icons.verified_rounded,
+                                        color: isUnderReview ? Colors.amberAccent : Colors.white,
+                                        size: 13,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        isUnderReview ? 'APPLICATION UNDER REVIEW' : 'VALIDATOR DASHBOARD',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 1.1,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  isUnderReview ? 'Verification in Progress' : 'Validator Hub',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Review and verify educational content to maintain platform quality and standards.',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                    fontSize: 13,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            isUnderReview ? 'APPLICATION UNDER REVIEW' : 'OFFICIAL VALIDATOR PANEL',
-                            style: GoogleFonts.inter(
-                              color: isUnderReview ? Colors.amber.shade800 : AppColors.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.2,
+                          const SizedBox(width: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isUnderReview ? Icons.hourglass_top_rounded : Icons.verified_rounded,
+                              color: Colors.white,
+                              size: 28,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-
-                    // ── Headline ───────────────────────────────────────────
-                    Text(
-                      'Validator Dashboard',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(
-                        fontSize: 48,
-                        fontWeight: FontWeight.w900,
-                        color: textPrimary,
-                        letterSpacing: -1.5,
-                        height: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Review and verify educational content to maintain platform quality.',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        color: textSecondary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 48),
+                    const SizedBox(height: 20),
 
                     if (isUnderReview) ...[
                       // ── Review Notice & PRC Upload Section Inside Dashboard ──
@@ -509,24 +550,22 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
                       // ── Verified Validator View: Stats row + pending lessons ──
                       _StatsGrid(onReviewRequests: widget.onReviewRequests, isDark: isDark),
 
-                      const SizedBox(height: 60),
-                      Divider(color: isDark ? Colors.white12 : Colors.black12),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 24),
 
                       _buildSectionHeader('Pending Lessons', Icons.auto_stories, _kPending, textPrimary),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _buildLessonsList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary, textSecondary: textSecondary),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 24),
 
                       _buildSectionHeader('Pending Validator Applications', Icons.verified_user_rounded, Colors.indigo, textPrimary),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _buildApplicationsList(context, type: 'validator', showRejected: false, cardColor: cardColor, textPrimary: textPrimary),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 24),
 
                       _buildSectionHeader('Pending Educator Applications', Icons.how_to_reg, Colors.teal, textPrimary),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _buildApplicationsList(context, type: 'educator', showRejected: false, cardColor: cardColor, textPrimary: textPrimary),
-                      const SizedBox(height: 80),
+                      const SizedBox(height: 32),
                     ],
                   ],
                 ),
@@ -543,20 +582,21 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          width: 4,
+          height: 20,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(14),
+            color: const Color(0xFF81B655),
+            borderRadius: BorderRadius.circular(2),
           ),
-          child: Icon(icon, color: color, size: 22),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 10),
         Text(
           title,
-          style: GoogleFonts.outfit(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
             color: textColor,
+            letterSpacing: -0.3,
           ),
         ),
       ],
@@ -1061,6 +1101,9 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
 // ─────────────────────────────────────────────
 //  Stats grid — pending counts only
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+//  Stats grid — pending counts only
+// ─────────────────────────────────────────────
 class _StatsGrid extends StatelessWidget {
   final Function(int)? onReviewRequests;
   final bool isDark;
@@ -1077,33 +1120,55 @@ class _StatsGrid extends StatelessWidget {
             return StreamBuilder<List<EducatorApplication>>(
               stream: DatabaseService.instance.streamEducatorApplications(type: 'educator'),
               builder: (ctx, eduSnap) {
-                return Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    _StatCard(
-                      label: 'Pending Lessons & Materials',
-                      value: lessonSnap.data?.length ?? 0,
-                      icon: Icons.auto_stories_rounded,
-                      color: _kPending,
-                      onTap: () => onReviewRequests?.call(0),
-                    ),
-                    _StatCard(
-                      label: 'Pending Validator Applications',
-                      value: valSnap.data?.length ?? 0,
-                      icon: Icons.verified_user_rounded,
-                      color: Colors.indigo,
-                      onTap: () => onReviewRequests?.call(1),
-                    ),
-                    _StatCard(
-                      label: 'Pending Educator Applications',
-                      value: eduSnap.data?.length ?? 0,
-                      icon: Icons.how_to_reg_rounded,
-                      color: Colors.teal,
-                      onTap: () => onReviewRequests?.call(2),
-                    ),
-                  ],
+                final items = [
+                  _StatCard(
+                    label: 'Pending Lessons',
+                    value: lessonSnap.data?.length ?? 0,
+                    icon: Icons.auto_stories_rounded,
+                    color: _kPending,
+                    onTap: () => onReviewRequests?.call(0),
+                  ),
+                  _StatCard(
+                    label: 'Validator Requests',
+                    value: valSnap.data?.length ?? 0,
+                    icon: Icons.verified_user_rounded,
+                    color: Colors.indigo,
+                    onTap: () => onReviewRequests?.call(1),
+                  ),
+                  _StatCard(
+                    label: 'Educator Requests',
+                    value: eduSnap.data?.length ?? 0,
+                    icon: Icons.how_to_reg_rounded,
+                    color: Colors.teal,
+                    onTap: () => onReviewRequests?.call(2),
+                  ),
+                ];
+
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 600;
+                    if (isNarrow) {
+                      return Column(
+                        children: items
+                            .map((w) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: w,
+                                ))
+                            .toList(),
+                      );
+                    }
+
+                    return Row(
+                      children: items
+                          .map((w) => Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                                  child: w,
+                                ),
+                              ))
+                          .toList(),
+                    );
+                  },
                 );
               },
             );
@@ -1114,7 +1179,6 @@ class _StatsGrid extends StatelessWidget {
   }
 }
 
-
 // ─────────────────────────────────────────────
 //  Stat card widget
 // ─────────────────────────────────────────────
@@ -1124,6 +1188,7 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback? onTap;
+
   const _StatCard({
     required this.label,
     required this.value,
@@ -1135,55 +1200,78 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
-    final textPrimary = isDark ? Colors.white : AppColors.textPrimary;
-    final textSecondary = isDark ? Colors.white60 : AppColors.textSecondary;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 200,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-          border: Border.all(color: color.withValues(alpha: 0.08)),
+
+    return Container(
+      height: 85,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
         ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
-              child: Icon(icon, color: color, size: 28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$value',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        label,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white60 : Colors.black54,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 12,
+                  color: isDark ? Colors.white24 : Colors.black26,
+                ),
+              ],
             ),
-            const SizedBox(height: 14),
-            Text(
-              '$value',
-              style: GoogleFonts.outfit(
-                fontSize: 40,
-                fontWeight: FontWeight.w900,
-                color: textPrimary,
-                height: 1,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label.toUpperCase(),
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                color: textSecondary,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.1,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

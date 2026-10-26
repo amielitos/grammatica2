@@ -90,6 +90,7 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
   void _showGenerateAIDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => const _GenerateAIWordsDialog(),
     ).then((_) => setState(() {}));
   }
@@ -812,14 +813,17 @@ class _GenerateAIWordsDialogState extends State<_GenerateAIWordsDialog> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: GenerationLoadingOverlay(
-            title: 'Generating Words...',
-            subtitle: 'Selecting vocabulary for the ${_difficulty.name} level...',
+      return PopScope(
+        canPop: false,
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: GenerationLoadingOverlay(
+              title: 'Generating Words...',
+              subtitle: 'Selecting vocabulary for the ${_difficulty.name} level...',
+            ),
           ),
         ),
       );

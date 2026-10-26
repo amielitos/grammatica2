@@ -8,10 +8,66 @@ class InteractiveMarkdown extends StatelessWidget {
 
   const InteractiveMarkdown({super.key, required this.data});
 
+  static MarkdownStyleSheet _buildStyleSheet(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textTheme = Theme.of(context).textTheme;
+
+    return MarkdownStyleSheet(
+      p: textTheme.bodyLarge?.copyWith(
+        fontSize: 16,
+        height: 1.7,
+        color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+      ),
+      h1: GoogleFonts.outfit(
+        fontSize: 26,
+        fontWeight: FontWeight.bold,
+        color: const Color(0xFF88B342),
+      ),
+      h2: GoogleFonts.outfit(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: isDark ? const Color(0xFFA3E635) : const Color(0xFF6B8E23),
+      ),
+      h3: GoogleFonts.outfit(
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF2E4057),
+      ),
+      strong: GoogleFonts.inter(
+        fontWeight: FontWeight.w800,
+        color: isDark ? Colors.white : const Color(0xFF0F172A),
+      ),
+      em: GoogleFonts.inter(
+        fontStyle: FontStyle.italic,
+        color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2196F3),
+        fontWeight: FontWeight.w500,
+      ),
+      listBullet: GoogleFonts.inter(
+        color: const Color(0xFF88B342),
+        fontWeight: FontWeight.bold,
+      ),
+      tableBody: textTheme.bodyMedium?.copyWith(
+        color: isDark ? const Color(0xFFE2E8F0) : null,
+      ),
+      tableHead: textTheme.titleSmall?.copyWith(
+        fontWeight: FontWeight.bold,
+        color: isDark ? Colors.white : null,
+      ),
+      tableBorder: TableBorder.all(
+        color: isDark ? const Color(0xFF334155) : Theme.of(context).colorScheme.outlineVariant,
+        width: 1,
+      ),
+      tableColumnWidth: const FlexColumnWidth(),
+      tableCellsPadding: const EdgeInsets.all(10.0),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final trimmedData = data.trim();
     if (trimmedData.isEmpty) return const SizedBox.shrink();
+
+    final sheet = _buildStyleSheet(context);
 
     final RegExp headingRegExp = RegExp(r'^>\s+(.+)$', multiLine: true);
     final Iterable<RegExpMatch> matches = headingRegExp.allMatches(trimmedData);
@@ -24,25 +80,7 @@ class InteractiveMarkdown extends StatelessWidget {
           data: trimmedData,
           selectable: true,
           extensionSet: md.ExtensionSet.gitHubFlavored,
-          styleSheet: MarkdownStyleSheet(
-            p: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.7),
-            h1: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: const Color(0xFF88B342)),
-            h2: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF6B8E23)),
-            h3: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF2E4057)),
-            strong: GoogleFonts.inter(fontWeight: FontWeight.w800, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF1A1A1A)),
-            em: GoogleFonts.inter(fontStyle: FontStyle.italic, color: const Color(0xFF2196F3), fontWeight: FontWeight.w500),
-            listBullet: GoogleFonts.inter(color: const Color(0xFF88B342), fontWeight: FontWeight.bold),
-            tableBody: Theme.of(context).textTheme.bodyMedium,
-            tableHead: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-            tableBorder: TableBorder.all(
-              color: Theme.of(context).colorScheme.outlineVariant,
-              width: 1,
-            ),
-            tableColumnWidth: const FlexColumnWidth(),
-            tableCellsPadding: const EdgeInsets.all(8.0),
-          ),
+          styleSheet: sheet,
         ),
       );
     }
@@ -71,25 +109,7 @@ class InteractiveMarkdown extends StatelessWidget {
                 data: preContent,
                 selectable: true,
                 extensionSet: md.ExtensionSet.gitHubFlavored,
-                styleSheet: MarkdownStyleSheet(
-                  p: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.7),
-                  h1: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: const Color(0xFF88B342)),
-                  h2: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF6B8E23)),
-                  h3: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF2E4057)),
-                  strong: GoogleFonts.inter(fontWeight: FontWeight.w800, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF1A1A1A)),
-                  em: GoogleFonts.inter(fontStyle: FontStyle.italic, color: const Color(0xFF2196F3), fontWeight: FontWeight.w500),
-                  listBullet: GoogleFonts.inter(color: const Color(0xFF88B342), fontWeight: FontWeight.bold),
-                  tableBody: Theme.of(context).textTheme.bodyMedium,
-                  tableHead: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                  tableBorder: TableBorder.all(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    width: 1,
-                  ),
-                  tableColumnWidth: const FlexColumnWidth(),
-                  tableCellsPadding: const EdgeInsets.all(8.0),
-                ),
+                styleSheet: sheet,
               ),
             ),
           );
@@ -133,25 +153,7 @@ class InteractiveMarkdown extends StatelessWidget {
               data: postContent,
               selectable: true,
               extensionSet: md.ExtensionSet.gitHubFlavored,
-              styleSheet: MarkdownStyleSheet(
-                p: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.7),
-                h1: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: const Color(0xFF88B342)),
-                h2: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF6B8E23)),
-                h3: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF2E4057)),
-                strong: GoogleFonts.inter(fontWeight: FontWeight.w800, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF1A1A1A)),
-                em: GoogleFonts.inter(fontStyle: FontStyle.italic, color: const Color(0xFF2196F3), fontWeight: FontWeight.w500),
-                listBullet: GoogleFonts.inter(color: const Color(0xFF88B342), fontWeight: FontWeight.bold),
-                tableBody: Theme.of(context).textTheme.bodyMedium,
-                tableHead: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                tableBorder: TableBorder.all(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                  width: 1,
-                ),
-                tableColumnWidth: const FlexColumnWidth(),
-                tableCellsPadding: const EdgeInsets.all(8.0),
-              ),
+              styleSheet: sheet,
             ),
           ),
         );

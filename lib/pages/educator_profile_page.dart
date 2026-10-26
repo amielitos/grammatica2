@@ -56,7 +56,12 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
   @override
   Widget build(BuildContext context) {
     final photoUrl = widget.educator['photoUrl'] as String?;
-    final username = widget.educator['username'] as String? ?? 'Educator';
+    final firstName = ((widget.educator['first_name'] ?? widget.educator['firstName']) as String?)?.trim() ?? '';
+    final lastName = ((widget.educator['last_name'] ?? widget.educator['lastName']) as String?)?.trim() ?? '';
+    final computedFullName = '$firstName $lastName'.trim();
+    final username = computedFullName.isNotEmpty
+        ? computedFullName
+        : ((widget.educator['full_name'] ?? widget.educator['displayName'] ?? widget.educator['username']) as String? ?? 'Educator');
     final bio = widget.educator['bio'] as String? ?? 'Verified Educator & Language Specialist';
     final uid = (widget.educator['uid'] ?? widget.educator['id'] ?? '') as String;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -386,61 +391,69 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                     child: Column(
                       children: [
                         _buildMentorshipBanner(uid, isDark, cardBg, borderColor, textColor, subtitleColor),
-                        StreamBuilder<List<Lesson>>(
-                          stream: DatabaseService.instance.streamEducatorLessons(uid, publicOnly: true),
-                          builder: (context, lessonSnap) {
-                            final lessons = lessonSnap.data ?? [];
-                            final educatorEmail = widget.educator['email'] as String?;
+                        StreamBuilder<bool>(
+                          stream: DatabaseService.instance.isSubscribedStream(uid),
+                          builder: (context, subSnap) {
+                            final isSubscribed = subSnap.data ?? false;
+                            final canViewMembers = isSubscribed || widget.currentUser.uid == uid;
 
-                            return StreamBuilder<List<LessonPlaylist>>(
-                              stream: DatabaseService.instance.streamPlaylistsByCreator(uid, email: educatorEmail),
-                              builder: (context, playlistSnap) {
-                                final playlists = playlistSnap.data ?? [];
+                            return StreamBuilder<List<Lesson>>(
+                              stream: DatabaseService.instance.streamEducatorLessons(uid, publicOnly: !canViewMembers),
+                              builder: (context, lessonSnap) {
+                                final lessons = lessonSnap.data ?? [];
+                                final educatorEmail = widget.educator['email'] as String?;
 
-                                return Column(
-                                  children: [
-                                    // Tab Selector Pills
-                                    _buildTabPillBar(
-                                      isDark: isDark,
-                                      textColor: textColor,
-                                      lessonsCount: lessons.length,
-                                      playlistsCount: playlists.length,
-                                      uid: uid,
-                                    ),
-                                    const SizedBox(height: 24),
+                                return StreamBuilder<List<LessonPlaylist>>(
+                                  stream: DatabaseService.instance.streamPlaylistsByCreator(uid, email: educatorEmail),
+                                  builder: (context, playlistSnap) {
+                                    final playlists = playlistSnap.data ?? [];
 
-                                    // Tab Views
-                                    if (_selectedTab == 0)
-                                      _buildLessonsTab(
-                                        lessons,
-                                        lessonSnap.connectionState == ConnectionState.waiting,
-                                        isDark,
-                                        cardBg,
-                                        borderColor,
-                                        textColor,
-                                        subtitleColor,
-                                      )
-                                    else if (_selectedTab == 1)
-                                      _buildPlaylistsTab(
-                                        playlists,
-                                        playlistSnap.connectionState == ConnectionState.waiting,
-                                        isDark,
-                                        cardBg,
-                                        borderColor,
-                                        textColor,
-                                        subtitleColor,
-                                      )
-                                    else
-                                      _buildReviewsTab(
-                                        uid,
-                                        isDark,
-                                        cardBg,
-                                        borderColor,
-                                        textColor,
-                                        subtitleColor,
-                                      ),
-                                    const SizedBox(height: 48),
-                                  ],
+                                    return Column(
+                                      children: [
+                                        // Tab Selector Pills
+                                        _buildTabPillBar(
+                                          isDark: isDark,
+                                          textColor: textColor,
+                                          lessonsCount: lessons.length,
+                                          playlistsCount: playlists.length,
+                                          uid: uid,
+                                        ),
+                                        const SizedBox(height: 24),
+
+                                        // Tab Views
+                                        if (_selectedTab == 0)
+                                          _buildLessonsTab(
+                                            lessons,
+                                            lessonSnap.connectionState == ConnectionState.waiting,
+                                            isDark,
+                                            cardBg,
+                                            borderColor,
+                                            textColor,
+                                            subtitleColor,
+                                          )
+                                        else if (_selectedTab == 1)
+                                          _buildPlaylistsTab(
+                                            playlists,
+                                            playlistSnap.connectionState == ConnectionState.waiting,
+                                            isDark,
+                                            cardBg,
+                                            borderColor,
+                                            textColor,
+                                            subtitleColor,
+                                          )
+                                        else
+                                          _buildReviewsTab(
+                                            uid,
+                                            isDark,
+                                            cardBg,
+                                            borderColor,
+                                            textColor,
+                                            subtitleColor,
+                                          ),
+                                        const SizedBox(height: 48),
+                                      ],
+                                    );
+                                  },
                                 );
                               },
                             );

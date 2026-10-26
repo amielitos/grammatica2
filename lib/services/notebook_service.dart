@@ -312,6 +312,16 @@ class NotebookService {
   // Source Operations (Local Session)
   // ---------------------------------------------------------------------------
 
+  /// Checks if a source with the specified title or filename already exists in this notebook.
+  Future<bool> hasSourceWithTitle(String notebookId, String title) async {
+    await _loadFromLocalSession();
+    final normalized = title.trim().toLowerCase();
+    final list = _localSources[notebookId] ?? [];
+    return list.any((s) =>
+        s.title.trim().toLowerCase() == normalized ||
+        (s.metadata['filename'] as String?)?.trim().toLowerCase() == normalized);
+  }
+
   /// Adds a source document to the notebook's local session.
   Future<void> addSource(String notebookId, NotebookSource source) async {
     await _loadFromLocalSession();

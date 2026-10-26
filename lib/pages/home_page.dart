@@ -951,16 +951,50 @@ class _LessonsListState extends State<_LessonsList> {
   }) {
     return StreamBuilder<Map<String, dynamic>>(
       stream: DatabaseService.instance.userStatsSummaryStream(widget.user.uid),
-      builder: (context, snapshot) {
-        final stats = snapshot.data ?? {};
-        final lessons = (stats['totalLessonsCompleted'] as num?)?.toInt() ?? fallbackLessonsCompleted;
-        final quizzes = (stats['totalQuizzesTaken'] as num?)?.toInt() ?? 0;
-        final avgScore = (stats['averageQuizScore'] as num?)?.toDouble() ?? 0.0;
-        final fcMastered = (stats['flashcardsMastered'] as num?)?.toInt() ?? 0;
-        final streak = (stats['studyStreakDays'] as num?)?.toInt() ?? (lessons > 0 ? 1 : 0);
+      builder: (context, statsSnap) {
+        final stats = statsSnap.data ?? {};
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
+        return StreamBuilder<Map<String, Map<String, dynamic>>>(
+          stream: DatabaseService.instance.progressStream(widget.user),
+          builder: (context, progressSnap) {
+            final liveProgressMap = progressSnap.data ?? {};
+            final liveCompletedLessons = liveProgressMap.values.where((p) => p['completed'] == true).length;
+            final summaryLessons = (stats['totalLessonsCompleted'] as num?)?.toInt() ?? 0;
+            final int lessons = liveCompletedLessons > summaryLessons ? liveCompletedLessons : (summaryLessons > 0 ? summaryLessons : fallbackLessonsCompleted);
+
+            return StreamBuilder<Map<String, Map<String, dynamic>>>(
+              stream: DatabaseService.instance.quizProgressStream(widget.user),
+              builder: (context, quizSnap) {
+                final quizMap = quizSnap.data ?? {};
+                int liveQuizzesTaken = 0;
+                double liveScoreSum = 0;
+                int liveScoredCount = 0;
+
+                for (final qp in quizMap.values) {
+                  final attempts = (qp['attemptsUsed'] as num?)?.toInt() ?? 0;
+                  final completed = qp['completed'] == true || qp['passed'] == true;
+                  if (attempts > 0 || completed) {
+                    liveQuizzesTaken += (attempts > 0 ? attempts : 1);
+                    final score = (qp['score'] as num?)?.toDouble();
+                    final total = (qp['totalQuestions'] as num?)?.toDouble();
+                    if (score != null && total != null && total > 0) {
+                      liveScoreSum += (score / total * 100);
+                      liveScoredCount++;
+                    }
+                  }
+                }
+
+                final summaryQuizzes = (stats['totalQuizzesTaken'] as num?)?.toInt() ?? 0;
+                final int quizzes = liveQuizzesTaken > summaryQuizzes ? liveQuizzesTaken : summaryQuizzes;
+                final double avgScore = liveScoredCount > 0
+                    ? (liveScoreSum / liveScoredCount)
+                    : ((stats['averageQuizScore'] as num?)?.toDouble() ?? 0.0);
+
+                final fcMastered = (stats['flashcardsMastered'] as num?)?.toInt() ?? 0;
+                final streak = (stats['studyStreakDays'] as num?)?.toInt() ?? (lessons > 0 ? 1 : 0);
+
+                return LayoutBuilder(
+                  builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 650;
 
             Widget buildStatItem({
@@ -1100,6 +1134,10 @@ class _LessonsListState extends State<_LessonsList> {
             );
           },
         );
+      },
+    );
+  },
+);
       },
     );
   }

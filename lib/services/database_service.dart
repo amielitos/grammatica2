@@ -1673,6 +1673,7 @@ class DatabaseService {
     lastViewedLessonId = lessonId;
     await _userProgress(user.uid).doc(lessonId).set({
       'completed': completed,
+      'progress': completed ? 1.0 : 0.0,
       'completedAt': completed ? FieldValue.serverTimestamp() : null,
       'lastReadAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -2035,6 +2036,7 @@ class DatabaseService {
     if (isCompleted) {
       updateData['completed'] = true;
       updateData['completedAt'] = FieldValue.serverTimestamp();
+      updateUserStatsSummary(uid: user.uid, incrementLessons: 1);
     }
     await _userProgress(user.uid).doc(lessonId).set(updateData, SetOptions(merge: true));
 
@@ -2478,6 +2480,16 @@ class DatabaseService {
     return results;
   }
 
+  Future<Map<String, dynamic>?> getQuizProgress(String uid, String quizId) async {
+    try {
+      final doc = await _userQuizProgress(uid).doc(quizId).get();
+      if (doc.exists && doc.data() != null) {
+        return doc.data();
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> markQuizCompleted({
     required User user,
     required String quizId,
@@ -2587,6 +2599,7 @@ class DatabaseService {
           'totalQuestions': data['totalQuestions'],
           'timeTaken': data['timeTaken'],
           'lastAttemptAt': data['lastAttemptAt'],
+          'lastAnswers': data['lastAnswers'],
         };
       }
       return map;

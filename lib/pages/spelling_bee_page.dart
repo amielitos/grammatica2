@@ -301,73 +301,84 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leadingWidth: 240,
-        leading: Padding(
-          padding: EdgeInsets.only(left: 16.0),
-          child: TextButton.icon(
-            icon: Icon(Icons.arrow_back_ios_new_rounded, size: 16),
-            label: Text(
-              _selectedDifficulty == null ? 'Back to Practice Tools' : 'Back to Spelling Bee',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
-              alignment: Alignment.centerLeft,
-            ),
-            onPressed: () {
-              if (_selectedDifficulty == null) {
-                widget.onBack();
-              } else {
-                _timer?.cancel();
-                setState(() => _selectedDifficulty = null);
-              }
-            },
-          ),
-        ),
-        actions: [
-          StreamBuilder<UserRole>(
-            stream: RoleService.instance.roleStream(widget.user.uid),
-            builder: (context, snapshot) {
-              if (snapshot.data == UserRole.admin || snapshot.data == UserRole.superadmin) {
-                return IconButton(
-                  icon: const Icon(Icons.settings_rounded, color: AppColors.textPrimary),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const AdminSpellingWordsTab(),
-                    ),
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ],
-      ),
-      body: Stack(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return PopScope(
+      canPop: !_isLoading,
+      child: Stack(
         children: [
-          Container(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? const Color(0xFF1E1E1E)
-                : AppColors.backgroundBase,
-            child: SafeArea(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1200),
-                  child: _buildBody(),
+          Scaffold(
+            extendBodyBehindAppBar: true,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leadingWidth: 240,
+              leading: Padding(
+                padding: const EdgeInsets.only(left: 16.0),
+                child: TextButton.icon(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+                  label: Text(
+                    _selectedDifficulty == null ? 'Back to Practice Tools' : 'Back to Spelling Bee',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                    alignment: Alignment.centerLeft,
+                  ),
+                  onPressed: _isLoading ? null : () {
+                    if (_selectedDifficulty == null) {
+                      widget.onBack();
+                    } else {
+                      _timer?.cancel();
+                      setState(() => _selectedDifficulty = null);
+                    }
+                  },
+                ),
+              ),
+              actions: [
+                StreamBuilder<UserRole>(
+                  stream: RoleService.instance.roleStream(widget.user.uid),
+                  builder: (context, snapshot) {
+                    if (snapshot.data == UserRole.admin || snapshot.data == UserRole.superadmin) {
+                      return IconButton(
+                        icon: const Icon(Icons.settings_rounded, color: AppColors.textPrimary),
+                        onPressed: _isLoading ? null : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AdminSpellingWordsTab(),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ],
+            ),
+            body: Container(
+              color: isDark
+                  ? const Color(0xFF1E1E1E)
+                  : AppColors.backgroundBase,
+              child: SafeArea(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1200),
+                    child: _buildBody(),
+                  ),
                 ),
               ),
             ),
           ),
           if (_isLoading)
-            GenerationLoadingOverlay.fullBarrier(
-              context: context,
-              title: 'Generating Spelling Words...',
-              subtitle: 'Curating vocabulary with custom definitions and hints...',
+            Positioned.fill(
+              child: AbsorbPointer(
+                absorbing: true,
+                child: Container(
+                  color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.9),
+                  child: const GenerationLoadingOverlay(
+                    title: 'Generating Spelling Words...',
+                    subtitle: 'Curating vocabulary with custom definitions and hints...',
+                  ),
+                ),
+              ),
             ),
         ],
       ),
@@ -970,131 +981,397 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   }
 
   Widget _buildGameOver() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 100),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.stars_rounded, size: 64, color: AppColors.primary),
-          ),
-          const SizedBox(height: 32),
-          const Text(
-            'Amazing Achievement!',
-            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'You completed the Spelling Bee!',
-            style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 40),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                children: [
-                  const Text(
-                    'Precision Score',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 1),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        '$_score',
-                        style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold, color: AppColors.primary),
-                      ),
-                      Text(
-                        '/${_sessionWords.length}',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () => setState(() => _selectedDifficulty = null),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(200, 56),
-            ),
-            child: const Text('Back to Menu'),
-          ),
-          const SizedBox(height: 24),
-          TextButton(
-            onPressed: () => setState(() => _showPreview = !_showPreview),
-            child: Text(_showPreview ? 'Hide Details' : 'Review Your Answers'),
-          ),
-          if (_showPreview) ...[
-            const SizedBox(height: 32),
-            ...List.generate(_sessionWords.length, (index) {
-              final wordObj = _sessionWords[index];
-              final userAnswer = _userAnswers[index];
-              final isCorrect = userAnswer?.trim().toLowerCase() == wordObj.word.toLowerCase();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final total = _sessionWords.length;
+    final pct = total > 0 ? ((_score / total) * 100).round() : 0;
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: (isCorrect ? AppColors.primary : AppColors.error).withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isCorrect ? Icons.check_rounded : Icons.close_rounded,
-                          color: isCorrect ? AppColors.primary : AppColors.error,
-                          size: 20,
+    String tierTitle;
+    String tierSubtitle;
+    IconData tierIcon;
+    Color tierColor;
+    String tierBadge;
+
+    if (pct == 100) {
+      tierTitle = 'Flawless Victory!';
+      tierSubtitle = 'You spelled every single word perfectly without a hitch!';
+      tierIcon = Icons.emoji_events_rounded;
+      tierColor = const Color(0xFFF59E0B);
+      tierBadge = '🏆 PERFECT SPELLCASTER';
+    } else if (pct >= 80) {
+      tierTitle = 'Spectacular Spelling!';
+      tierSubtitle = 'Outstanding performance! You are mastering this vocabulary level!';
+      tierIcon = Icons.stars_rounded;
+      tierColor = const Color(0xFF10B981);
+      tierBadge = '🌟 SPELLING MASTER';
+    } else if (pct >= 50) {
+      tierTitle = 'Great Effort!';
+      tierSubtitle = 'Solid work! Keep practicing to get even closer to perfection!';
+      tierIcon = Icons.thumb_up_rounded;
+      tierColor = const Color(0xFF3B82F6);
+      tierBadge = '🎯 ON TARGET';
+    } else {
+      tierTitle = 'Keep Practicing!';
+      tierSubtitle = 'Every attempt builds stronger language memory. You got this!';
+      tierIcon = Icons.fitness_center_rounded;
+      tierColor = const Color(0xFF8B5CF6);
+      tierBadge = '💪 PRACTICE MAKES PERFECT';
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            children: [
+              // 1. Fun Celebration Hero Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: tierColor.withValues(alpha: isDark ? 0.35 : 0.25),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: tierColor.withValues(alpha: isDark ? 0.25 : 0.12),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    // Tier Pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: tierColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(color: tierColor.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        tierBadge,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: tierColor,
+                          letterSpacing: 1.1,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              wordObj.word,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Glowing Icon
+                    Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [tierColor, tierColor.withValues(alpha: 0.7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: tierColor.withValues(alpha: 0.4),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Icon(tierIcon, size: 48, color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Title
+                    Text(
+                      tierTitle,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.outfit(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Subtitle
+                    Text(
+                      tierSubtitle,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // 2. Metrics Grid
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                              ),
                             ),
-                            if (wordObj.description != null && wordObj.description!.isNotEmpty) ...[
-                              const SizedBox(height: 2),
+                            child: Column(
+                              children: [
+                                Text(
+                                  '$_score / $total',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    color: tierColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'CORRECT',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? Colors.white60 : Colors.black54,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  '$pct%',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    color: const Color(0xFF81B655),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'ACCURACY',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? Colors.white60 : Colors.black54,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  _selectedDifficulty == SpellingDifficulty.professional
+                                      ? 'Pro'
+                                      : (_selectedDifficulty == SpellingDifficulty.amateur
+                                          ? 'Amateur'
+                                          : (_selectedDifficulty == SpellingDifficulty.novice
+                                              ? 'Novice'
+                                              : 'Normal')),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: const Color(0xFF3B82F6),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'DIFFICULTY',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? Colors.white60 : Colors.black54,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+
+                    // 3. Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              if (_selectedDifficulty != null) {
+                                _startSession(_selectedDifficulty!);
+                              } else {
+                                setState(() => _selectedDifficulty = null);
+                              }
+                            },
+                            icon: const Icon(Icons.replay_rounded, size: 18),
+                            label: Text(
+                              'Play Again',
+                              style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF81B655),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => setState(() => _selectedDifficulty = null),
+                            icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                            label: Text(
+                              'All Levels',
+                              style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.bold),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFE2E8F0)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton.icon(
+                      onPressed: () => setState(() => _showPreview = !_showPreview),
+                      icon: Icon(
+                        _showPreview ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                        size: 20,
+                        color: const Color(0xFF81B655),
+                      ),
+                      label: Text(
+                        _showPreview ? 'Hide Words Review' : 'Review Your Words (${_sessionWords.length})',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF81B655),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 4. Word Review Section
+              if (_showPreview) ...[
+                const SizedBox(height: 20),
+                ...List.generate(_sessionWords.length, (index) {
+                  final wordObj = _sessionWords[index];
+                  final userAnswer = _userAnswers[index];
+                  final isCorrect = userAnswer?.trim().toLowerCase() == wordObj.word.toLowerCase();
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isCorrect
+                            ? const Color(0xFF10B981).withValues(alpha: 0.35)
+                            : const Color(0xFFEF4444).withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: (isCorrect ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isCorrect ? Icons.check_rounded : Icons.close_rounded,
+                            color: isCorrect ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                wordObj.description!,
+                                wordObj.word,
+                                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              if (wordObj.description != null && wordObj.description!.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  wordObj.description!,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.white60 : Colors.black54,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 4),
+                              Text(
+                                userAnswer?.isEmpty ?? true ? 'No answer given' : 'Your input: "$userAnswer"',
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                  fontStyle: FontStyle.italic,
+                                  color: isCorrect ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 4),
-                            Text(
-                              userAnswer?.isEmpty ?? true ? "(No input)" : '"$userAnswer"',
-                              style: TextStyle(color: isCorrect ? AppColors.primary : AppColors.error, fontSize: 13),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ],
-        ],
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

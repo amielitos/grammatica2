@@ -29,6 +29,7 @@ class AuthService {
   // 1. Fields and Singleton first
   static final instance = AuthService._();
   static final messengerKey = GlobalKey<ScaffoldMessengerState>();
+  static final navigatorKey = GlobalKey<NavigatorState>();
   static bool justSignedUpWithGoogle = false;
 
   static const int maxFailedAttempts = 3;
@@ -680,7 +681,52 @@ class AuthService {
     return cred;
   }
 
-  Future<void> signOut() async {
+  Future<bool> confirmAndSignOut(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.logout, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: const Text('Are you sure you want to sign out of Grammatica?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      if (context.mounted) {
+        await signOut(context);
+      } else {
+        await signOut();
+      }
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> signOut([BuildContext? context]) async {
+    try {
+      if (context != null) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+      navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    } catch (_) {}
+
     try {
       // If signed in with Google, sign out from Google too
       final user = _auth.currentUser;
@@ -701,7 +747,11 @@ class AuthService {
       AdminDashboard.resetToDashboard();
       HomePage.resetToDashboard();
     } catch (_) {}
-    _auth.signOut();
+    await _auth.signOut();
+
+    try {
+      navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    } catch (_) {}
   }
 
   Future<void> deleteAccount() async {
