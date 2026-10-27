@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../models/flashcard_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/spaced_repetition_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/notebook/flashcard_widget.dart';
+import '../../widgets/custom_app_bar.dart';
+import '../../widgets/universal_drawer.dart';
+import '../../widgets/notification_widgets.dart';
+import '../../services/badge_service.dart';
 
 /// Full-screen active recall flashcard study interface powered by the SM-2
 /// spaced repetition algorithm.
@@ -83,33 +88,66 @@ class _FlashcardStudyPageState extends State<FlashcardStudyPage> {
     final card = widget.deck.cards[_currentIndex];
     final progress = _progressMap[card.id];
     final total = widget.deck.cards.length;
+    final currentUser = AuthService.instance.currentUser;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF111710) : const Color(0xFFF3F6F2),
-      appBar: AppBar(
-        title: Column(
-          children: [
-            Text(
-              widget.deck.title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      appBar: currentUser != null
+          ? CustomAppBar(
+              user: currentUser,
+              showBackButton: true,
+              onLogoTap: () {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              onNotificationTap: () {
+                showDialog(
+                  context: context,
+                  barrierColor: Colors.transparent,
+                  builder: (context) => NotificationsDialog(userId: currentUser.uid),
+                );
+              },
+            )
+          : AppBar(
+              title: Text(widget.deck.title),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
             ),
-            const SizedBox(height: 2),
-            Text(
-              'Card ${_currentIndex + 1} of $total',
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? Colors.white60 : AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
+      drawer: currentUser != null
+          ? UniversalDrawer(user: currentUser, userData: const {})
+          : null,
       body: SafeArea(
         child: Column(
           children: [
+            // Study Header Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.deck.title,
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          'Card ${_currentIndex + 1} of $total',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: isDark ? Colors.white60 : AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
             // Progress line
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -307,6 +345,11 @@ class _FlashcardStudyPageState extends State<FlashcardStudyPage> {
     _progressMap[card.id] = updated;
     _sessionReviews.add(updated);
 
+    final uid = AuthService.instance.currentUser?.uid ?? '';
+    if (uid.isNotEmpty) {
+      BadgeService.instance.recordFlashcardReviewed(uid, count: 1, context: context);
+    }
+
     if (_currentIndex + 1 < widget.deck.cards.length) {
       setState(() {
         _currentIndex++;
@@ -346,9 +389,29 @@ class _FlashcardStudyPageState extends State<FlashcardStudyPage> {
 
   Widget _buildFinishedView(bool isDark) {
     final accuracy = _cardsStudied > 0 ? ((_cardsCorrect / _cardsStudied) * 100).round() : 100;
+    final currentUser = AuthService.instance.currentUser;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF111710) : AppColors.backgroundBase,
+      appBar: currentUser != null
+          ? CustomAppBar(
+              user: currentUser,
+              showBackButton: true,
+              onLogoTap: () {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              onNotificationTap: () {
+                showDialog(
+                  context: context,
+                  barrierColor: Colors.transparent,
+                  builder: (context) => NotificationsDialog(userId: currentUser.uid),
+                );
+              },
+            )
+          : null,
+      drawer: currentUser != null
+          ? UniversalDrawer(user: currentUser, userData: const {})
+          : null,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),

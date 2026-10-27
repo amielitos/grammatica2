@@ -15,6 +15,8 @@ class LandingPage extends StatefulWidget {
 class _LandingPageState extends State<LandingPage>
     with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _aboutKey = GlobalKey();
+  final GlobalKey _faqKey = GlobalKey();
   bool _isScrolled = false;
   bool _showBackToTop = false;
   late AnimationController _animController;
@@ -154,6 +156,8 @@ class _LandingPageState extends State<LandingPage>
             _buildBannerStrip(isDesktop),
             _buildFeaturesSection(isDesktop),
             _buildHowItWorksSection(isDesktop),
+            _buildAboutGrammaticaSection(isDesktop),
+            _buildFAQSection(isDesktop),
             _buildCTASection(isDesktop),
             _buildFooter(isDesktop),
           ],
@@ -347,41 +351,7 @@ class _LandingPageState extends State<LandingPage>
   Widget _buildHeroImage(int index) {
     if (_bgImages.isEmpty) {
       return Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0B1910), Color(0xFF0F1E28), Color(0xFF090E17)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              right: -60,
-              top: -60,
-              child: Container(
-                width: 480,
-                height: 480,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF81B655).withValues(alpha: 0.10),
-                ),
-              ),
-            ),
-            Positioned(
-              right: 180,
-              bottom: -40,
-              child: Container(
-                width: 320,
-                height: 320,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF4A90D9).withValues(alpha: 0.08),
-                ),
-              ),
-            ),
-          ],
-        ),
+        color: const Color(0xFF0F172A),
       );
     }
     final safeIndex = index % _bgImages.length;
@@ -398,25 +368,13 @@ class _LandingPageState extends State<LandingPage>
         width: double.infinity,
         height: double.infinity,
         errorBuilder: (context, error, stackTrace) => Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0B1910), Color(0xFF090E17)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
+          color: const Color(0xFF0F172A),
         ),
       );
     }
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0B1910), Color(0xFF0F1E28), Color(0xFF090E17)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+      color: const Color(0xFF0F172A),
     );
   }
 
@@ -1195,6 +1153,354 @@ class _LandingPageState extends State<LandingPage>
 
   // ─── FOOTER ───────────────────────────────────────────────────────────────
 
+  void _scrollToKey(GlobalKey key) {
+    final ctx = key.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOutCubic,
+      );
+    }
+  }
+
+  // ─── ABOUT GRAMMATICA SECTION ──────────────────────────────────────────────
+
+  Widget _buildAboutGrammaticaSection(bool isDesktop) {
+    return Container(
+      key: _aboutKey,
+      width: double.infinity,
+      color: const Color(0xFFF8FAFC),
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 60 : 20,
+        vertical: 88,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Column(
+            children: [
+              ScrollReveal(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF81B655).withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Text(
+                    'ABOUT GRAMMATICA',
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFF5A8E30),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              ScrollReveal(
+                delay: 80.ms,
+                child: Text(
+                  'Bridging Traditional Learning with Interactive Mastery',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: isDesktop ? 40 : 28,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                    letterSpacing: -0.8,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              ScrollReveal(
+                delay: 150.ms,
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 920),
+                  padding: EdgeInsets.all(isDesktop ? 32 : 22),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: const Color(0xFF81B655).withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Our project, Grammatica, is a language learning application created to help individuals improve their English proficiency through dynamic grammar challenges challenges and engaging activities. It is designed to make learning more engaging, effective, and accessible by allowing users to practice different aspects of the language. The application not only enhances grammar knowledge but also develops overall communication skills, comprehension, and critical thinking. The project aims to solve the gap between traditional methods of learning English and user engagement, supporting individuals in gaining confidence and mastery of the language.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: isDesktop ? 16 : 14.5,
+                          height: 1.75,
+                          color: const Color(0xFF334155),
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 10,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () => _showAboutGrammaticaDialog(context),
+                            icon: const Icon(Icons.info_outline_rounded, size: 18),
+                            label: const Text('Read Full Overview'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF81B655),
+                              side: const BorderSide(color: Color(0xFF81B655)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () => _showAboutUsDialog(context),
+                            icon: const Icon(Icons.people_outline_rounded, size: 18),
+                            label: const Text('About Us'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF81B655),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 40),
+              // 3 Core Pillars
+              Wrap(
+                spacing: 24,
+                runSpacing: 24,
+                alignment: WrapAlignment.center,
+                children: [
+                  _buildAboutPillarCard(
+                    icon: Icons.bolt_rounded,
+                    title: 'Dynamic Challenges',
+                    description:
+                        'Interactive quizzes, real-time feedback, and adaptive exercises to solidify core grammar rules.',
+                    width: isDesktop ? 350 : double.infinity,
+                  ),
+                  _buildAboutPillarCard(
+                    icon: Icons.psychology_rounded,
+                    title: 'Critical Thinking',
+                    description:
+                        'Go beyond rote repetition with exercises designed to boost reading comprehension and analytical skills.',
+                    width: isDesktop ? 350 : double.infinity,
+                  ),
+                  _buildAboutPillarCard(
+                    icon: Icons.public_rounded,
+                    title: 'Accessible Learning',
+                    description:
+                        'Empowering learners anywhere, anytime with structured educator playlists and guided community hubs.',
+                    width: isDesktop ? 350 : double.infinity,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAboutPillarCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required double width,
+  }) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF81B655).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: const Color(0xFF81B655), size: 26),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              height: 1.55,
+              color: const Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── FAQ SECTION ──────────────────────────────────────────────────────────
+
+  Widget _buildFAQSection(bool isDesktop) {
+    final List<Map<String, String>> faqs = [
+      {
+        'q': 'What is Grammatica and who is it created for?',
+        'a':
+            'Grammatica is a dynamic language learning application created to help individuals of all levels improve their English proficiency. It features interactive grammar challenges, verified educator lessons, and engaging activities tailored for learners, students, and educators.',
+      },
+      {
+        'q': 'How does Grammatica bridge the gap with traditional learning?',
+        'a':
+            'Traditional methods often focus on passive memorization. Grammatica combines dynamic grammar challenges, interactive notebook sessions, instant feedback, and educator-curated playlists to turn theoretical grammar into active, confident communication and critical thinking.',
+      },
+      {
+        'q': 'Can I learn at my own pace with educator playlists?',
+        'a':
+            'Yes! You can explore curated playlists organized by topics, join interactive conference sessions with educators, review notebook presentations, and track your ongoing learning progress at your own pace.',
+      },
+      {
+        'q': 'How do I access quizzes and practice activities?',
+        'a':
+            'Simply create a free account or log in. From your dashboard, you can browse all learning hubs, enroll in educator playlists, take interactive quizzes, and join community discussions.',
+      },
+      {
+        'q': 'Is Grammatica accessible on mobile and desktop devices?',
+        'a':
+            'Yes, Grammatica is fully responsive and designed to deliver a seamless learning experience across modern web browsers on desktops, tablets, and mobile devices.',
+      },
+    ];
+
+    return Container(
+      key: _faqKey,
+      width: double.infinity,
+      color: Colors.white,
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 60 : 20,
+        vertical: 88,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 880),
+          child: Column(
+            children: [
+              ScrollReveal(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF81B655).withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Text(
+                    'FAQ',
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFF5A8E30),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              ScrollReveal(
+                delay: 80.ms,
+                child: Text(
+                  'Frequently Asked Questions',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: isDesktop ? 40 : 28,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF0F172A),
+                    letterSpacing: -0.8,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ScrollReveal(
+                delay: 140.ms,
+                child: Text(
+                  'Answers to common questions about using Grammatica for your language journey.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 44),
+              ...faqs.map(
+                (faq) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _LandingFaqAccordion(
+                    question: faq['q']!,
+                    answer: faq['a']!,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── FOOTER ───────────────────────────────────────────────────────────────
+
   Widget _buildFooter(bool isDesktop) {
     return Container(
       color: const Color(0xFF0F172A),
@@ -1207,36 +1513,161 @@ class _LandingPageState extends State<LandingPage>
           constraints: const BoxConstraints(maxWidth: 1200),
           child: Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.language_rounded,
-                        color: Colors.white,
-                        size: 32,
+              if (isDesktop)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Brand Column
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF81B655),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.language_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Grammatica',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Grammatica is a language learning platform designed to bridge the gap between traditional learning and user engagement with dynamic grammar challenges.',
+                            style: GoogleFonts.inter(
+                              color: Colors.white.withValues(alpha: 0.65),
+                              fontSize: 14,
+                              height: 1.6,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Grammatica',
-                        style: GoogleFonts.outfit(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5,
+                    ),
+                    const SizedBox(width: 48),
+                    // Navigation / About
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFooterHeading('About'),
+                          const SizedBox(height: 16),
+                          _buildFooterLink('About Grammatica', () => _showAboutGrammaticaDialog(context)),
+                          _buildFooterLink('About Us', () => _showAboutUsDialog(context)),
+                        ],
+                      ),
+                    ),
+                    // Support & FAQ
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFooterHeading('Support & FAQ'),
+                          const SizedBox(height: 16),
+                          _buildFooterLink('FAQ', () => _scrollToKey(_faqKey)),
+                        ],
+                      ),
+                    ),
+                    // Legal
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFooterHeading('Legal'),
+                          const SizedBox(height: 16),
+                          _buildFooterLink('Privacy Policy', () => _showPrivacyPolicyDialog(context)),
+                          _buildFooterLink('Terms and Condition', () => _showTermsDialog(context)),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              else
+                // Mobile layout
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF81B655),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.language_rounded,
+                            color: Colors.white,
+                            size: 22,
+                          ),
                         ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Grammatica',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Grammatica helps individuals improve English proficiency through dynamic challenges and engaging activities.',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: 13.5,
+                        height: 1.55,
                       ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 40),
-              Divider(color: Colors.white.withValues(alpha: 0.08)),
-              const SizedBox(height: 28),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    ),
+                    const SizedBox(height: 28),
+                    _buildFooterHeading('Quick Links'),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 10,
+                      children: [
+                        _buildFooterLink('About Grammatica', () => _showAboutGrammaticaDialog(context)),
+                        _buildFooterLink('About Us', () => _showAboutUsDialog(context)),
+                        _buildFooterLink('FAQ', () => _scrollToKey(_faqKey)),
+                        _buildFooterLink('Privacy Policy', () => _showPrivacyPolicyDialog(context)),
+                        _buildFooterLink('Terms and Condition', () => _showTermsDialog(context)),
+                      ],
+                    ),
+                  ],
+                ),
+
+              const SizedBox(height: 48),
+              Divider(color: Colors.white.withValues(alpha: 0.1)),
+              const SizedBox(height: 24),
+
+              // Bottom copyright & quick legal links
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 16,
+                runSpacing: 12,
                 children: [
                   Text(
                     '© 2026 Grammatica. All rights reserved.',
@@ -1246,24 +1677,42 @@ class _LandingPageState extends State<LandingPage>
                     ),
                   ),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      TextButton(
-                        onPressed: () {},
+                      InkWell(
+                        onTap: () => _showPrivacyPolicyDialog(context),
                         child: Text(
-                          'Privacy',
+                          'Privacy Policy',
                           style: GoogleFonts.inter(
-                            color: Colors.white.withValues(alpha: 0.4),
+                            color: Colors.white.withValues(alpha: 0.5),
                             fontSize: 13,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      TextButton(
-                        onPressed: () {},
+                      Text(
+                        '  •  ',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      InkWell(
+                        onTap: () => _showTermsDialog(context),
                         child: Text(
-                          'Terms',
+                          'Terms and Condition',
                           style: GoogleFonts.inter(
-                            color: Colors.white.withValues(alpha: 0.4),
+                            color: Colors.white.withValues(alpha: 0.5),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '  •  ',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      InkWell(
+                        onTap: () => _scrollToKey(_faqKey),
+                        child: Text(
+                          'FAQ',
+                          style: GoogleFonts.inter(
+                            color: Colors.white.withValues(alpha: 0.5),
                             fontSize: 13,
                           ),
                         ),
@@ -1274,6 +1723,539 @@ class _LandingPageState extends State<LandingPage>
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooterHeading(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.outfit(
+        color: Colors.white,
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildFooterLink(String text, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(4),
+        child: Text(
+          text,
+          style: GoogleFonts.inter(
+            color: Colors.white.withValues(alpha: 0.65),
+            fontSize: 13.5,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── MODAL DIALOGS ────────────────────────────────────────────────────────
+
+  void _showInfoModal({
+    required BuildContext context,
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          backgroundColor: Colors.white,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640, maxHeight: 680),
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(icon, color: const Color(0xFF81B655), size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: GoogleFonts.outfit(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0F172A),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded),
+                        color: const Color(0xFF64748B),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  const SizedBox(height: 18),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: children,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF81B655),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 22,
+                          vertical: 12,
+                        ),
+                      ),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAboutGrammaticaDialog(BuildContext context) {
+    _showInfoModal(
+      context: context,
+      title: 'About Grammatica',
+      icon: Icons.menu_book_rounded,
+      children: [
+        Text(
+          'Our Project',
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Our project, Grammatica, is a language learning application created to help individuals improve their English proficiency through dynamic grammar challenges challenges and engaging activities. It is designed to make learning more engaging, effective, and accessible by allowing users to practice different aspects of the language. The application not only enhances grammar knowledge but also develops overall communication skills, comprehension, and critical thinking. The project aims to solve the gap between traditional methods of learning English and user engagement, supporting individuals in gaining confidence and mastery of the language.',
+          style: GoogleFonts.inter(
+            fontSize: 14.5,
+            height: 1.7,
+            color: const Color(0xFF334155),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'Specific Objectives',
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildBulletPoint('To provide an effective and improved learning method application to strengthen individuals’ grammar efficiency that help them to reduce grammatical errors in writing and communication.'),
+        _buildBulletPoint('To develop and implement engaging features within the application that enhance users’ comprehension, retention, and understanding of grammar rules.'),
+        _buildBulletPoint('To provide an innovative and engaging learning technology alternative to traditional learning methods.'),
+        _buildBulletPoint('To develop exercises that ensure understanding and proper application rather than rote memorization.'),
+      ],
+    );
+  }
+
+  void _showAboutUsDialog(BuildContext context) {
+    _showInfoModal(
+      context: context,
+      title: 'About Us',
+      icon: Icons.groups_rounded,
+      children: [
+        Text(
+          'Development Team',
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'The developers behind Grammatica:',
+          style: GoogleFonts.inter(
+            fontSize: 13.5,
+            color: const Color(0xFF64748B),
+          ),
+        ),
+        const SizedBox(height: 14),
+        _buildDeveloperTile(
+          name: 'Ybañez, Nathalie V.',
+          role: 'Project Manager',
+          icon: Icons.person_rounded,
+          color: const Color(0xFFF59E0B),
+        ),
+        _buildDeveloperTile(
+          name: 'Espeña, Amiel',
+          role: 'Programmer Specialist',
+          icon: Icons.person_rounded,
+          color: const Color(0xFF81B655),
+        ),
+        _buildDeveloperTile(
+          name: 'Sadie, Sophia Beatrice S.',
+          role: 'Quality Assurance',
+          icon: Icons.person_rounded,
+          color: const Color(0xFF3B82F6),
+        ),
+        _buildDeveloperTile(
+          name: 'Fajardo, Juan Paolo',
+          role: 'System Analyst',
+          icon: Icons.person_rounded,
+          color: const Color(0xFF8B5CF6),
+        ),
+        const SizedBox(height: 18),
+        Text(
+          'Our Mission & Vision',
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Our mission is to make high-quality English grammar instruction accessible to every learner regardless of location or background. Through technology, structured lessons, and vibrant community learning, we help users unlock their full communicative potential.',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            height: 1.65,
+            color: const Color(0xFF334155),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeveloperTile({
+    required String name,
+    required String role,
+    IconData icon = Icons.person_rounded,
+    required Color color,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  role,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPrivacyPolicyDialog(BuildContext context) {
+    _showInfoModal(
+      context: context,
+      title: 'Privacy Policy',
+      icon: Icons.privacy_tip_outlined,
+      children: [
+        Text(
+          'Last Updated: 2026',
+          style: GoogleFonts.inter(
+            fontSize: 12.5,
+            color: const Color(0xFF64748B),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          '1. Information We Collect',
+          style: GoogleFonts.outfit(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'We collect information you provide directly to us when creating an account, such as your name, email address, user role, and study progress data (quiz results, completed lessons, and notebook activity).',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            height: 1.6,
+            color: const Color(0xFF334155),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          '2. How We Use Your Information',
+          style: GoogleFonts.outfit(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Your data is used exclusively to facilitate your learning journey, track your grammar proficiency progress, enable community interactions, and optimize educational resources.',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            height: 1.6,
+            color: const Color(0xFF334155),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          '3. Data Protection and Security',
+          style: GoogleFonts.outfit(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'We implement industry-standard encryption, strict access controls, and secure database practices to ensure that your personal information is safeguarded at all times.',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            height: 1.6,
+            color: const Color(0xFF334155),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showTermsDialog(BuildContext context) {
+    _showInfoModal(
+      context: context,
+      title: 'Terms and Condition',
+      icon: Icons.gavel_rounded,
+      children: [
+        Text(
+          'Last Updated: 2026',
+          style: GoogleFonts.inter(
+            fontSize: 12.5,
+            color: const Color(0xFF64748B),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          '1. Acceptance of Terms',
+          style: GoogleFonts.outfit(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'By using Grammatica, you agree to these Terms and Conditions and applicable laws. If you do not agree with any part, please do not use the service.',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            height: 1.6,
+            color: const Color(0xFF334155),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          '2. Educational Purpose and Content',
+          style: GoogleFonts.outfit(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Grammatica and its educators provide educational lessons, quizzes, and learning materials. Content is intended for educational purposes and should not be redistributed without permission.',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            height: 1.6,
+            color: const Color(0xFF334155),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          '3. User Conduct',
+          style: GoogleFonts.outfit(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Users agree to engage respectfully within community hubs, conferences, and collaborative sessions. Harassment, unauthorized access, or abusive behavior will result in account termination.',
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            height: 1.6,
+            color: const Color(0xFF334155),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBulletPoint(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 5, right: 8),
+            child: Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF81B655)),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                height: 1.5,
+                color: const Color(0xFF475569),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── ACCORDION FOR FAQ ────────────────────────────────────────────────────
+
+class _LandingFaqAccordion extends StatefulWidget {
+  final String question;
+  final String answer;
+
+  const _LandingFaqAccordion({
+    required this.question,
+    required this.answer,
+  });
+
+  @override
+  State<_LandingFaqAccordion> createState() => _LandingFaqAccordionState();
+}
+
+class _LandingFaqAccordionState extends State<_LandingFaqAccordion> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _isExpanded ? const Color(0xFF81B655) : const Color(0xFFE2E8F0),
+          width: _isExpanded ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+        ),
+        child: ExpansionTile(
+          onExpansionChanged: (expanded) {
+            setState(() => _isExpanded = expanded);
+          },
+          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+          title: Text(
+            widget.question,
+            style: GoogleFonts.outfit(
+              fontSize: 16.5,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+          trailing: Icon(
+            _isExpanded ? Icons.remove_circle_outline_rounded : Icons.add_circle_outline_rounded,
+            color: _isExpanded ? const Color(0xFF81B655) : const Color(0xFF94A3B8),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+              child: Text(
+                widget.answer,
+                style: GoogleFonts.inter(
+                  fontSize: 14.5,
+                  height: 1.65,
+                  color: const Color(0xFF475569),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

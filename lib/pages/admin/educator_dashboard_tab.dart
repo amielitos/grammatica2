@@ -115,13 +115,7 @@ class EducatorDashboardTab extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [const Color(0xFF1B2838), const Color(0xFF0D1117)]
-              : [const Color(0xFF6AAF3D), const Color(0xFF4A8A24)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFF81B655),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -332,7 +326,7 @@ class _StatsOverview extends StatelessWidget {
                           buildStatItem(
                             icon: Icons.people_alt_rounded,
                             color: const Color(0xFF8B5CF6),
-                            label: 'Active Subscribers',
+                            label: 'Enrolled Learners',
                             value: '$subscriberCount',
                           ),
                           buildStatItem(

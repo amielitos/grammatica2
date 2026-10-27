@@ -14,6 +14,7 @@ import '../models/published_content_item.dart';
 import '../models/playlist.dart';
 import '../utils/image_utils.dart';
 import 'idempotency_service.dart';
+import 'badge_service.dart';
 
 /// Result of an idempotent payment recording transaction.
 class PaymentRecordResult {
@@ -891,10 +892,89 @@ class DatabaseService {
     required DateTime startTime,
     required DateTime endTime,
     String meetingLink = '',
-    String conferenceApp = 'agora',
+    String conferenceApp = 'meet',
     String meetingTitle = '',
     String? idempotencyKey,
   }) async {
+    if (startTime.isBefore(DateTime.now())) {
+      throw Exception('Cannot schedule a mentorship session in the past.');
+    }
+
+    // Prevent same time or overlapping sessions for this educator
+    final existingSessions = await _firestore
+        .collection('mentorship_sessions')
+        .where('educatorId', isEqualTo: educatorId)
+        .get();
+
+    for (final doc in existingSessions.docs) {
+      final data = doc.data();
+      if (data['status'] == 'cancelled') continue;
+      final existStart = (data['startTime'] as Timestamp?)?.toDate();
+      final existEnd = (data['endTime'] as Timestamp?)?.toDate() ??
+          existStart?.add(const Duration(minutes: 90));
+
+      if (existStart != null && existEnd != null) {
+        final bool isSameTime = startTime.isAtSameMomentAs(existStart);
+        final bool isOverlap = startTime.isBefore(existEnd) && endTime.isAfter(existStart);
+        if (isSameTime || isOverlap) {
+          final conflictTitle = data['meetingTitle']?.toString().isNotEmpty == true
+              ? data['meetingTitle']
+              : (data['studentName'] ?? 'Existing session');
+          final conflictFmt = DateFormat('EEE, MMM d @ h:mm a').format(existStart);
+          final conflictEndFmt = DateFormat('h:mm a').format(existEnd);
+          throw Exception(
+              'You cannot schedule mentorship at the same or overlapping time ($conflictFmt - $conflictEndFmt). Session "$conflictTitle" is already scheduled.');
+        }
+      }
+    }
+
+    // Prevent same time or overlapping sessions for this student
+    final studentSessions = await _firestore
+        .collection('mentorship_sessions')
+        .where('studentId', isEqualTo: studentId)
+        .get();
+
+    for (final doc in studentSessions.docs) {
+      final data = doc.data();
+      if (data['status'] == 'cancelled') continue;
+      final existStart = (data['startTime'] as Timestamp?)?.toDate();
+      final existEnd = (data['endTime'] as Timestamp?)?.toDate() ??
+          existStart?.add(const Duration(minutes: 90));
+
+      if (existStart != null && existEnd != null) {
+        final bool isSameTime = startTime.isAtSameMomentAs(existStart);
+        final bool isOverlap = startTime.isBefore(existEnd) && endTime.isAfter(existStart);
+        if (isSameTime || isOverlap) {
+          final conflictFmt = DateFormat('EEE, MMM d @ h:mm a').format(existStart);
+          throw Exception(
+              'Cannot schedule mentorship: The student already has a session at $conflictFmt.');
+        }
+      }
+    }
+
+    // Prevent same time or overlapping availability slots for this educator
+    final existingSlots = await _firestore
+        .collection('mentorship_availability')
+        .where('educatorId', isEqualTo: educatorId)
+        .get();
+
+    for (final doc in existingSlots.docs) {
+      final data = doc.data();
+      final existStart = (data['startTime'] as Timestamp?)?.toDate();
+      final existEnd = (data['endTime'] as Timestamp?)?.toDate() ??
+          existStart?.add(const Duration(minutes: 90));
+
+      if (existStart != null && existEnd != null) {
+        final bool isSameTime = startTime.isAtSameMomentAs(existStart);
+        final bool isOverlap = startTime.isBefore(existEnd) && endTime.isAfter(existStart);
+        if (isSameTime || isOverlap) {
+          final conflictFmt = DateFormat('EEE, MMM d @ h:mm a').format(existStart);
+          throw Exception(
+              'Cannot schedule mentorship: You already have an availability slot at $conflictFmt.');
+        }
+      }
+    }
+
     final effectiveKey = idempotencyKey ??
         IdempotencyService.instance.generateMentorshipKey(
           educatorUid: educatorId,
@@ -997,17 +1077,30 @@ class DatabaseService {
     required DateTime startTime,
     required DateTime endTime,
     String meetingLink = '',
-    String conferenceApp = 'agora',
+    String conferenceApp = 'meet',
     String meetingTitle = '',
   }) async {
+    final docSnap = await _firestore.collection('mentorship_sessions').doc(sessionId).get();
+    if (docSnap.exists) {
+      final data = docSnap.data()!;
+      final sTime = (data['startTime'] as Timestamp?)?.toDate();
+      final eTime = (data['endTime'] as Timestamp?)?.toDate();
+      final now = DateTime.now();
+      if (sTime != null && eTime != null) {
+        if (now.isAfter(sTime) && now.isBefore(eTime)) {
+          throw 'Cannot edit mentorship session while it is ongoing.';
+        }
+        if (now.isAfter(eTime)) {
+          throw 'Cannot edit a past mentorship session.';
+        }
+      }
+    }
+
+    // Only update meetingTitle (date and time cannot be modified once saved in calendar)
     await _firestore.collection('mentorship_sessions').doc(sessionId).update({
-      'studentId': studentId,
-      'studentName': studentName,
-      'startTime': Timestamp.fromDate(startTime),
-      'endTime': Timestamp.fromDate(endTime),
+      'meetingTitle': meetingTitle,
       'meetingLink': meetingLink,
       'conferenceApp': conferenceApp,
-      'meetingTitle': meetingTitle,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
@@ -1030,6 +1123,225 @@ class DatabaseService {
           ...doc.data(),
           'id': doc.id,
         }).toList());
+  }
+
+  /// Create educator availability slot.
+  /// Mentorship session duration is STRICTLY 1 hour and 30 minutes (90 minutes).
+  Future<void> createMentorshipAvailabilitySlot({
+    required String educatorId,
+    required String educatorName,
+    required DateTime startTime,
+    String title = '1-on-1 Mentorship',
+  }) async {
+    // 1. Prevent setting availability in the past
+    if (startTime.isBefore(DateTime.now())) {
+      throw Exception('Cannot schedule an availability slot in the past. Please select a future time.');
+    }
+
+    final endTime = startTime.add(const Duration(minutes: 90));
+
+    // 2. Prevent overlapping mentorship availability slots for this educator
+    final existingSlots = await _firestore
+        .collection('mentorship_availability')
+        .where('educatorId', isEqualTo: educatorId)
+        .get();
+
+    for (final doc in existingSlots.docs) {
+      final data = doc.data();
+      final existStart = (data['startTime'] as Timestamp?)?.toDate();
+      final existEnd = (data['endTime'] as Timestamp?)?.toDate() ??
+          existStart?.add(const Duration(minutes: 90));
+
+      if (existStart != null && existEnd != null) {
+        final bool isSameTime = startTime.isAtSameMomentAs(existStart);
+        final bool isOverlap = startTime.isBefore(existEnd) && endTime.isAfter(existStart);
+        if (isSameTime || isOverlap) {
+          final conflictFmt = DateFormat('EEE, MMM d @ h:mm a').format(existStart);
+          throw Exception(
+              'Mentorship slots cannot have the same time or overlap. You already have a slot at $conflictFmt.');
+        }
+      }
+    }
+
+    // 3. Prevent overlapping active sessions for this educator
+    final existingSessions = await _firestore
+        .collection('mentorship_sessions')
+        .where('educatorId', isEqualTo: educatorId)
+        .get();
+
+    for (final doc in existingSessions.docs) {
+      final data = doc.data();
+      if (data['status'] == 'cancelled') continue;
+      final existStart = (data['startTime'] as Timestamp?)?.toDate();
+      final existEnd = (data['endTime'] as Timestamp?)?.toDate() ??
+          existStart?.add(const Duration(minutes: 90));
+
+      if (existStart != null && existEnd != null) {
+        final bool isSameTime = startTime.isAtSameMomentAs(existStart);
+        final bool isOverlap = startTime.isBefore(existEnd) && endTime.isAfter(existStart);
+        if (isSameTime || isOverlap) {
+          final conflictFmt = DateFormat('EEE, MMM d @ h:mm a').format(existStart);
+          throw Exception(
+              'Mentorship slots cannot have the same time or overlap. You already have a booked session at $conflictFmt.');
+        }
+      }
+    }
+
+    final slotId = '${educatorId}_${startTime.millisecondsSinceEpoch}';
+
+    await _firestore.collection('mentorship_availability').doc(slotId).set({
+      'educatorId': educatorId,
+      'educatorName': educatorName,
+      'title': title.trim().isEmpty ? '1-on-1 Mentorship' : title.trim(),
+      'startTime': Timestamp.fromDate(startTime),
+      'endTime': Timestamp.fromDate(endTime),
+      'durationMinutes': 90,
+      'isBooked': false,
+      'bookedByUid': null,
+      'bookedByName': null,
+      'bookedByEmail': null,
+      'bookedAt': null,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Delete an unbooked availability slot.
+  Future<void> deleteMentorshipAvailabilitySlot(String slotId) async {
+    await _firestore.collection('mentorship_availability').doc(slotId).delete();
+  }
+
+  /// Real-time stream of availability slots for an educator.
+  Stream<List<Map<String, dynamic>>> streamEducatorAvailability(String educatorId) {
+    return _firestore
+        .collection('mentorship_availability')
+        .where('educatorId', isEqualTo: educatorId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => {
+              ...doc.data(),
+              'id': doc.id,
+            }).toList());
+  }
+
+  /// Atomically reserve an availability slot to prevent double booking.
+  /// Limits duration to strictly 1 hour 30 minutes and automatically writes to mentorship_sessions.
+  Future<void> reserveMentorshipSlot({
+    required String slotId,
+    required User learner,
+    required String educatorId,
+    required String educatorName,
+    String? meetingTitle,
+  }) async {
+    final slotRef = _firestore.collection('mentorship_availability').doc(slotId);
+
+    // Pre-check learner overlapping sessions before starting reservation
+    final learnerSessions = await _firestore
+        .collection('mentorship_sessions')
+        .where('studentId', isEqualTo: learner.uid)
+        .get();
+
+    final slotSnapshot = await slotRef.get();
+    if (!slotSnapshot.exists) {
+      throw Exception('This availability slot no longer exists.');
+    }
+    final slotData = slotSnapshot.data()!;
+    final slotStart = (slotData['startTime'] as Timestamp).toDate();
+    final slotEnd = (slotData['endTime'] as Timestamp?)?.toDate() ??
+        slotStart.add(const Duration(minutes: 90));
+
+    for (final doc in learnerSessions.docs) {
+      final data = doc.data();
+      if (data['status'] == 'cancelled') continue;
+      final existStart = (data['startTime'] as Timestamp?)?.toDate();
+      final existEnd = (data['endTime'] as Timestamp?)?.toDate() ??
+          existStart?.add(const Duration(minutes: 90));
+
+      if (existStart != null && existEnd != null) {
+        final bool isSameTime = slotStart.isAtSameMomentAs(existStart);
+        final bool isOverlap = slotStart.isBefore(existEnd) && slotEnd.isAfter(existStart);
+        if (isSameTime || isOverlap) {
+          final conflictFmt = DateFormat('EEE, MMM d @ h:mm a').format(existStart);
+          throw Exception(
+              'Mentorship sessions cannot have the same time or overlap. You already have another session scheduled at $conflictFmt.');
+        }
+      }
+    }
+
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(slotRef);
+      if (!snapshot.exists) {
+        throw Exception('This availability slot no longer exists.');
+      }
+
+      final data = snapshot.data()!;
+      final bool isBooked = data['isBooked'] == true;
+      if (isBooked) {
+        throw Exception('This slot has already been booked by another learner.');
+      }
+
+      final startTime = (data['startTime'] as Timestamp).toDate();
+      // Strict 90-minute limit
+      final endTime = (data['endTime'] as Timestamp?)?.toDate() ??
+          startTime.add(const Duration(minutes: 90));
+
+      final learnerName = learner.displayName ??
+          (learner.email?.split('@').first ?? 'Learner');
+      final channelName = 'mentor_${educatorId.length > 8 ? educatorId.substring(0, 8) : educatorId}_${startTime.millisecondsSinceEpoch}';
+      final sessionId = 'session_$slotId';
+      final sessionRef = _firestore.collection('mentorship_sessions').doc(sessionId);
+
+      transaction.update(slotRef, {
+        'isBooked': true,
+        'bookedByUid': learner.uid,
+        'bookedByName': learnerName,
+        'bookedByEmail': learner.email,
+        'bookedAt': FieldValue.serverTimestamp(),
+        'agoraChannel': channelName,
+        'sessionId': sessionId,
+      });
+
+      transaction.set(sessionRef, {
+        'educatorId': educatorId,
+        'educatorName': educatorName,
+        'studentId': learner.uid,
+        'studentName': learnerName,
+        'studentEmail': learner.email,
+        'startTime': Timestamp.fromDate(startTime),
+        'endTime': Timestamp.fromDate(endTime),
+        'durationMinutes': 90,
+        'meetingTitle': (meetingTitle != null && meetingTitle.isNotEmpty)
+            ? meetingTitle
+            : (data['title'] ?? '1-on-1 Mentorship Session'),
+        'status': 'scheduled',
+        'agoraChannel': channelName,
+        'conferenceApp': 'agora',
+        'slotId': slotId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+
+    try {
+      final titleStr = meetingTitle != null && meetingTitle.isNotEmpty
+          ? meetingTitle
+          : '1-on-1 Mentorship Session';
+
+      await NotificationService.instance.sendNotification(
+        uid: educatorId,
+        title: 'New Mentorship Booking!',
+        message: '${learner.displayName ?? learner.email ?? "A subscriber"} reserved your slot for "$titleStr".',
+        type: NotificationType.mentorship,
+        educatorId: educatorId,
+      );
+
+      await NotificationService.instance.sendNotification(
+        uid: learner.uid,
+        title: 'Mentorship Confirmed!',
+        message: 'You reserved a 90-min mentorship session with $educatorName.',
+        type: NotificationType.mentorship,
+        educatorId: educatorId,
+      );
+    } catch (e) {
+      debugPrint('Notification sending error after slot reservation: $e');
+    }
   }
 
 
@@ -1147,6 +1459,15 @@ class DatabaseService {
       authorName: authorName,
       lessonTitle: title,
     ).catchError((e) => debugPrint('Error notifying validators of new lesson: $e'));
+
+    // Notify subscribers in real-time when a members-only lesson is created
+    if (user != null && isMembersOnly) {
+      NotificationService.instance.notifySubscribersOfLesson(
+        educatorUid: user.uid,
+        lessonTitle: title,
+        lessonId: doc.id,
+      ).catchError((e) => debugPrint('Error notifying subscribers of lesson: $e'));
+    }
 
     return doc.id;
   }
@@ -1689,6 +2010,7 @@ class DatabaseService {
 
     if (completed) {
       updateUserStatsSummary(uid: user.uid, incrementLessons: 1);
+      BadgeService.instance.recordLessonCompletion(user.uid);
     }
   }
 
@@ -1814,9 +2136,65 @@ class DatabaseService {
     });
   }
 
+  static final Map<String, LinkedContentBundle> _bundleCache = {};
+
+  /// Synchronously retrieve cached bundle if already loaded.
+  LinkedContentBundle? getCachedBundle(String? key) {
+    if (key == null || key.isEmpty) return null;
+    return _bundleCache[key];
+  }
+
+  void _cacheBundle(LinkedContentBundle b, {String? nbId, String? lessonId, String? quizId}) {
+    if (nbId != null && nbId.isNotEmpty) _bundleCache[nbId] = b;
+    if (lessonId != null && lessonId.isNotEmpty) _bundleCache[lessonId] = b;
+    if (quizId != null && quizId.isNotEmpty) _bundleCache[quizId] = b;
+    for (final item in b.publishedItems) {
+      if (item.id.isNotEmpty) _bundleCache[item.id] = b;
+    }
+  }
+
   /// Resolves all companion content items (Lesson, Quiz, and PublishedContentItems)
   /// that were synthesized together within the same AI notebook or linked bundle.
   Future<LinkedContentBundle> getLinkedContentBundle({
+    String? notebookId,
+    Lesson? currentLesson,
+    Quiz? currentQuiz,
+    PublishedContentItem? currentPublishedItem,
+  }) async {
+    String? nbId = notebookId ??
+        currentLesson?.notebookId ??
+        currentQuiz?.notebookId ??
+        currentPublishedItem?.notebookId;
+
+    Lesson? lesson = currentLesson;
+    Quiz? quiz = currentQuiz;
+
+    // Check fast memory cache first for immediate rendering
+    final primaryKey = nbId ?? lesson?.id ?? quiz?.id ?? '';
+    if (primaryKey.isNotEmpty && _bundleCache.containsKey(primaryKey)) {
+      final cached = _bundleCache[primaryKey]!;
+      _resolveLinkedContentBundle(
+        notebookId: nbId,
+        currentLesson: lesson,
+        currentQuiz: quiz,
+        currentPublishedItem: currentPublishedItem,
+      ).then((fresh) {
+        _cacheBundle(fresh, nbId: fresh.notebookId, lessonId: fresh.lesson?.id, quizId: fresh.quiz?.id);
+      }).catchError((_) {});
+      return cached;
+    }
+
+    final fresh = await _resolveLinkedContentBundle(
+      notebookId: nbId,
+      currentLesson: lesson,
+      currentQuiz: quiz,
+      currentPublishedItem: currentPublishedItem,
+    );
+    _cacheBundle(fresh, nbId: fresh.notebookId, lessonId: fresh.lesson?.id, quizId: fresh.quiz?.id);
+    return fresh;
+  }
+
+  Future<LinkedContentBundle> _resolveLinkedContentBundle({
     String? notebookId,
     Lesson? currentLesson,
     Quiz? currentQuiz,
@@ -1870,94 +2248,102 @@ class DatabaseService {
     }
 
     if (nbId != null && nbId.isNotEmpty) {
-      // 1. Fetch lesson if not already provided
-      if (lesson == null) {
+      Future<QuerySnapshot<Map<String, dynamic>>?> safeGetQuery(Query<Map<String, dynamic>> query) async {
         try {
-          final lessonSnap =
-              await _lessons.where('notebookId', isEqualTo: nbId).limit(1).get();
-          if (lessonSnap.docs.isNotEmpty) {
-            lesson = Lesson.fromDoc(lessonSnap.docs.first);
-          }
+          return await query.get();
         } catch (e) {
-          debugPrint('Error fetching companion lesson: $e');
+          debugPrint('Error in companion query: $e');
+          return null;
         }
       }
+
+      Future<DocumentSnapshot<Map<String, dynamic>>?> safeGetDoc(DocumentReference<Map<String, dynamic>> doc) async {
+        try {
+          return await doc.get();
+        } catch (e) {
+          debugPrint('Error in companion doc query: $e');
+          return null;
+        }
+      }
+
+      // 1. Fetch lesson if not already provided
+      final lessonFuture = (lesson == null)
+          ? safeGetQuery(_lessons.where('notebookId', isEqualTo: nbId).limit(1))
+          : Future<QuerySnapshot<Map<String, dynamic>>?>.value(null);
 
       // 2. Fetch quiz if not already provided
-      if (quiz == null) {
-        if (lesson?.quizId != null && lesson!.quizId!.isNotEmpty) {
-          try {
-            final qDoc = await _quizzes.doc(lesson.quizId).get();
-            if (qDoc.exists) {
-              quiz = Quiz.fromDoc(qDoc);
-            }
-          } catch (e) {
-            debugPrint('Error fetching linked quiz by id: $e');
-          }
-        }
-        if (quiz == null) {
-          try {
-            final quizSnap =
-                await _quizzes.where('notebookId', isEqualTo: nbId).limit(1).get();
-            if (quizSnap.docs.isNotEmpty) {
-              quiz = Quiz.fromDoc(quizSnap.docs.first);
-            }
-          } catch (e) {
-            debugPrint('Error fetching companion quiz: $e');
-          }
-        }
-        if (quiz == null && lesson != null && lesson.id.isNotEmpty) {
-          try {
-            final quizSnap =
-                await _quizzes.where('lessonId', isEqualTo: lesson.id).limit(1).get();
-            if (quizSnap.docs.isNotEmpty) {
-              quiz = Quiz.fromDoc(quizSnap.docs.first);
-            }
-          } catch (e) {
-            debugPrint('Error fetching companion quiz by lessonId: $e');
-          }
-        }
-      }
+      final quizDocFuture =
+          (quiz == null && lesson?.quizId != null && lesson!.quizId!.isNotEmpty)
+              ? safeGetDoc(_quizzes.doc(lesson.quizId))
+              : Future<DocumentSnapshot<Map<String, dynamic>>?>.value(null);
+
+      final quizNbFuture = (quiz == null)
+          ? safeGetQuery(_quizzes.where('notebookId', isEqualTo: nbId).limit(1))
+          : Future<QuerySnapshot<Map<String, dynamic>>?>.value(null);
+
+      final quizLessonFuture =
+          (quiz == null && lesson != null && lesson.id.isNotEmpty)
+              ? safeGetQuery(_quizzes.where('lessonId', isEqualTo: lesson.id).limit(1))
+              : Future<QuerySnapshot<Map<String, dynamic>>?>.value(null);
 
       // 3. Fetch published content items for this notebook
-      try {
-        final pubSnap =
-            await _publishedContent.where('notebookId', isEqualTo: nbId).get();
-        items = pubSnap.docs.map(PublishedContentItem.fromDoc).toList();
-      } catch (e) {
-        debugPrint('Error fetching companion published items: $e');
-      }
+      final pubNbFuture =
+          safeGetQuery(_publishedContent.where('notebookId', isEqualTo: nbId));
 
-      // Also check if published items were stored with lesson.id as notebookId or lessonId
-      if (lesson != null && lesson.id.isNotEmpty) {
-        try {
-          final lessonPubSnap =
-              await _publishedContent.where('lessonId', isEqualTo: lesson.id).get();
-          for (final doc in lessonPubSnap.docs) {
-            if (!items.any((i) => i.id == doc.id)) {
-              items.add(PublishedContentItem.fromDoc(doc));
-            }
-          }
-        } catch (e) {
-          debugPrint('Error fetching companion items by lessonId: $e');
-        }
+      // 4. Fetch published items by lessonId
+      final pubLessonFuture =
+          (lesson != null && lesson.id.isNotEmpty)
+              ? safeGetQuery(_publishedContent.where('lessonId', isEqualTo: lesson.id))
+              : Future<QuerySnapshot<Map<String, dynamic>>?>.value(null);
 
-        if (lesson.id != nbId) {
-          try {
-            final lessonNbSnap =
-                await _publishedContent.where('notebookId', isEqualTo: lesson.id).get();
-            for (final doc in lessonNbSnap.docs) {
-              if (!items.any((i) => i.id == doc.id)) {
-                items.add(PublishedContentItem.fromDoc(doc));
-              }
-            }
-          } catch (e) {
-            debugPrint('Error fetching companion items by lesson.id as notebookId: $e');
-          }
+      final results = await Future.wait([
+        lessonFuture,
+        quizDocFuture,
+        quizNbFuture,
+        quizLessonFuture,
+        pubNbFuture,
+        pubLessonFuture,
+      ]);
+
+      // Process lesson
+      if (lesson == null && results[0] != null) {
+        final snap = results[0] as QuerySnapshot<Map<String, dynamic>>;
+        if (snap.docs.isNotEmpty) {
+          lesson = Lesson.fromDoc(snap.docs.first);
         }
       }
 
-      // 4. Merge companion items from local session that were generated for this notebook
+      // Process quiz
+      if (quiz == null) {
+        if (results[1] != null) {
+          final doc = results[1] as DocumentSnapshot<Map<String, dynamic>>;
+          if (doc.exists) quiz = Quiz.fromDoc(doc);
+        }
+        if (quiz == null && results[2] != null) {
+          final snap = results[2] as QuerySnapshot<Map<String, dynamic>>;
+          if (snap.docs.isNotEmpty) quiz = Quiz.fromDoc(snap.docs.first);
+        }
+        if (quiz == null && results[3] != null) {
+          final snap = results[3] as QuerySnapshot<Map<String, dynamic>>;
+          if (snap.docs.isNotEmpty) quiz = Quiz.fromDoc(snap.docs.first);
+        }
+      }
+
+      // Process published items
+      if (results[4] != null) {
+        final snap = results[4] as QuerySnapshot<Map<String, dynamic>>;
+        items = snap.docs.map(PublishedContentItem.fromDoc).toList();
+      }
+      if (results[5] != null) {
+        final snap = results[5] as QuerySnapshot<Map<String, dynamic>>;
+        for (final doc in snap.docs) {
+          if (!items.any((i) => i.id == doc.id)) {
+            items.add(PublishedContentItem.fromDoc(doc));
+          }
+        }
+      }
+
+      // Merge local session outputs
       try {
         final localOutputs = NotebookService.instance.getOutputsForNotebook(nbId);
         for (final out in localOutputs) {
@@ -1992,7 +2378,7 @@ class DatabaseService {
         }
       }
     } else {
-      // Legacy fallback: lesson has quizId
+      // Legacy fallback
       if (lesson != null &&
           quiz == null &&
           lesson.quizId != null &&
@@ -2008,7 +2394,6 @@ class DatabaseService {
       }
     }
 
-    // Ensure currentPublishedItem is in list if supplied
     if (currentPublishedItem != null &&
         !items.any((i) => i.id == currentPublishedItem.id)) {
       items.add(currentPublishedItem);

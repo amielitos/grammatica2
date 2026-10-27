@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Perfect Score badge">
+  <circle cx="128" cy="128" r="120" fill="#C77700"/>
+  <circle cx="128" cy="128" r="108" fill="#F59E0B"/>
+  <circle cx="128" cy="128" r="98" fill="none" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="3" stroke-dasharray="3 7"/>
+  <polygon points="128,64 144.5,106.5 190,108.5 154.5,137 166.5,181 128,156 89.5,181 101.5,137 66,108.5 111.5,106.5" fill="#FFFFFF"/>
+  <path d="M112 130 L124 142 L146 116" fill="none" stroke="#C77700" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

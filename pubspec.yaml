@@ -77,6 +77,7 @@ dependencies:
   html: ^0.15.7
   flutter_staggered_grid_view: ^0.7.0
   shimmer: ^3.0.0
+  flutter_svg: ^2.0.17
 
   # Agora - Real-time Video Conference & Chat
   agora_rtc_engine: ^6.3.2
@@ -108,6 +109,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/
+    - assets/badges/
+    - assets/seed/
     - .env
 
 

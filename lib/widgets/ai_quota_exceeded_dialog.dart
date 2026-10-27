@@ -264,7 +264,7 @@ class AIQuotaExceededDialog extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'Subscribed learners get 100 AI generations every day.',
+                            'Enrolled learners get 100 AI generations every day.',
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               color: isDark ? Colors.white60 : Colors.black54,
@@ -281,7 +281,7 @@ class AIQuotaExceededDialog extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.rocket_launch_rounded, size: 18),
-                  label: const Text('Upgrade Subscription'),
+                  label: const Text('Upgrade Enrollment'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF10B981),
                     foregroundColor: Colors.white,

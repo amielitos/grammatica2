@@ -196,7 +196,7 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Subscribed to ${widget.tier} Tier with ${widget.educatorName}. Receipt will be emailed to you.',
+                'Enrolled in ${widget.tier} Tier with ${widget.educatorName}. Receipt will be emailed to you.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 14,
@@ -265,7 +265,7 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
               ),
               const SizedBox(height: 14),
               Text(
-                'Scan using GCash, Maya, ShopeePay, or any QR PH banking app to complete your subscription.',
+                'Scan using GCash, Maya, ShopeePay, or any QR PH banking app to complete your enrollment.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(fontSize: 13, color: Colors.black54),
               ),
@@ -447,7 +447,7 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
                     _buildDetailRow('Merchant', 'Grammatica Language Platform'),
                     const SizedBox(height: 8),
                     _buildDetailRow(
-                      'Subscription',
+                      'Enrollment',
                       '${widget.tier} Tier (${widget.educatorName})',
                     ),
                     if (_paymentLink != null) ...[

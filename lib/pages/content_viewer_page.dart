@@ -19,6 +19,8 @@ import 'notebook/presentation_view.dart';
 import '../widgets/linked_companion_toolbar.dart';
 import '../widgets/universal_drawer.dart';
 import '../widgets/author_name_widget.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/notification_widgets.dart';
 
 /// Universal content viewer for all published non-lesson/non-quiz output types
 /// (Mind Maps, Flashcards, Study Guides, Timelines, Briefings, FAQs).
@@ -411,90 +413,19 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF1E1E1E) : AppColors.backgroundBase,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Row(
-          children: [
-            Icon(typeIcon, color: typeColor, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                _title,
-                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          // Completion status button synced with Firestore progress (omitted for flashcards which use SM-2 spaced repetition progress)
-          if (_type != NotebookOutputType.flashcards)
-            StreamBuilder<Map<String, Map<String, dynamic>>>(
-            stream: DatabaseService.instance.progressStream(_effectiveUser),
-            builder: (context, snapshot) {
-              final progressMap = snapshot.data ?? {};
-              final isCompleted = progressMap[_contentId]?['completed'] == true;
-
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: TextButton.icon(
-                  onPressed: () async {
-                    await DatabaseService.instance.markContentCompleted(
-                      user: _effectiveUser,
-                      contentId: _contentId,
-                      completed: !isCompleted,
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            !isCompleted
-                                ? 'Marked as completed! Great progress! 🎉'
-                                : 'Marked as incomplete.',
-                          ),
-                          duration: const Duration(seconds: 2),
-                          backgroundColor: !isCompleted ? const Color(0xFF10B981) : Colors.black87,
-                        ),
-                      );
-                    }
-                  },
-                  icon: Icon(
-                    isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                    color: isCompleted ? const Color(0xFF10B981) : (isDark ? Colors.white60 : Colors.black54),
-                    size: 18,
-                  ),
-                  label: Text(
-                    isCompleted ? 'Completed' : 'Mark Done',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: isCompleted ? const Color(0xFF10B981) : (isDark ? Colors.white70 : Colors.black87),
-                    ),
-                  ),
-                  style: TextButton.styleFrom(
-                    backgroundColor: isCompleted
-                        ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                        : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.04)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              );
-            },
-          ),
-          Builder(
-            builder: (ctx) => IconButton(
-              icon: const Icon(Icons.menu, size: 26),
-              onPressed: () => Scaffold.of(ctx).openDrawer(),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
+      appBar: CustomAppBar(
+        user: _effectiveUser,
+        showBackButton: true,
+        onLogoTap: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
+        onNotificationTap: () {
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: _effectiveUser.uid),
+          );
+        },
       ),
       drawer: UniversalDrawer(
         user: _effectiveUser,
@@ -516,6 +447,78 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Title and Completion Action Bar
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(typeIcon, color: typeColor, size: 24),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _title,
+                              style: GoogleFonts.inter(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          if (_type != NotebookOutputType.flashcards)
+                            StreamBuilder<Map<String, Map<String, dynamic>>>(
+                              stream: DatabaseService.instance.progressStream(_effectiveUser),
+                              builder: (context, snapshot) {
+                                final progressMap = snapshot.data ?? {};
+                                final isCompleted = progressMap[_contentId]?['completed'] == true;
+
+                                return TextButton.icon(
+                                  onPressed: () async {
+                                    await DatabaseService.instance.markContentCompleted(
+                                      user: _effectiveUser,
+                                      contentId: _contentId,
+                                      completed: !isCompleted,
+                                    );
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            !isCompleted
+                                                ? 'Marked as completed! Great progress! 🎉'
+                                                : 'Marked as incomplete.',
+                                          ),
+                                          duration: const Duration(seconds: 2),
+                                          backgroundColor: !isCompleted ? const Color(0xFF10B981) : Colors.black87,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  icon: Icon(
+                                    isCompleted ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                    color: isCompleted ? const Color(0xFF10B981) : (isDark ? Colors.white60 : Colors.black54),
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    isCompleted ? 'Completed' : 'Mark Done',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: isCompleted ? const Color(0xFF10B981) : (isDark ? Colors.white70 : Colors.black87),
+                                    ),
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: isCompleted
+                                        ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                                        : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.04)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
                     // Hero Banner with metadata
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),

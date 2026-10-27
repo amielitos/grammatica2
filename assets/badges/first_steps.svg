@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="First Steps badge">
+  <circle cx="128" cy="128" r="120" fill="#1F7A44"/>
+  <circle cx="128" cy="128" r="108" fill="#2E9E5B"/>
+  <circle cx="128" cy="128" r="98" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="3" stroke-dasharray="3 7"/>
+  <path d="M128 100 C112 92 92 92 78 98 V164 C92 158 112 158 128 166 Z" fill="#FFFFFF"/>
+  <path d="M128 100 C144 92 164 92 178 98 V164 C164 158 144 158 128 166 Z" fill="#FFFFFF" fill-opacity="0.8"/>
+  <path d="M128 100 V166" stroke="#1F7A44" stroke-width="3"/>
+  <path d="M146 76 L151 86 L162 88 L154 96 L156 107 L146 102 L136 107 L138 96 L130 88 L141 86 Z" fill="#FFD54A"/>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="3-Day Streak badge">
+  <circle cx="128" cy="128" r="120" fill="#C73030"/>
+  <circle cx="128" cy="128" r="108" fill="#EF4444"/>
+  <circle cx="128" cy="128" r="98" fill="none" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="3" stroke-dasharray="3 7"/>
+  <path d="M128 70 C132 92 156 102 156 130 C156 150 144 164 128 164 C112 164 100 150 100 130 C100 118 106 110 113 103 C113 113 119 118 124 118 C121 102 123 86 128 70 Z" fill="#FFFFFF"/>
+  <path d="M128 122 C132 132 143 136 143 147 C143 156 137 160 128 160 C119 160 113 156 113 147 C113 141 117 137 121 133 C124 129 126 126 128 122 Z" fill="#FFB4B4"/>
+  <circle cx="104" cy="188" r="6" fill="#FFFFFF"/>
+  <circle cx="128" cy="188" r="6" fill="#FFFFFF"/>
+  <circle cx="152" cy="188" r="6" fill="#FFFFFF"/>
+</svg>

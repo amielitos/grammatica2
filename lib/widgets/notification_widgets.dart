@@ -310,7 +310,7 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                         IconButton(
                           icon: Icon(
                             _showArchived
-                                ? CupertinoIcons.list_bullet
+                                ? CupertinoIcons.tray_fill
                                 : CupertinoIcons.archivebox,
                             size: 20,
                           ),
@@ -1063,7 +1063,7 @@ class NotificationTile extends StatelessWidget {
       case NotificationType.achievement:
         return 'ACHIEVEMENT';
       case NotificationType.subscription:
-        return 'SUBSCRIPTION';
+        return 'ENROLLMENT';
       case NotificationType.mentorship:
         return 'MENTORSHIP';
       case NotificationType.welcome:
@@ -1200,7 +1200,7 @@ class NotificationTile extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         notification.type == NotificationType.lessonUpload
-                            ? 'Tap to view educator content'
+                            ? 'Tap to view educator lesson'
                             : (isMentorship
                                 ? 'Tap to view mentorship schedule'
                                 : 'Tap to view educator profile'),
@@ -1289,7 +1289,7 @@ class NotificationDetailDialog extends StatelessWidget {
       case NotificationType.achievement:
         return 'ACHIEVEMENT';
       case NotificationType.subscription:
-        return 'SUBSCRIPTION';
+        return 'ENROLLMENT';
       case NotificationType.mentorship:
         return 'MENTORSHIP';
       case NotificationType.welcome:

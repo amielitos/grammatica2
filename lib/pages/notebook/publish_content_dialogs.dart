@@ -1217,7 +1217,7 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
               // Title Field
               Text.rich(
                 TextSpan(
-                  text: 'Content Title',
+                  text: 'Lesson Title',
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,

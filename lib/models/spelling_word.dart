@@ -48,10 +48,13 @@ class SpellingWord {
   static SpellingDifficulty _difficultyFromString(String? value) {
     switch (value?.toUpperCase()) {
       case 'PROFESSIONAL':
+      case 'ADVANCED':
         return SpellingDifficulty.professional;
       case 'AMATEUR':
+      case 'INTERMEDIATE':
         return SpellingDifficulty.amateur;
       case 'NOVICE':
+      case 'BEGINNER':
       default:
         return SpellingDifficulty.novice;
     }
@@ -60,11 +63,11 @@ class SpellingWord {
   String get difficultyLabel {
     switch (difficulty) {
       case SpellingDifficulty.novice:
-        return 'Novice';
+        return 'Beginner';
       case SpellingDifficulty.amateur:
-        return 'Amateur';
+        return 'Intermediate';
       case SpellingDifficulty.professional:
-        return 'Professional';
+        return 'Advanced';
     }
   }
 }

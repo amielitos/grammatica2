@@ -60,6 +60,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       elevation: 0,
       centerTitle: true,
       automaticallyImplyLeading: false,
+      actions: const [SizedBox.shrink()],
       shape: Border(
         bottom: BorderSide(
           color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
@@ -80,15 +81,16 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (showBackButton)
+                  IconButton(
+                    icon: Icon(Icons.menu, color: isDark ? Colors.white : Colors.black87),
+                    onPressed: () => _openDrawer(context),
+                  ),
+                  if (showBackButton || (ModalRoute.of(context)?.canPop ?? false))
                     IconButton(
+                      tooltip: 'Back',
                       icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black87, size: 28),
                       onPressed: () => Navigator.maybePop(context),
                     ),
-                  IconButton(
-                    icon: Icon(Icons.menu, color: isDark ? Colors.white : Colors.black87, size: 28),
-                    onPressed: () => _openDrawer(context),
-                  ),
                   const SizedBox(width: 4),
                   Material(
                     color: Colors.transparent,
@@ -209,7 +211,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           ],
                         ),
                       ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 8),
                     NotificationIconButton(
                       userId: user.uid,
                       onTap: onNotificationTap,

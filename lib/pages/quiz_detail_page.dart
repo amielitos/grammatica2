@@ -20,6 +20,7 @@ import 'package:string_similarity/string_similarity.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/navigation_service.dart';
 import '../services/web_service.dart';
+import '../services/badge_service.dart';
 
 class _RenderableQuestion {
   final QuizQuestion question;
@@ -892,6 +893,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         _confettiController.play();
       });
 
+      if (percentage >= 100.0 || (scorableCount > 0 && score == scorableCount)) {
+        BadgeService.instance.recordPerfectQuiz(_effectiveUser.uid, context: context);
+      }
+
       DatabaseService.instance.checkAndAwardAchievement(_effectiveUser.uid, 'first_quiz').then((awarded) {
         if (awarded) {
           NotificationService.instance.sendAchievementNotification(
@@ -1440,9 +1445,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         children: [
           const Icon(Icons.lock_rounded, color: AppColors.secondary, size: 36),
           const SizedBox(height: 16),
-          Text('Subscription Required', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.secondary)),
+          Text('Enrollment Required', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.secondary)),
           const SizedBox(height: 8),
-          Text('You need an active subscription to take this quiz.', textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white70 : AppColors.textSecondary)),
+          Text('You need an active enrollment to take this quiz.', textAlign: TextAlign.center, style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white70 : AppColors.textSecondary)),
         ],
       ),
     );

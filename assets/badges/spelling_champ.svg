@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Spelling Champ badge">
+  <circle cx="128" cy="128" r="120" fill="#6B3FD1"/>
+  <circle cx="128" cy="128" r="108" fill="#8B5CF6"/>
+  <circle cx="128" cy="128" r="98" fill="none" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="3" stroke-dasharray="3 7"/>
+  <path d="M98 82 H158 V112 C158 130 144 142 128 142 C112 142 98 130 98 112 Z" fill="#FFFFFF"/>
+  <path d="M98 92 H84 V100 C84 112 92 118 101 118" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M158 92 H172 V100 C172 112 164 118 155 118" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="121" y="142" width="14" height="14" fill="#FFFFFF"/>
+  <rect x="104" y="156" width="48" height="9" rx="3" fill="#FFFFFF"/>
+  <path d="M128 94 L132 104 L143 105 L135 112 L137 123 L128 117 L119 123 L121 112 L113 105 L124 104 Z" fill="#FFD54A"/>
+</svg>

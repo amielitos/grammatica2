@@ -272,14 +272,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
         );
       }
 
-      // Practice (Admin only) or English Assessment (Educator)
+      // Site Settings (Admin only)
       if (isAdmin) {
-        tabs.add(const PracticeTab());
-        navItems.add(
-          const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
-        );
-
-        // Landing Page Settings (Admin only)
         tabs.add(const AdminLandingSettingsTab());
         navItems.add(
           const ModernNavItem(icon: Icons.web_rounded, label: 'Site Settings'),

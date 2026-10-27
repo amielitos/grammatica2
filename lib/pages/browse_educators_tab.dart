@@ -77,7 +77,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                 // ─── Hero Header & Search Bar ─────────────────────────────────
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
+                  padding: const EdgeInsets.fromLTRB(24, 36, 24, 28),
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 1200),
@@ -85,22 +85,32 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                             decoration: BoxDecoration(
                               color: const Color(0xFF81B655).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'SUBSCRIPTION',
-                              style: GoogleFonts.outfit(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF81B655),
-                                letterSpacing: 1.2,
+                              border: Border.all(
+                                color: const Color(0xFF81B655).withValues(alpha: 0.25),
                               ),
                             ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.school_rounded, size: 14, color: Color(0xFF81B655)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'ENROLLMENT',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF81B655),
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
                           Text(
                             'Browse Educators',
                             style: GoogleFonts.outfit(
@@ -113,7 +123,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Subscribe to verified educators for exclusive lessons, quizzes, and personalized mentorship.',
+                            'Enroll with verified educators for exclusive lessons, structured courses, and personalized mentorship.',
                             style: GoogleFonts.inter(
                               fontSize: 15,
                               color: isDark ? Colors.white60 : const Color(0xFF64748B),
@@ -123,17 +133,18 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                           const SizedBox(height: 24),
                           // Search Bar
                           Container(
-                            constraints: const BoxConstraints(maxWidth: 600),
+                            constraints: const BoxConstraints(maxWidth: 640),
                             decoration: BoxDecoration(
                               color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                                width: 1.2,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 14,
+                                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                                  blurRadius: 16,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
@@ -155,7 +166,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                                 fontSize: 14,
                               ),
                               decoration: InputDecoration(
-                                hintText: 'Search educators by name…',
+                                hintText: 'Search educators by name, specialty, or bio…',
                                 hintStyle: TextStyle(
                                   color: isDark ? Colors.white38 : Colors.grey.shade400,
                                   fontSize: 14,
@@ -163,7 +174,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                                 prefixIcon: Icon(
                                   Icons.search_rounded,
                                   color: isDark ? Colors.white38 : const Color(0xFF81B655),
-                                  size: 20,
+                                  size: 22,
                                 ),
                                 suffixIcon: _searchQuery.isNotEmpty
                                     ? IconButton(
@@ -181,7 +192,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                                     : null,
                                 border: InputBorder.none,
                                 contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
+                                  horizontal: 18,
                                   vertical: 16,
                                 ),
                               ),
@@ -317,14 +328,15 @@ class _EducatorCardState extends State<_EducatorCard>
         ? fullName
         : ((widget.educator['full_name'] ?? widget.educator['displayName'] ?? widget.educator['username']) as String? ?? 'Educator');
     String bio = widget.educator['bio'] as String? ?? '';
-    if (bio.trim().isEmpty) bio = 'Educator & Content Creator';
-    
+    if (bio.trim().isEmpty) bio = 'Educator & Lesson Creator';
+
     final int reviewCount = (widget.educator['reviewCount'] as num?)?.toInt() ?? 0;
-    final double rating = reviewCount > 0 
-        ? ((widget.educator['averageRating'] as num?)?.toDouble() ?? 0.0) 
+    final double rating = reviewCount > 0
+        ? ((widget.educator['averageRating'] as num?)?.toDouble() ?? 0.0)
         : 0.0;
     final isDark = widget.isDark;
     final isMobile = MediaQuery.of(context).size.width <= 600;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
 
     return MouseRegion(
       onEnter: (_) {
@@ -352,298 +364,323 @@ class _EducatorCardState extends State<_EducatorCard>
               Transform.scale(scale: _scale.value, child: child),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: EdgeInsets.all(isMobile ? 12 : 16),
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              color: cardBg,
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(
                 color: _hovered
-                    ? const Color(0xFF81B655).withValues(alpha: 0.5)
+                    ? const Color(0xFF81B655)
                     : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                 width: _hovered ? 1.8 : 1.0,
               ),
               boxShadow: [
                 BoxShadow(
                   color: _hovered
-                      ? const Color(0xFF81B655).withValues(alpha: 0.12)
-                      : Colors.black.withValues(alpha: isDark ? 0.0 : 0.04),
+                      ? const Color(0xFF81B655).withValues(alpha: 0.18)
+                      : Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
                   blurRadius: _hovered ? 24 : 12,
                   offset: const Offset(0, 6),
                 ),
               ],
             ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Column(
-                  mainAxisSize: MainAxisSize.min,
+                // ─── Card Top Accent Banner ──────────────────────────────
+                Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    // ── Avatar ─────────────────────────────────────────────
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.all(2),
+                    Container(
+                      height: 68,
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _hovered
-                              ? const Color(0xFF81B655)
-                              : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                          width: 2,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: isDark
+                              ? [const Color(0xFF1E3A2B), const Color(0xFF142E20)]
+                              : [const Color(0xFFEAF5E4), const Color(0xFFD8ECCB)],
                         ),
                       ),
-                      child: CircleAvatar(
-                        radius: isMobile ? 28 : 36,
-                        backgroundColor: isDark
-                            ? const Color(0xFF334155)
-                            : const Color(0xFFF1F5F9),
-                        backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
-                            ? NetworkImage(photoUrl)
-                            : null,
-                        onBackgroundImageError: (photoUrl != null && photoUrl.isNotEmpty)
-                            ? (err, st) {}
-                            : null,
-                        child: (photoUrl == null || photoUrl.isEmpty)
-                            ? Icon(
-                                Icons.person_rounded,
-                                size: isMobile ? 26 : 32,
-                                color: isDark ? Colors.white24 : Colors.grey.shade400,
-                              )
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // ── Name ───────────────────────────────────────────────
-                    Text(
-                      name,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.outfit(
-                        fontSize: isMobile ? 14.5 : 16,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-
-                    // ── Bio ────────────────────────────────────────────────
-                    Text(
-                      bio,
-                      textAlign: TextAlign.center,
-                      maxLines: isMobile ? 1 : 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        fontSize: isMobile ? 11 : 12,
-                        color: isDark ? Colors.white38 : const Color(0xFF64748B),
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // ── Divider & Rating ───────────────────────────────────
-                    Divider(
-                      color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-                      height: 1,
-                    ),
-                    const SizedBox(height: 8),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ...List.generate(
-                          5,
-                          (i) => Icon(
-                            i < rating.round()
-                                ? Icons.star_rounded
-                                : Icons.star_outline_rounded,
-                            color: Colors.amber,
-                            size: 14,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      alignment: Alignment.topRight,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: cardBg.withValues(alpha: 0.88),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF81B655).withValues(alpha: 0.3),
+                            width: 1,
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          rating > 0 ? rating.toStringAsFixed(1) : '0.0',
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white70 : const Color(0xFF0F172A),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // ── Playlist Count Chip ────────────────────────────────
-                    StreamBuilder<List<LessonPlaylist>>(
-                      stream: DatabaseService.instance.streamPlaylistsByCreator(
-                        (widget.educator['uid'] ?? widget.educator['id'] ?? '') as String,
-                        email: widget.educator['email'] as String?,
-                      ),
-                      builder: (context, pSnap) {
-                        final pCount = pSnap.data?.length ?? 0;
-                        if (pCount == 0) return const SizedBox(height: 6);
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF81B655).withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.verified_rounded,
+                              size: 13,
+                              color: Color(0xFF81B655),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.playlist_play_rounded, size: 14, color: Color(0xFF81B655)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '$pCount ${pCount == 1 ? "Playlist" : "Playlists"}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF81B655),
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(width: 4),
+                            Text(
+                              'Verified',
+                              style: GoogleFonts.outfit(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF81B655),
+                              ),
                             ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Overlapping Avatar
+                    Positioned(
+                      bottom: -28,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(3.5),
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                        );
-                      },
+                          child: CircleAvatar(
+                            radius: isMobile ? 30 : 34,
+                            backgroundColor: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFF1F5F9),
+                            backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+                                ? NetworkImage(photoUrl)
+                                : null,
+                            onBackgroundImageError: (photoUrl != null && photoUrl.isNotEmpty)
+                                ? (err, st) {}
+                                : null,
+                            child: (photoUrl == null || photoUrl.isEmpty)
+                                ? Icon(
+                                    Icons.person_rounded,
+                                    size: isMobile ? 28 : 32,
+                                    color: isDark ? Colors.white38 : Colors.grey.shade400,
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 34),
 
-                // ── CTA Buttons ─────────────────────────────────────────
-                StreamBuilder<List<LessonPlaylist>>(
-                  stream: DatabaseService.instance.streamPlaylistsByCreator(
-                    (widget.educator['uid'] ?? widget.educator['id'] ?? '') as String,
-                    email: widget.educator['email'] as String?,
-                  ),
-                  builder: (context, pSnap) {
-                    final pCount = pSnap.data?.length ?? 0;
-                    if (pCount > 0) {
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 38,
-                              child: OutlinedButton(
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => EducatorProfilePage(
-                                      educator: widget.educator,
-                                      currentUser: widget.currentUser,
-                                      initialTab: 0,
+                // ─── Card Body ───────────────────────────────────────────
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // ── Name ───────────────────────────────────────────────
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    name,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: isMobile ? 15 : 16.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      height: 1.2,
                                     ),
                                   ),
                                 ),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: isDark ? Colors.white70 : const Color(0xFF0F172A),
-                                  side: BorderSide(
-                                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  padding: EdgeInsets.zero,
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 15,
+                                  color: Color(0xFF81B655),
                                 ),
-                                child: Text(
-                                  'Profile',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: SizedBox(
-                              height: 38,
-                              child: ElevatedButton.icon(
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => EducatorProfilePage(
-                                      educator: widget.educator,
-                                      currentUser: widget.currentUser,
-                                      initialTab: 1, // Opens directly on Playlists tab!
-                                    ),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.playlist_play_rounded, size: 16),
-                                label: Text(
-                                  'Playlists',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF81B655),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: EdgeInsets.zero,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    }
+                            const SizedBox(height: 5),
 
-                    return SizedBox(
-                      width: double.infinity,
-                      height: 38,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        decoration: BoxDecoration(
-                          color: _hovered
-                              ? const Color(0xFF81B655)
-                              : const Color(0xFF81B655).withValues(alpha: 0.09),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: _hovered
-                                ? Colors.transparent
-                                : const Color(0xFF81B655).withValues(alpha: 0.3),
-                          ),
+                            // ── Bio ────────────────────────────────────────────────
+                            Text(
+                              bio,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: isMobile ? 11 : 12,
+                                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // ── Rating & Playlists Pills Row ──────────────────────
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                // Rating Pill
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                  decoration: BoxDecoration(
+                                    color: reviewCount > 0
+                                        ? Colors.amber.withValues(alpha: 0.12)
+                                        : (isDark ? Colors.white10 : Colors.grey.shade100),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.star_rounded,
+                                        size: 14,
+                                        color: reviewCount > 0
+                                            ? Colors.amber
+                                            : (isDark ? Colors.white38 : Colors.grey.shade400),
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        reviewCount > 0 && rating > 0
+                                            ? rating.toStringAsFixed(1)
+                                            : '0.0',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: reviewCount > 0
+                                              ? (isDark ? Colors.amber.shade200 : const Color(0xFFB45309))
+                                              : (isDark ? Colors.white54 : Colors.grey.shade600),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        reviewCount > 0 ? '($reviewCount)' : '(0)',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          color: isDark ? Colors.white38 : Colors.grey.shade500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Playlist Count Chip
+                                StreamBuilder<List<LessonPlaylist>>(
+                                  stream: DatabaseService.instance.streamPlaylistsByCreator(
+                                    (widget.educator['uid'] ?? widget.educator['id'] ?? '') as String,
+                                    email: widget.educator['email'] as String?,
+                                  ),
+                                  builder: (context, pSnap) {
+                                    final pCount = pSnap.data?.length ?? 0;
+                                    if (pCount == 0) return const SizedBox.shrink();
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.auto_stories_rounded,
+                                            size: 13,
+                                            color: Color(0xFF81B655),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '$pCount ${pCount == 1 ? "Course" : "Courses"}',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: const Color(0xFF81B655),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        child: Center(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'View Profile',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: _hovered
-                                      ? Colors.white
-                                      : const Color(0xFF81B655),
-                                ),
-                              ),
-                              const SizedBox(width: 5),
-                              Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 14,
+
+                        const SizedBox(height: 12),
+
+                        // ── Responsive CTA Button ───────────────────────────────
+                        SizedBox(
+                          width: double.infinity,
+                          height: 38,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              color: _hovered
+                                  ? const Color(0xFF81B655)
+                                  : const Color(0xFF81B655).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
                                 color: _hovered
-                                    ? Colors.white
-                                    : const Color(0xFF81B655),
+                                    ? Colors.transparent
+                                    : const Color(0xFF81B655).withValues(alpha: 0.35),
                               ),
-                            ],
+                            ),
+                            child: Center(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Enroll & View Profile',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: isMobile ? 12 : 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: _hovered
+                                              ? Colors.white
+                                              : const Color(0xFF81B655),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 14,
+                                        color: _hovered
+                                            ? Colors.white
+                                            : const Color(0xFF81B655),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -653,3 +690,4 @@ class _EducatorCardState extends State<_EducatorCard>
     );
   }
 }
+

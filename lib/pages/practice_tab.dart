@@ -148,9 +148,11 @@ class _PracticeToolsHome extends StatelessWidget {
           : const Color(0xFFFAFAFA), // Soft minimalist off-white or dark
       child: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: isDesktop ? 48 : 20,
-            vertical: 48,
+          padding: EdgeInsets.only(
+            top: isDesktop ? 68 : 36,
+            bottom: isDesktop ? 64 : 36,
+            left: isDesktop ? 36 : 16,
+            right: isDesktop ? 36 : 16,
           ),
           child: Center(
             child: Column(
@@ -162,86 +164,94 @@ class _PracticeToolsHome extends StatelessWidget {
                   'Practice & Master',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.outfit(
-                    fontSize: isDesktop ? 44 : 32,
+                    fontSize: isDesktop ? 38 : 28,
                     fontWeight: FontWeight.w900,
                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                     height: 1.15,
-                    letterSpacing: -1.0,
+                    letterSpacing: -0.8,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
                 // Subtitle
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
+                  constraints: const BoxConstraints(maxWidth: 620),
                   child: Text(
                     'Choose a tool below to practice spelling, perfect your pronunciation, review spaced-repetition decks, or take assessments.',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
-                      fontSize: 15,
+                      fontSize: 14.5,
                       color: isDark
                           ? Colors.grey[400]
                           : const Color(0xFF64748B),
-                      height: 1.55,
+                      height: 1.5,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 48),
+                SizedBox(height: isDesktop ? 48 : 28),
 
-                // Cards Row / Column
+                // Cards Row / Column - balanced proportions
                 ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1100),
+                  constraints: const BoxConstraints(maxWidth: 1060),
                   child: isDesktop
-                      ? Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _PracticeCard(
-                                    title: 'Spelling Bee',
-                                    subtitle:
-                                        'Interactive spelling challenges with audio prompts across difficulty levels.',
-                                    tag: 'VOCABULARY',
-                                    icon: Icons.emoji_nature_rounded,
-                                    themeColor: const Color(0xFFF59E0B),
-                                    onTap: () => onSelectTool(0),
-                                  ),
+                      ? IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: _PracticeCard(
+                                  title: 'Spelling Bee',
+                                  subtitle:
+                                      'Interactive spelling challenges with audio prompts across difficulty levels.',
+                                  tag: 'VOCABULARY',
+                                  icon: Icons.emoji_nature_rounded,
+                                  themeColor: const Color(0xFFF59E0B),
+                                  highlights: const [
+                                    'Audio pronunciation cues',
+                                    'Adaptive difficulty tiers',
+                                    'Score & streak tracking',
+                                  ],
+                                  onTap: () => onSelectTool(0),
                                 ),
-                                const SizedBox(width: 24),
-                                Expanded(
-                                  child: _PracticeCard(
-                                    title: 'Pronunciation',
-                                    subtitle:
-                                        'Practice speaking with real-time speech recognition & accuracy scoring.',
-                                    tag: 'SPEAKING',
-                                    icon: Icons.graphic_eq_rounded,
-                                    themeColor: const Color(0xFF81B655),
-                                    onTap: () => onSelectTool(1),
-                                  ),
+                              ),
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: _PracticeCard(
+                                  title: 'Pronunciation',
+                                  subtitle:
+                                      'Practice speaking with real-time speech recognition & accuracy scoring.',
+                                  tag: 'SPEAKING',
+                                  icon: Icons.graphic_eq_rounded,
+                                  themeColor: const Color(0xFF81B655),
+                                  highlights: const [
+                                    'Speech AI evaluation',
+                                    'Instant accent & clarity feedback',
+                                    'Real-time phonetic guidance',
+                                  ],
+                                  onTap: () => onSelectTool(1),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _PracticeCard(
-                                    title: 'English Assessment',
-                                    subtitle:
-                                        'Comprehensive grammar tests with instant evaluation & certificates.',
-                                    tag: 'EVALUATION',
-                                    icon: Icons.verified_rounded,
-                                    themeColor: const Color(0xFFEF4444),
-                                    onTap: () => onSelectTool(2),
-                                  ),
+                              ),
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: _PracticeCard(
+                                  title: 'English Assessment',
+                                  subtitle:
+                                      'Comprehensive grammar tests with instant evaluation & certificates.',
+                                  tag: 'EVALUATION',
+                                  icon: Icons.verified_rounded,
+                                  themeColor: const Color(0xFFEF4444),
+                                  highlights: const [
+                                    'Standardized grammar tests',
+                                    'Instant scoring & analytics',
+                                    'Certificate of achievement',
+                                  ],
+                                  onTap: () => onSelectTool(2),
                                 ),
-                                const SizedBox(width: 24),
-                                const Expanded(child: SizedBox()),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
                         )
                       : Column(
                           children: [
@@ -252,6 +262,11 @@ class _PracticeToolsHome extends StatelessWidget {
                               tag: 'VOCABULARY',
                               icon: Icons.emoji_nature_rounded,
                               themeColor: const Color(0xFFF59E0B),
+                              highlights: const [
+                                'Audio pronunciation cues',
+                                'Adaptive difficulty tiers',
+                                'Score & streak tracking',
+                              ],
                               onTap: () => onSelectTool(0),
                             ),
                             const SizedBox(height: 20),
@@ -262,6 +277,11 @@ class _PracticeToolsHome extends StatelessWidget {
                               tag: 'SPEAKING',
                               icon: Icons.graphic_eq_rounded,
                               themeColor: const Color(0xFF81B655),
+                              highlights: const [
+                                'Speech AI evaluation',
+                                'Instant accent & clarity feedback',
+                                'Real-time phonetic guidance',
+                              ],
                               onTap: () => onSelectTool(1),
                             ),
                             const SizedBox(height: 20),
@@ -272,6 +292,11 @@ class _PracticeToolsHome extends StatelessWidget {
                               tag: 'EVALUATION',
                               icon: Icons.verified_rounded,
                               themeColor: const Color(0xFFEF4444),
+                              highlights: const [
+                                'Standardized grammar tests',
+                                'Instant scoring & analytics',
+                                'Certificate of achievement',
+                              ],
                               onTap: () => onSelectTool(2),
                             ),
                           ],
@@ -295,6 +320,7 @@ class _PracticeCard extends StatefulWidget {
   final String tag;
   final IconData icon;
   final Color themeColor;
+  final List<String> highlights;
   final VoidCallback onTap;
 
   const _PracticeCard({
@@ -303,6 +329,7 @@ class _PracticeCard extends StatefulWidget {
     required this.tag,
     required this.icon,
     required this.themeColor,
+    this.highlights = const [],
     required this.onTap,
   });
 
@@ -337,6 +364,7 @@ class _PracticeCardState extends State<_PracticeCard>
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width > 800;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return MouseRegion(
@@ -357,10 +385,14 @@ class _PracticeCardState extends State<_PracticeCard>
               Transform.scale(scale: _scale.value, child: child),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(32),
+            constraints: BoxConstraints(minHeight: isDesktop ? 410 : 330),
+            padding: EdgeInsets.symmetric(
+              horizontal: 28,
+              vertical: isDesktop ? 36 : 24,
+            ),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: _hovered
                     ? widget.themeColor.withValues(alpha: 0.5)
@@ -374,85 +406,125 @@ class _PracticeCardState extends State<_PracticeCard>
                   color: _hovered
                       ? widget.themeColor.withValues(alpha: 0.12)
                       : Colors.black.withValues(alpha: 0.03),
-                  blurRadius: _hovered ? 30 : 16,
-                  offset: const Offset(0, 8),
+                  blurRadius: _hovered ? 24 : 12,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Top Tag Chip
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: widget.themeColor.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    widget.tag,
-                    style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: widget.themeColor,
-                      letterSpacing: 1.0,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Row: Tag & Icon
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: widget.themeColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            widget.tag,
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: widget.themeColor,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: _hovered
+                                ? widget.themeColor
+                                : widget.themeColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(
+                            widget.icon,
+                            color: _hovered ? Colors.white : widget.themeColor,
+                            size: 26,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-                const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                // Icon Box
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: _hovered
-                        ? widget.themeColor
-                        : widget.themeColor.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    widget.icon,
-                    color: _hovered ? Colors.white : widget.themeColor,
-                    size: 34,
-                  ),
-                ),
-                const SizedBox(height: 24),
+                    // Title
+                    Text(
+                      widget.title,
+                      style: GoogleFonts.outfit(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
 
-                // Title
-                Text(
-                  widget.title,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 10),
+                    // Subtitle
+                    Text(
+                      widget.subtitle,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        height: 1.55,
+                        color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
+                      ),
+                    ),
 
-                // Subtitle
-                Text(
-                  widget.subtitle,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 13.5,
-                    height: 1.55,
-                    color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
-                  ),
+                    // Key Highlights (makes the card taller, informative & balanced)
+                    if (widget.highlights.isNotEmpty) ...[
+                      const SizedBox(height: 22),
+                      ...widget.highlights.map(
+                        (h) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle_rounded,
+                                size: 16,
+                                color: widget.themeColor,
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Text(
+                                  h,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF475569),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
                 // Action Button
                 SizedBox(
                   width: double.infinity,
-                  height: 46,
+                  height: 48,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
@@ -473,7 +545,7 @@ class _PracticeCardState extends State<_PracticeCard>
                           Text(
                             'Start Practice',
                             style: GoogleFonts.outfit(
-                              fontSize: 14,
+                              fontSize: 14.5,
                               fontWeight: FontWeight.w700,
                               color: _hovered
                                   ? Colors.white

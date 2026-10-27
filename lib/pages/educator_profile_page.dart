@@ -76,6 +76,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
       backgroundColor: bgColor,
       appBar: CustomAppBar(
         user: widget.currentUser,
+        showBackButton: true,
         onNotificationTap: () {
           showDialog(
             context: context,
@@ -337,7 +338,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                                                   children: [
                                                     _buildStatItem('Viewers', '${counts['Basic']}', Icons.remove_red_eye_rounded, const Color(0xFF3B82F6), isDark, textColor, subtitleColor),
                                                     _buildVerticalDivider(borderColor),
-                                                    _buildStatItem('Subscribers', '${counts['Standard']}', Icons.people_rounded, const Color(0xFF81B655), isDark, textColor, subtitleColor),
+                                                    _buildStatItem('Enrolled', '${counts['Standard']}', Icons.people_rounded, const Color(0xFF81B655), isDark, textColor, subtitleColor),
                                                     _buildVerticalDivider(borderColor),
                                                     _buildStatItem(
                                                       'Playlists',
@@ -398,7 +399,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                             final canViewMembers = isSubscribed || widget.currentUser.uid == uid;
 
                             return StreamBuilder<List<Lesson>>(
-                              stream: DatabaseService.instance.streamEducatorLessons(uid, publicOnly: !canViewMembers),
+                              stream: DatabaseService.instance.streamEducatorLessons(uid, publicOnly: false),
                               builder: (context, lessonSnap) {
                                 final lessons = lessonSnap.data ?? [];
                                 final educatorEmail = widget.educator['email'] as String?;
@@ -430,6 +431,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                                             borderColor,
                                             textColor,
                                             subtitleColor,
+                                            canViewMembers: canViewMembers,
                                           )
                                         else if (_selectedTab == 1)
                                           _buildPlaylistsTab(
@@ -498,17 +500,17 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                             title: Text(
-                              'Cancel Subscription',
+                              'Cancel Enrollment',
                               style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
                             ),
                             content: Text(
-                              'Are you sure you want to cancel your subscription to $username? You will lose access to subscriber-exclusive materials and mentorship scheduling.',
+                              'Are you sure you want to cancel your enrollment with $username? You will lose access to member-exclusive materials and mentorship scheduling.',
                               style: GoogleFonts.inter(fontSize: 14),
                             ),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx, false),
-                                child: Text('Keep Subscription', style: GoogleFonts.outfit(color: Colors.grey)),
+                                child: Text('Keep Enrollment', style: GoogleFonts.outfit(color: Colors.grey)),
                               ),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
@@ -517,7 +519,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
                                 onPressed: () => Navigator.pop(ctx, true),
-                                child: Text('Cancel Subscription', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                                child: Text('Cancel Enrollment', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
                               ),
                             ],
                           ),
@@ -527,7 +529,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Subscription to $username cancelled.'),
+                                content: Text('Enrollment with $username cancelled.'),
                                 backgroundColor: Colors.redAccent,
                               ),
                             );
@@ -547,7 +549,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                             await DatabaseService.instance.subscribeToEducator(uid, tier);
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Subscribed to Free Tier.')),
+                                const SnackBar(content: Text('Enrolled in Free Tier.')),
                               );
                             }
                           } else {
@@ -616,8 +618,8 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                                   SnackBar(
                                     content: Text(
                                       recordResult.isDuplicate
-                                          ? 'Subscription to $tier is already active!'
-                                          : 'Payment Successful! Subscribed to $tier. Receipt sent to ${userEmail ?? "your email"}.',
+                                          ? 'Enrollment in $tier is already active!'
+                                          : 'Payment Successful! Enrolled in $tier. Receipt sent to ${userEmail ?? "your email"}.',
                                     ),
                                     backgroundColor: const Color(0xFF16A34A),
                                   ),
@@ -632,7 +634,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                   size: 16,
                 ),
                 label: Text(
-                  isSubscribed ? 'Subscribed' : 'Subscribe',
+                  isSubscribed ? 'Enrolled' : 'Enroll',
                   style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -665,7 +667,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('You must be subscribed for at least 7 days before leaving a review.'),
+                                content: Text('You must be enrolled for at least 7 days before leaving a review.'),
                               ),
                             );
                           }
@@ -677,7 +679,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('You can leave a review after 7 days of subscription ($daysLeft day${daysLeft > 1 ? 's' : ''} remaining).'),
+                                content: Text('You can leave a review after 7 days of enrollment ($daysLeft day${daysLeft > 1 ? 's' : ''} remaining).'),
                               ),
                             );
                           }
@@ -688,7 +690,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                         }
                       }
                     : () => ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Subscribe to leave a review')),
+                          const SnackBar(content: Text('Enroll to leave a review')),
                         ),
                 icon: const Icon(Icons.rate_review_outlined, size: 16),
                 label: Text(
@@ -716,6 +718,29 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                 icon: const Icon(Icons.playlist_play_rounded, size: 18, color: Color(0xFF81B655)),
                 label: Text(
                   'Playlists',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: textColor,
+                  side: BorderSide(color: borderColor),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: () => _showEducatorCalendarDialog(context, uid, username, isSubscribed),
+                icon: const Icon(Icons.calendar_month_rounded, size: 18, color: Color(0xFF81B655)),
+                label: Text(
+                  'View Calendar',
                   style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -880,8 +905,9 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
     Color cardBg,
     Color borderColor,
     Color textColor,
-    Color subtitleColor,
-  ) {
+    Color subtitleColor, {
+    required bool canViewMembers,
+  }) {
     if (isLoading && lessons.isEmpty) {
       return const Center(
         child: Padding(
@@ -890,6 +916,9 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
         ),
       );
     }
+
+    final publicLessons = lessons.where((l) => !l.isMembersOnly).toList();
+    final membersLessons = lessons.where((l) => l.isMembersOnly).toList();
 
     if (lessons.isEmpty) {
       return Center(
@@ -901,7 +930,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
               Icon(Icons.auto_stories_outlined, size: 48, color: subtitleColor),
               const SizedBox(height: 12),
               Text(
-                'No public lessons published yet',
+                'No lessons published yet',
                 style: GoogleFonts.outfit(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -914,107 +943,299 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
       );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 360,
-        mainAxisExtent: 245,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
-      itemCount: lessons.length,
-      itemBuilder: (context, index) {
-        final lesson = lessons[index];
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: borderColor),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.0 : 0.03),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    Widget buildLessonCard(Lesson lesson, bool isMembersOnly) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isMembersOnly
+                ? const Color(0xFF9B59B6).withValues(alpha: 0.4)
+                : borderColor,
+            width: isMembersOnly ? 1.5 : 1.0,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF81B655).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'LESSON',
+          boxShadow: [
+            BoxShadow(
+              color: isMembersOnly
+                  ? const Color(0xFF9B59B6).withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: isDark ? 0.0 : 0.03),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isMembersOnly
+                        ? const Color(0xFF9B59B6).withValues(alpha: 0.15)
+                        : const Color(0xFF81B655).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isMembersOnly) ...[
+                        const Icon(Icons.lock_rounded, size: 12, color: Color(0xFF9B59B6)),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        isMembersOnly ? 'MEMBERS ONLY' : 'PUBLIC LESSON',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: isMembersOnly ? const Color(0xFF9B59B6) : const Color(0xFF81B655),
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  isMembersOnly ? Icons.stars_rounded : Icons.book_rounded,
+                  color: isMembersOnly ? const Color(0xFF9B59B6) : const Color(0xFF81B655),
+                  size: 20,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              lesson.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: textColor,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              lesson.prompt,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 12.5,
+                color: subtitleColor,
+                height: 1.4,
+              ),
+            ),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              height: 38,
+              child: ElevatedButton(
+                onPressed: () {
+                  if (isMembersOnly && !canViewMembers) {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Row(
+                          children: const [
+                            Icon(Icons.lock_rounded, color: Color(0xFF9B59B6)),
+                            SizedBox(width: 8),
+                            Text('Members-Only Lesson'),
+                          ],
+                        ),
+                        content: Text(
+                          'This lesson "${lesson.title}" is exclusively available to enrolled learners of ${widget.educator['username'] ?? 'this educator'}. Please enroll to unlock.',
+                          style: GoogleFonts.inter(fontSize: 14),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Close'),
+                          ),
+                        ],
+                      ),
+                    );
+                    return;
+                  }
+                  NavigationService.instance.goToLesson(context, lesson);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isMembersOnly
+                      ? (canViewMembers ? const Color(0xFF9B59B6) : const Color(0xFF6B7280))
+                      : const Color(0xFF81B655),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (isMembersOnly && !canViewMembers) ...[
+                      const Icon(Icons.lock_rounded, size: 14),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      isMembersOnly
+                          ? (canViewMembers ? 'Start Member Lesson' : 'Members Only (Locked)')
+                          : 'Start Lesson',
                       style: GoogleFonts.outfit(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF81B655),
-                        letterSpacing: 1.0,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ),
-                  const Icon(Icons.book_rounded, color: Color(0xFF81B655), size: 20),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Text(
-                lesson.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: textColor,
-                  height: 1.2,
+                  ],
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                lesson.prompt,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  fontSize: 12.5,
-                  color: subtitleColor,
-                  height: 1.4,
-                ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Section 1: Public Lessons ──────────────────────────────
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const Spacer(),
-              SizedBox(
-                width: double.infinity,
-                height: 38,
-                child: ElevatedButton(
-                  onPressed: () => NavigationService.instance.goToLesson(context, lesson),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF81B655),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(
-                    'Start Lesson',
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+              child: const Icon(Icons.public_rounded, size: 18, color: Color(0xFF81B655)),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Public Lessons',
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: textColor,
               ),
-            ],
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${publicLessons.length}',
+                style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: textColor),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        if (publicLessons.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Text(
+              'No public lessons published yet.',
+              style: GoogleFonts.inter(fontSize: 13.5, color: subtitleColor),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 360,
+              mainAxisExtent: 245,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: publicLessons.length,
+            itemBuilder: (context, index) => buildLessonCard(publicLessons[index], false),
           ),
-        );
-      },
+
+        const SizedBox(height: 36),
+
+        // ── Section 2: Members-Only Lessons ────────────────────────
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF9B59B6).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.stars_rounded, size: 18, color: Color(0xFF9B59B6)),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Members-Only Lessons',
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF9B59B6).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${membersLessons.length}',
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF9B59B6),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF9B59B6).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'EXCLUSIVE',
+                style: GoogleFonts.outfit(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF9B59B6),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        if (membersLessons.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Text(
+              'No members-only lessons uploaded yet.',
+              style: GoogleFonts.inter(fontSize: 13.5, color: subtitleColor),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 360,
+              mainAxisExtent: 245,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: membersLessons.length,
+            itemBuilder: (context, index) => buildLessonCard(membersLessons[index], true),
+          ),
+      ],
     );
   }
 
@@ -1189,9 +1410,10 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
             const SizedBox(height: 16),
 
             // Review List
-            Expanded(
-              child: ListView.separated(
-                itemCount: reviews.length,
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: reviews.length,
                 separatorBuilder: (context, index) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final review = reviews[index];
@@ -1269,9 +1491,8 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                   );
                 },
               ),
-            ),
-          ],
-        );
+            ],
+          );
       },
     );
   }
@@ -1690,7 +1911,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
       bg = const Color(0xFF5B5FC7);
       icon = Icons.groups_rounded;
     } else {
-      name = 'Agora';
+      name = 'Meet';
       bg = const Color(0xFF81B655);
       icon = Icons.video_call_rounded;
     }
@@ -1718,5 +1939,455 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
         ],
       ),
     );
+  }
+
+  void _showEducatorCalendarDialog(
+    BuildContext context,
+    String educatorUid,
+    String educatorName,
+    bool isSubscribed,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _EducatorMentorshipCalendarDialog(
+        currentUser: widget.currentUser,
+        educatorUid: educatorUid,
+        educatorName: educatorName,
+        isSubscribed: isSubscribed,
+        onSubscribeTapped: () {
+          Navigator.pop(ctx);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please tap "Enroll" above to unlock mentorship reservations!'),
+              backgroundColor: Color(0xFF81B655),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _EducatorMentorshipCalendarDialog extends StatefulWidget {
+  final User currentUser;
+  final String educatorUid;
+  final String educatorName;
+  final bool isSubscribed;
+  final VoidCallback onSubscribeTapped;
+
+  const _EducatorMentorshipCalendarDialog({
+    required this.currentUser,
+    required this.educatorUid,
+    required this.educatorName,
+    required this.isSubscribed,
+    required this.onSubscribeTapped,
+  });
+
+  @override
+  State<_EducatorMentorshipCalendarDialog> createState() =>
+      _EducatorMentorshipCalendarDialogState();
+}
+
+class _EducatorMentorshipCalendarDialogState
+    extends State<_EducatorMentorshipCalendarDialog> {
+  DateTime _selectedDay = DateTime.now();
+  String? _reservingSlotId;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
+    return AlertDialog(
+      backgroundColor: cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF81B655).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.calendar_month_rounded,
+                color: Color(0xFF81B655), size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${widget.educatorName}\'s Mentorship Calendar',
+                  style: GoogleFonts.outfit(
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '1-on-1 Mentorship Sessions • 1h 30m each',
+                  style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 580, maxHeight: 600),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Date picker / selector row
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                      label: Text(
+                        DateFormat('EEE, MMM d, yyyy').format(_selectedDay),
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                      ),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDay,
+                          firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                          lastDate: DateTime.now().add(const Duration(days: 90)),
+                        );
+                        if (picked != null) setState(() => _selectedDay = picked);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  TextButton(
+                    onPressed: () => setState(() => _selectedDay = DateTime.now()),
+                    child: const Text('Today'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Availability stream
+              StreamBuilder<List<Map<String, dynamic>>>(
+                stream: DatabaseService.instance
+                    .streamEducatorAvailability(widget.educatorUid),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  }
+
+                  final allSlots = snapshot.data ?? [];
+                  if (allSlots.isEmpty) {
+                    return Container(
+                      padding: const EdgeInsets.all(24),
+                      alignment: Alignment.center,
+                      child: Column(
+                        children: [
+                          Icon(Icons.event_busy_rounded,
+                              size: 40, color: Colors.grey.shade400),
+                          const SizedBox(height: 10),
+                          Text(
+                            'No mentorship slots available at this time.',
+                            style: GoogleFonts.inter(color: Colors.grey),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Check back later as the educator updates their schedule.',
+                            style: GoogleFonts.inter(
+                                fontSize: 12, color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  // Filter slots for selected day
+                  final daySlots = allSlots.where((s) {
+                    final start = (s['startTime'] as Timestamp?)?.toDate();
+                    if (start == null) return false;
+                    return start.year == _selectedDay.year &&
+                        start.month == _selectedDay.month &&
+                        start.day == _selectedDay.day;
+                  }).toList()
+                    ..sort((a, b) {
+                      final ta = (a['startTime'] as Timestamp).toDate();
+                      final tb = (b['startTime'] as Timestamp).toDate();
+                      return ta.compareTo(tb);
+                    });
+
+                  if (daySlots.isEmpty) {
+                    return Container(
+                      padding: const EdgeInsets.all(24),
+                      alignment: Alignment.center,
+                      child: Column(
+                        children: [
+                          Icon(Icons.event_note_rounded,
+                              size: 40, color: Colors.grey.shade400),
+                          const SizedBox(height: 10),
+                          Text(
+                            'No slots open on ${DateFormat('MMMM d, yyyy').format(_selectedDay)}.',
+                            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Select another date above to view upcoming slots.',
+                            style: GoogleFonts.inter(
+                                fontSize: 12, color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: daySlots.map((slot) {
+                      final slotId = slot['id']?.toString() ?? '';
+                      final start = (slot['startTime'] as Timestamp).toDate();
+                      final end = (slot['endTime'] as Timestamp?)?.toDate() ??
+                          start.add(const Duration(minutes: 90));
+                      final timeStr =
+                          '${DateFormat('h:mm a').format(start)} - ${DateFormat('h:mm a').format(end)}';
+                      final isBooked = slot['isBooked'] == true;
+                      final isBookedByMe =
+                          isBooked && slot['bookedByUid'] == widget.currentUser.uid;
+                      final isReservingThis = _reservingSlotId == slotId;
+                      final title =
+                          slot['title']?.toString() ?? '1-on-1 Mentorship';
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isBookedByMe
+                                ? const Color(0xFF81B655)
+                                : (isBooked
+                                    ? Colors.grey.withValues(alpha: 0.3)
+                                    : const Color(0xFF81B655).withValues(alpha: 0.5)),
+                            width: isBookedByMe ? 1.8 : 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isBooked
+                                    ? (isBookedByMe
+                                        ? const Color(0xFF81B655).withValues(alpha: 0.15)
+                                        : Colors.grey.withValues(alpha: 0.15))
+                                    : const Color(0xFF81B655).withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                isBooked
+                                    ? (isBookedByMe
+                                        ? Icons.check_circle_rounded
+                                        : Icons.lock_rounded)
+                                    : Icons.access_time_rounded,
+                                color: isBooked
+                                    ? (isBookedByMe
+                                        ? const Color(0xFF81B655)
+                                        : Colors.grey)
+                                    : const Color(0xFF81B655),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        timeStr,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isBooked
+                                              ? (isBookedByMe
+                                                  ? const Color(0xFF81B655).withValues(alpha: 0.15)
+                                                  : Colors.grey.withValues(alpha: 0.2))
+                                              : const Color(0xFF81B655).withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          isBooked
+                                              ? (isBookedByMe ? 'BOOKED BY YOU' : 'BOOKED')
+                                              : 'AVAILABLE (1h 30m)',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: isBooked
+                                                ? (isBookedByMe
+                                                    ? const Color(0xFF81B655)
+                                                    : Colors.grey)
+                                                : const Color(0xFF81B655),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    title,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12.5,
+                                      color: isDark ? Colors.white70 : Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Action Button
+                            if (!isBooked) ...[
+                              if (widget.isSubscribed)
+                                ElevatedButton.icon(
+                                  icon: isReservingThis
+                                      ? const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(Icons.bookmark_add_rounded,
+                                          size: 16),
+                                  label: Text(
+                                    isReservingThis ? 'Reserving...' : 'Reserve Slot',
+                                    style: GoogleFonts.outfit(
+                                        fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF81B655),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  onPressed: isReservingThis
+                                      ? null
+                                      : () => _handleReserveSlot(slotId, title),
+                                )
+                              else
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.star_rounded, size: 16),
+                                  label: Text(
+                                    'Enroll to Reserve',
+                                    style: GoogleFonts.outfit(
+                                        fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFF59E0B),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  onPressed: widget.onSubscribeTapped,
+                                ),
+                            ] else if (isBookedByMe) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF81B655).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Confirmed ✓',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF81B655),
+                                  ),
+                                ),
+                              ),
+                            ] else ...[
+                              Text(
+                                'Unavailable',
+                                style: GoogleFonts.inter(
+                                    fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleReserveSlot(String slotId, String title) async {
+    setState(() => _reservingSlotId = slotId);
+    try {
+      await DatabaseService.instance.reserveMentorshipSlot(
+        slotId: slotId,
+        learner: widget.currentUser,
+        educatorId: widget.educatorUid,
+        educatorName: widget.educatorName,
+        meetingTitle: title,
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Slot reserved successfully! 1h 30m session confirmed with ${widget.educatorName}.',
+            ),
+            backgroundColor: const Color(0xFF81B655),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _reservingSlotId = null);
+    }
   }
 }

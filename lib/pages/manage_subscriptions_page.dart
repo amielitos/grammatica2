@@ -98,6 +98,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
       appBar: CustomAppBar(
         user: widget.user,
         userData: _userData,
+        showBackButton: true,
         onNotificationTap: () {
           showDialog(
             context: context,
@@ -653,7 +654,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
           const Icon(Icons.video_call_rounded, size: 16, color: brand),
           const SizedBox(width: 6),
           Text(
-            'Agora',
+            'Meet',
             style: GoogleFonts.outfit(
               fontSize: 12,
               fontWeight: FontWeight.w800,

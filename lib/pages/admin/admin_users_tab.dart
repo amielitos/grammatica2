@@ -14,6 +14,9 @@ import '../../services/notification_service.dart';
 import '../../models/notification.dart';
 import '../../widgets/application_preview_widgets.dart';
 import '../../widgets/content_denial_dialog.dart';
+import '../../services/badge_service.dart';
+import '../../models/badge_model.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class AdminUsersTab extends StatefulWidget {
   final UserRole role;
@@ -177,6 +180,29 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           ],
                         ),
                       ),
+                      if (widget.role == UserRole.superadmin || widget.role == UserRole.admin) ...[
+                        const SizedBox(width: 12),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            await BadgeService.instance.seedBadgesIfEmpty(force: true);
+                            if (context.mounted) {
+                              _showSeedBadgesListDialog();
+                            }
+                          },
+                          icon: const Icon(Icons.military_tech_rounded, size: 18),
+                          label: Text(
+                            'Seed Badges',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
                       if (widget.role == UserRole.superadmin) ...[
                         const SizedBox(width: 12),
                         ElevatedButton.icon(
@@ -2521,6 +2547,41 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     );
   }
 
+  void _showLoadingModal(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                ),
+                const SizedBox(width: 20),
+                Text(
+                  message,
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _showDeactivateConfirmation(
     String uid,
     String username,
@@ -2686,6 +2747,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     if (confirmed != true) return;
     if (!mounted) return;
 
+    _showLoadingModal('Deactivating user...');
     final messenger = ScaffoldMessenger.of(context);
     try {
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
@@ -2710,6 +2772,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
     }
   }
@@ -2831,6 +2897,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     if (confirmed != true) return;
     if (!mounted) return;
 
+    _showLoadingModal('Activating user account...');
     final messenger = ScaffoldMessenger.of(context);
     try {
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
@@ -2860,6 +2927,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
     }
   }
@@ -3020,6 +3091,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     if (confirmed != true) return;
     if (!mounted) return;
 
+    _showLoadingModal('Deleting user account...');
     final messenger = ScaffoldMessenger.of(context);
     try {
       await DatabaseService.instance.deleteUserAccount(uid, asSuperAdmin: true);
@@ -3039,6 +3111,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
       }
     }
   }
@@ -3307,4 +3383,305 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       ),
     );
   }
+
+  void _showSeedBadgesListDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        child: Container(
+          width: 640,
+          constraints: const BoxConstraints(maxHeight: 700),
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(Icons.military_tech_rounded, color: Color(0xFFF59E0B), size: 28),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Seeded Badges & Achievement Criteria',
+                          style: GoogleFonts.outfit(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'All badges are active in Firestore. Learners automatically unlock each badge by completing its criteria:',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: isDark ? Colors.white60 : Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.close_rounded, color: isDark ? Colors.white54 : Colors.grey),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Success Banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Badges seeded into Firestore database successfully!',
+                        style: GoogleFonts.inter(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF10B981),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Badges list
+              Expanded(
+                child: StreamBuilder<List<BadgeModel>>(
+                  stream: BadgeService.instance.streamBadges(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final badges = snapshot.data ?? [];
+                    if (badges.isEmpty) {
+                      return Center(
+                        child: Text(
+                          'No badges found. Try clicking Seed Badges again.',
+                          style: GoogleFonts.inter(color: Colors.grey),
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: badges.length,
+                      separatorBuilder: (_, index) => const SizedBox(height: 12),
+                      itemBuilder: (context, idx) {
+                        final b = badges[idx];
+                        final tierColor = _getBadgeTierColor(b.tier);
+                        final instructions = _getBadgeAchievementInstructions(b);
+
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Badge Icon
+                              Container(
+                                width: 56,
+                                height: 56,
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: tierColor.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: tierColor.withValues(alpha: 0.4), width: 1.5),
+                                ),
+                                child: b.iconAsset.endsWith('.svg')
+                                    ? SvgPicture.asset(
+                                        b.iconAsset,
+                                        placeholderBuilder: (_) => Icon(Icons.military_tech_rounded, color: tierColor),
+                                      )
+                                    : Icon(Icons.military_tech_rounded, color: tierColor, size: 28),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          b.name,
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: tierColor.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: tierColor.withValues(alpha: 0.3)),
+                                          ),
+                                          child: Text(
+                                            b.tier.toUpperCase(),
+                                            style: GoogleFonts.inter(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              color: tierColor,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? Colors.white12 : Colors.grey.shade200,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            b.category.replaceAll('_', ' ').toUpperCase(),
+                                            style: GoogleFonts.inter(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: isDark ? Colors.white70 : Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      b.description,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    // How to achieve box
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF81B655).withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: const Color(0xFF81B655).withValues(alpha: 0.2)),
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Icon(Icons.emoji_events_rounded, color: Color(0xFF81B655), size: 16),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: RichText(
+                                              text: TextSpan(
+                                                style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87),
+                                                children: [
+                                                  const TextSpan(
+                                                    text: 'How to achieve: ',
+                                                    style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF81B655)),
+                                                  ),
+                                                  TextSpan(text: instructions),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Footer
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF81B655),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  child: Text('Done', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getBadgeTierColor(String tier) {
+    switch (tier.toLowerCase()) {
+      case 'bronze':
+        return const Color(0xFFCD7F32);
+      case 'silver':
+        return const Color(0xFFA0AEC0);
+      case 'gold':
+        return const Color(0xFFF59E0B);
+      case 'diamond':
+        return const Color(0xFF38BDF8);
+      default:
+        return const Color(0xFF81B655);
+    }
+  }
+
+  String _getBadgeAchievementInstructions(BadgeModel badge) {
+    switch (badge.criteriaType) {
+      case 'lessons_completed':
+        return 'Complete and finish at least ${badge.threshold} lesson module${badge.threshold == 1 ? '' : 's'}.';
+      case 'perfect_quizzes':
+        return 'Take a quiz and obtain a 100% score (requires ${badge.threshold} perfect quiz${badge.threshold == 1 ? '' : 'zes'}).';
+      case 'flashcards_reviewed':
+        return 'Review at least ${badge.threshold} flashcards in the flashcard study session.';
+      case 'spelling_correct':
+        return 'Spell ${badge.threshold} words correctly in the Spelling Bee challenge.';
+      case 'current_streak':
+        return 'Practice on consecutive days to reach a ${badge.threshold}-day study streak.';
+      default:
+        return '${badge.description} (Target: ${badge.threshold} on criteria "${badge.criteriaType}").';
+    }
+  }
 }
+

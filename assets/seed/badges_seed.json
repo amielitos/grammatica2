@@ -1,0 +1,64 @@
+{
+  "badges": [
+    {
+      "id": "first_steps",
+      "name": "First Steps",
+      "description": "Complete your first lesson.",
+      "category": "modules",
+      "criteriaType": "lessons_completed",
+      "threshold": 1,
+      "tier": "bronze",
+      "iconAsset": "assets/badges/first_steps.svg",
+      "isActive": true,
+      "order": 1
+    },
+    {
+      "id": "perfect_score",
+      "name": "Perfect Score",
+      "description": "Get 100% on a quiz.",
+      "category": "quizzes",
+      "criteriaType": "perfect_quizzes",
+      "threshold": 1,
+      "tier": "bronze",
+      "iconAsset": "assets/badges/perfect_score.svg",
+      "isActive": true,
+      "order": 2
+    },
+    {
+      "id": "memory_keeper",
+      "name": "Memory Keeper",
+      "description": "Review 10 flashcards.",
+      "category": "flashcards",
+      "criteriaType": "flashcards_reviewed",
+      "threshold": 10,
+      "tier": "bronze",
+      "iconAsset": "assets/badges/memory_keeper.svg",
+      "isActive": true,
+      "order": 3
+    },
+    {
+      "id": "spelling_champ",
+      "name": "Spelling Champ",
+      "description": "Spell 5 words correctly in the Spelling Bee.",
+      "category": "spelling_bee",
+      "criteriaType": "spelling_correct",
+      "threshold": 5,
+      "tier": "bronze",
+      "iconAsset": "assets/badges/spelling_champ.svg",
+      "isActive": true,
+      "order": 4
+    },
+    {
+      "id": "streak_3",
+      "name": "3-Day Streak",
+      "description": "Practice 3 days in a row.",
+      "category": "streak",
+      "criteriaType": "current_streak",
+      "threshold": 3,
+      "tier": "bronze",
+      "iconAsset": "assets/badges/streak_3.svg",
+      "isActive": true,
+      "order": 5
+    }
+  ]
+}

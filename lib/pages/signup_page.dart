@@ -460,13 +460,7 @@ class _SignupPageState extends State<SignupPage> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: isDark
-              ? const [Color(0xFF334155), Color(0xFF1E293B)]
-              : const [Color(0xFFE2F3D9), Colors.white],
-        ),
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
       ),
       padding: const EdgeInsets.only(top: 32, bottom: 16, left: 32, right: 32),
       child: Column(

@@ -27,6 +27,8 @@ import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import '../models/playlist.dart';
 import '../widgets/playlist_card.dart';
+import '../models/badge_model.dart';
+import '../services/badge_service.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -64,6 +66,7 @@ class _HomePageState extends State<HomePage> {
 
   final _profileKey = GlobalKey<ProfilePageState>();
   final _firestore = FirebaseFirestore.instance;
+  Timer? _mentorshipReminderTimer;
 
   @override
   void initState() {
@@ -72,6 +75,15 @@ class _HomePageState extends State<HomePage> {
     HomePage.activeTabNotifier.addListener(_onTabNotifierChange);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkProfileCompletion();
+      NotificationService.instance.checkUpcomingMentorshipReminders(widget.user.uid);
+      if (widget.role == UserRole.learner) {
+        BadgeService.instance.checkDailyActivity(widget.user.uid);
+      }
+    });
+    _mentorshipReminderTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) {
+        NotificationService.instance.checkUpcomingMentorshipReminders(widget.user.uid);
+      }
     });
   }
 
@@ -87,6 +99,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     HomePage.activeTabNotifier.removeListener(_onTabNotifierChange);
+    _mentorshipReminderTimer?.cancel();
     super.dispose();
   }
 
@@ -135,7 +148,10 @@ class _HomePageState extends State<HomePage> {
 
   List<ModernNavItem> _buildNavItems(User user) {
     final items = [
-      const ModernNavItem(icon: Icons.book, label: 'Lessons'),
+      ModernNavItem(
+        icon: widget.role == UserRole.learner ? Icons.dashboard_rounded : Icons.book,
+        label: widget.role == UserRole.learner ? 'Dashboard' : 'Lessons',
+      ),
       const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
       if (widget.role != UserRole.learner)
         const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
@@ -646,7 +662,7 @@ class _LessonsListState extends State<_LessonsList> {
                                     onTap: () {
                                       setState(() {
                                         _activeFolder = {
-                                          'title': 'Public Content',
+                                          'title': 'Public Lessons',
                                           'pillLabel': 'Public',
                                           'lessons': publicLessons,
                                           'isPublicFolder': true,
@@ -685,21 +701,18 @@ class _LessonsListState extends State<_LessonsList> {
                           const SizedBox(height: 24),
                         ],
 
-                        // Curated Playlists (shown in 'All' and 'Playlists' filter)
+                        // Curated Playlists (shown in All Hubs section and dedicated Playlists filter tab)
                         if (_selectedFilter == 'All' || _selectedFilter == 'Playlists') ...[
                           _buildPlaylistsSection(context, isDark),
                           const SizedBox(height: 24),
                         ],
 
-                        // Subscribed Educators Easy Access (hidden in Official and Playlists tab)
+                        // Enrolled Educators Easy Access (hidden in Official and Playlists tab)
                         if (_selectedFilter != 'Grammatica' && _selectedFilter != 'Playlists') ...[
                           _buildSubscribedEducatorsSection(context, isDark),
 
-                          // Recent Lessons from Subscribed Educators
+                          // Recent Lessons from Enrolled Educators
                           _buildSubscribedEducatorLessonsSection(context, lessons, progressMap, isDark),
-
-                          // Playlists from Subscribed Educators
-                          _buildSubscribedEducatorPlaylistsSection(context, isDark),
                         ],
                       ],
 
@@ -855,13 +868,7 @@ class _LessonsListState extends State<_LessonsList> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [const Color(0xFF1B2838), const Color(0xFF0D1117)]
-              : [const Color(0xFF6AAF3D), const Color(0xFF4A8A24)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFF81B655),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -879,30 +886,70 @@ class _LessonsListState extends State<_LessonsList> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.stars_rounded,
-                          color: Colors.amberAccent, size: 13),
-                      SizedBox(width: 5),
-                      Text(
-                        'LEARNER DASHBOARD',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.1,
-                        ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                    ],
-                  ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.stars_rounded,
+                              color: Colors.amberAccent, size: 13),
+                          SizedBox(width: 5),
+                          Text(
+                            'LEARNER DASHBOARD',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    StreamBuilder<UserBadgeStats>(
+                      stream: BadgeService.instance.streamUserStats(widget.user.uid),
+                      builder: (context, snap) {
+                        final streak = snap.data?.currentStreak ?? 0;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.6),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.local_fire_department_rounded,
+                                  color: Color(0xFFFDE68A), size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$streak Day${streak == 1 ? '' : 's'} Streak',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -1737,89 +1784,6 @@ class _LessonsListState extends State<_LessonsList> {
     );
   }
 
-  Widget _buildSubscribedEducatorPlaylistsSection(
-    BuildContext context,
-    bool isDark,
-  ) {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid),
-      builder: (context, snapshot) {
-        final subs = snapshot.data ?? [];
-        final activeSubUids = subs
-            .where((s) => s['status'] == 'active')
-            .map((s) => (s['educatorUid'] as String?) ?? '')
-            .where((uid) => uid.isNotEmpty)
-            .toSet();
-
-        if (activeSubUids.isEmpty) return const SizedBox.shrink();
-
-        return StreamBuilder<List<LessonPlaylist>>(
-          stream: DatabaseService.instance.streamAllPlaylists(),
-          builder: (context, pSnap) {
-            final all = pSnap.data ?? [];
-            final educatorPlaylists = all
-                .where((p) => activeSubUids.contains(p.createdByUid))
-                .toList();
-
-            if (educatorPlaylists.isEmpty) return const SizedBox.shrink();
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 4,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF81B655),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Playlists from Your Educators (${educatorPlaylists.length})',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : Colors.black87,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isNarrow = constraints.maxWidth < 650;
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: isNarrow ? 1 : 2,
-                        mainAxisExtent: 180,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                      ),
-                      itemCount: educatorPlaylists.length,
-                      itemBuilder: (context, index) {
-                        return PlaylistCard(
-                          playlist: educatorPlaylists[index],
-                          isDark: isDark,
-                        );
-                      },
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   Widget _buildContinueLearningCard(BuildContext context, Lesson lesson, Map<String, dynamic>? progressInfo) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final double progress = (progressInfo?['progress'] as num?)?.toDouble() ?? 0.0;
@@ -2009,7 +1973,7 @@ class _LessonsListState extends State<_LessonsList> {
 
         const appColor = Color(0xFF81B655);
         const appIcon = Icons.video_call_rounded;
-        const appLabel = 'Agora';
+        const appLabel = 'Meet';
 
         return Column(
           children: [
@@ -2190,13 +2154,7 @@ class _LessonsListState extends State<_LessonsList> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDark
-              ? [const Color(0xFF2D2B55), const Color(0xFF1A1836)]
-              : [const Color(0xFF5B5BD6), const Color(0xFF4338CA)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFF4338CA),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -2295,34 +2253,7 @@ class _DashboardBackgroundPainter extends CustomPainter {
     final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
     canvas.drawRect(Offset.zero & size, Paint()..color = bgColor);
 
-    // 2. Draw top-right brand green glow orb
-    final greenPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFF81B655).withValues(alpha: isDark ? 0.15 : 0.12),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromCircle(
-        center: Offset(size.width, 0),
-        radius: 350,
-      ));
-    canvas.drawCircle(Offset(size.width, 0), 350, greenPaint);
-
-    // 3. Draw middle-left indigo glow orb
-    final indigoPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          (isDark ? const Color(0xFF6366F1) : const Color(0xFF818CF8))
-              .withValues(alpha: isDark ? 0.12 : 0.08),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromCircle(
-        center: Offset(0, 350),
-        radius: 380,
-      ));
-    canvas.drawCircle(Offset(0, 350), 380, indigoPaint);
-
-    // 4. Draw dot-grid pattern
+    // 2. Draw subtle dot-grid pattern
     final dotPaint = Paint()
       ..color = isDark
           ? Colors.white.withValues(alpha: 0.03)

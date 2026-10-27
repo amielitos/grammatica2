@@ -4,6 +4,9 @@ import '../services/role_service.dart';
 import '../services/auth_service.dart';
 import '../main.dart';
 import '../theme/app_colors.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/universal_drawer.dart';
+import '../widgets/notification_widgets.dart';
 
 class SettingsPage extends StatefulWidget {
   final User user;
@@ -23,11 +26,23 @@ class _SettingsPageState extends State<SettingsPage> {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: isDark ? Colors.white : Colors.black87,
+      appBar: CustomAppBar(
+        user: widget.user,
+        showBackButton: true,
+        onLogoTap: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
+        onNotificationTap: () {
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: widget.user.uid),
+          );
+        },
+      ),
+      drawer: UniversalDrawer(
+        user: widget.user,
+        userData: const {},
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -37,6 +52,17 @@ class _SettingsPageState extends State<SettingsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Text(
+                    'Settings',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                ),
                 _buildSectionHeader('Appearance'),
                 _buildSettingsCard([
                   _buildThemeToggle(isDark),
@@ -47,7 +73,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   _buildSwitchTile(
                     icon: Icons.notifications_active_outlined,
                     title: 'Email Notifications',
-                    subtitle: 'Receive updates about your subscription',
+                    subtitle: 'Receive updates about your enrollment',
                     value: _emailNotifications,
                     onChanged: (val) => setState(() => _emailNotifications = val),
                   ),

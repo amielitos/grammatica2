@@ -14,6 +14,8 @@ import '../widgets/universal_drawer.dart';
 import '../widgets/linked_companion_toolbar.dart';
 import '../widgets/author_name_widget.dart';
 import '../models/playlist.dart';
+import '../models/notebook_models.dart';
+import '../widgets/sti_modules_view.dart';
 
 class LessonPage extends StatefulWidget {
   final User user;
@@ -38,6 +40,8 @@ class _LessonPageState extends State<LessonPage> {
   late Lesson _lesson;
   bool get _previewMode => widget.previewMode;
   Map<String, dynamic>? _userData;
+  bool _showTimelineTab = false;
+  List<Lesson> _curriculumLessons = [];
 
   bool get _isEducator {
     final role = _userData?['role']?.toString().toUpperCase();
@@ -57,19 +61,64 @@ class _LessonPageState extends State<LessonPage> {
   Timer? _debounceTimer;
   Future<LinkedContentBundle>? _bundleFuture;
 
+  StreamSubscription<List<Lesson>>? _curriculumSub;
+
   @override
   void initState() {
     super.initState();
     _lesson = widget.lesson;
+    _curriculumLessons = [_lesson];
     _fetchUserData();
     _initProgress();
+    _listenCurriculumLessons();
     _scrollController.addListener(_onScroll);
-    if (_lesson.notebookId != null && _lesson.notebookId!.isNotEmpty) {
-      _bundleFuture = DatabaseService.instance.getLinkedContentBundle(
-        notebookId: _lesson.notebookId,
-        currentLesson: _lesson,
-      );
-    }
+    _bundleFuture = DatabaseService.instance.getLinkedContentBundle(
+      notebookId: _lesson.notebookId,
+      currentLesson: _lesson,
+    );
+  }
+
+  void _listenCurriculumLessons() {
+    _curriculumSub = DatabaseService.instance.streamLessons().listen((all) {
+      if (!mounted) return;
+      if (widget.playlist != null && widget.playlist!.lessonIds.isNotEmpty) {
+        final pl = all.where((l) => widget.playlist!.lessonIds.contains(l.id)).toList();
+        if (pl.isNotEmpty) {
+          setState(() => _curriculumLessons = pl);
+          return;
+        }
+      }
+      final related = all.where((l) =>
+          l.isGrammaticaLesson == widget.lesson.isGrammaticaLesson && l.isVisible).toList();
+      if (related.isNotEmpty) {
+        setState(() => _curriculumLessons = related);
+      }
+    });
+  }
+
+  void _openMobileTimelineDrawer(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => FractionallySizedBox(
+        heightFactor: 0.85,
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: STIModulesTimelineDrawer(
+            lessons: _curriculumLessons,
+            activeLessonId: _lesson.id,
+            onSelectLesson: (l) {
+              Navigator.pop(ctx);
+              if (l.id != _lesson.id) {
+                NavigationService.instance.goToLesson(context, l, replace: true, playlist: widget.playlist);
+              }
+            },
+            onClose: () => Navigator.pop(ctx),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _initProgress() async {
@@ -144,6 +193,7 @@ class _LessonPageState extends State<LessonPage> {
 
   @override
   void dispose() {
+    _curriculumSub?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _debounceTimer?.cancel();
@@ -209,6 +259,7 @@ class _LessonPageState extends State<LessonPage> {
         user: _effectiveUser,
         userData: _userData ?? {},
       ),
+
       body: Column(
         children: [
           if (widget.previewMode || _lesson.validationStatus == 'awaiting_approval')
@@ -253,80 +304,158 @@ class _LessonPageState extends State<LessonPage> {
               valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 900;
-                final hasQuiz = _lesson.quizId != null && _lesson.quizId!.isNotEmpty;
+            child: Stack(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isWide = constraints.maxWidth > 900;
+                          final hasQuiz = _lesson.quizId != null && _lesson.quizId!.isNotEmpty;
 
-                return FutureBuilder<LinkedContentBundle>(
-                  future: _bundleFuture,
-                  builder: (context, bundleSnap) {
-                    final bundle = bundleSnap.data;
-                    final hasCompanionItems = bundle != null && (
-                      (bundle.quiz != null && bundle.quiz!.id != _lesson.quizId) ||
-                      bundle.publishedItems.isNotEmpty
-                    );
-                    final hasSideContent = hasQuiz || hasCompanionItems;
+                          return FutureBuilder<LinkedContentBundle>(
+                            future: _bundleFuture,
+                            builder: (context, bundleSnap) {
+                              final bundle = bundleSnap.data;
+                              final hasCompanionItems = bundle != null && (
+                                (bundle.quiz != null && bundle.quiz!.id != _lesson.quizId) ||
+                                bundle.publishedItems.isNotEmpty
+                              );
+                              final hasSideContent = hasQuiz || hasCompanionItems;
 
-                    return SingleChildScrollView(
-                      controller: _scrollController,
-                      padding: EdgeInsets.fromLTRB(
-                        isWide ? 40 : 20, 32, isWide ? 40 : 20, 40,
-                      ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: hasSideContent ? 1200 : 880),
-                          child: (hasSideContent && isWide)
-                              ? Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(flex: 3, child: _buildMainCard(isDark, isWide)),
-                                    const SizedBox(width: 28),
-                                    SizedBox(
-                                      width: 340,
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                                        children: [
-                                          if (hasQuiz) _buildQuizSidebar(isDark),
-                                          if (hasCompanionItems)
-                                            LinkedCompanionSidebar(
-                                              user: _effectiveUser,
-                                              notebookId: _lesson.notebookId,
-                                              currentLesson: _lesson,
-                                              activeType: CompanionMediaType.lesson,
-                                              excludeLesson: true,
-                                              excludeQuiz: hasQuiz,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    _buildMainCard(isDark, isWide),
-                                    if (hasSideContent) ...[
-                                      const SizedBox(height: 24),
-                                      if (hasQuiz) _buildQuizSidebar(isDark),
-                                      if (hasCompanionItems)
-                                        LinkedCompanionSidebar(
-                                          user: _effectiveUser,
-                                          notebookId: _lesson.notebookId,
-                                          currentLesson: _lesson,
-                                          activeType: CompanionMediaType.lesson,
-                                          excludeLesson: true,
-                                          excludeQuiz: hasQuiz,
-                                        ),
-                                    ],
-                                  ],
+                              return SingleChildScrollView(
+                                controller: _scrollController,
+                                padding: EdgeInsets.fromLTRB(
+                                  isWide ? 40 : 20, 32, isWide ? 40 : 20, 40,
                                 ),
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(maxWidth: hasSideContent ? 1200 : 880),
+                                    child: (hasSideContent && isWide)
+                                        ? Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(flex: 3, child: _buildMainCard(isDark, isWide, bundle)),
+                                              const SizedBox(width: 28),
+                                              SizedBox(
+                                                width: 340,
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                                  children: [
+                                                    if (hasQuiz) _buildQuizSidebar(isDark),
+                                                    if (hasCompanionItems)
+                                                      LinkedCompanionSidebar(
+                                                        user: _effectiveUser,
+                                                        notebookId: _lesson.notebookId,
+                                                        currentLesson: _lesson,
+                                                        activeType: CompanionMediaType.lesson,
+                                                        excludeLesson: true,
+                                                        excludeQuiz: hasQuiz,
+                                                      ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Column(
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                                            children: [
+                                              _buildMainCard(isDark, isWide, bundle),
+                                              if (hasSideContent) ...[
+                                                const SizedBox(height: 24),
+                                                if (hasQuiz) _buildQuizSidebar(isDark),
+                                                if (hasCompanionItems)
+                                                  LinkedCompanionSidebar(
+                                                    user: _effectiveUser,
+                                                    notebookId: _lesson.notebookId,
+                                                    currentLesson: _lesson,
+                                                    activeType: CompanionMediaType.lesson,
+                                                    excludeLesson: true,
+                                                    excludeQuiz: hasQuiz,
+                                                  ),
+                                              ],
+                                            ],
+                                          ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    if (_showTimelineTab && MediaQuery.of(context).size.width >= 1100)
+                      STIModulesTimelineDrawer(
+                        lessons: _curriculumLessons,
+                        activeLessonId: _lesson.id,
+                        onSelectLesson: (l) {
+                          if (l.id != _lesson.id) {
+                            NavigationService.instance.goToLesson(context, l, replace: true, playlist: widget.playlist);
+                          }
+                        },
+                        onClose: () => setState(() => _showTimelineTab = false),
+                      ),
+                  ],
+                ),
+
+                // Floating side tab trigger button on edge of screen (Screenshot 4)
+                Positioned(
+                  top: 70,
+                  right: 0,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () {
+                        final isDesktop = MediaQuery.of(context).size.width >= 1100;
+                        if (isDesktop) {
+                          setState(() => _showTimelineTab = !_showTimelineTab);
+                        } else {
+                          _openMobileTimelineDrawer(context);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0284C7),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                            bottomLeft: Radius.circular(12),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF0284C7).withValues(alpha: 0.35),
+                              blurRadius: 8,
+                              offset: const Offset(-2, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.format_list_bulleted_rounded,
+                                color: Colors.white, size: 16),
+                            const SizedBox(width: 4),
+                            RotatedBox(
+                              quarterTurns: 3,
+                              child: Text(
+                                'MODULES',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  },
-                );
-              },
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -334,7 +463,7 @@ class _LessonPageState extends State<LessonPage> {
     );
   }
 
-  Widget _buildMainCard(bool isDark, bool isWide) {
+  Widget _buildMainCard(bool isDark, bool isWide, [LinkedContentBundle? bundle]) {
     final cardColor = isDark ? const Color(0xFF1E293B) : Colors.white;
     final headerGradient = isDark
         ? const LinearGradient(
@@ -553,6 +682,9 @@ class _LessonPageState extends State<LessonPage> {
                     ],
                   ),
                 ),
+
+                // ── Immediate Included Packages Bar ──
+                _buildIncludedPackagesBar(bundle, isDark),
               ],
             ),
           ),
@@ -1144,6 +1276,224 @@ class _LessonPageState extends State<LessonPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildIncludedPackagesBar(LinkedContentBundle? liveBundle, bool isDark) {
+    final bundle = liveBundle ??
+        DatabaseService.instance.getCachedBundle(_lesson.notebookId) ??
+        DatabaseService.instance.getCachedBundle(_lesson.id);
+
+    final bool hasExplicitQuiz = _lesson.quizId != null && _lesson.quizId!.isNotEmpty;
+    final bool hasBundleQuiz = bundle?.quiz != null;
+    final bool showQuiz = hasExplicitQuiz || hasBundleQuiz;
+
+    final flashcardItems = bundle?.publishedItems
+            .where((i) => i.type == NotebookOutputType.flashcards)
+            .toList() ??
+        [];
+    final presentationItems = bundle?.publishedItems
+            .where((i) => i.type == NotebookOutputType.presentation)
+            .toList() ??
+        [];
+    final mindMapItems = bundle?.publishedItems
+            .where((i) => i.type == NotebookOutputType.mindMap)
+            .toList() ??
+        [];
+    final studyGuideItems = bundle?.publishedItems
+            .where((i) =>
+                i.type == NotebookOutputType.studyGuide ||
+                i.type == NotebookOutputType.briefing ||
+                i.type == NotebookOutputType.faq)
+            .toList() ??
+        [];
+
+    final bool hasAnyPackage = showQuiz ||
+        flashcardItems.isNotEmpty ||
+        presentationItems.isNotEmpty ||
+        mindMapItems.isNotEmpty ||
+        studyGuideItems.isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.inventory_2_rounded, size: 14, color: Color(0xFFFBBF24)),
+              const SizedBox(width: 6),
+              Text(
+                'INCLUDED PACKAGES & TOOLS',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+              ),
+              if (bundle == null && !hasExplicitQuiz) ...[
+                const SizedBox(width: 8),
+                const SizedBox(
+                  width: 10,
+                  height: 10,
+                  child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white70),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (!hasAnyPackage && bundle != null)
+            Text(
+              'No additional packages attached to this lesson.',
+              style: GoogleFonts.inter(fontSize: 12, color: Colors.white70),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                // 1. Quiz Package Chip
+                if (showQuiz)
+                  _buildPackageChip(
+                    icon: Icons.quiz_rounded,
+                    label: 'Quiz',
+                    subtitle: bundle?.quiz != null
+                        ? '${bundle!.quiz!.questions.length} Qs'
+                        : 'Interactive',
+                    color: const Color(0xFFF59E0B),
+                    onTap: () {
+                      if (bundle?.quiz != null) {
+                        NavigationService.instance.goToQuiz(
+                          context,
+                          bundle!.quiz!,
+                          lesson: _lesson,
+                        );
+                      } else {
+                        _scrollController.animateTo(
+                          _scrollController.position.maxScrollExtent,
+                          duration: const Duration(milliseconds: 500),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                    },
+                  ),
+
+                // 2. Flashcards Deck
+                for (final item in flashcardItems)
+                  _buildPackageChip(
+                    icon: Icons.style_rounded,
+                    label: 'Flashcards',
+                    subtitle: 'Study Deck',
+                    color: const Color(0xFF3B82F6),
+                    onTap: () {
+                      NavigationService.instance.goToContent(context, item);
+                    },
+                  ),
+
+                // 3. Presentation Slides
+                for (final item in presentationItems)
+                  _buildPackageChip(
+                    icon: Icons.slideshow_rounded,
+                    label: 'Presentation',
+                    subtitle: 'Slide Deck',
+                    color: const Color(0xFF6366F1),
+                    onTap: () {
+                      NavigationService.instance.goToContent(context, item);
+                    },
+                  ),
+
+                // 4. Mind Map
+                for (final item in mindMapItems)
+                  _buildPackageChip(
+                    icon: Icons.hub_rounded,
+                    label: 'Mind Map',
+                    subtitle: 'Visual Map',
+                    color: const Color(0xFFEC4899),
+                    onTap: () {
+                      NavigationService.instance.goToContent(context, item);
+                    },
+                  ),
+
+                // 5. Study Guide
+                for (final item in studyGuideItems)
+                  _buildPackageChip(
+                    icon: Icons.auto_stories_rounded,
+                    label: item.title.isNotEmpty ? item.title : 'Study Guide',
+                    subtitle: 'Overview',
+                    color: const Color(0xFF10B981),
+                    onTap: () {
+                      NavigationService.instance.goToContent(context, item);
+                    },
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPackageChip({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.7), width: 1.2),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.arrow_forward_rounded, size: 12, color: Colors.white70),
+            ],
+          ),
+        ),
       ),
     );
   }

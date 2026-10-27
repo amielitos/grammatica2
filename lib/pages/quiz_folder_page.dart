@@ -8,6 +8,8 @@ import '../widgets/author_name_widget.dart';
 import '../services/navigation_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/universal_drawer.dart';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/notification_widgets.dart';
 
 class QuizFolderPage extends StatefulWidget {
   final User user;
@@ -60,33 +62,27 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
       return _buildContent(context);
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
+      extendBodyBehindAppBar: true,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          widget.title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-              ),
-        ),
-        actions: [
-          Builder(
-            builder: (ctx) => IconButton(
-              icon: Icon(Icons.menu, color: isDark ? Colors.white : AppColors.textPrimary, size: 28),
-              onPressed: () => Scaffold.of(ctx).openDrawer(),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
+      appBar: CustomAppBar(
+        user: widget.user,
+        showBackButton: true,
+        onLogoTap: () {
+          if (widget.onBack != null) {
+            widget.onBack!();
+          }
+          if (Navigator.canPop(context)) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        },
+        onNotificationTap: () {
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: widget.user.uid),
+          );
+        },
       ),
       drawer: UniversalDrawer(
         user: widget.user,

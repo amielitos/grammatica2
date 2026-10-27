@@ -12,6 +12,24 @@ service cloud.firestore {
       allow read, write: if true;
     }
     
+    // Badges: Anyone authenticated can read; only ADMIN or SUPERADMIN can create/update/delete
+    match /badges/{badgeId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'SUPERADMIN'];
+    }
+
+    // User Earned Badges: Users can only read and write their own
+    match /users/{userId}/earnedBadges/{badgeId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // User Learning & Badge Stats: Users can only read and write their own stats
+    match /users/{userId}/stats/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Login attempt tracking for 3-attempt brute force protection
     match /login_attempts/{emailId} {
       allow read, write: if true;

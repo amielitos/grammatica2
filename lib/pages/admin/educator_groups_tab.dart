@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../theme/app_colors.dart';
 import '../../services/database_service.dart';
 import '../../services/agora_service.dart';
 import 'package:intl/intl.dart';
@@ -9,7 +11,7 @@ import '../../widgets/pagination_bar.dart';
 
 Widget buildConferenceAppBadge(String? app, {bool compact = false}) {
   const brand = Color(0xFF81B655);
-  const name = 'Agora';
+  const name = 'Meet';
   const icon = Icons.video_call_rounded;
 
   if (compact) {
@@ -129,10 +131,27 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: primaryPurple,
-        onPressed: () => _showBookingModal(context),
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'mobile_set_availability_fab',
+            onPressed: () => _showSetAvailabilityDialog(context),
+            icon: const Icon(Icons.event_available_rounded, color: Color(0xFF81B655), size: 20),
+            label: const Text('Set Availability', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF81B655))),
+            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+            elevation: 3,
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton.extended(
+            heroTag: 'mobile_new_mentorship_fab',
+            backgroundColor: primaryPurple,
+            onPressed: () => _showBookingModal(context),
+            icon: const Icon(Icons.video_call_rounded, color: Colors.white, size: 22),
+            label: const Text('New mentorship', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -165,6 +184,43 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
               ],
             ),
           ),
+          // Action Buttons: Set Availability directly ABOVE New Mentorship
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showSetAvailabilityDialog(context),
+                    icon: const Icon(Icons.event_available_rounded, color: Color(0xFF81B655), size: 18),
+                    label: const Text('Set Availability', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF81B655))),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF81B655), width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showBookingModal(context),
+                    icon: const Icon(Icons.video_call, color: Colors.white, size: 18),
+                    label: const Text('New mentorship', style: TextStyle(fontWeight: FontWeight.w600)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4B49AC),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           // MS Teams 7-Day Horizontal Strip
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -475,6 +531,18 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
             ),
           ),
           const SizedBox(width: 16),
+          OutlinedButton.icon(
+            onPressed: () => _showSetAvailabilityDialog(context),
+            icon: const Icon(Icons.event_available_rounded, color: Color(0xFF81B655)),
+            label: const Text('Set Availability', style: TextStyle(fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF81B655), width: 1.5),
+              foregroundColor: const Color(0xFF81B655),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          const SizedBox(width: 12),
           ElevatedButton.icon(
             onPressed: () => _showBookingModal(context),
             icon: const Icon(Icons.video_call, color: Colors.white),
@@ -611,35 +679,88 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                 return LayoutBuilder(
                   builder: (context, constraints) {
                     final dayWidth = constraints.maxWidth / 7;
-                    return Stack(
-                      children: currentWeekSessions.asMap().entries.map((entry) {
-                        final idx = entry.key;
-                        final s = entry.value;
-                        final start = (s['startTime'] as Timestamp).toDate();
-                        final end = (s['endTime'] as Timestamp).toDate();
-                        
-                        // Sunday is 7 in Dart, we want Sunday = 0
-                        final dayIndex = start.weekday == 7 ? 0 : start.weekday;
-                        final hourStart = start.hour + (start.minute / 60.0);
-                        final duration = end.difference(start).inMinutes / 60.0;
-                        
-                        // Calculate position (12AM is top 0)
-                        final topOffset = hourStart * 80;
-                        final height = duration * 80;
 
-                        return Positioned(
-                          left: dayIndex * dayWidth + 4,
-                          top: topOffset + 4,
-                          width: dayWidth - 8,
-                          height: height - 8,
-                          child: GestureDetector(
-                            onTap: () => _showSessionDetailsDialog(context, s, _sessionColors[idx % _sessionColors.length]),
-                            child: _buildSessionBlock(s, _sessionColors[idx % _sessionColors.length]),
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  }
+                    // Group sessions by day index (Sunday = 0)
+                    final Map<int, List<Map<String, dynamic>>> dayMap = {};
+                    for (final s in currentWeekSessions) {
+                      final start = (s['startTime'] as Timestamp).toDate();
+                      final dayIndex = start.weekday == 7 ? 0 : start.weekday;
+                      dayMap.putIfAbsent(dayIndex, () => []).add(s);
+                    }
+
+                    final List<Widget> positionedList = [];
+
+                    dayMap.forEach((dayIndex, listForDay) {
+                      // Sort by start time ascending
+                      listForDay.sort((a, b) {
+                        final ta = (a['startTime'] as Timestamp).toDate();
+                        final tb = (b['startTime'] as Timestamp).toDate();
+                        return ta.compareTo(tb);
+                      });
+
+                      // Partition into mutually overlapping groups
+                      final List<List<Map<String, dynamic>>> clusters = [];
+                      for (final s in listForDay) {
+                        final sStart = (s['startTime'] as Timestamp).toDate();
+                        final sEnd = (s['endTime'] as Timestamp).toDate();
+
+                        bool placed = false;
+                        for (final cl in clusters) {
+                          final overlaps = cl.any((other) {
+                            final oStart = (other['startTime'] as Timestamp).toDate();
+                            final oEnd = (other['endTime'] as Timestamp).toDate();
+                            return sStart.isBefore(oEnd) && sEnd.isAfter(oStart);
+                          });
+                          if (overlaps) {
+                            cl.add(s);
+                            placed = true;
+                            break;
+                          }
+                        }
+                        if (!placed) {
+                          clusters.add([s]);
+                        }
+                      }
+
+                      for (final cl in clusters) {
+                        final count = cl.length;
+                        final subWidth = (dayWidth - 8) / count;
+
+                        for (int col = 0; col < count; col++) {
+                          final s = cl[col];
+                          final globalIdx = currentWeekSessions.indexOf(s);
+                          final color = _sessionColors[(globalIdx >= 0 ? globalIdx : col) % _sessionColors.length];
+
+                          final start = (s['startTime'] as Timestamp).toDate();
+                          final end = (s['endTime'] as Timestamp).toDate();
+
+                          final hourStart = start.hour + (start.minute / 60.0);
+                          final duration = end.difference(start).inMinutes / 60.0;
+
+                          final topOffset = hourStart * 80;
+                          final height = duration * 80;
+
+                          final left = dayIndex * dayWidth + 4 + (col * subWidth);
+                          final width = count > 1 ? (subWidth - 2) : (dayWidth - 8);
+
+                          positionedList.add(
+                            Positioned(
+                              left: left,
+                              top: topOffset + 4,
+                              width: width,
+                              height: height - 8,
+                              child: GestureDetector(
+                                onTap: () => _showSessionDetailsDialog(context, s, color),
+                                child: _buildSessionBlock(s, color),
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    });
+
+                    return Stack(children: positionedList);
+                  },
                 );
               },
             ),
@@ -1138,6 +1259,99 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
       builder: (context) => MentorshipBookingModal(user: widget.user),
     );
   }
+
+  void _showSetAvailabilityDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => EducatorSetAvailabilityDialog(user: widget.user),
+    );
+  }
+}
+
+Future<void> _showPastTimeNoticeDialog(BuildContext context) async {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  await showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.redAccent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.history_toggle_off_rounded, color: Colors.redAccent, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Past Time Not Allowed',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+        ],
+      ),
+      content: Text(
+        'You cannot set or schedule a mentorship session in the past. Please select an upcoming date and time.',
+        style: GoogleFonts.inter(fontSize: 14, height: 1.5),
+      ),
+      actions: [
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Understood'),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> _showScheduleConflictDialog(BuildContext context, String message) async {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  await showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.event_busy_rounded, color: Colors.amber, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Schedule Conflict',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+        ],
+      ),
+      content: Text(
+        message,
+        style: GoogleFonts.inter(fontSize: 14, height: 1.5),
+      ),
+      actions: [
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
 }
 
 class MentorshipBookingModal extends StatefulWidget {
@@ -1152,8 +1366,8 @@ class MentorshipBookingModal extends StatefulWidget {
 class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
   final _titleController = TextEditingController();
   DateTime _date = DateTime.now();
-  TimeOfDay _time = const TimeOfDay(hour: 9, minute: 0);
-  int _duration = 60;
+  late TimeOfDay _time;
+  int _duration = 90;
   String? _sid;
   String? _snam;
   bool _isSubmitting = false;
@@ -1161,6 +1375,14 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    int nextHour = now.minute > 30 ? (now.hour + 2) : (now.hour + 1);
+    if (nextHour >= 24) {
+      _date = now.add(const Duration(days: 1));
+      nextHour = nextHour % 24;
+    }
+    _time = TimeOfDay(hour: nextHour, minute: 0);
+
     if (widget.initialSession != null) {
       final s = widget.initialSession!;
       _titleController.text = s['meetingTitle']?.toString() ?? '';
@@ -1179,17 +1401,41 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isEditing = widget.initialSession != null;
+    DateTime? existingStart;
+    DateTime? existingEnd;
+    if (isEditing) {
+      existingStart = (widget.initialSession!['startTime'] as Timestamp?)?.toDate();
+      existingEnd = (widget.initialSession!['endTime'] as Timestamp?)?.toDate();
+    }
+    final now = DateTime.now();
+    final isOngoing = existingStart != null && existingEnd != null && now.isAfter(existingStart) && now.isBefore(existingEnd);
+    final isPast = existingEnd != null && now.isAfter(existingEnd);
+    final canEditName = !isEditing || (!isOngoing && !isPast);
+
     return AlertDialog(
-      title: Text(
-        isEditing ? 'Edit mentorship session' : 'New mentorship',
-        style: const TextStyle(fontWeight: FontWeight.bold),
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.video_call_rounded, color: AppColors.primary, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            isEditing ? 'Edit Mentorship Session' : 'New Mentorship',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+        ],
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 440),
         child: SingleChildScrollView(
@@ -1197,35 +1443,88 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
-              const Text('Meeting Title / Topic *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              if (isOngoing)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.amber.shade700),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded, color: Colors.amber.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'This mentorship session is currently ONGOING. Name and details cannot be edited.',
+                          style: TextStyle(color: Colors.amber.shade900, fontSize: 12.5, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (isPast)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.lock_clock_rounded, color: Colors.grey, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'This session has already concluded and cannot be edited.',
+                          style: TextStyle(color: Colors.grey, fontSize: 12.5, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 8),
+              Text(
+                'Meeting Title / Topic *',
+                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _titleController,
+                enabled: canEditName,
+                style: GoogleFonts.inter(fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'e.g. Grammar Practice & Accent Coaching *',
+                  hintText: 'e.g. Grammar Practice & Accent Coaching',
                   filled: true,
-                  fillColor: Colors.grey.withValues(alpha: 0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                  fillColor: isDark ? Colors.white10 : Colors.grey.withValues(alpha: canEditName ? 0.05 : 0.15),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.divider)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
-              // Agora info
+              // Meet info
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF81B655).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF81B655).withValues(alpha: 0.2)),
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.video_call_rounded, color: Color(0xFF81B655), size: 18),
-                    SizedBox(width: 8),
+                    const Icon(Icons.videocam_rounded, color: AppColors.primary, size: 18),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Conference powered by Agora — in-app video call, no external links needed.',
-                        style: TextStyle(color: Color(0xFF81B655), fontSize: 12),
+                        'Conference powered by Grammatica Meet — in-app video call, no external links needed.',
+                        style: GoogleFonts.inter(color: AppColors.primary, fontSize: 12.5, fontWeight: FontWeight.w500),
                       ),
                     ),
                   ],
@@ -1233,7 +1532,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
               ),
               const SizedBox(height: 16),
 
-              const Text('Select Student *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              Text('Select Student *', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
               const SizedBox(height: 8),
               StreamBuilder<List<Map<String, dynamic>>>(
                 stream: DatabaseService.instance.streamEducatorSubscribers(widget.user.uid),
@@ -1246,11 +1545,11 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                       onChanged: null,
                       decoration: InputDecoration(
                         filled: true,
-                        fillColor: Colors.grey.withValues(alpha: 0.05),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                        fillColor: isDark ? Colors.white10 : Colors.grey.withValues(alpha: 0.05),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.divider)),
                       ),
                       items: const [],
-                      hint: const Text('No active premium subscribers found', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                      hint: Text('No active enrolled learners found', style: GoogleFonts.inter(fontSize: 13, color: Colors.grey)),
                     );
                   }
 
@@ -1260,10 +1559,16 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                   return DropdownButtonFormField<String>(
                     initialValue: currentValue,
                     isExpanded: true,
+                    style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white : AppColors.textPrimary),
+                    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.grey.withValues(alpha: 0.05),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                      fillColor: isDark ? Colors.white10 : Colors.grey.withValues(alpha: 0.05),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.divider)),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                      ),
                     ),
                     items: subs.map((s) {
                       final uid = s['uid']?.toString() ?? '';
@@ -1280,64 +1585,129 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                         ),
                       );
                     }).toList(),
-                    onChanged: (val) async {
+                    onChanged: isEditing ? null : (val) async {
                       final userData = await DatabaseService.instance.getUserDoc(val!);
                       setState(() {
                         _sid = val;
                         _snam = userData?['username'] ?? userData?['email'] ?? 'Student';
                       });
                     },
-                    hint: snapshot.connectionState == ConnectionState.waiting 
-                      ? const Text('Loading...') 
-                      : const Text('Choose a learner'),
+                    hint: Text(
+                      snapshot.connectionState == ConnectionState.waiting ? 'Loading...' : 'Choose a learner',
+                      style: GoogleFonts.inter(color: Colors.grey),
+                    ),
                   );
                 }
               ),
               const SizedBox(height: 16),
-              const Text('Schedule', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              Text('Schedule', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.calendar_today, size: 16),
-                      label: Text(DateFormat('MM/dd/yyyy').format(_date)),
-                      onPressed: () async {
+                      icon: Icon(Icons.calendar_today_rounded, size: 16, color: isEditing ? Colors.grey : AppColors.primary),
+                      label: Text(
+                        DateFormat('MM/dd/yyyy').format(_date),
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w600,
+                          color: isEditing ? Colors.grey : (isDark ? Colors.white : AppColors.textPrimary),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: BorderSide(color: isEditing ? Colors.grey.shade300 : AppColors.divider),
+                      ),
+                      onPressed: isEditing ? null : () async {
                         final picked = await showDatePicker(
                           context: context, 
-                          initialDate: _date, 
-                          firstDate: DateTime.now().subtract(const Duration(days: 365)), 
-                          lastDate: DateTime.now().add(const Duration(days: 365))
+                          initialDate: _date.isBefore(DateTime.now()) ? DateTime.now() : _date, 
+                          firstDate: DateTime.now(), 
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
                         );
-                        if (picked != null) setState(() => _date = picked);
+                        if (!context.mounted) return;
+                        if (picked != null) {
+                          final chosen = DateTime(picked.year, picked.month, picked.day, _time.hour, _time.minute);
+                          if (chosen.isBefore(DateTime.now())) {
+                            await _showPastTimeNoticeDialog(context);
+                            return;
+                          }
+                          setState(() => _date = picked);
+                        }
                       },
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.access_time, size: 16),
-                      label: Text(_time.format(context)),
-                      onPressed: () async {
+                      icon: Icon(Icons.access_time_rounded, size: 16, color: isEditing ? Colors.grey : AppColors.primary),
+                      label: Text(
+                        _time.format(context),
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w600,
+                          color: isEditing ? Colors.grey : (isDark ? Colors.white : AppColors.textPrimary),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: BorderSide(color: isEditing ? Colors.grey.shade300 : AppColors.divider),
+                      ),
+                      onPressed: isEditing ? null : () async {
                         final picked = await showTimePicker(context: context, initialTime: _time);
-                        if (picked != null) setState(() => _time = picked);
+                        if (!context.mounted) return;
+                        if (picked != null) {
+                          final chosen = DateTime(_date.year, _date.month, _date.day, picked.hour, picked.minute);
+                          if (chosen.isBefore(DateTime.now())) {
+                            await _showPastTimeNoticeDialog(context);
+                            return;
+                          }
+                          setState(() => _time = picked);
+                        }
                       },
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              const Text('Duration', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<int>(
-                initialValue: [30, 45, 60, 90, 120].contains(_duration) ? _duration : 60,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.grey.withValues(alpha: 0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+              if (isEditing) ...[
+                const SizedBox(height: 6),
+                const Row(
+                  children: [
+                    Icon(Icons.lock_rounded, size: 12, color: Colors.amber),
+                    SizedBox(width: 4),
+                    Text(
+                      'Date and time cannot be modified once scheduled in calendar.',
+                      style: TextStyle(fontSize: 11, color: Colors.amber, fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ),
-                items: [30, 45, 60, 90, 120].map((m) => DropdownMenuItem(value: m, child: Text('$m mins'))).toList(),
-                onChanged: (val) => setState(() => _duration = val!),
+              ],
+              const SizedBox(height: 16),
+              Text('Duration', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.timer_rounded, color: AppColors.primary, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      '1 hour 30 mins (Fixed duration)',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
             ],
@@ -1347,24 +1717,24 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
       actions: [
         TextButton(
           onPressed: _isSubmitting ? null : () => Navigator.pop(context), 
-          child: const Text('Cancel', style: TextStyle(color: Colors.grey))
+          child: Text('Cancel', style: GoogleFonts.inter(color: Colors.grey, fontWeight: FontWeight.w600)),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF4B49AC),
+            backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            elevation: 0,
           ),
-          onPressed: _isSubmitting ? null : _handleSchedule,
+          onPressed: _isSubmitting || (isEditing && !canEditName) ? null : _handleSchedule,
           child: _isSubmitting 
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text(isEditing ? 'Update' : 'Schedule'),
+              : Text(isEditing ? 'Update' : 'Schedule', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
         ),
       ],
     );
   }
-
 
   Future<void> _handleSchedule() async {
     if (_sid == null || _sid!.isEmpty) {
@@ -1378,14 +1748,34 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
       final end = start.add(Duration(minutes: _duration));
 
       if (widget.initialSession != null) {
+        final existingStart = (widget.initialSession!['startTime'] as Timestamp?)?.toDate();
+        final existingEnd = (widget.initialSession!['endTime'] as Timestamp?)?.toDate();
+        final now = DateTime.now();
+        if (existingStart != null && existingEnd != null) {
+          if (now.isAfter(existingStart) && now.isBefore(existingEnd)) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cannot edit an ongoing mentorship session!'), backgroundColor: Colors.red),
+            );
+            setState(() => _isSubmitting = false);
+            return;
+          }
+          if (now.isAfter(existingEnd)) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cannot edit past session!'), backgroundColor: Colors.red),
+            );
+            setState(() => _isSubmitting = false);
+            return;
+          }
+        }
+
         final sessionId = widget.initialSession!['id']?.toString() ?? '';
         await DatabaseService.instance.updateMentorshipSession(
           sessionId: sessionId,
           studentId: _sid!,
           studentName: _snam ?? 'Student',
-          startTime: start,
-          endTime: end,
-          conferenceApp: 'agora',
+          startTime: existingStart ?? start,
+          endTime: existingEnd ?? end,
+          conferenceApp: 'meet',
           meetingTitle: _titleController.text.trim(),
         );
 
@@ -1399,13 +1789,19 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
           );
         }
       } else {
+        if (start.isBefore(DateTime.now())) {
+          if (mounted) await _showPastTimeNoticeDialog(context);
+          setState(() => _isSubmitting = false);
+          return;
+        }
+
         await DatabaseService.instance.createMentorshipSession(
           educatorId: widget.user.uid,
           studentId: _sid!,
           studentName: _snam ?? 'Student',
           startTime: start,
           endTime: end,
-          conferenceApp: 'agora',
+          conferenceApp: 'meet',
           meetingTitle: _titleController.text.trim(),
         );
         
@@ -1422,12 +1818,19 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        if (errorMsg.contains('overlap') || errorMsg.contains('conflict') || errorMsg.contains('same') || errorMsg.contains('already have') || errorMsg.contains('already scheduled')) {
+          await _showScheduleConflictDialog(context, errorMsg);
+        } else if (errorMsg.contains('past')) {
+          await _showPastTimeNoticeDialog(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $errorMsg'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -1436,5 +1839,394 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
   void dispose() {
     _titleController.dispose();
     super.dispose();
+  }
+}
+
+class EducatorSetAvailabilityDialog extends StatefulWidget {
+  final User user;
+  const EducatorSetAvailabilityDialog({super.key, required this.user});
+
+  @override
+  State<EducatorSetAvailabilityDialog> createState() => _EducatorSetAvailabilityDialogState();
+}
+
+class _EducatorSetAvailabilityDialogState extends State<EducatorSetAvailabilityDialog> {
+  final _topicController = TextEditingController(text: '1-on-1 Mentorship');
+  DateTime _selectedDate = DateTime.now();
+  late TimeOfDay _startTime;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    int nextHour = now.minute > 30 ? (now.hour + 2) : (now.hour + 1);
+    if (nextHour >= 24) {
+      _selectedDate = now.add(const Duration(days: 1));
+      nextHour = nextHour % 24;
+    }
+    _startTime = TimeOfDay(hour: nextHour, minute: 0);
+  }
+
+  @override
+  void dispose() {
+    _topicController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final startDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _startTime.hour,
+      _startTime.minute,
+    );
+    final endDateTime = startDateTime.add(const Duration(minutes: 90));
+    final timeRangeStr = '${DateFormat('h:mm a').format(startDateTime)} - ${DateFormat('h:mm a').format(endDateTime)} (1h 30m)';
+
+    return AlertDialog(
+      backgroundColor: cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF81B655).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.event_available_rounded, color: Color(0xFF81B655), size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Set Mentorship Availability', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Open slots for your enrolled learners', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+          ),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 600),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Topic
+              const Text('Session Topic / Title', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _topicController,
+                decoration: InputDecoration(
+                  hintText: 'e.g. 1-on-1 Grammar Review',
+                  filled: true,
+                  fillColor: isDark ? Colors.white10 : Colors.grey.withValues(alpha: 0.06),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Date & Time pickers
+              const Text('Date & Start Time', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                      label: Text(DateFormat('EEE, MMM d').format(_selectedDate)),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate.isBefore(DateTime.now()) ? DateTime.now() : _selectedDate,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 90)),
+                        );
+                        if (!context.mounted) return;
+                        if (picked != null) {
+                          final chosen = DateTime(picked.year, picked.month, picked.day, _startTime.hour, _startTime.minute);
+                          if (chosen.isBefore(DateTime.now())) {
+                            await _showPastTimeNoticeDialog(context);
+                            return;
+                          }
+                          setState(() => _selectedDate = picked);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.access_time_rounded, size: 16),
+                      label: Text(_startTime.format(context)),
+                      onPressed: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: _startTime,
+                        );
+                        if (!context.mounted) return;
+                        if (picked != null) {
+                          final chosen = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, picked.hour, picked.minute);
+                          if (chosen.isBefore(DateTime.now())) {
+                            await _showPastTimeNoticeDialog(context);
+                            return;
+                          }
+                          setState(() => _startTime = picked);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Duration notice
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF81B655).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF81B655).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.schedule_rounded, color: Color(0xFF81B655), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Session duration: $timeRangeStr (Fixed 1 hr 30 mins)',
+                        style: const TextStyle(
+                          color: Color(0xFF81B655),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Add Slot Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: _isSaving
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.add_rounded, size: 18),
+                  label: Text(_isSaving ? 'Adding Slot...' : 'Add Availability Slot'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF81B655),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _isSaving ? null : _addSlot,
+                ),
+              ),
+
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 12),
+
+              // Existing Availability Slots for this Educator
+              const Text('Your Availability Slots', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              StreamBuilder<List<Map<String, dynamic>>>(
+                stream: DatabaseService.instance.streamEducatorAvailability(widget.user.uid),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
+                  }
+                  final slots = snapshot.data ?? [];
+                  if (slots.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(
+                        child: Text('No availability slots added yet.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      ),
+                    );
+                  }
+
+                  slots.sort((a, b) {
+                    final ta = (a['startTime'] as Timestamp?)?.toDate() ?? DateTime.now();
+                    final tb = (b['startTime'] as Timestamp?)?.toDate() ?? DateTime.now();
+                    return ta.compareTo(tb);
+                  });
+
+                  return Column(
+                    children: slots.map((slot) {
+                      final slotId = slot['id']?.toString() ?? '';
+                      final start = (slot['startTime'] as Timestamp).toDate();
+                      final isBooked = slot['isBooked'] == true;
+                      final bookedByName = slot['bookedByName']?.toString();
+                      final title = slot['title']?.toString() ?? '1-on-1 Mentorship';
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isBooked ? const Color(0xFF81B655).withValues(alpha: 0.4) : Colors.grey.shade300,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isBooked ? const Color(0xFF81B655).withValues(alpha: 0.15) : Colors.amber.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                isBooked ? 'BOOKED' : 'OPEN',
+                                style: TextStyle(
+                                  color: isBooked ? const Color(0xFF81B655) : Colors.amber.shade800,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    DateFormat('EEE, MMM d, yyyy • h:mm a').format(start),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  Text(
+                                    isBooked ? 'Booked by: ${bookedByName ?? "Subscriber"}' : '$title • 1h 30m',
+                                    style: TextStyle(fontSize: 12, color: isBooked ? const Color(0xFF81B655) : Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!isBooked)
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                                tooltip: 'Remove slot',
+                                onPressed: () async {
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      title: const Row(
+                                        children: [
+                                          Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+                                          SizedBox(width: 8),
+                                          Text('Delete Slot?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                        ],
+                                      ),
+                                      content: const Text(
+                                        'Are you sure you want to delete this available mentorship slot? This action cannot be undone.',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx, false),
+                                          child: const Text('Cancel'),
+                                        ),
+                                        ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.redAccent,
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                          onPressed: () => Navigator.pop(ctx, true),
+                                          child: const Text('Delete'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirmed == true) {
+                                    await DatabaseService.instance.deleteMentorshipAvailabilitySlot(slotId);
+                                    messenger.showSnackBar(
+                                      const SnackBar(content: Text('Availability slot deleted.')),
+                                    );
+                                  }
+                                },
+                              ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addSlot() async {
+    final start = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _startTime.hour,
+      _startTime.minute,
+    );
+    if (start.isBefore(DateTime.now())) {
+      if (mounted) await _showPastTimeNoticeDialog(context);
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final educatorDoc = await DatabaseService.instance.getUserDoc(widget.user.uid);
+      final educatorName = educatorDoc?['username'] ?? widget.user.displayName ?? 'Educator';
+
+      await DatabaseService.instance.createMentorshipAvailabilitySlot(
+        educatorId: widget.user.uid,
+        educatorName: educatorName,
+        startTime: start,
+        title: _topicController.text.trim(),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Availability slot added (1h 30m session)!'),
+            backgroundColor: Color(0xFF81B655),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        if (errorMsg.contains('overlap') || errorMsg.contains('conflict') || errorMsg.contains('same') || errorMsg.contains('already have') || errorMsg.contains('already exists')) {
+          await _showScheduleConflictDialog(context, errorMsg);
+        } else if (errorMsg.contains('past')) {
+          await _showPastTimeNoticeDialog(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $errorMsg'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import '../theme/app_colors.dart';
 
 class BackgroundWrapper extends StatelessWidget {
@@ -14,12 +13,6 @@ class BackgroundWrapper extends StatelessWidget {
     final backgroundColor = isDark
         ? Theme.of(context).scaffoldBackgroundColor
         : AppColors.backgroundBase;
-    final blob1Color = isDark
-        ? AppColors.primary.withValues(alpha: 0.12)
-        : AppColors.blobLightGreen;
-    final blob2Color = isDark
-        ? AppColors.secondary.withValues(alpha: 0.08)
-        : AppColors.blobLightYellow;
 
     return Container(
       color: backgroundColor,
@@ -29,56 +22,55 @@ class BackgroundWrapper extends StatelessWidget {
           if (imageAssetPath != null)
             Positioned.fill(
               child: Opacity(
-                opacity: isDark ? 0.08 : 1.0,
+                opacity: isDark ? 0.15 : 0.95,
                 child: Image.asset(
                   imageAssetPath!,
                   fit: BoxFit.cover,
-                ),
-              ),
-            )
-          else ...[
-            // Background Blob 1
-            Positioned(
-              top: -100,
-              left: -50,
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  color: blob1Color,
-                  shape: BoxShape.circle,
+                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
                 ),
               ),
             ),
-            // Background Blob 2
-            Positioned(
-              bottom: -50,
-              right: -100,
+          // Subtle elegant geometric background accents
+          Positioned(
+            top: -80,
+            right: -60,
+            child: IgnorePointer(
               child: Container(
-                width: 350,
-                height: 350,
+                width: 320,
+                height: 320,
                 decoration: BoxDecoration(
-                  color: blob2Color,
                   shape: BoxShape.circle,
-                ),
-              ),
-            ),
-            // Blur Effect Layer
-            Positioned.fill(
-              child: ClipRect(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-                  child: Container(
-                    color: Colors.transparent,
+                  color: (isDark ? Colors.white : AppColors.primary).withValues(alpha: isDark ? 0.02 : 0.035),
+                  border: Border.all(
+                    color: (isDark ? Colors.white : AppColors.primary).withValues(alpha: isDark ? 0.05 : 0.07),
+                    width: 2,
                   ),
                 ),
               ),
             ),
-          ],
-          // Content
+          ),
+          Positioned(
+            bottom: -100,
+            left: -60,
+            child: IgnorePointer(
+              child: Container(
+                width: 360,
+                height: 360,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: (isDark ? Colors.white : AppColors.secondary).withValues(alpha: isDark ? 0.02 : 0.03),
+                  border: Border.all(
+                    color: (isDark ? Colors.white : AppColors.secondary).withValues(alpha: isDark ? 0.04 : 0.06),
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+          ),
           SafeArea(child: child),
         ],
       ),
     );
   }
 }
+

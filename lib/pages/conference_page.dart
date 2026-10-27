@@ -46,6 +46,7 @@ class _ConferencePageState extends State<ConferencePage>
   bool _isMuted = false;
   bool _isCameraOff = false;
   bool _isSpeakerOn = true;
+  bool _isScreenSharing = false;
   bool _hasRetriedWithoutToken = false;
   VideoViewController? _localVideoController;
   VideoViewController? _remoteVideoController;
@@ -371,8 +372,71 @@ class _ConferencePageState extends State<ConferencePage>
     }
   }
 
+  Future<void> _toggleScreenShare() async {
+    if (_engine == null) return;
+    try {
+      if (!_isScreenSharing) {
+        // Start screen sharing
+        await _engine!.startScreenCapture(const ScreenCaptureParameters2(
+          captureAudio: true,
+          captureVideo: true,
+        ));
+        await _engine!.updateChannelMediaOptions(const ChannelMediaOptions(
+          publishCameraTrack: false,
+          publishScreenTrack: true,
+          publishScreenCaptureAudio: true,
+          publishScreenCaptureVideo: true,
+        ));
+        setState(() => _isScreenSharing = true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Screen sharing started'),
+              duration: Duration(seconds: 2),
+              backgroundColor: Color(0xFF81B655),
+            ),
+          );
+        }
+      } else {
+        // Stop screen sharing
+        await _engine!.stopScreenCapture();
+        await _engine!.updateChannelMediaOptions(ChannelMediaOptions(
+          publishCameraTrack: !_isCameraOff,
+          publishScreenTrack: false,
+          publishScreenCaptureAudio: false,
+          publishScreenCaptureVideo: false,
+        ));
+        setState(() => _isScreenSharing = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Screen sharing stopped'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[Agora] Screen share error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Screen share note: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _endCall() async {
     setState(() => _callEnded = true);
+    if (_isScreenSharing) {
+      try {
+        await _engine?.stopScreenCapture();
+      } catch (_) {}
+      _isScreenSharing = false;
+    }
     _localVideoController = null;
     _remoteVideoController = null;
     await _engine?.leaveChannel();
@@ -786,6 +850,15 @@ class _ConferencePageState extends State<ConferencePage>
   }
 
   Widget _buildBottomControls() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmall = screenWidth < 520;
+    final isVerySmall = screenWidth < 380;
+
+    final btnSize = isVerySmall ? 40.0 : (isSmall ? 46.0 : 52.0);
+    final iconSize = isVerySmall ? 18.0 : (isSmall ? 20.0 : 22.0);
+    final endCallSize = isVerySmall ? 48.0 : (isSmall ? 54.0 : 64.0);
+    final endCallIconSize = isVerySmall ? 22.0 : (isSmall ? 26.0 : 30.0);
+
     return Positioned(
       bottom: 0,
       left: 0,
@@ -794,16 +867,16 @@ class _ConferencePageState extends State<ConferencePage>
         opacity: _fadeCtrl,
         child: Container(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).padding.bottom + 24,
-            top: 24,
-            left: 28,
-            right: 28,
+            bottom: MediaQuery.of(context).padding.bottom + (isSmall ? 14 : 24),
+            top: isSmall ? 16 : 24,
+            left: isSmall ? 8 : 28,
+            right: isSmall ? 8 : 28,
           ),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
-              colors: [Colors.black.withOpacity(0.8), Colors.transparent],
+              colors: [Colors.black.withOpacity(0.88), Colors.transparent],
             ),
           ),
           child: Row(
@@ -811,51 +884,90 @@ class _ConferencePageState extends State<ConferencePage>
             children: [
               _buildControlBtn(
                 icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                label: _isMuted ? 'Unmute' : 'Mute',
+                label: isSmall
+                    ? (_isMuted ? 'Muted' : 'Mic')
+                    : (_isMuted ? 'Unmute' : 'Mute'),
                 active: _isMuted,
                 activeColor: Colors.redAccent,
                 onTap: _toggleMute,
+                size: btnSize,
+                iconSize: iconSize,
               ),
               _buildControlBtn(
                 icon: _isCameraOff
                     ? Icons.videocam_off_rounded
                     : Icons.videocam_rounded,
-                label: _isCameraOff ? 'Start Cam' : 'Stop Cam',
+                label: isSmall
+                    ? (_isCameraOff ? 'Cam Off' : 'Cam')
+                    : (_isCameraOff ? 'Start Cam' : 'Stop Cam'),
                 active: _isCameraOff,
                 activeColor: Colors.redAccent,
                 onTap: _toggleCamera,
+                size: btnSize,
+                iconSize: iconSize,
+              ),
+              _buildControlBtn(
+                icon: _isScreenSharing
+                    ? Icons.stop_screen_share_rounded
+                    : Icons.screen_share_rounded,
+                label: isSmall
+                    ? (_isScreenSharing ? 'Stop' : 'Share')
+                    : (_isScreenSharing ? 'Stop Share' : 'Share Screen'),
+                active: _isScreenSharing,
+                activeColor: const Color(0xFF3B82F6),
+                onTap: _toggleScreenShare,
+                size: btnSize,
+                iconSize: iconSize,
               ),
               // End call button (larger, red)
               GestureDetector(
                 onTap: _endCall,
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFEF4444),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.redAccent.withOpacity(0.5),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: endCallSize,
+                      height: endCallSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFEF4444),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.redAccent.withOpacity(0.5),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.call_end_rounded,
-                    color: Colors.white,
-                    size: 30,
-                  ),
+                      child: Icon(
+                        Icons.call_end_rounded,
+                        color: Colors.white,
+                        size: endCallIconSize,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Leave',
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: isSmall ? 9.5 : 10.0,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               _buildControlBtn(
                 icon: _isSpeakerOn
                     ? Icons.volume_up_rounded
                     : Icons.volume_off_rounded,
-                label: _isSpeakerOn ? 'Speaker' : 'Earpiece',
+                label: isSmall
+                    ? (_isSpeakerOn ? 'Speaker' : 'Ear')
+                    : (_isSpeakerOn ? 'Speaker' : 'Earpiece'),
                 active: false,
                 onTap: _toggleSpeaker,
+                size: btnSize,
+                iconSize: iconSize,
               ),
               Stack(
                 clipBehavior: Clip.none,
@@ -866,6 +978,8 @@ class _ConferencePageState extends State<ConferencePage>
                     active: _showChat,
                     activeColor: const Color(0xFF81B655),
                     onTap: _toggleChat,
+                    size: btnSize,
+                    iconSize: iconSize,
                   ),
                   if (_unreadCount > 0 && !_showChat)
                     Positioned(
@@ -905,6 +1019,8 @@ class _ConferencePageState extends State<ConferencePage>
     required bool active,
     Color activeColor = Colors.white24,
     required VoidCallback onTap,
+    double size = 52,
+    double iconSize = 22,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -912,21 +1028,27 @@ class _ConferencePageState extends State<ConferencePage>
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: active ? activeColor : Colors.white.withOpacity(0.15),
             ),
-            child: Icon(icon, color: Colors.white, size: 22),
+            child: Icon(icon, color: Colors.white, size: iconSize),
           ),
           const SizedBox(height: 6),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: Colors.white70,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
+          SizedBox(
+            width: size + 10,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: Colors.white70,
+                fontSize: size < 48 ? 9.5 : 10.0,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],

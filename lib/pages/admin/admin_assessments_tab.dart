@@ -1045,7 +1045,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
           const SizedBox(height: 8),
           SegmentedButton<String>(
             segments: const [
-              ButtonSegment(value: 'easy', label: Text('Easy')),
+              ButtonSegment(value: 'easy', label: Text('Beginner')),
               ButtonSegment(value: 'medium', label: Text('Medium')),
               ButtonSegment(value: 'hard', label: Text('Hard')),
             ],

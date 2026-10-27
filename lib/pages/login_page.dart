@@ -365,24 +365,11 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header section with gradient
+                  // Header section
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: isDark
-                            ? const [
-                                Color(0xFF334155),
-                                Color(0xFF1E293B),
-                              ]
-                            : const [
-                                Color(0xFFE2F3D9), // Light green tint
-                                Colors.white,
-                              ],
-                        stops: const [0.0, 1.0],
-                      ),
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
                     ),
                     padding: const EdgeInsets.only(
                         top: 32, bottom: 16, left: 32, right: 32),

@@ -215,9 +215,9 @@ class _AdminSpellingWordsTabState extends State<AdminSpellingWordsTab> {
                 child: CupertinoSlidingSegmentedControl<SpellingDifficulty>(
                   groupValue: _filterDifficulty,
                   children: {
-                    SpellingDifficulty.novice: const Text('Novice'),
-                    SpellingDifficulty.amateur: const Text('Amateur'),
-                    SpellingDifficulty.professional: const Text('Pro'),
+                    SpellingDifficulty.novice: const Text('Beginner'),
+                    SpellingDifficulty.amateur: const Text('Intermediate'),
+                    SpellingDifficulty.professional: const Text('Advanced'),
                   },
                   onValueChanged: (val) {
                     if (val != null) setState(() => _filterDifficulty = val);

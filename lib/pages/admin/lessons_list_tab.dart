@@ -31,6 +31,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
   final List<String> _filterOptions = ['Name', 'Status', 'Create Date'];
   final Set<String> _superAdminUids = {};
   int _activeView = 0; // 0: Lessons, 1: Playlists
+  String? _activeFolder; // null: all, 'public': Public Lessons folder, 'members': Members Only Lessons folder
 
   @override
   void initState() {
@@ -340,7 +341,15 @@ class _LessonsListTabState extends State<LessonsListTab> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 28),
+                          const SizedBox(height: 16),
+                          // ── 2 Folders: Public Lessons & Members Only Lessons ──
+                          _buildFolderCardsRow(
+                            context: context,
+                            publicCount: lessons.where((l) => !l.isMembersOnly).length,
+                            membersCount: lessons.where((l) => l.isMembersOnly).length,
+                            isDark: isDark,
+                          ),
+                          const SizedBox(height: 24),
                         ],
                       ],
                     ),
@@ -383,59 +392,427 @@ class _LessonsListTabState extends State<LessonsListTab> {
                       ),
                     ),
                   )
-                else
-                  // ── Lessons Grid ──
+                else if (_activeFolder == 'public') ...[
+                  // ── Folder View: Public Lessons Only ──
+                  _buildLessonSectionHeader(
+                    title: 'Folder: Public Lessons',
+                    count: lessons.where((l) => !l.isMembersOnly).length,
+                    icon: Icons.public_rounded,
+                    color: AppColors.primary,
+                    isDark: isDark,
+                  ),
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
                     sliver: SliverLayoutBuilder(
                       builder: (context, slc) {
                         final isWide = slc.crossAxisExtent > 700;
-                        return SliverGrid(
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: isWide ? 2 : 1,
-                            childAspectRatio: isWide ? 1.85 : 1.45,
-                            crossAxisSpacing: 20,
-                            mainAxisSpacing: 20,
-                          ),
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final l = lessons[index];
-                              final isSuperAdminContent = _superAdminUids.contains(l.createdByUid);
-                              final isDeleteBlocked = widget.role == UserRole.admin && isSuperAdminContent;
-
-                              return _LessonCard(
-                                lesson: l,
-                                canEdit: canEdit,
-                                isDark: isDark,
-                                statusColor: _statusColor(l.validationStatus, l.isMembersOnly),
-                                statusLabel: _statusLabel(l.validationStatus, l.isMembersOnly),
-                                statusIcon: _statusIcon(l.validationStatus, l.isMembersOnly),
-                                dateStr: _formatTs(l.createdAt),
-                                onTap: () {
-                                  NavigationService.instance.goToLesson(context, l);
-                                },
-                                onEdit: canEdit ? () => widget.onEdit?.call(l) : null,
-                                onEditQuiz: (canEdit && l.quizId != null)
-                                    ? () => widget.onEditQuiz?.call(l)
-                                    : null,
-                                isDeleteDisabled: isDeleteBlocked,
-                                deleteTooltip: isDeleteBlocked
-                                    ? 'Only Super Admin can delete content created by Super Admin'
-                                    : 'Archive Lesson',
-                                onDelete: (canEdit && !isDeleteBlocked) ? () => _confirmDelete(context, l) : null,
-                              );
-                            },
-                            childCount: lessons.length,
-                          ),
-                        );
+                        final publicList = lessons.where((l) => !l.isMembersOnly).toList();
+                        return _buildLessonSliverGrid(publicList, canEdit, isDark, isWide);
                       },
                     ),
                   ),
+                ] else if (_activeFolder == 'members') ...[
+                  // ── Folder View: Members-Only Lessons Only ──
+                  _buildLessonSectionHeader(
+                    title: 'Folder: Members Only Lessons',
+                    count: lessons.where((l) => l.isMembersOnly).length,
+                    icon: Icons.lock_rounded,
+                    color: const Color(0xFF8E24AA),
+                    isDark: isDark,
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+                    sliver: SliverLayoutBuilder(
+                      builder: (context, slc) {
+                        final isWide = slc.crossAxisExtent > 700;
+                        final membersList = lessons.where((l) => l.isMembersOnly).toList();
+                        return _buildLessonSliverGrid(membersList, canEdit, isDark, isWide);
+                      },
+                    ),
+                  ),
+                ] else ...[
+                  // ── Both Folders View: Separated Public & Members-Only Sections ──
+                  _buildLessonSectionHeader(
+                    title: 'Public Lessons Folder',
+                    count: lessons.where((l) => !l.isMembersOnly).length,
+                    icon: Icons.public_rounded,
+                    color: AppColors.primary,
+                    isDark: isDark,
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                    sliver: SliverLayoutBuilder(
+                      builder: (context, slc) {
+                        final isWide = slc.crossAxisExtent > 700;
+                        final publicList = lessons.where((l) => !l.isMembersOnly).toList();
+                        return _buildLessonSliverGrid(publicList, canEdit, isDark, isWide);
+                      },
+                    ),
+                  ),
+                  _buildLessonSectionHeader(
+                    title: 'Members Only Lessons Folder',
+                    count: lessons.where((l) => l.isMembersOnly).length,
+                    icon: Icons.lock_rounded,
+                    color: const Color(0xFF8E24AA),
+                    isDark: isDark,
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+                    sliver: SliverLayoutBuilder(
+                      builder: (context, slc) {
+                        final isWide = slc.crossAxisExtent > 700;
+                        final membersList = lessons.where((l) => l.isMembersOnly).toList();
+                        return _buildLessonSliverGrid(membersList, canEdit, isDark, isWide);
+                      },
+                    ),
+                  ),
+                ],
               ],
             );
           },
         );
       },
+    );
+  }
+
+  Widget _buildFolderCardsRow({
+    required BuildContext context,
+    required int publicCount,
+    required int membersCount,
+    required bool isDark,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.folder_shared_rounded, size: 20, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text(
+              'Lesson Folders',
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : AppColors.textPrimary,
+              ),
+            ),
+            if (_activeFolder != null) ...[
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Filtered: ${_activeFolder == 'public' ? 'Public Lessons' : 'Members Only'}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    InkWell(
+                      onTap: () => setState(() => _activeFolder = null),
+                      child: const Icon(Icons.close_rounded, size: 14, color: AppColors.primary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 650;
+            final publicCard = _buildFolderCard(
+              title: 'Public Lessons',
+              subtitle: 'Free & open access curriculum for all learners',
+              count: publicCount,
+              icon: Icons.public_rounded,
+              color: AppColors.primary,
+              isSelected: _activeFolder == 'public',
+              isDark: isDark,
+              onTap: () {
+                setState(() {
+                  _activeFolder = (_activeFolder == 'public') ? null : 'public';
+                });
+              },
+            );
+
+            final membersCard = _buildFolderCard(
+              title: 'Members Only Lessons',
+              subtitle: 'Exclusive lessons curated for enrolled members',
+              count: membersCount,
+              icon: Icons.lock_rounded,
+              color: const Color(0xFF8E24AA),
+              isSelected: _activeFolder == 'members',
+              isDark: isDark,
+              onTap: () {
+                setState(() {
+                  _activeFolder = (_activeFolder == 'members') ? null : 'members';
+                });
+              },
+            );
+
+            if (isNarrow) {
+              return Column(
+                children: [
+                  publicCard,
+                  const SizedBox(height: 12),
+                  membersCard,
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: publicCard),
+                const SizedBox(width: 16),
+                Expanded(child: membersCard),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFolderCard({
+    required String title,
+    required String subtitle,
+    required int count,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? color.withValues(alpha: isDark ? 0.22 : 0.08)
+                : (isDark ? const Color(0xFF2A2A2A) : Colors.white),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected ? color : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+              width: isSelected ? 2 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: color.withValues(alpha: 0.25)),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(Icons.folder_rounded, color: color, size: 34),
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Icon(icon, color: Colors.white, size: 14),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? Colors.white : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: color,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isDark ? Colors.white60 : AppColors.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                isSelected ? Icons.folder_open_rounded : Icons.chevron_right_rounded,
+                color: isSelected ? color : (isDark ? Colors.white38 : Colors.grey),
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildLessonSectionHeader({
+    required String title,
+    required int count,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              title,
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$count',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLessonSliverGrid(
+    List<Lesson> list,
+    bool canEdit,
+    bool isDark,
+    bool isWide,
+  ) {
+    if (list.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Center(
+            child: Text(
+              'No lessons found in this section',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SliverGrid(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: isWide ? 2 : 1,
+        childAspectRatio: isWide ? 1.85 : 1.45,
+        crossAxisSpacing: 20,
+        mainAxisSpacing: 20,
+      ),
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final l = list[index];
+          final isSuperAdminContent = _superAdminUids.contains(l.createdByUid);
+          final isDeleteBlocked = widget.role == UserRole.admin && isSuperAdminContent;
+
+          return _LessonCard(
+            lesson: l,
+            canEdit: canEdit,
+            isDark: isDark,
+            statusColor: _statusColor(l.validationStatus, l.isMembersOnly),
+            statusLabel: _statusLabel(l.validationStatus, l.isMembersOnly),
+            statusIcon: _statusIcon(l.validationStatus, l.isMembersOnly),
+            dateStr: _formatTs(l.createdAt),
+            onTap: () {
+              NavigationService.instance.goToLesson(context, l);
+            },
+            onEdit: canEdit ? () => widget.onEdit?.call(l) : null,
+            onEditQuiz: (canEdit && l.quizId != null)
+                ? () => widget.onEditQuiz?.call(l)
+                : null,
+            isDeleteDisabled: isDeleteBlocked,
+            deleteTooltip: isDeleteBlocked
+                ? 'Only Super Admin can delete content created by Super Admin'
+                : 'Archive Lesson',
+            onDelete: (canEdit && !isDeleteBlocked) ? () => _confirmDelete(context, l) : null,
+          );
+        },
+        childCount: list.length,
+      ),
     );
   }
 

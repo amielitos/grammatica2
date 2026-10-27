@@ -870,7 +870,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 
     return Container(
       width: double.infinity,
-      color: isDark ? const Color(0xFF121212) : const Color(0xFFFAFAFA),
+      color: Colors.transparent,
       child: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
@@ -924,13 +924,12 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                           children: [
                             Expanded(
                               child: _DifficultyCard(
-                                title: 'Novice',
+                                title: 'Beginner',
                                 subtitle:
                                     '120s per word. Pronounce foundational words with extended time.',
                                 tag: 'BEGINNER',
-                                icon: Icons.star_rounded,
+                                icon: Icons.lightbulb_outline_rounded,
                                 themeColor: const Color(0xFFF59E0B),
-                                rating: 2,
                                 onTap: () =>
                                     _startSession(SpellingDifficulty.novice),
                               ),
@@ -938,13 +937,12 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                             const SizedBox(width: 24),
                             Expanded(
                               child: _DifficultyCard(
-                                title: 'Amateur',
+                                title: 'Intermediate',
                                 subtitle:
                                     '60s per word. Practice conversational and everyday pronunciation.',
                                 tag: 'INTERMEDIATE',
                                 icon: Icons.graphic_eq_rounded,
                                 themeColor: const Color(0xFF81B655),
-                                rating: 3,
                                 onTap: () =>
                                     _startSession(SpellingDifficulty.amateur),
                               ),
@@ -952,13 +950,12 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                             const SizedBox(width: 24),
                             Expanded(
                               child: _DifficultyCard(
-                                title: 'Professional',
+                                title: 'Advanced',
                                 subtitle:
                                     '30s per word. Master complex pronunciations under tight timers.',
                                 tag: 'ADVANCED',
-                                icon: Icons.local_fire_department_rounded,
+                                icon: Icons.psychology_rounded,
                                 themeColor: const Color(0xFFEF4444),
-                                rating: 5,
                                 onTap: () => _startSession(
                                     SpellingDifficulty.professional),
                               ),
@@ -968,37 +965,34 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                       : Column(
                           children: [
                             _DifficultyCard(
-                              title: 'Novice',
+                              title: 'Beginner',
                               subtitle:
                                   '120s per word. Pronounce foundational words with extended time.',
                               tag: 'BEGINNER',
-                              icon: Icons.star_rounded,
+                              icon: Icons.lightbulb_outline_rounded,
                               themeColor: const Color(0xFFF59E0B),
-                              rating: 2,
                               onTap: () =>
                                   _startSession(SpellingDifficulty.novice),
                             ),
                             const SizedBox(height: 20),
                             _DifficultyCard(
-                              title: 'Amateur',
+                              title: 'Intermediate',
                               subtitle:
                                   '60s per word. Practice conversational and everyday pronunciation.',
                               tag: 'INTERMEDIATE',
                               icon: Icons.graphic_eq_rounded,
                               themeColor: const Color(0xFF81B655),
-                              rating: 3,
                               onTap: () =>
                                   _startSession(SpellingDifficulty.amateur),
                             ),
                             const SizedBox(height: 20),
                             _DifficultyCard(
-                              title: 'Professional',
+                              title: 'Advanced',
                               subtitle:
                                   '30s per word. Master complex pronunciations under tight timers.',
                               tag: 'ADVANCED',
-                              icon: Icons.local_fire_department_rounded,
+                              icon: Icons.psychology_rounded,
                               themeColor: const Color(0xFFEF4444),
-                              rating: 5,
                               onTap: () => _startSession(
                                   SpellingDifficulty.professional),
                             ),
@@ -1083,15 +1077,15 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     Color difficultyColor = AppColors.primary;
     switch (_selectedDifficulty) {
       case SpellingDifficulty.novice:
-        difficultyText = "Novice";
+        difficultyText = "Beginner";
         difficultyColor = const Color(0xFFF59E0B);
         break;
       case SpellingDifficulty.amateur:
-        difficultyText = "Amateur";
+        difficultyText = "Intermediate";
         difficultyColor = AppColors.primary;
         break;
       case SpellingDifficulty.professional:
-        difficultyText = "Professional";
+        difficultyText = "Advanced";
         difficultyColor = const Color(0xFFEF4444);
         break;
       default:
@@ -1616,11 +1610,11 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                               children: [
                                 Text(
                                   _selectedDifficulty == SpellingDifficulty.professional
-                                      ? 'Pro'
+                                      ? 'Advanced'
                                       : (_selectedDifficulty == SpellingDifficulty.amateur
-                                          ? 'Amateur'
+                                          ? 'Intermediate'
                                           : (_selectedDifficulty == SpellingDifficulty.novice
-                                              ? 'Novice'
+                                              ? 'Beginner'
                                               : 'Normal')),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -1817,7 +1811,6 @@ class _DifficultyCard extends StatefulWidget {
   final String tag;
   final IconData icon;
   final Color themeColor;
-  final int rating;
   final VoidCallback onTap;
 
   const _DifficultyCard({
@@ -1826,7 +1819,6 @@ class _DifficultyCard extends StatefulWidget {
     required this.tag,
     required this.icon,
     required this.themeColor,
-    required this.rating,
     required this.onTap,
   });
 
@@ -1883,12 +1875,12 @@ class _DifficultyCardState extends State<_DifficultyCard>
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              color: isDark ? const Color(0xFF262626) : Colors.white,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: _hovered
                     ? widget.themeColor.withValues(alpha: 0.5)
-                    : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                    : (isDark ? const Color(0xFF3E3E3E) : const Color(0xFFE2E8F0)),
                 width: _hovered ? 1.8 : 1.0,
               ),
               boxShadow: [
@@ -1969,34 +1961,7 @@ class _DifficultyCardState extends State<_DifficultyCard>
                     color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                // Rating Stars Indicator
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    final filled = index < widget.rating;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 3.0),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: filled
-                              ? widget.themeColor
-                              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.star_rounded,
-                          color: filled ? Colors.white : (isDark ? Colors.grey[600] : const Color(0xFF94A3B8)),
-                          size: 14,
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
 
                 // Action Button
                 SizedBox(

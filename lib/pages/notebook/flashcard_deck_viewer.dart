@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../models/flashcard_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/spaced_repetition_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/notebook/flashcard_widget.dart';
+import '../../widgets/custom_app_bar.dart';
+import '../../widgets/universal_drawer.dart';
+import '../../widgets/notification_widgets.dart';
 import 'flashcard_study_page.dart';
 
 
@@ -48,16 +52,39 @@ class _FlashcardDeckViewerState extends State<FlashcardDeckViewer> {
       return matchesTag && matchesQuery;
     }).toList();
 
+    final currentUser = AuthService.instance.currentUser;
+
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF131812) : AppColors.backgroundBase,
-      appBar: AppBar(
-        title: Text(
-          widget.deck.title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
+      appBar: currentUser != null
+          ? CustomAppBar(
+              user: currentUser,
+              showBackButton: true,
+              onLogoTap: () {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              onNotificationTap: () {
+                showDialog(
+                  context: context,
+                  barrierColor: Colors.transparent,
+                  builder: (context) => NotificationsDialog(userId: currentUser.uid),
+                );
+              },
+            )
+          : AppBar(
+              title: Text(
+                widget.deck.title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+            ),
+      drawer: currentUser != null
+          ? UniversalDrawer(
+              user: currentUser,
+              userData: const {},
+            )
+          : null,
       body: StreamBuilder<Map<String, FlashcardProgress>>(
         stream: SpacedRepetitionService.instance.streamDeckProgress(
           currentUid,
@@ -86,6 +113,45 @@ class _FlashcardDeckViewerState extends State<FlashcardDeckViewer> {
 
           return Column(
             children: [
+              // Deck Sub-Header Title Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.style_rounded, color: Color(0xFF3B82F6), size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.deck.title,
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: isDark ? Colors.white : AppColors.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            '${widget.deck.cards.length} Cards • Spaced Repetition Active Recall',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: isDark ? Colors.white60 : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               // Mastery Stats Header Banner
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),

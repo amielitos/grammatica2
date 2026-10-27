@@ -5,6 +5,9 @@ import '../../models/notebook_models.dart';
 import '../../services/notebook_service.dart';
 import '../../services/spaced_repetition_service.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/custom_app_bar.dart';
+import '../../widgets/universal_drawer.dart';
+import '../../widgets/notification_widgets.dart';
 import 'flashcard_deck_viewer.dart';
 import 'flashcard_study_page.dart';
 
@@ -26,17 +29,23 @@ class LearnerDecksPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF131812) : AppColors.backgroundBase,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: onBack,
-        ),
-        title: const Text(
-          'AI Study Decks',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+      appBar: CustomAppBar(
+        user: user,
+        showBackButton: true,
+        onLogoTap: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        },
+        onNotificationTap: () {
+          showDialog(
+            context: context,
+            barrierColor: Colors.transparent,
+            builder: (context) => NotificationsDialog(userId: user.uid),
+          );
+        },
+      ),
+      drawer: UniversalDrawer(
+        user: user,
+        userData: const {},
       ),
       body: StreamBuilder<List<NotebookOutput>>(
         stream: NotebookService.instance.streamSharedFlashcardDecks(user.uid),

@@ -388,6 +388,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
       appBar: CustomAppBar(
         user: widget.user,
         userData: _userData,
+        showBackButton: true,
         onNotificationTap: () {
           showDialog(
             context: context,

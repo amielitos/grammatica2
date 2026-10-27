@@ -59,7 +59,7 @@ class UniversalDrawer extends StatelessWidget {
 
           items.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
           if (isApprovedValidator) {
-            items.add(const ModernNavItem(icon: Icons.rate_review_rounded, label: 'Content Review'));
+            items.add(const ModernNavItem(icon: Icons.rate_review_rounded, label: 'Lesson Review'));
           }
         } else {
           if (isEducator) {
@@ -80,7 +80,7 @@ class UniversalDrawer extends StatelessWidget {
             items.add(const ModernNavItem(icon: Icons.event, label: 'Mentorship'));
           }
 
-          if (isAdminOrSuperAdmin || isEducator) {
+          if (isEducator) {
             items.add(const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'));
           }
 
@@ -94,7 +94,7 @@ class UniversalDrawer extends StatelessWidget {
           }
 
           if (isAdminOrSuperAdmin) {
-            items.add(const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'));
+            items.add(const ModernNavItem(icon: Icons.credit_card, label: 'Enrollment'));
           }
         }
         items.add(const ModernNavItem(icon: Icons.person, label: 'My Profile'));
@@ -116,10 +116,13 @@ class UniversalDrawer extends StatelessWidget {
     } else {
       // Logic from HomePage
       final items = navItems ?? [
-        const ModernNavItem(icon: Icons.book, label: 'Lessons'),
+        ModernNavItem(
+          icon: role == UserRole.learner ? Icons.dashboard_rounded : Icons.book,
+          label: role == UserRole.learner ? 'Dashboard' : 'Lessons',
+        ),
         const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
         if (role != UserRole.learner) const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
-        const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
+        const ModernNavItem(icon: Icons.credit_card, label: 'Enrollment'),
         const ModernNavItem(icon: Icons.person, label: 'My Profile'),
       ];
 

@@ -19,6 +19,7 @@ import 'role_application_page.dart';
 import '../widgets/video_player_modal.dart';
 import '../services/ai_rate_limit_service.dart';
 import '../widgets/ai_quota_exceeded_dialog.dart';
+import '../widgets/learner_badges_card.dart';
 
 class ProfilePage extends StatefulWidget {
   final User user;
@@ -1203,7 +1204,12 @@ class ProfilePageState extends State<ProfilePage> {
             ),
           ),
         _ChangePasswordCard(user: widget.user),
-        _buildAIUsageCard(role),
+        if (role != UserRole.validator) _buildAIUsageCard(role),
+
+        if (role == UserRole.learner) ...[
+          LearnerBadgesCard(uid: widget.user.uid),
+          const SizedBox(height: 24),
+        ],
 
         if (role == UserRole.learner)
           _buildCard(

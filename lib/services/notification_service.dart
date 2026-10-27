@@ -333,4 +333,44 @@ class NotificationService {
       debugPrint('Error notifying validators of new lesson: $e');
     }
   }
+
+  /// Checks scheduled mentorship sessions and sends a notification to the learner 10 minutes before the scheduled time.
+  Future<void> checkUpcomingMentorshipReminders(String userId) async {
+    try {
+      final now = DateTime.now();
+      final sessionsSnap = await _firestore
+          .collection('mentorship_sessions')
+          .where('studentId', isEqualTo: userId)
+          .where('status', isEqualTo: 'scheduled')
+          .get();
+
+      for (final doc in sessionsSnap.docs) {
+        final data = doc.data();
+        final startTs = data['startTime'] as Timestamp?;
+        if (startTs == null) continue;
+        final start = startTs.toDate();
+        final diffInMinutes = start.difference(now).inMinutes;
+        final diffInSeconds = start.difference(now).inSeconds;
+
+        // Trigger if session starts within 10 minutes (and hasn't expired > 90 min)
+        if (diffInMinutes <= 10 && diffInSeconds >= -5400) {
+          final alreadySent = data['reminderSent10Min'] == true;
+          if (!alreadySent) {
+            await doc.reference.update({'reminderSent10Min': true});
+            final educatorName = data['educatorName'] ?? 'Educator';
+            final title = data['meetingTitle'] ?? '1-on-1 Mentorship';
+            await sendNotification(
+              uid: userId,
+              title: 'Mentorship Session in 10 Minutes! 🔔',
+              message: 'Your "$title" with $educatorName starts in 10 minutes. Click to join Meet!',
+              type: NotificationType.mentorship,
+              educatorId: data['educatorId'],
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking mentorship reminders: $e');
+    }
+  }
 }

@@ -166,6 +166,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   Widget _buildBanner() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final title = _step == 1 ? 'Check Your Email' : 'Recover Account';
     final sub = _step == 1
         ? 'We sent a password reset link to your email.'
@@ -173,12 +174,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFE2F3D9), Color(0xFFF9FFF6)],
-        ),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
       ),
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 28),
       child: Column(
