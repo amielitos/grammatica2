@@ -3316,13 +3316,16 @@ class DatabaseService {
     });
   }
 
-  Future<void> deleteUserAccount(String uid) async {
+  Future<void> deleteUserAccount(String uid, {bool asSuperAdmin = false}) async {
     try {
       // Guard: Administrator accounts are strictly protected and cannot be deleted
       final userDocSnap = await _firestore.collection('users').doc(uid).get();
       if (userDocSnap.exists) {
+        if (RoleService.isDefaultAdmin(userDocSnap.data(), uid)) {
+          throw Exception('The default Super Admin account cannot be deleted.');
+        }
         final role = (userDocSnap.data()?['role'] as String?)?.toUpperCase();
-        if (role == 'ADMIN' || role == 'SUPERADMIN') {
+        if (!asSuperAdmin && (role == 'ADMIN' || role == 'SUPERADMIN')) {
           throw Exception('Administrator accounts cannot be deleted.');
         }
       }
@@ -3418,7 +3421,23 @@ class DatabaseService {
         }
       }
 
-      // 7. Finally delete user doc
+      // 7. Delete user notifications
+      final notifSnap = await _firestore
+          .collection('notifications')
+          .where('uid', isEqualTo: uid)
+          .get();
+      for (final doc in notifSnap.docs) {
+        await doc.reference.delete();
+      }
+
+      // 8. Record deletion in deleted_users to prevent cached auto-recreation
+      await _firestore.collection('deleted_users').doc(uid).set({
+        'uid': uid,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'bySuperAdmin': asSuperAdmin,
+      });
+
+      // 9. Finally delete user doc
       await _firestore.collection('users').doc(uid).delete();
     } catch (e) {
       throw Exception('Failed to delete user account: $e');

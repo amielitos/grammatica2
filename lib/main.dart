@@ -19,7 +19,6 @@ import 'pages/admin_dashboard.dart';
 import 'pages/home_page.dart';
 import 'pages/onboarding_page.dart';
 import 'pages/otp_verification_page.dart';
-import 'pages/force_reset_password_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -152,30 +151,60 @@ class _AuthWrapper extends StatelessWidget {
               );
             }
             if (!userDocSnap.hasData || !(userDocSnap.data?.exists ?? false)) {
-              // Auto-create missing user document in Firestore to prevent infinite loading
-              FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-                'uid': user.uid,
-                'email': user.email ?? '',
-                'createdAt': FieldValue.serverTimestamp(),
-                'role': 'LEARNER',
-                'status': 'ACTIVE',
-                'subscription_status': 'NONE',
-                'username': user.displayName ?? ((user.email != null && user.email!.contains('@')) ? user.email!.split('@')[0] : 'Grammatica Learner'),
-                'photoUrl': user.photoURL ?? '',
-                'has_completed_onboarding': false,
-              }, SetOptions(merge: true));
+              return FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance.collection('deleted_users').doc(user.uid).get(),
+                builder: (context, deletedSnap) {
+                  if (deletedSnap.connectionState == ConnectionState.waiting) {
+                    return const Scaffold(
+                      body: Center(
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      ),
+                    );
+                  }
+                  if (deletedSnap.hasData && (deletedSnap.data?.exists ?? false)) {
+                    final data = deletedSnap.data?.data() as Map<String, dynamic>?;
+                    final isSuperAdmin = data?['bySuperAdmin'] == true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) async {
+                      await AuthService.instance.signOut();
+                      AuthService.showSnackBar(
+                        isSuperAdmin
+                            ? 'Your account has been removed by an administrator.'
+                            : 'Your account has been deleted.',
+                        isError: true,
+                      );
+                    });
+                    return Theme(
+                      data: AppTheme.lightTheme,
+                      child: const LandingPage(),
+                    );
+                  }
 
-              return const Scaffold(
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(color: AppColors.primary),
-                      SizedBox(height: 16),
-                      Text("Setting up your account..."),
-                    ],
-                  ),
-                ),
+                  // Auto-create missing user document in Firestore to prevent infinite loading
+                  FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+                    'uid': user.uid,
+                    'email': user.email ?? '',
+                    'createdAt': FieldValue.serverTimestamp(),
+                    'role': 'LEARNER',
+                    'status': 'ACTIVE',
+                    'subscription_status': 'NONE',
+                    'username': user.displayName ?? ((user.email != null && user.email!.contains('@')) ? user.email!.split('@')[0] : 'Grammatica Learner'),
+                    'photoUrl': user.photoURL ?? '',
+                    'has_completed_onboarding': false,
+                  }, SetOptions(merge: true));
+
+                  return const Scaffold(
+                    body: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(color: AppColors.primary),
+                          SizedBox(height: 16),
+                          Text("Setting up your account..."),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               );
             }
 
@@ -221,10 +250,6 @@ class _AuthWrapper extends StatelessWidget {
               }
             }
 
-            // Mandatory temporary password reset check
-            if (data['mustResetPassword'] == true) {
-              return ForceResetPasswordPage(user: user);
-            }
 
             // Derive role and info status
             final roleStr = (data['role'] as String?) ?? 'LEARNER';

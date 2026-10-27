@@ -489,7 +489,21 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
       initialValue: currentVal,
       style: GoogleFonts.inter(fontSize: 16, color: Colors.black87),
       decoration: InputDecoration(
-        labelText: 'Duration *',
+        label: Text.rich(
+          TextSpan(
+            text: 'Duration',
+            style: GoogleFonts.inter(color: Colors.grey.shade600),
+            children: const [
+              TextSpan(
+                text: ' *',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
         prefixIcon: const Icon(Icons.timer_outlined, color: Color(0xFF88B342)),
         filled: true,
@@ -531,13 +545,35 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
     int maxLines = 1,
     String? hint,
   }) {
+    final bool isRequired = label.trim().endsWith('*');
+    final String cleanLabel = isRequired
+        ? label.replaceAll(RegExp(r'\s*\*'), '').trim()
+        : label;
+
     return TextField(
       controller: controller,
       minLines: minLines,
       maxLines: maxLines,
       style: GoogleFonts.inter(fontSize: 16),
       decoration: InputDecoration(
-        labelText: label,
+        labelText: isRequired ? null : label,
+        label: isRequired
+            ? Text.rich(
+                TextSpan(
+                  text: cleanLabel,
+                  style: GoogleFonts.inter(color: Colors.grey.shade600),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : null,
         hintText: hint,
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
         prefixIcon: Icon(icon, color: const Color(0xFF88B342)),
@@ -564,7 +600,21 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
 
     return InputDecorator(
       decoration: InputDecoration(
-        labelText: 'Max Attempts *',
+        label: Text.rich(
+          TextSpan(
+            text: 'Max Attempts',
+            style: GoogleFonts.inter(color: Colors.grey.shade600),
+            children: const [
+              TextSpan(
+                text: ' *',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
         filled: true,
         fillColor: Colors.grey.shade50,
@@ -712,7 +762,20 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
             TextField(
               controller: q.questionCtrl,
               decoration: InputDecoration(
-                labelText: q.type == 'passage' ? 'Passage Content *' : 'Question *',
+                label: Text.rich(
+                  TextSpan(
+                    text: q.type == 'passage' ? 'Passage Content' : 'Question',
+                    children: const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 hintText: q.type == 'passage'
                     ? 'Enter the text passage here...'
                     : 'Enter your question...',
@@ -725,7 +788,20 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
             DropdownButtonFormField<String>(
               initialValue: q.type,
               decoration: const InputDecoration(
-                labelText: 'Type *',
+                label: Text.rich(
+                  TextSpan(
+                    text: 'Type',
+                    children: [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 border: OutlineInputBorder(),
               ),
               items: [
@@ -778,7 +854,20 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                           child: TextField(
                             controller: q.optionsCtrls[optIdx],
                             decoration: InputDecoration(
-                              labelText: 'Option ${optIdx + 1} *',
+                              label: Text.rich(
+                                TextSpan(
+                                  text: 'Option ${optIdx + 1}',
+                                  children: const [
+                                    TextSpan(
+                                      text: ' *',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                             onChanged: (val) {
                               setState(() {});
@@ -814,7 +903,20 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
               TextField(
                 controller: q.answerCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Correct Answer *',
+                  label: Text.rich(
+                    TextSpan(
+                      text: 'Correct Answer',
+                      children: [
+                        TextSpan(
+                          text: ' *',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   border: OutlineInputBorder(),
                 ),
               ),

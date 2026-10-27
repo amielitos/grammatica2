@@ -402,6 +402,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       }
     }
 
+    final bool isRequired = hint.trim().endsWith('*');
+    final String cleanHint = isRequired
+        ? hint.replaceAll(RegExp(r'\s*\*'), '').trim()
+        : hint;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
@@ -425,7 +430,25 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ),
                 )
               : null,
-          hintText: hint,
+          hintText: isRequired ? null : hint,
+          label: isRequired
+              ? Text.rich(
+                  TextSpan(
+                    text: cleanHint,
+                    style: TextStyle(color: Colors.grey[400], fontSize: 14, fontWeight: FontWeight.normal),
+                    children: const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : null,
+          floatingLabelBehavior: FloatingLabelBehavior.never,
           hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14, fontWeight: FontWeight.normal),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),

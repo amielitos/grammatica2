@@ -404,7 +404,20 @@ class _NotebookListPageState extends State<NotebookListPage> {
                     autofocus: true,
                     onChanged: checkDuplicate,
                     decoration: InputDecoration(
-                      labelText: 'Notebook Title *',
+                      label: const Text.rich(
+                        TextSpan(
+                          text: 'Notebook Title',
+                          children: [
+                            TextSpan(
+                              text: ' *',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       hintText: 'e.g., Biology 101 - Cell Respiration',
                       border: const OutlineInputBorder(),
                       errorText: duplicateWarning != null ? 'Duplicate name detected' : null,
@@ -543,7 +556,20 @@ class _NotebookListPageState extends State<NotebookListPage> {
                     controller: titleController,
                     onChanged: checkDuplicate,
                     decoration: InputDecoration(
-                      labelText: 'Title *',
+                      label: const Text.rich(
+                        TextSpan(
+                          text: 'Title',
+                          children: [
+                            TextSpan(
+                              text: ' *',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       border: const OutlineInputBorder(),
                       errorText: duplicateWarning != null ? 'Duplicate name detected' : null,
                     ),

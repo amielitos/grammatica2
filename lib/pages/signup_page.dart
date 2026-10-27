@@ -728,6 +728,10 @@ class _SignupPageState extends State<SignupPage> {
 
   Widget _buildStep2() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final emailTooltip = _isEmailTaken
+        ? 'This email has already been taken'
+        : (_isInvalidDomain ? 'Only @gmail.com, @yahoo.com, and @hotmail.com are allowed' : '');
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(32, 16, 32, 0),
@@ -736,30 +740,82 @@ class _SignupPageState extends State<SignupPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text("Account Email", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54)),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _emailController,
-              hintText: 'Email Address *',
-              prefixIcon: const Icon(Icons.email_outlined),
-              keyboardType: TextInputType.emailAddress,
-              validator: (val) {
-                if (val == null || val.trim().isEmpty) return 'Enter email';
-                final clean = val.trim();
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(clean)) return 'Enter valid email';
-                if (!EmailValidatorService.isAllowedEmail(clean) || _isInvalidDomain) {
-                  return 'Only @gmail.com, @yahoo.com, and @hotmail.com are allowed';
-                }
-                if (_isEmailTaken) return 'Email already registered';
-                return null;
-              },
-              onChanged: (val) => _validateEmailRealTime(),
-              suffixIcon: _isValidatingEmail 
-                ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
-                : _isInvalidDomain
-                  ? const Tooltip(message: 'Only @gmail.com, @yahoo.com, and @hotmail.com allowed', child: Icon(Icons.block_rounded, color: Colors.red))
-                  : _isEmailTaken ? const Icon(Icons.error_outline, color: Colors.red) : null,
+            Text.rich(
+              TextSpan(
+                text: "Account Email",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54),
+                children: const [
+                  TextSpan(text: ' *', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                ],
+              ),
             ),
+            const SizedBox(height: 16),
+            Tooltip(
+              message: emailTooltip,
+              child: _buildTextField(
+                controller: _emailController,
+                hintText: 'Email Address *',
+                prefixIcon: const Icon(Icons.email_outlined),
+                keyboardType: TextInputType.emailAddress,
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) return 'Enter email';
+                  final clean = val.trim();
+                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(clean)) return 'Enter valid email';
+                  if (!EmailValidatorService.isAllowedEmail(clean) || _isInvalidDomain) {
+                    return 'Only @gmail.com, @yahoo.com, and @hotmail.com are allowed';
+                  }
+                  if (_isEmailTaken) return 'This email has already been taken';
+                  return null;
+                },
+                onChanged: (val) => _validateEmailRealTime(),
+                suffixIcon: _isValidatingEmail 
+                  ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
+                  : _isInvalidDomain
+                    ? const Tooltip(message: 'Only @gmail.com, @yahoo.com, and @hotmail.com allowed', child: Icon(Icons.block_rounded, color: Colors.red))
+                    : _isEmailTaken
+                        ? const Tooltip(message: 'This email has already been taken', child: Icon(Icons.error_outline, color: Colors.red))
+                        : null,
+              ),
+            ),
+            if (_isEmailTaken) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red, size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      'This email has already been taken',
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else if (_isInvalidDomain) ...[
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.block_rounded, color: Colors.red, size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Only @gmail.com, @yahoo.com, and @hotmail.com are allowed',
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1044,6 +1100,11 @@ class _SignupPageState extends State<SignupPage> {
     List<TextInputFormatter>? inputFormatters,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isRequired = hintText.trim().endsWith('*');
+    final String cleanHint = isRequired
+        ? hintText.replaceAll(RegExp(r'\s*\*'), '').trim()
+        : hintText;
+
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF334155) : Colors.white,
@@ -1065,8 +1126,34 @@ class _SignupPageState extends State<SignupPage> {
           fontSize: 14,
         ),
         decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
+          label: isRequired
+              ? Text.rich(
+                  TextSpan(
+                    text: cleanHint,
+                    style: TextStyle(
+                      color: isDark ? Colors.white38 : Colors.black45,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    children: const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : null,
+          hintText: isRequired ? null : cleanHint,
+          hintStyle: TextStyle(
+            color: isDark ? Colors.white38 : Colors.black45,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+          floatingLabelBehavior: FloatingLabelBehavior.never,
           prefixIcon: IconTheme(data: IconThemeData(color: isDark ? Colors.white60 : Colors.black45), child: prefixIcon),
           suffixIcon: suffixIcon,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),

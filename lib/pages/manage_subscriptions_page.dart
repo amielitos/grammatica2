@@ -309,6 +309,11 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     required Color borderColor,
     required Color textColor,
   }) {
+    final bool isRequired = label.trim().endsWith('*');
+    final String cleanLabel = isRequired
+        ? label.replaceAll(RegExp(r'\s*\*'), '').trim()
+        : label;
+
     return TextField(
       controller: controller,
       keyboardType: TextInputType.number,
@@ -317,7 +322,27 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
         color: textColor,
       ),
       decoration: InputDecoration(
-        labelText: label,
+        labelText: isRequired ? null : label,
+        label: isRequired
+            ? Text.rich(
+                TextSpan(
+                  text: cleanLabel,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: isDark ? Colors.white38 : const Color(0xFF64748B),
+                  ),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : null,
         labelStyle: GoogleFonts.inter(
           fontSize: 13,
           color: isDark ? Colors.white38 : const Color(0xFF64748B),
@@ -1365,11 +1390,24 @@ class _LearnerMentorshipBookingModalState
                 ),
               ),
 
-              Text('Session Title / Topic *',
+              Text.rich(
+                TextSpan(
+                  text: 'Session Title / Topic',
                   style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey)),
+                      color: Colors.grey),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _titleController,
@@ -1377,7 +1415,7 @@ class _LearnerMentorshipBookingModalState
                   color: isDark ? Colors.white : Colors.black87,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'e.g. Grammar Consultation & Practice *',
+                  hintText: 'e.g. Grammar Consultation & Practice',
                   filled: true,
                   fillColor: isDark
                       ? Colors.white.withValues(alpha: 0.05)
@@ -1389,11 +1427,24 @@ class _LearnerMentorshipBookingModalState
               ),
               const SizedBox(height: 16),
 
-              Text('Select Educator *',
+              Text.rich(
+                TextSpan(
+                  text: 'Select Educator',
                   style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey)),
+                      color: Colors.grey),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 8),
               StreamBuilder<List<Map<String, dynamic>>>(
                 stream: DatabaseService.instance

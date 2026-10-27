@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -21,6 +22,7 @@ class LessonView extends StatefulWidget {
   final String notebookId;
   final VoidCallback? onRegenerate;
   final Function(String lessonId)? onLessonPublished;
+  final ValueChanged<String>? onTitleChanged;
 
   const LessonView({
     super.key,
@@ -28,6 +30,7 @@ class LessonView extends StatefulWidget {
     required this.notebookId,
     this.onRegenerate,
     this.onLessonPublished,
+    this.onTitleChanged,
   });
 
   @override
@@ -61,6 +64,7 @@ class _LessonViewState extends State<LessonView> {
   void _initData() {
     _lesson = AILessonResponse.fromNotebookOutput(widget.output);
     _titleCtrl = TextEditingController(text: _lesson.title);
+    _titleCtrl.addListener(_onTitleChanged);
     _blockCtrls.clear();
 
     for (final block in _lesson.content) {
@@ -104,7 +108,15 @@ class _LessonViewState extends State<LessonView> {
     }
   }
 
+  void _onTitleChanged() {
+    setState(() {
+      _hasUnsavedEdits = true;
+    });
+    widget.onTitleChanged?.call(_titleCtrl.text.trim());
+  }
+
   void _disposeControllers() {
+    _titleCtrl.removeListener(_onTitleChanged);
     _titleCtrl.dispose();
     for (final c in _blockCtrls) {
       c.dispose();
@@ -257,13 +269,26 @@ class _LessonViewState extends State<LessonView> {
     }
   }
 
-  void _openPublishDialog() {
+  void _openPublishDialog({
+    required bool canUpdateApprovedLesson,
+    required String? approvedLessonId,
+  }) {
+    final currentTitle = _titleCtrl.text.trim();
+    final effectiveOutput = canUpdateApprovedLesson
+        ? widget.output.copyWith(title: currentTitle)
+        : widget.output.copyWith(
+            title: currentTitle,
+            publishedId: null,
+          );
+
     showDialog(
       context: context,
       builder: (ctx) => PublishLessonDialog(
         notebookId: widget.notebookId,
-        output: widget.output,
+        output: effectiveOutput,
         markdownPrompt: _assembleMarkdown(),
+        approvedLessonId: canUpdateApprovedLesson ? approvedLessonId : null,
+        forceSeparateLesson: !canUpdateApprovedLesson && (approvedLessonId != null),
         onPublished: () {
           setState(() {});
           widget.onLessonPublished?.call(widget.output.publishedId ?? '');
@@ -276,22 +301,66 @@ class _LessonViewState extends State<LessonView> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(28, 20, 28, 48),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildHeaderBar(isDark),
-          const SizedBox(height: 24),
-          _buildActionRibbon(isDark),
-          const SizedBox(height: 24),
-          _buildLessonContentBlocks(isDark),
-        ],
-      ),
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('lessons')
+          .where('notebookId', isEqualTo: widget.notebookId)
+          .snapshots(),
+      builder: (context, lessonSnap) {
+        DocumentSnapshot<Map<String, dynamic>>? validatedDoc;
+        if (widget.output.publishedId != null && widget.output.publishedId!.isNotEmpty) {
+          validatedDoc = lessonSnap.data?.docs.where((d) => d.id == widget.output.publishedId).firstOrNull;
+        }
+        validatedDoc ??= lessonSnap.data?.docs.where((d) {
+          final data = d.data();
+          final status = data['validationStatus']?.toString();
+          return status == 'approved' || (data['reviewedAt'] != null);
+        }).firstOrNull;
+
+        final validatedData = validatedDoc?.data();
+        final bool isValidated = validatedDoc != null &&
+            (validatedData?['validationStatus'] == 'approved' ||
+             validatedData?['reviewedAt'] != null);
+
+        final String? approvedTitle = isValidated ? (validatedData?['title'])?.toString().trim() : null;
+        final String currentTitle = _titleCtrl.text.trim();
+
+        final bool isSameTitle = isValidated &&
+            approvedTitle != null &&
+            approvedTitle.isNotEmpty &&
+            currentTitle.isNotEmpty &&
+            currentTitle.toLowerCase() == approvedTitle.toLowerCase();
+
+        // When updating a lesson already validated by the validator:
+        // It should ONLY happen if the title is the same as the already approved content.
+        // If it is not, then the button should also go from "Update" to whatever it is in default ("Publish to Curriculum").
+        final bool canUpdateApprovedLesson = isValidated ? isSameTitle : widget.output.isPublished;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(28, 20, 28, 48),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeaderBar(
+                isDark,
+                canUpdateApprovedLesson: canUpdateApprovedLesson,
+              ),
+              const SizedBox(height: 24),
+              _buildActionRibbon(
+                isDark,
+                canUpdateApprovedLesson: canUpdateApprovedLesson,
+                approvedLessonId: validatedDoc?.id,
+              ),
+              const SizedBox(height: 24),
+              _buildLessonContentBlocks(isDark),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildHeaderBar(bool isDark) {
+  Widget _buildHeaderBar(bool isDark, {required bool canUpdateApprovedLesson}) {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -330,7 +399,7 @@ class _LessonViewState extends State<LessonView> {
                 ),
               ),
               const Spacer(),
-              if (widget.output.isPublished)
+              if (canUpdateApprovedLesson)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
@@ -400,10 +469,22 @@ class _LessonViewState extends State<LessonView> {
                     color: isDark ? Colors.white : AppColors.textPrimary,
                   ),
                   decoration: const InputDecoration(
-                    labelText: 'Lesson Title *',
+                    label: Text.rich(
+                      TextSpan(
+                        text: 'Lesson Title',
+                        children: [
+                          TextSpan(
+                            text: ' *',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     border: OutlineInputBorder(),
                   ),
-                  onChanged: (_) => _hasUnsavedEdits = true,
                 )
               : Text(
                   _titleCtrl.text.isNotEmpty ? _titleCtrl.text : 'Untitled Lesson',
@@ -426,7 +507,11 @@ class _LessonViewState extends State<LessonView> {
     );
   }
 
-  Widget _buildActionRibbon(bool isDark) {
+  Widget _buildActionRibbon(
+    bool isDark, {
+    required bool canUpdateApprovedLesson,
+    required String? approvedLessonId,
+  }) {
     return Wrap(
       spacing: 12,
       runSpacing: 10,
@@ -434,10 +519,16 @@ class _LessonViewState extends State<LessonView> {
       children: [
         // Publish to Curriculum Button
         ElevatedButton.icon(
-          onPressed: _openPublishDialog,
-          icon: const Icon(Icons.cloud_upload_rounded, size: 18),
+          onPressed: () => _openPublishDialog(
+            canUpdateApprovedLesson: canUpdateApprovedLesson,
+            approvedLessonId: approvedLessonId,
+          ),
+          icon: Icon(
+            canUpdateApprovedLesson ? Icons.update_rounded : Icons.cloud_upload_rounded,
+            size: 18,
+          ),
           label: Text(
-            widget.output.isPublished ? 'Update in Curriculum' : 'Publish to Curriculum',
+            canUpdateApprovedLesson ? 'Update in Curriculum' : 'Publish to Curriculum',
             style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
           ),
           style: ElevatedButton.styleFrom(

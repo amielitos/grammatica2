@@ -19,7 +19,6 @@ import '../widgets/ai_quota_badge.dart';
 import '../widgets/ai_quota_exceeded_dialog.dart';
 import '../widgets/generation_loading_overlay.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 
@@ -51,11 +50,8 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   // Speech to Text
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isSpeechInitialized = false;
+  bool _isStartingRecording = false;
   dynamic _webRecognition;
-
-  // Text to Speech for hearing pronunciation
-  final FlutterTts _flutterTts = FlutterTts();
-  bool _isPlayingAudio = false;
 
   // Mic volume metering
   double _micVolume = 0.0;
@@ -73,11 +69,11 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   @override
   void initState() {
     super.initState();
-    _initTts();
     if (!kIsWeb) {
       _initSpeech();
     }
   }
+
 
   void _resetWatchdog() {
     _watchdogTimer?.cancel();
@@ -97,51 +93,6 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     });
   }
 
-  Future<void> _initTts() async {
-    try {
-      _flutterTts.setStartHandler(() {
-        if (mounted) setState(() => _isPlayingAudio = true);
-      });
-      _flutterTts.setCompletionHandler(() {
-        if (mounted) setState(() => _isPlayingAudio = false);
-      });
-      _flutterTts.setErrorHandler((msg) {
-        debugPrint("TTS Error: $msg");
-        if (mounted) setState(() => _isPlayingAudio = false);
-      });
-
-      await _flutterTts.setLanguage("en-US");
-      await _flutterTts.setSpeechRate(0.42);
-      await _flutterTts.setVolume(1.0);
-    } catch (e) {
-      debugPrint("TTS Init Note: $e");
-    }
-  }
-
-  Future<void> _speakCurrentWord() async {
-    if (_currentIndex >= _sessionWords.length) return;
-    final word = _sessionWords[_currentIndex].word;
-
-    if (mounted) setState(() => _isPlayingAudio = true);
-
-    bool pluginSuccess = false;
-    try {
-      await _flutterTts.stop();
-      await _flutterTts.speak(word);
-      pluginSuccess = true;
-    } catch (e) {
-      debugPrint("TTS Plugin Error: $e");
-    }
-
-    if (!pluginSuccess && kIsWeb) {
-      WebService.instance.speak(word);
-    }
-
-    Future.delayed(const Duration(milliseconds: 1400), () {
-      if (mounted) setState(() => _isPlayingAudio = false);
-    });
-  }
-
   Future<void> _initSpeech() async {
     if (_isSpeechInitialized) return;
     try {
@@ -156,6 +107,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       _isSpeechInitialized = await _speech.initialize(
         onStatus: (status) {
           debugPrint("Speech Status: $status");
+          if (_isStartingRecording) return;
           if (status == 'done' || status == 'notListening') {
             if (mounted && _isRecording && !_isTransitioning) {
               if (_recognizedText.isNotEmpty && _recognizedText != "Listening...") {
@@ -168,6 +120,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         },
         onError: (errorNotification) {
           debugPrint("Speech Error: ${errorNotification.errorMsg} (permanent: ${errorNotification.permanent})");
+          if (_isStartingRecording) return;
           if (mounted && _isRecording) {
             _stopRecording();
           }
@@ -184,7 +137,6 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     _timer?.cancel();
     _volumeTimer?.cancel();
     _watchdogTimer?.cancel();
-    _flutterTts.stop();
     if (kIsWeb && _webRecognition != null) {
       try {
         WebService.instance.stopSpeechRecognition(_webRecognition);
@@ -316,25 +268,10 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     });
 
     _startTimer();
-    Future.delayed(const Duration(milliseconds: 300), _speakCurrentWord);
   }
 
   Future<void> _startRecording() async {
     if (_isTransitioning) return;
-
-    // Stop TTS if currently speaking
-    try {
-      await _flutterTts.stop();
-      if (mounted) setState(() => _isPlayingAudio = false);
-    } catch (_) {}
-
-    if (mounted) {
-      setState(() {
-        _isRecording = true;
-        _recognizedText = "Listening...";
-        _micVolume = 0.0;
-      });
-    }
 
     if (kIsWeb) {
       _startWebRecording();
@@ -351,6 +288,12 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         } catch (_) {}
         _webRecognition = null;
       }
+
+      setState(() {
+        _isRecording = true;
+        _recognizedText = "Listening...";
+        _micVolume = 0.0;
+      });
 
       _resetWatchdog();
 
@@ -387,21 +330,30 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                   const SnackBar(content: Text('Microphone permission blocked in browser.')),
                 );
               }
-            } else if (errStr.contains('no-speech') || errStr.contains('aborted')) {
-              if (mounted && _isRecording && (_recognizedText.isEmpty || _recognizedText == "Listening...")) {
-                _stopRecording();
-              }
+            } else if (errStr.contains('no-speech')) {
+              debugPrint('[WebSpeech] no-speech: waiting for user speech...');
+            } else if (errStr.contains('aborted')) {
+              debugPrint('[WebSpeech] aborted');
             } else {
               _stopRecording();
             }
           },
           onEnd: () {
             debugPrint('[WebSpeech] onEnd event');
-            if (mounted && _isRecording) {
+            if (mounted && _isRecording && !_isTransitioning) {
               if (_recognizedText.isNotEmpty && _recognizedText != "Listening...") {
                 _autoSubmit();
               } else {
-                _stopRecording();
+                // Keep listening on web without closing on silence
+                try {
+                  final newRec = WebService.instance.createSpeechRecognition();
+                  if (newRec != null) {
+                    _webRecognition = newRec;
+                    _startWebRecording();
+                  }
+                } catch (_) {
+                  _stopRecording();
+                }
               }
             }
           },
@@ -430,8 +382,10 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   }
 
   Future<void> _startMobileRecording() async {
+    _isStartingRecording = true;
     final status = await Permission.microphone.request();
     if (!status.isGranted) {
+      _isStartingRecording = false;
       _stopRecording();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -448,6 +402,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     }
 
     if (!_isSpeechInitialized && mounted) {
+      _isStartingRecording = false;
       _stopRecording();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Speech recognition not available on this device.')),
@@ -485,21 +440,30 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         },
         onSoundLevelChange: (level) {
           if (mounted && _isRecording) {
-            // level is -10..10 on Android, 0..1 on iOS
             double normalized = level > 1.0 ? ((level + 2) / 12.0) : level;
             setState(() => _micVolume = normalized.clamp(0.1, 1.0));
           }
         },
         listenOptions: stt.SpeechListenOptions(
-          listenFor: const Duration(seconds: 25),
-          pauseFor: const Duration(seconds: 4),
+          listenFor: const Duration(seconds: 30),
+          pauseFor: const Duration(seconds: 8),
           partialResults: true,
-          cancelOnError: true,
+          cancelOnError: false,
           listenMode: stt.ListenMode.dictation,
         ),
       );
 
-      if (!started) {
+      _isStartingRecording = false;
+
+      if (started) {
+        if (mounted) {
+          setState(() {
+            _isRecording = true;
+            _recognizedText = "Listening...";
+            _micVolume = 0.0;
+          });
+        }
+      } else {
         debugPrint('[MobileSpeech] First listen call returned false. Cancelling and retrying once...');
         await _speech.cancel();
         await Future.delayed(const Duration(milliseconds: 250));
@@ -530,15 +494,21 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
             }
           },
           listenOptions: stt.SpeechListenOptions(
-            listenFor: const Duration(seconds: 25),
-            pauseFor: const Duration(seconds: 4),
+            listenFor: const Duration(seconds: 30),
+            pauseFor: const Duration(seconds: 8),
             partialResults: true,
-            cancelOnError: true,
+            cancelOnError: false,
             listenMode: stt.ListenMode.dictation,
           ),
         );
 
-        if (!started) {
+        if (started && mounted) {
+          setState(() {
+            _isRecording = true;
+            _recognizedText = "Listening...";
+            _micVolume = 0.0;
+          });
+        } else {
           debugPrint('[MobileSpeech] Speech recognizer failed to start after retry.');
           _stopRecording();
           if (mounted) {
@@ -549,6 +519,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         }
       }
     } catch (e) {
+      _isStartingRecording = false;
       debugPrint('[MobileSpeech] Listen error: $e');
       _stopRecording();
       if (mounted) {
@@ -560,6 +531,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   }
 
   void _stopRecording() {
+    _isStartingRecording = false;
     _volumeTimer?.cancel();
     _volumeTimer = null;
     _watchdogTimer?.cancel();
@@ -574,8 +546,6 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 
     if (!kIsWeb) {
       try {
-        // cancel() immediately resets and releases the native Android/iOS recognizer,
-        // whereas stop() waits for audio stream finalization and can block the next word.
         _speech.cancel();
       } catch (_) {}
     }
@@ -670,7 +640,6 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         _micVolume = 0.0;
       });
       _startTimer();
-      Future.delayed(const Duration(milliseconds: 300), _speakCurrentWord);
     } else {
       _timer?.cancel();
       setState(() {
@@ -734,6 +703,8 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     _userAnswers.add("");
     _nextWord();
   }
+
+
 
   Future<bool?> _showExitConfirmation() async {
     return showDialog<bool>(
@@ -1211,54 +1182,19 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    _sessionWords[_currentIndex].word,
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 42,
-                                      fontWeight: FontWeight.bold,
-                                      color: _isTransitioning
-                                          ? (_isLastCorrect == true ? AppColors.primary : AppColors.error)
-                                          : (isDark ? Colors.white : AppColors.textPrimary),
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
+                            Center(
+                              child: Text(
+                                _sessionWords[_currentIndex].word,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 42,
+                                  fontWeight: FontWeight.bold,
+                                  color: _isTransitioning
+                                      ? (_isLastCorrect == true ? AppColors.primary : AppColors.error)
+                                      : (isDark ? Colors.white : AppColors.textPrimary),
+                                  letterSpacing: 1.0,
                                 ),
-                                const SizedBox(width: 12),
-                                Tooltip(
-                                  message: 'Listen to native pronunciation',
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: _isPlayingAudio ? null : _speakCurrentWord,
-                                      borderRadius: BorderRadius.circular(24),
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: _isPlayingAudio
-                                              ? AppColors.primary
-                                              : AppColors.primary.withValues(alpha: 0.12),
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: AppColors.primary.withValues(alpha: 0.3),
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          _isPlayingAudio ? Icons.volume_up_rounded : Icons.volume_down_rounded,
-                                          size: 24,
-                                          color: _isPlayingAudio ? Colors.white : AppColors.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                             if (_sessionWords[_currentIndex].description != null &&
                                 _sessionWords[_currentIndex].description!.isNotEmpty) ...[

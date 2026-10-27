@@ -738,6 +738,11 @@ class _LoginPageState extends State<LoginPage> {
     ValueChanged<String>? onFieldSubmitted,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isRequired = hintText.trim().endsWith('*');
+    final String cleanHint = isRequired
+        ? hintText.replaceAll(RegExp(r'\s*\*'), '').trim()
+        : hintText;
+
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF334155) : Colors.white,
@@ -766,7 +771,29 @@ class _LoginPageState extends State<LoginPage> {
           fontSize: 14,
         ),
         decoration: InputDecoration(
-          hintText: hintText,
+          hintText: isRequired ? null : hintText,
+          label: isRequired
+              ? Text.rich(
+                  TextSpan(
+                    text: cleanHint,
+                    style: TextStyle(
+                      color: isDark ? Colors.white38 : Colors.black45,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    children: const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : null,
+          floatingLabelBehavior: FloatingLabelBehavior.never,
           hintStyle: TextStyle(
               color: isDark ? Colors.white38 : Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
           prefixIcon: IconTheme(

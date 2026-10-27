@@ -10,6 +10,8 @@ import '../../services/database_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/email_sender_service.dart';
 import '../../services/email_validator_service.dart';
+import '../../services/notification_service.dart';
+import '../../models/notification.dart';
 import '../../widgets/application_preview_widgets.dart';
 import '../../widgets/content_denial_dialog.dart';
 
@@ -382,8 +384,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                     _tableH('Email', 4),
                                     _tableH('Role', 2),
                                     _tableH('Status', 2),
-                                    _tableH('Educ. Dates', 3),
-                                    _tableH('Action', 3, center: true),
+                                    _tableH('Educ. Dates', 2),
+                                    _tableH('Action', 4, center: true),
                                   ],
                                 ),
                               ),
@@ -1119,7 +1121,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
 
           // ── Educ Dates ────────────────────────────────────────────
           Expanded(
-            flex: 3,
+            flex: 2,
             child: Text(
               educDates,
               style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500, height: 1.5),
@@ -1128,11 +1130,45 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
 
           // ── Action Buttons ─────────────────────────────────────────
           Expanded(
-            flex: 3,
+            flex: 4,
             child: Builder(
               builder: (context) {
                 final isSuperAdmin = widget.role == UserRole.superadmin;
+                if (!isSuperAdmin) {
+                  return Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.visibility_outlined, size: 13, color: Colors.grey.shade600),
+                          const SizedBox(width: 4),
+                          Text(
+                            'VIEW ONLY',
+                            style: GoogleFonts.outfit(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.grey.shade600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                final currentUid = widget.currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+                final isSelf = currentUid == uid;
                 final canModifyThisUser = isSuperAdmin && !isDefaultAdmin;
+                final canRemoveThisUser = isSuperAdmin && !isDefaultAdmin && !isSelf;
+                final isDeactivated = status.toUpperCase() == 'DEACTIVATED';
+
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -1140,9 +1176,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     Tooltip(
                       message: isDefaultAdmin
                           ? 'Default Super Admin cannot be modified'
-                          : (isSuperAdmin
-                              ? 'Change Role'
-                              : 'Only Super Admin can change user roles'),
+                          : 'Change Role',
                       child: IconButton(
                         icon: const Icon(Icons.manage_accounts_rounded, size: 18),
                         color: canModifyThisUser ? const Color(0xFF4B49AC) : Colors.grey.shade400,
@@ -1156,15 +1190,77 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         onPressed: canModifyThisUser ? () => _showChangeRoleDialog(uid, username, role) : null,
                       ),
                     ),
+                    const SizedBox(width: 6),
+
+                    // Deactivate / Activate Button
+                    if (isDeactivated)
+                      Tooltip(
+                        message: 'Activate User',
+                        child: IconButton(
+                          icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                          color: const Color(0xFF81B655),
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xFF81B655).withValues(alpha: 0.10),
+                            padding: const EdgeInsets.all(8),
+                            minimumSize: const Size(32, 32),
+                          ),
+                          onPressed: () => _showActivateConfirmation(uid, username, email),
+                        ),
+                      )
+                    else
+                      Tooltip(
+                        message: isDefaultAdmin
+                            ? 'Default Super Admin cannot be deactivated'
+                            : (isSelf
+                                ? 'You cannot deactivate your own account'
+                                : 'Deactivate User'),
+                        child: IconButton(
+                          icon: const Icon(Icons.block_rounded, size: 18),
+                          color: canRemoveThisUser ? Colors.orange.shade700 : Colors.grey.shade400,
+                          style: IconButton.styleFrom(
+                            backgroundColor: canRemoveThisUser
+                                ? Colors.orange.shade50
+                                : Colors.grey.shade100,
+                            padding: const EdgeInsets.all(8),
+                            minimumSize: const Size(32, 32),
+                          ),
+                          onPressed: canRemoveThisUser
+                              ? () => _showDeactivateConfirmation(uid, username, email)
+                              : null,
+                        ),
+                      ),
+                    const SizedBox(width: 6),
+
+                    // Remove User Button
+                    Tooltip(
+                      message: isDefaultAdmin
+                          ? 'Default Super Admin cannot be removed'
+                          : (isSelf
+                              ? 'You cannot remove your own account'
+                              : 'Remove User'),
+                      child: IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                        color: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade400,
+                        style: IconButton.styleFrom(
+                          backgroundColor: canRemoveThisUser
+                              ? const Color(0xFFEF4444).withValues(alpha: 0.10)
+                              : Colors.grey.shade100,
+                          padding: const EdgeInsets.all(8),
+                          minimumSize: const Size(32, 32),
+                        ),
+                        onPressed: canRemoveThisUser
+                            ? () => _showRemoveUserConfirmation(uid, username, email, role)
+                            : null,
+                      ),
+                    ),
+
                     if (isLocked) ...[
                       const SizedBox(width: 6),
                       // Unlock Button
                       Tooltip(
                         message: isDefaultAdmin
                             ? 'Default Super Admin'
-                            : (isSuperAdmin
-                                ? 'Unlock Account (Clear Lockout)'
-                                : 'Only Super Admin can unlock accounts'),
+                            : 'Unlock Account (Clear Lockout)',
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.lock_open_rounded, size: 14),
                           label: Text(
@@ -1189,19 +1285,18 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         ),
                       ),
                     ],
+
                     Builder(
                       builder: (context) {
                         final isTargetValidator = role.toUpperCase() == 'VALIDATOR';
                         final isVerified = u['isVerified'] == true;
                         final isPendingValidator = _isPendingValidator(u);
                         final isAlreadyValidated = isTargetValidator && isVerified && (status.toLowerCase() == 'active');
-                        final canValidate = (isSuperAdmin || widget.role == UserRole.admin) && !isDefaultAdmin && isPendingValidator;
+                        final canValidate = isSuperAdmin && !isDefaultAdmin && isPendingValidator;
 
                         String validateTooltip;
                         if (isDefaultAdmin) {
                           validateTooltip = 'Default Super Admin cannot be modified';
-                        } else if (!isSuperAdmin && widget.role != UserRole.admin) {
-                          validateTooltip = 'Only Super Admin or Admin can validate validator applications';
                         } else if (isAlreadyValidated) {
                           validateTooltip = 'Validator is already validated & active';
                         } else if (!isPendingValidator) {
@@ -1437,7 +1532,39 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             Builder(
               builder: (context) {
                 final isSuperAdmin = widget.role == UserRole.superadmin;
+                if (!isSuperAdmin) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.visibility_rounded, size: 14, color: Colors.grey.shade600),
+                        const SizedBox(width: 6),
+                        Text(
+                          'VIEW ONLY (ADMIN)',
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.grey.shade600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final currentUid = widget.currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+                final isSelf = currentUid == uid;
                 final canModifyThisUser = isSuperAdmin && !isDefaultAdmin;
+                final canRemoveThisUser = isSuperAdmin && !isDefaultAdmin && !isSelf;
+                final isDeactivated = status.toUpperCase() == 'DEACTIVATED';
+
                 return Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -1446,7 +1573,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     Tooltip(
                       message: isDefaultAdmin
                           ? 'Default Super Admin cannot be modified'
-                          : (isSuperAdmin ? 'Change Role' : 'Only Super Admin can change user roles'),
+                          : 'Change Role',
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.manage_accounts_rounded, size: 15),
                         label: const Text('Change Role'),
@@ -1460,12 +1587,66 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         ),
                       ),
                     ),
+                    // Deactivate / Activate (Super Admin only)
+                    if (isDeactivated)
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.check_circle_outline_rounded, size: 15),
+                        label: const Text('Activate'),
+                        onPressed: () => _showActivateConfirmation(uid, username, email),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF81B655),
+                          side: const BorderSide(color: Color(0xFF81B655)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      )
+                    else
+                      Tooltip(
+                        message: isDefaultAdmin
+                            ? 'Default Super Admin cannot be deactivated'
+                            : (isSelf ? 'You cannot deactivate your own account' : 'Deactivate User'),
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.block_rounded, size: 15),
+                          label: const Text('Deactivate'),
+                          onPressed: canRemoveThisUser
+                              ? () => _showDeactivateConfirmation(uid, username, email)
+                              : null,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: canRemoveThisUser ? Colors.orange.shade700 : Colors.grey.shade400,
+                            side: BorderSide(color: canRemoveThisUser ? Colors.orange.shade300 : Colors.grey.shade300),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    // Remove User (Super Admin only)
+                    Tooltip(
+                      message: isDefaultAdmin
+                          ? 'Default Super Admin cannot be removed'
+                          : (isSelf ? 'You cannot remove your own account' : 'Remove User'),
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.delete_outline_rounded, size: 15),
+                        label: const Text('Remove User'),
+                        onPressed: canRemoveThisUser
+                            ? () => _showRemoveUserConfirmation(uid, username, email, role)
+                            : null,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade400,
+                          side: BorderSide(color: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade300),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
                     // Unlock (if locked)
                     if (isLocked)
                       Tooltip(
                         message: isDefaultAdmin
                             ? 'Default Super Admin'
-                            : (isSuperAdmin ? 'Unlock Account' : 'Only Super Admin can unlock accounts'),
+                            : 'Unlock Account',
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.lock_open_rounded, size: 15),
                           label: const Text('Unlock'),
@@ -1486,13 +1667,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         final isVerified = u['isVerified'] == true;
                         final isPendingValidator = _isPendingValidator(u);
                         final isAlreadyValidated = isTargetValidator && isVerified && (status.toLowerCase() == 'active');
-                        final canValidate = (isSuperAdmin || widget.role == UserRole.admin) && !isDefaultAdmin && isPendingValidator;
+                        final canValidate = isSuperAdmin && !isDefaultAdmin && isPendingValidator;
 
                         String validateTooltip;
                         if (isDefaultAdmin) {
                           validateTooltip = 'Default Super Admin cannot be modified';
-                        } else if (!isSuperAdmin && widget.role != UserRole.admin) {
-                          validateTooltip = 'Only Super Admin or Admin can validate validator applications';
                         } else if (isAlreadyValidated) {
                           validateTooltip = 'Validator is already validated & active';
                         } else if (!isPendingValidator) {
@@ -1565,6 +1744,15 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   }
 
   void _showChangeRoleDialog(String uid, String username, String currentRoleStr) {
+    if (widget.role != UserRole.superadmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only Super Admin can change user roles.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     if (RoleService.isDefaultAdmin(null, uid)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1716,10 +1904,114 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       child: ElevatedButton(
                         onPressed: () async {
                           final messenger = ScaffoldMessenger.of(context);
+                          if (selectedRole == currentRoleStr.toUpperCase()) {
+                            Navigator.pop(context);
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('$username already has the $selectedRole role.'),
+                                backgroundColor: Colors.grey.shade700,
+                              ),
+                            );
+                            return;
+                          }
+
+                          // Confirmation dialog before changing role
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (confirmCtx) => Dialog(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              child: Container(
+                                width: 420,
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF4B49AC).withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: const Icon(Icons.manage_accounts_rounded, color: Color(0xFF4B49AC), size: 22),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Text(
+                                            'Confirm Role Change',
+                                            style: GoogleFonts.outfit(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 18,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Are you sure you want to change $username\'s role from $currentRoleStr to $selectedRole?\n\nThis user will receive an in-app notification and their platform permissions will update immediately.',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.grey.shade700,
+                                        fontSize: 13.5,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton(
+                                            onPressed: () => Navigator.pop(confirmCtx, false),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: Colors.black54,
+                                              side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              padding: const EdgeInsets.symmetric(vertical: 12),
+                                            ),
+                                            child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: ElevatedButton(
+                                            onPressed: () => Navigator.pop(confirmCtx, true),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(0xFF4B49AC),
+                                              foregroundColor: Colors.white,
+                                              elevation: 0,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              padding: const EdgeInsets.symmetric(vertical: 12),
+                                            ),
+                                            child: Text('Confirm', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+
+                          if (confirmed != true) return;
+
+                          if (!context.mounted) return;
                           Navigator.pop(context);
                           try {
                             final newRole = roleFromString(selectedRole);
                             await RoleService.instance.setUserRole(uid: uid, role: newRole);
+
+                            // Send notification to the user
+                            await NotificationService.instance.sendNotification(
+                              uid: uid,
+                              title: 'Role Updated',
+                              message: 'Your account role has been updated from $currentRoleStr to $selectedRole by an administrator.',
+                              type: NotificationType.general,
+                            );
+
                             messenger.showSnackBar(
                               SnackBar(
                                 content: Text('$username\'s role updated to $selectedRole ✓'),
@@ -1753,6 +2045,15 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   }
 
   Future<void> _showValidateValidatorDialog(Map<String, dynamic> u) async {
+    if (widget.role != UserRole.superadmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only Super Admin can validate validator applications.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     final uid = (u['uid'] ?? '').toString();
     final username = (u['username'] ?? u['full_name'] ?? 'Applicant').toString();
     final email = (u['email'] ?? 'N/A').toString();
@@ -2220,7 +2521,538 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     );
   }
 
+  Future<void> _showDeactivateConfirmation(
+    String uid,
+    String username,
+    String email,
+  ) async {
+    if (RoleService.isDefaultAdmin(null, uid)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot deactivate the default Super Admin.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final currentUid = widget.currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid == uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You cannot deactivate your own account from here.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (widget.role != UserRole.superadmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only Super Admin can deactivate users.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          width: 440,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.block_rounded,
+                      color: Colors.orange,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Deactivate User',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          'Account Suspension',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.orange.shade800,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded, color: Colors.orange.shade800, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'The user will be immediately signed out and blocked from logging in until reactivated by a Super Admin.',
+                        style: GoogleFonts.inter(
+                          color: Colors.orange.shade900,
+                          fontSize: 12,
+                          height: 1.4,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Are you sure you want to deactivate $username ($email)?',
+                style: GoogleFonts.inter(
+                  color: Colors.black87,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black54,
+                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange.shade700,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Deactivate', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'status': 'DEACTIVATED',
+        'is_active': false,
+        'deactivated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('User $username has been deactivated.'),
+            backgroundColor: Colors.orange.shade800,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Error deactivating user: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showActivateConfirmation(
+    String uid,
+    String username,
+    String email,
+  ) async {
+    if (widget.role != UserRole.superadmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only Super Admin can activate users.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          width: 440,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_outline_rounded,
+                      color: Color(0xFF81B655),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Activate User',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          'Restore Account Access',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF81B655),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Are you sure you want to activate $username ($email)? The user will be able to log in and use their account immediately.',
+                style: GoogleFonts.inter(
+                  color: Colors.black87,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black54,
+                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF81B655),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Activate', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'status': 'ACTIVE',
+        'is_active': true,
+      }, SetOptions(merge: true));
+
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'deactivated_at': FieldValue.delete(),
+        'locked_until': FieldValue.delete(),
+        'failed_login_attempts': 0,
+      }).catchError((_) {});
+
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('User account activated successfully.'),
+            backgroundColor: Color(0xFF81B655),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Error activating user: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showRemoveUserConfirmation(
+    String uid,
+    String username,
+    String email,
+    String role,
+  ) async {
+    if (RoleService.isDefaultAdmin(null, uid)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot remove the default Super Admin.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final currentUid = widget.currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid == uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You cannot remove your own account from here.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          width: 440,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.person_remove_rounded,
+                      color: Color(0xFFEF4444),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Remove User',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          'Permanent Account Deletion',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Warning: This action is permanent and cannot be undone. All user data, lessons, quizzes, progress, and subscriptions will be deleted.',
+                        style: GoogleFonts.inter(
+                          color: Colors.red.shade900,
+                          fontSize: 12,
+                          height: 1.4,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Are you sure you want to remove $username ($email) [Role: $role]?',
+                style: GoogleFonts.inter(
+                  color: Colors.black87,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black54,
+                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF4444),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Remove User', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await DatabaseService.instance.deleteUserAccount(uid, asSuperAdmin: true);
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('User $username has been removed permanently.'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Error removing user: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _showAddAdminDialog() {
+    if (widget.role != UserRole.superadmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only Super Admin can add administrators.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     final emailCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isSubmitting = false;
@@ -2288,7 +3120,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'A password reset confirmation link will be sent immediately to the admin\'s email address so they can set their password and sign in.',
+                            'A password reset confirmation link will be sent immediately to the admin\'s email address so they can set their password and sign in. (Only @yahoo.com, @gmail.com, and @hotmail.com domains are accepted).',
                             style: GoogleFonts.inter(fontSize: 12, color: Colors.black87, height: 1.4),
                           ),
                         ),
@@ -2296,13 +3128,24 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text(
-                    'ADMIN EMAIL ADDRESS',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.grey.shade600,
-                      letterSpacing: 0.5,
+                  Text.rich(
+                    TextSpan(
+                      text: 'ADMIN EMAIL ADDRESS',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.grey.shade600,
+                        letterSpacing: 0.5,
+                      ),
+                      children: const [
+                        TextSpan(
+                          text: ' *',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -2311,7 +3154,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     keyboardType: TextInputType.emailAddress,
                     style: GoogleFonts.inter(fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: 'admin@example.com',
+                      hintText: 'admin@gmail.com',
                       prefixIcon: const Icon(Icons.email_outlined, size: 20),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -2335,8 +3178,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
                         return 'Please enter a valid email address';
                       }
-                      if (!EmailValidatorService.isAllowedEmail(email)) {
-                        return 'Only @gmail.com, @yahoo.com, and @hotmail.com are allowed';
+                      if (!EmailValidatorService.isAllowedSuperAdminEmail(email)) {
+                        return 'Only @yahoo.com, @gmail.com, and @hotmail.com are allowed';
                       }
                       return null;
                     },
@@ -2401,7 +3244,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                       'username': email.split('@').first,
                                       'role': 'ADMIN',
                                       'status': 'ACTIVE',
-                                      'mustResetPassword': true,
                                       'createdAt': FieldValue.serverTimestamp(),
                                     });
 

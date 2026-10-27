@@ -543,6 +543,33 @@ class NotebookService {
       }
     }
 
+    // When updating a lesson already validated by the validator:
+    // It should ONLY happen if the title is the same as the already approved content.
+    // If it is not, upload as a separate lesson.
+    if (resolvedExistingId != null && resolvedExistingId.isNotEmpty) {
+      try {
+        final existingDoc = await FirebaseFirestore.instance.collection('lessons').doc(resolvedExistingId).get();
+        if (existingDoc.exists) {
+          final existingData = existingDoc.data()!;
+          final status = existingData['validationStatus']?.toString();
+          final isValidated = status == 'approved' || (existingData['reviewedAt'] != null);
+          if (isValidated) {
+            final approvedTitle = (existingData['title'] ?? '').toString().trim();
+            final isSameTitle = title.trim().isNotEmpty &&
+                approvedTitle.isNotEmpty &&
+                title.trim().toLowerCase() == approvedTitle.toLowerCase();
+            if (!isSameTitle) {
+              // Title does not match already approved content!
+              // Must upload as a separate lesson.
+              resolvedExistingId = null;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error verifying validated lesson in publishLesson: $e');
+      }
+    }
+
     if (resolvedExistingId != null && resolvedExistingId.isNotEmpty) {
       lessonId = resolvedExistingId;
       await DatabaseService.instance.updateLesson(

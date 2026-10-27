@@ -296,7 +296,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                           ? _requiredLessonId
                           : _availableLessons.first.id,
                       decoration: InputDecoration(
-                        labelText: 'Select Prerequisite Lesson *',
+                        label: const Text.rich(
+                          TextSpan(
+                            text: 'Select Prerequisite Lesson',
+                            children: [
+                              TextSpan(
+                                text: ' *',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         prefixIcon: const Icon(Icons.school_outlined, color: Color(0xFF88B342)),
                         filled: true,
                         fillColor: Colors.white,
@@ -431,7 +444,21 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       initialValue: currentVal,
       style: GoogleFonts.inter(fontSize: 16, color: Colors.black87),
       decoration: InputDecoration(
-        labelText: 'Duration *',
+        label: Text.rich(
+          TextSpan(
+            text: 'Duration',
+            style: GoogleFonts.inter(color: Colors.grey.shade600),
+            children: const [
+              TextSpan(
+                text: ' *',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
         prefixIcon: const Icon(Icons.timer_outlined, color: Color(0xFF88B342)),
         filled: true,
@@ -473,13 +500,35 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     int maxLines = 1,
     String? hint,
   }) {
+    final bool isRequired = label.trim().endsWith('*');
+    final String cleanLabel = isRequired
+        ? label.replaceAll(RegExp(r'\s*\*'), '').trim()
+        : label;
+
     return TextField(
       controller: controller,
       minLines: minLines,
       maxLines: maxLines,
       style: GoogleFonts.inter(fontSize: 16),
       decoration: InputDecoration(
-        labelText: label,
+        labelText: isRequired ? null : label,
+        label: isRequired
+            ? Text.rich(
+                TextSpan(
+                  text: cleanLabel,
+                  style: GoogleFonts.inter(color: Colors.grey.shade600),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : null,
         hintText: hint,
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
         prefixIcon: Icon(icon, color: const Color(0xFF88B342)),
@@ -506,7 +555,21 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
     return InputDecorator(
       decoration: InputDecoration(
-        labelText: 'Max Attempts *',
+        label: Text.rich(
+          TextSpan(
+            text: 'Max Attempts',
+            style: GoogleFonts.inter(color: Colors.grey.shade600),
+            children: const [
+              TextSpan(
+                text: ' *',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
         filled: true,
         fillColor: Colors.grey.shade50,
@@ -725,11 +788,24 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             TextField(
               controller: q.questionCtrl,
               decoration: InputDecoration(
-                labelText: q.type == 'passage'
-                    ? 'Passage Content *'
-                    : q.type == 'image'
-                        ? 'Image Question Title *'
-                        : 'Question *',
+                label: Text.rich(
+                  TextSpan(
+                    text: q.type == 'passage'
+                        ? 'Passage Content'
+                        : q.type == 'image'
+                            ? 'Image Question Title'
+                            : 'Question',
+                    children: const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 hintText: q.type == 'passage'
                     ? 'Enter the text passage here...'
                     : q.type == 'image'
@@ -744,7 +820,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             DropdownButtonFormField<String>(
               initialValue: q.type,
               decoration: const InputDecoration(
-                labelText: 'Type *',
+                label: Text.rich(
+                  TextSpan(
+                    text: 'Type',
+                    children: [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 border: OutlineInputBorder(),
               ),
               items: [
@@ -893,7 +982,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               TextField(
                 controller: q.answerCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Correct Answer *',
+                  label: Text.rich(
+                    TextSpan(
+                      text: 'Correct Answer',
+                      children: [
+                        TextSpan(
+                          text: ' *',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   hintText: 'Enter the correct answer for this image question...',
                   border: OutlineInputBorder(),
                 ),
@@ -930,7 +1032,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                           child: TextField(
                             controller: q.optionsCtrls[optIdx],
                             decoration: InputDecoration(
-                              labelText: 'Option ${optIdx + 1} *',
+                              label: Text.rich(
+                                TextSpan(
+                                  text: 'Option ${optIdx + 1}',
+                                  children: const [
+                                    TextSpan(
+                                      text: ' *',
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                             onChanged: (val) {
                               setState(() {});
@@ -966,7 +1081,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               TextField(
                 controller: q.answerCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Correct Answer *',
+                  label: Text.rich(
+                    TextSpan(
+                      text: 'Correct Answer',
+                      children: [
+                        TextSpan(
+                          text: ' *',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -977,7 +1105,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               TextField(
                 controller: q.answerCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Correct Answers (comma-separated if multiple blanks) *',
+                  label: Text.rich(
+                    TextSpan(
+                      text: 'Correct Answers (comma-separated if multiple blanks)',
+                      children: [
+                        TextSpan(
+                          text: ' *',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   hintText: 'e.g. was, reading, quietly',
                   border: OutlineInputBorder(),
                 ),
@@ -994,7 +1135,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               TextField(
                 controller: q.answerCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Target Word to Pronounce *',
+                  label: Text.rich(
+                    TextSpan(
+                      text: 'Target Word to Pronounce',
+                      children: [
+                        TextSpan(
+                          text: ' *',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   hintText: 'e.g. grammar',
                   border: OutlineInputBorder(),
                 ),

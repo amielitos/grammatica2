@@ -476,7 +476,20 @@ class _SourceUploadPanelState extends State<SourceUploadPanel> {
                 controller: textController,
                 maxLines: 8,
                 decoration: const InputDecoration(
-                  labelText: 'Content *',
+                  label: Text.rich(
+                    TextSpan(
+                      text: 'Content',
+                      children: [
+                        TextSpan(
+                          text: ' *',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   hintText: 'Paste lecture notes, study content, or excerpts here...',
                   border: OutlineInputBorder(),
                 ),
@@ -543,7 +556,20 @@ class _SourceUploadPanelState extends State<SourceUploadPanel> {
               TextField(
                 controller: urlController,
                 decoration: const InputDecoration(
-                  labelText: 'Webpage URL *',
+                  label: Text.rich(
+                    TextSpan(
+                      text: 'Webpage URL',
+                      children: [
+                        TextSpan(
+                          text: ' *',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   hintText: 'https://en.wikipedia.org/...',
                   border: OutlineInputBorder(),
                 ),

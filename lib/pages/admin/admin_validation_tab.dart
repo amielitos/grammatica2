@@ -475,9 +475,7 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
                         );
 
                         final isSuperAdmin = widget.role == UserRole.superadmin;
-                        final isAdmin = widget.role == UserRole.admin;
-                        final isValidatorApp = app.applicationType == 'validator';
-                        final canApproveThis = isSuperAdmin || (isAdmin && isValidatorApp);
+                        final canApproveThis = isSuperAdmin;
                         final actions = Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -523,48 +521,29 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
                               ),
                             ] else ...[
                               Tooltip(
-                                message: isValidatorApp
-                                    ? 'Only Super Admin or Admin can approve validator applications'
-                                    : 'Only Super Admin can approve applications',
-                                child: Opacity(
-                                  opacity: 0.4,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(50),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.check_circle_outline, color: Colors.grey, size: 18),
-                                        SizedBox(width: 6),
-                                        Text('Approve', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 13)),
-                                      ],
-                                    ),
+                                message: 'Only Super Admin can approve or reject applications',
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(50),
+                                    border: Border.all(color: Colors.grey.shade300),
                                   ),
-                                ),
-                              ),
-                              Tooltip(
-                                message: isValidatorApp
-                                    ? 'Only Super Admin or Admin can reject validator applications'
-                                    : 'Only Super Admin can reject applications',
-                                child: Opacity(
-                                  opacity: 0.4,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(50),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.highlight_off, color: Colors.grey, size: 18),
-                                        SizedBox(width: 6),
-                                        Text('Reject', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 13)),
-                                      ],
-                                    ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.visibility_rounded, color: Colors.grey.shade600, size: 14),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'VIEW ONLY (ADMIN)',
+                                        style: GoogleFonts.outfit(
+                                          color: Colors.grey.shade600,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 11,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -685,11 +664,11 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
     BuildContext context,
     EducatorApplication app,
   ) async {
-    if (app.applicationType == 'validator' && widget.role != UserRole.superadmin) {
+    if (widget.role != UserRole.superadmin) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Only Super Admin can approve validator applications.'),
+            content: Text('Only Super Admin can approve applications.'),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -767,13 +746,11 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
     BuildContext context,
     EducatorApplication app,
   ) async {
-    if (app.applicationType == 'validator' &&
-        widget.role != UserRole.superadmin &&
-        widget.role != UserRole.admin) {
+    if (widget.role != UserRole.superadmin) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Only Administrators can reject validator applications.'),
+            content: Text('Only Super Admin can reject applications.'),
             backgroundColor: Colors.redAccent,
           ),
         );

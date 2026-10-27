@@ -15,6 +15,8 @@ class PublishLessonDialog extends StatefulWidget {
   final NotebookOutput output;
   final String markdownPrompt;
   final VoidCallback? onPublished;
+  final String? approvedLessonId;
+  final bool forceSeparateLesson;
 
   const PublishLessonDialog({
     super.key,
@@ -22,6 +24,8 @@ class PublishLessonDialog extends StatefulWidget {
     required this.output,
     required this.markdownPrompt,
     this.onPublished,
+    this.approvedLessonId,
+    this.forceSeparateLesson = false,
   });
 
   @override
@@ -39,17 +43,47 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
   bool _isPublishing = false;
   String? _errorMessage;
   String? _existingLessonIdForSameCreator;
+  String? _approvedLessonTitle;
+  bool _isValidatedApproved = false;
 
   @override
   void initState() {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.output.title);
-    _titleCtrl.addListener(_checkExistingLessonTitle);
+    _titleCtrl.addListener(_onTitleChanged);
+    _loadApprovedLessonDetails();
     _checkNotebookCompanions();
     _checkExistingLessonTitle();
   }
 
+  void _onTitleChanged() {
+    _checkExistingLessonTitle();
+    setState(() {});
+  }
+
+  Future<void> _loadApprovedLessonDetails() async {
+    final targetId = widget.approvedLessonId ?? widget.output.publishedId;
+    if (targetId != null && targetId.isNotEmpty) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('lessons').doc(targetId).get();
+        if (doc.exists && mounted) {
+          final data = doc.data()!;
+          final status = data['validationStatus']?.toString();
+          final isApproved = status == 'approved' || (data['reviewedAt'] != null);
+          setState(() {
+            _isValidatedApproved = isApproved;
+            _approvedLessonTitle = data['title']?.toString().trim();
+          });
+        }
+      } catch (_) {}
+    }
+  }
+
   Future<void> _checkExistingLessonTitle() async {
+    if (widget.forceSeparateLesson) {
+      if (mounted) setState(() => _existingLessonIdForSameCreator = null);
+      return;
+    }
     final title = _titleCtrl.text.trim().toLowerCase();
     if (title.isEmpty) {
       if (mounted) setState(() => _existingLessonIdForSameCreator = null);
@@ -145,6 +179,17 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
         }
       }
 
+      final currentTitle = _titleCtrl.text.trim();
+      bool isUpdate = false;
+      if (_isValidatedApproved && _approvedLessonTitle != null) {
+        final isSameTitle = currentTitle.isNotEmpty &&
+            _approvedLessonTitle!.isNotEmpty &&
+            currentTitle.toLowerCase() == _approvedLessonTitle!.toLowerCase();
+        isUpdate = isSameTitle && !widget.forceSeparateLesson;
+      } else if (!widget.forceSeparateLesson) {
+        isUpdate = widget.output.isPublished || _existingLessonIdForSameCreator != null;
+      }
+
       final lessonId = await NotebookService.instance.publishLesson(
         notebookId: widget.notebookId,
         outputId: widget.output.id,
@@ -153,7 +198,9 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
         visibility: _visibility,
         visibleTo: _visibleTo,
         quizId: _selectedQuizId,
-        existingLessonId: _existingLessonIdForSameCreator,
+        existingLessonId: isUpdate
+            ? (_existingLessonIdForSameCreator ?? widget.approvedLessonId ?? widget.output.publishedId)
+            : null,
       );
 
       // Auto-publish all companion outputs (Flashcards, Mind Maps, Study Guides, etc.) generated in this notebook!
@@ -197,7 +244,16 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bool isUpdate = widget.output.isPublished || _existingLessonIdForSameCreator != null;
+    final currentTitle = _titleCtrl.text.trim();
+    bool isUpdate = false;
+    if (_isValidatedApproved && _approvedLessonTitle != null) {
+      final isSameTitle = currentTitle.isNotEmpty &&
+          _approvedLessonTitle!.isNotEmpty &&
+          currentTitle.toLowerCase() == _approvedLessonTitle!.toLowerCase();
+      isUpdate = isSameTitle && !widget.forceSeparateLesson;
+    } else if (!widget.forceSeparateLesson) {
+      isUpdate = widget.output.isPublished || _existingLessonIdForSameCreator != null;
+    }
 
     return Dialog(
       backgroundColor: isDark ? const Color(0xFF1E261D) : Colors.white,
@@ -269,9 +325,20 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
               ],
 
               // Lesson Title Input
-              Text(
-                'Lesson Title *',
-                style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+              Text.rich(
+                TextSpan(
+                  text: 'Lesson Title',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -287,7 +354,7 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
                   ),
                 ),
               ),
-              if (_existingLessonIdForSameCreator != null) ...[
+              if (_existingLessonIdForSameCreator != null && isUpdate) ...[
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -754,7 +821,21 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
               ],
 
               // Title
-              Text('Quiz Title *', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text.rich(
+                TextSpan(
+                  text: 'Quiz Title',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _titleCtrl,
@@ -1134,12 +1215,23 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
               ],
 
               // Title Field
-              Text(
-                'Content Title *',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white70 : AppColors.textSecondary,
+              Text.rich(
+                TextSpan(
+                  text: 'Content Title',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
+                  ),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),
@@ -1336,11 +1428,31 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
         }
       }
 
-      if (foundLessonId != null && foundStatus == null) {
+      if (foundLessonId != null) {
         final lDoc = await FirebaseFirestore.instance.collection('lessons').doc(foundLessonId).get();
         if (lDoc.exists) {
-          foundStatus = lDoc.data()?['validationStatus']?.toString();
-          localUploaded = true;
+          final lData = lDoc.data()!;
+          foundStatus = lData['validationStatus']?.toString();
+          final isValidated = foundStatus == 'approved' || (lData['reviewedAt'] != null);
+          if (isValidated) {
+            final approvedTitle = (lData['title'] ?? '').toString().trim();
+            final lessonOut = widget.outputs.where((o) => o.type == NotebookOutputType.lesson).firstOrNull;
+            final currentTitle = lessonOut?.title.trim() ?? '';
+            final isSameTitle = currentTitle.isNotEmpty &&
+                approvedTitle.isNotEmpty &&
+                currentTitle.toLowerCase() == approvedTitle.toLowerCase();
+            if (!isSameTitle) {
+              // Title is NOT the same as already approved content!
+              // Cannot update the approved lesson. Upload as separate lesson instead!
+              foundLessonId = null;
+              foundStatus = null;
+              localUploaded = false;
+            } else {
+              localUploaded = true;
+            }
+          } else {
+            localUploaded = true;
+          }
         }
       }
 

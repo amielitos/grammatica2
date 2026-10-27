@@ -16,7 +16,6 @@ import 'home_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:string_similarity/string_similarity.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/navigation_service.dart';
@@ -114,13 +113,12 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   // Speech to Text for pronunciation questions
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isSpeechInitialized = false;
+  bool _isStartingSpeech = false;
   bool _isListening = false;
   int? _listeningQuestionIndex;
   dynamic _webRecognition;
   Timer? _watchdogTimer;
   final Map<int, String> _recognizedTranscripts = {};
-  final FlutterTts _flutterTts = FlutterTts();
-  bool _isPlayingAudio = false;
 
   // Prerequisite check state
   bool _prerequisiteMet = true;
@@ -316,28 +314,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     }
   }
 
-  Future<void> _speakWord(String word) async {
-    if (mounted) setState(() => _isPlayingAudio = true);
-    bool pluginSuccess = false;
-    try {
-      await _flutterTts.stop();
-      await _flutterTts.setLanguage("en-US");
-      await _flutterTts.setSpeechRate(0.42);
-      await _flutterTts.setVolume(1.0);
-      await _flutterTts.speak(word);
-      pluginSuccess = true;
-    } catch (e) {
-      debugPrint("TTS Plugin Error: $e");
-    }
-
-    if (!pluginSuccess && kIsWeb) {
-      WebService.instance.speak(word);
-    }
-
-    Future.delayed(const Duration(milliseconds: 1400), () {
-      if (mounted) setState(() => _isPlayingAudio = false);
-    });
-  }
 
   void _resetWatchdog() {
     _watchdogTimer?.cancel();
@@ -358,6 +334,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   }
 
   void _stopListening() {
+    _isStartingSpeech = false;
     _watchdogTimer?.cancel();
     if (kIsWeb && _webRecognition != null) {
       try {
@@ -388,6 +365,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       _isSpeechInitialized = await _speech.initialize(
         onStatus: (status) {
           debugPrint('Speech Status: $status');
+          if (_isStartingSpeech) return;
           if (status == 'done' || status == 'notListening') {
             if (mounted && _isListening) {
               _stopListening();
@@ -396,6 +374,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         },
         onError: (err) {
           debugPrint('Speech Error: ${err.errorMsg}');
+          if (_isStartingSpeech) return;
           if (mounted && _isListening) {
             _stopListening();
           }
@@ -442,17 +421,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       return;
     }
 
-    // Stop TTS if speaking
-    try {
-      await _flutterTts.stop();
-      if (mounted) setState(() => _isPlayingAudio = false);
-    } catch (_) {}
-
-    setState(() {
-      _isListening = true;
-      _listeningQuestionIndex = questionIndex;
-    });
-
     if (kIsWeb) {
       _startWebListening(targetWord, questionIndex);
     } else {
@@ -468,6 +436,11 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         } catch (_) {}
         _webRecognition = null;
       }
+
+      setState(() {
+        _isListening = true;
+        _listeningQuestionIndex = questionIndex;
+      });
 
       _resetWatchdog();
 
@@ -505,11 +478,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   const SnackBar(content: Text('Microphone permission blocked in browser.')),
                 );
               }
-            } else if (errStr.contains('no-speech') || errStr.contains('aborted')) {
-              final heard = _recognizedTranscripts[questionIndex];
-              if (heard == null || heard.isEmpty) {
-                _stopListening();
-              }
+            } else if (errStr.contains('no-speech')) {
+              debugPrint('[WebSpeech] no-speech: waiting for user speech...');
+            } else if (errStr.contains('aborted')) {
+              debugPrint('[WebSpeech] aborted');
             } else {
               _stopListening();
             }
@@ -517,7 +489,21 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           onEnd: () {
             debugPrint('[WebSpeech] onEnd event');
             if (mounted && _isListening && _listeningQuestionIndex == questionIndex) {
-              _stopListening();
+              final heard = _recognizedTranscripts[questionIndex];
+              if (heard != null && heard.isNotEmpty) {
+                _stopListening();
+              } else {
+                // Keep listening on web without closing on silence
+                try {
+                  final newRec = WebService.instance.createSpeechRecognition();
+                  if (newRec != null) {
+                    _webRecognition = newRec;
+                    _startWebListening(targetWord, questionIndex);
+                  }
+                } catch (_) {
+                  _stopListening();
+                }
+              }
             }
           },
         );
@@ -533,8 +519,10 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   }
 
   Future<void> _startMobileListening(String targetWord, int questionIndex) async {
+    _isStartingSpeech = true;
     final status = await Permission.microphone.request();
     if (!status.isGranted) {
+      _isStartingSpeech = false;
       _stopListening();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -551,6 +539,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     }
 
     if (!_isSpeechInitialized && mounted) {
+      _isStartingSpeech = false;
       _stopListening();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Speech recognition not available on this device.')),
@@ -587,15 +576,24 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           }
         },
         listenOptions: stt.SpeechListenOptions(
-          listenFor: const Duration(seconds: 25),
-          pauseFor: const Duration(seconds: 4),
+          listenFor: const Duration(seconds: 30),
+          pauseFor: const Duration(seconds: 8),
           partialResults: true,
           cancelOnError: false,
           listenMode: stt.ListenMode.dictation,
         ),
       );
 
-      if (!started) {
+      _isStartingSpeech = false;
+
+      if (started) {
+        if (mounted) {
+          setState(() {
+            _isListening = true;
+            _listeningQuestionIndex = questionIndex;
+          });
+        }
+      } else {
         debugPrint('[MobileSpeech] First listen call returned false. Retrying once...');
         await _speech.cancel();
         await Future.delayed(const Duration(milliseconds: 250));
@@ -621,15 +619,20 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             }
           },
           listenOptions: stt.SpeechListenOptions(
-            listenFor: const Duration(seconds: 25),
-            pauseFor: const Duration(seconds: 4),
+            listenFor: const Duration(seconds: 30),
+            pauseFor: const Duration(seconds: 8),
             partialResults: true,
             cancelOnError: false,
             listenMode: stt.ListenMode.dictation,
           ),
         );
 
-        if (!started) {
+        if (started && mounted) {
+          setState(() {
+            _isListening = true;
+            _listeningQuestionIndex = questionIndex;
+          });
+        } else {
           debugPrint('[MobileSpeech] Speech recognizer failed to start after retry.');
           _stopListening();
           if (mounted) {
@@ -640,6 +643,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         }
       }
     } catch (e) {
+      _isStartingSpeech = false;
       debugPrint('[MobileSpeech] Listen error: $e');
       _stopListening();
       if (mounted) {
@@ -649,6 +653,35 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       }
     }
   }
+
+  void _skipCurrentQuestion(int index) {
+    _stopListening();
+    final q = _shuffledQuestions[index].question;
+    if (q.type == 'fill_in_the_blank') {
+      final ctrls = _blankControllers[index];
+      if (ctrls != null) {
+        for (var c in ctrls) {
+          if (c.text.trim().isEmpty) {
+            c.text = '[Skipped]';
+          }
+        }
+      }
+    }
+    _answerCtrls[index].text = '[Skipped]';
+    setState(() {
+      if (_currentQuestionIndex < _shuffledQuestions.length - 1) {
+        _currentQuestionIndex++;
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Question skipped.'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
+
 
   Future<void> _fetchUserData() async {
     final data = await DatabaseService.instance.getUserData(_effectiveUser.uid);
@@ -699,7 +732,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     _timer?.cancel();
     _watchdogTimer?.cancel();
     _stopListening();
-    _flutterTts.stop();
     for (var ctrl in _answerCtrls) {
       ctrl.dispose();
     }
@@ -1664,6 +1696,26 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             ),
           );
         }),
+        if (!_isReviewing) ...[
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () => _skipCurrentQuestion(index),
+              icon: const Icon(Icons.skip_next_rounded, size: 18),
+              label: Text(
+                _answerCtrls[index].text == '[Skipped]' ? 'Question Skipped ✓' : 'Skip this question',
+                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: isDark ? Colors.white70 : AppColors.textSecondary,
+                side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1739,7 +1791,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   const Icon(Icons.record_voice_over_rounded, color: AppColors.primary, size: 24),
                   const SizedBox(width: 8),
                   Text(
-                    'Pronunciation Exercise',
+                    'Pronunciation Quiz',
                     style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -1777,17 +1829,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary,
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    IconButton(
-                      icon: Icon(
-                        _isPlayingAudio ? Icons.volume_up_rounded : Icons.volume_up_outlined,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                      tooltip: 'Listen to pronunciation',
-                      onPressed: () => _speakWord(targetWord),
-                      visualDensity: VisualDensity.compact,
                     ),
                   ],
                 ),
@@ -2001,6 +2042,23 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                     ],
                   ),
                 ),
+              if (!_isReviewing) ...[
+                const SizedBox(height: 20),
+                OutlinedButton.icon(
+                  onPressed: () => _skipCurrentQuestion(index),
+                  icon: const Icon(Icons.skip_next_rounded, size: 18),
+                  label: Text(
+                    spoken == '[Skipped]' ? 'Question Skipped ✓' : 'Skip this question',
+                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark ? Colors.white70 : AppColors.textSecondary,
+                    side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -2367,7 +2425,12 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                         'Question ${_currentQuestionIndex + 1} of ${_shuffledQuestions.length}',
                         style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 1.0),
                       ),
-                      if (widget.quiz.duration > 0 && !_isReviewing) _buildTimerBadge(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (widget.quiz.duration > 0 && !_isReviewing) _buildTimerBadge(),
+                        ],
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -2379,6 +2442,25 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                if (!_isReviewing && (question.type == 'pronunciation' || question.type == 'fill_in_the_blank')) ...[
+                  OutlinedButton.icon(
+                    onPressed: () => _skipCurrentQuestion(_currentQuestionIndex),
+                    icon: const Icon(Icons.skip_next_rounded, size: 18),
+                    label: Text(
+                      _answerCtrls[_currentQuestionIndex].text == '[Skipped]'
+                          ? 'Question Skipped'
+                          : 'Skip Question',
+                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white70 : AppColors.textSecondary,
+                      side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade400),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const Spacer(),
+                ],
                 if (_currentQuestionIndex > 0)
                   SizedBox(
                     width: 160,

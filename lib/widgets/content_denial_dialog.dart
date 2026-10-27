@@ -298,13 +298,24 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'DETAILED EXPLANATION *',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.1,
-                        color: isDark ? Colors.white60 : Colors.grey.shade600,
+                    Text.rich(
+                      TextSpan(
+                        text: 'DETAILED EXPLANATION',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.1,
+                          color: isDark ? Colors.white60 : Colors.grey.shade600,
+                        ),
+                        children: const [
+                          TextSpan(
+                            text: ' *',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     Text(

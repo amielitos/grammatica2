@@ -47,6 +47,7 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
   String _generationMessage = '';
   bool _isAssessment = false;
   bool _isSourcesCollapsed = false;
+  String? _editedLessonTitle;
 
   // Mobile tab index: 0 = Sources, 1 = Outputs
   int _mobileTabIndex = 0;
@@ -206,11 +207,39 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
             stream: FirebaseFirestore.instance
                 .collection('lessons')
                 .where('notebookId', isEqualTo: widget.notebookId)
-                .limit(1)
                 .snapshots(),
             builder: (context, lessonSnap) {
-              final hasFirestoreLesson = (lessonSnap.data?.docs.isNotEmpty ?? false);
-              final isUploaded = outputs.any((o) => o.isPublished) || hasFirestoreLesson;
+              final lessonOut = outputs.where((o) => o.type == NotebookOutputType.lesson).firstOrNull;
+              DocumentSnapshot<Map<String, dynamic>>? validatedDoc;
+              if (lessonOut?.publishedId != null && lessonOut!.publishedId!.isNotEmpty) {
+                validatedDoc = lessonSnap.data?.docs.where((d) => d.id == lessonOut.publishedId).firstOrNull;
+              }
+              validatedDoc ??= lessonSnap.data?.docs.where((d) {
+                final dData = d.data();
+                final status = dData['validationStatus']?.toString();
+                return status == 'approved' || (dData['reviewedAt'] != null);
+              }).firstOrNull;
+
+              final validatedData = validatedDoc?.data();
+              final bool isValidated = validatedDoc != null &&
+                  (validatedData?['validationStatus'] == 'approved' ||
+                   validatedData?['reviewedAt'] != null);
+
+              final String? approvedTitle = isValidated ? (validatedData?['title'])?.toString().trim() : null;
+              final String currentTitle = (_editedLessonTitle ?? lessonOut?.title ?? '').trim();
+
+              final bool isSameTitle = isValidated &&
+                  approvedTitle != null &&
+                  approvedTitle.isNotEmpty &&
+                  currentTitle.isNotEmpty &&
+                  currentTitle.toLowerCase() == approvedTitle.toLowerCase();
+
+              // When updating a lesson already validated by the validator:
+              // It should ONLY happen if the title is the same as the already approved content.
+              // If it is not, then the button should also go from "Update" to whatever it is in default ("Publish All to Curriculum").
+              final bool isUploaded = isValidated
+                  ? isSameTitle
+                  : (outputs.any((o) => o.isPublished) || (lessonSnap.data?.docs.isNotEmpty ?? false));
 
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
@@ -228,11 +257,18 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                     elevation: 0,
                   ),
                   onPressed: () {
+                    final effectiveOutputs = outputs.map((o) {
+                      if (o.type == NotebookOutputType.lesson && _editedLessonTitle != null && _editedLessonTitle!.isNotEmpty) {
+                        return o.copyWith(title: _editedLessonTitle!);
+                      }
+                      return o;
+                    }).toList();
+
                     showDialog(
                       context: context,
                       builder: (_) => PublishAllOutputsDialog(
                         notebookId: widget.notebookId,
-                        outputs: outputs,
+                        outputs: effectiveOutputs,
                         onPublishedAll: () => setState(() {}),
                       ),
                     );
@@ -498,13 +534,20 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
         return LessonView(
           output: activeOutput,
           notebookId: widget.notebookId,
+          onTitleChanged: (newTitle) {
+            setState(() {
+              _editedLessonTitle = newTitle;
+            });
+          },
           onRegenerate: () => _confirmAndGenerate(
             sources,
             NotebookOutputType.lesson,
             hasExistingOutput: true,
           ),
           onLessonPublished: (lessonId) {
-            setState(() {});
+            setState(() {
+              _editedLessonTitle = null;
+            });
           },
         );
 
@@ -1284,7 +1327,20 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                   autofocus: true,
                   onChanged: checkDuplicate,
                   decoration: InputDecoration(
-                    labelText: 'Title *',
+                    label: const Text.rich(
+                      TextSpan(
+                        text: 'Title',
+                        children: [
+                          TextSpan(
+                            text: ' *',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     border: const OutlineInputBorder(),
                     errorText: duplicateWarning != null ? 'Duplicate name detected' : null,
                   ),

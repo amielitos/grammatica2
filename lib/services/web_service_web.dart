@@ -118,7 +118,7 @@ class WebServiceWeb implements WebService {
     required void Function() onEnd,
   }) {
     final sr = recognition as SpeechRecognitionObject;
-    sr.continuous = false;
+    sr.continuous = true;
     sr.interimResults = true;
     sr.lang = 'en-US';
 

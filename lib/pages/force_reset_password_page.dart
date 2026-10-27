@@ -23,14 +23,95 @@ class _ForceResetPasswordPageState extends State<ForceResetPasswordPage> {
   String? _errorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_onPasswordChanged);
+  }
+
+  void _onPasswordChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    _passwordController.removeListener(_onPasswordChanged);
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
+  bool _hasMinLength(String p) => p.length >= 8;
+  bool _hasUppercase(String p) => RegExp(r'[A-Z]').hasMatch(p);
+  bool _hasLowercase(String p) => RegExp(r'[a-z]').hasMatch(p);
+  bool _hasDigit(String p) => RegExp(r'[0-9]').hasMatch(p);
+  bool _hasSpecial(String p) => RegExp(r'[!@#\$%^&*(),.?":{}|<>~_\-+=\\/\[\]]').hasMatch(p);
+
+  bool _isPasswordValid(String p) =>
+      _hasMinLength(p) &&
+      _hasUppercase(p) &&
+      _hasLowercase(p) &&
+      _hasDigit(p) &&
+      _hasSpecial(p);
+
+  String _getPasswordStrength(String pass) {
+    if (pass.isEmpty) return '';
+    int score = 0;
+    if (_hasMinLength(pass)) score++;
+    if (_hasUppercase(pass)) score++;
+    if (_hasLowercase(pass)) score++;
+    if (_hasDigit(pass)) score++;
+    if (_hasSpecial(pass)) score++;
+    if (score == 5) return 'Strong';
+    if (score >= 3) return 'Medium';
+    return 'Weak';
+  }
+
+  Color _getStrengthColor(String pass) {
+    final s = _getPasswordStrength(pass);
+    if (s == 'Strong') return const Color(0xFF16A34A);
+    if (s == 'Medium') return Colors.orange;
+    if (s.contains('Weak')) return Colors.red;
+    return Colors.grey;
+  }
+
+  Widget _buildRequirementItem(String label, bool met, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6.0),
+      child: Row(
+        children: [
+          Icon(
+            met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            size: 15,
+            color: met ? const Color(0xFF81B655) : (isDark ? Colors.white38 : Colors.grey.shade400),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: met
+                    ? (isDark ? Colors.white : Colors.black87)
+                    : (isDark ? Colors.white54 : Colors.grey.shade600),
+                fontWeight: met ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handlePasswordReset() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final newPass = _passwordController.text.trim();
+    if (!_isPasswordValid(newPass)) {
+      setState(() {
+        _errorMessage = 'Password must meet all 5 security requirements below.';
+      });
+      return;
+    }
 
     setState(() {
       _isSaving = true;
@@ -38,7 +119,6 @@ class _ForceResetPasswordPageState extends State<ForceResetPasswordPage> {
     });
 
     try {
-      final newPass = _passwordController.text.trim();
       await widget.user.updatePassword(newPass);
 
       await FirebaseFirestore.instance.collection('users').doc(widget.user.uid).update({
@@ -74,6 +154,7 @@ class _ForceResetPasswordPageState extends State<ForceResetPasswordPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final pass = _passwordController.text;
 
     return PopScope(
       canPop: false,
@@ -158,7 +239,20 @@ class _ForceResetPasswordPageState extends State<ForceResetPasswordPage> {
                           controller: _passwordController,
                           obscureText: _obscurePassword,
                           decoration: InputDecoration(
-                            labelText: 'New Password *',
+                            label: const Text.rich(
+                              TextSpan(
+                                text: 'New Password',
+                                children: [
+                                  TextSpan(
+                                    text: ' *',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
@@ -167,11 +261,94 @@ class _ForceResetPasswordPageState extends State<ForceResetPasswordPage> {
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                           ),
                           validator: (val) {
-                            if (val == null || val.isEmpty) return 'Enter a new password';
-                            if (val.length < 6) return 'Password must be at least 6 characters';
+                            if (val == null || val.isEmpty) return 'Password is required';
+                            if (!_hasMinLength(val)) return 'At least 8 characters required';
+                            if (!_hasUppercase(val)) return 'At least 1 uppercase letter required';
+                            if (!_hasLowercase(val)) return 'At least 1 lowercase letter required';
+                            if (!_hasDigit(val)) return 'At least 1 number required';
+                            if (!_hasSpecial(val)) return 'At least 1 special character required';
                             return null;
                           },
                         ),
+
+                        if (pass.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Text(
+                                "Strength: ",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white70 : Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                _getPasswordStrength(pass),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _getStrengthColor(pass),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+
+                        // Password Requirements Card
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0F172A).withValues(alpha: 0.6) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.shield_outlined, size: 15, color: Color(0xFF81B655)),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Password Requirements",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              _buildRequirementItem("At least 8 characters", _hasMinLength(pass), isDark),
+                              _buildRequirementItem("At least 1 uppercase letter (A-Z)", _hasUppercase(pass), isDark),
+                              _buildRequirementItem("At least 1 lowercase letter (a-z)", _hasLowercase(pass), isDark),
+                              _buildRequirementItem("At least 1 number (0-9)", _hasDigit(pass), isDark),
+                              _buildRequirementItem("At least 1 special character", _hasSpecial(pass), isDark),
+                              const SizedBox(height: 6),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0).withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  "Allowed special characters: ! @ # \$ % ^ & * ( ) , . ? \" : { } | < > ~ _ - + =",
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontFamily: 'monospace',
+                                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                         const SizedBox(height: 16),
 
                         // Confirm password field
@@ -179,7 +356,20 @@ class _ForceResetPasswordPageState extends State<ForceResetPasswordPage> {
                           controller: _confirmPasswordController,
                           obscureText: _obscureConfirmPassword,
                           decoration: InputDecoration(
-                            labelText: 'Confirm New Password *',
+                            label: const Text.rich(
+                              TextSpan(
+                                text: 'Confirm New Password',
+                                children: [
+                                  TextSpan(
+                                    text: ' *',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),

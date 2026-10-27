@@ -1119,7 +1119,6 @@ class _LessonPageState extends State<LessonPage> {
               ],
             ),
           ),
-          const SizedBox(width: 12),
           ElevatedButton.icon(
             onPressed: _isLoadingQuiz ? null : ((_isEducator || _previewMode) ? _previewQuizAction : _takeQuizAction),
             icon: _isLoadingQuiz

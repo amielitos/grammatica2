@@ -260,8 +260,34 @@ class ProfilePageState extends State<ProfilePage> {
     Widget? suffixIcon,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isRequired = hint.trim().endsWith('*');
+    final String cleanHint = isRequired
+        ? hint.replaceAll(RegExp(r'\s*\*'), '').trim()
+        : hint;
+
     return InputDecoration(
-      hintText: hint,
+      hintText: isRequired ? null : hint,
+      label: isRequired
+          ? Text.rich(
+              TextSpan(
+                text: cleanHint,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.white54 : Colors.black54,
+                ),
+                children: const [
+                  TextSpan(
+                    text: ' *',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : null,
+      floatingLabelBehavior: FloatingLabelBehavior.never,
       hintStyle: TextStyle(
         fontSize: 14,
         color: isDark ? Colors.white54 : Colors.black54,
@@ -827,9 +853,41 @@ class ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildEditLabel(String text) {
+    final bool isRequired = text.trim().endsWith('*');
+    final String cleanText = isRequired
+        ? text.replaceAll(RegExp(r'\s*\*'), '').trim()
+        : text;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+      child: isRequired
+          ? Text.rich(
+              TextSpan(
+                text: cleanText,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Colors.grey,
+                ),
+                children: const [
+                  TextSpan(
+                    text: ' *',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Text(
+              text,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.grey,
+              ),
+            ),
     );
   }
 
@@ -1905,8 +1963,21 @@ class _ReauthDialogState extends State<_ReauthDialog> {
             controller: widget.pwdCtrl,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
-              labelText: 'Password *',
-              hintText: 'Enter your password *',
+              label: const Text.rich(
+                TextSpan(
+                  text: 'Password',
+                  children: [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              hintText: 'Enter your password',
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -2103,7 +2174,21 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                 controller: _passwordCtrl,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
-                  hintText: 'Enter your password *',
+                  label: const Text.rich(
+                    TextSpan(
+                      text: 'Enter your password',
+                      children: [
+                        TextSpan(
+                          text: ' *',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  floatingLabelBehavior: FloatingLabelBehavior.never,
                   prefixIcon: const Icon(Icons.lock_outline, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(
