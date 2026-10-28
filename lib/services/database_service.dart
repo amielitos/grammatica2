@@ -3642,6 +3642,28 @@ class DatabaseService {
         .map((doc) => doc.exists && doc.data()?['status'] == 'active');
   }
 
+  Stream<Set<String>> streamActiveSubscribedEducatorIds(String learnerUid) {
+    return _firestore
+        .collection('users')
+        .doc(learnerUid)
+        .collection('subscriptions')
+        .snapshots()
+        .map((snapshot) {
+          final set = <String>{};
+          for (final doc in snapshot.docs) {
+            final data = doc.data();
+            if (data['status'] == 'active') {
+              set.add(doc.id);
+              final eduUid = data['educatorUid']?.toString();
+              if (eduUid != null && eduUid.isNotEmpty) {
+                set.add(eduUid);
+              }
+            }
+          }
+          return set;
+        });
+  }
+
   Future<Map<String, dynamic>?> getSubscription(String learnerUid, String educatorUid) async {
     final doc = await _firestore
         .collection('users')

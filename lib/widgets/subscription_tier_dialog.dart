@@ -4,11 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 class SubscriptionTierDialog extends StatelessWidget {
   final Map<String, dynamic>? pricing;
   final String educatorName;
+  final String? currentTier;
 
   const SubscriptionTierDialog({
     super.key,
     required this.pricing,
     required this.educatorName,
+    this.currentTier,
   });
 
   @override
@@ -19,6 +21,11 @@ class SubscriptionTierDialog extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final isMobile = screenWidth < 700;
+
+    final normalizedCurrent = currentTier?.trim().toLowerCase();
+    final bool showBasic = normalizedCurrent != 'basic' && normalizedCurrent != 'standard' && normalizedCurrent != 'premium';
+    final bool showStandard = normalizedCurrent != 'standard' && normalizedCurrent != 'premium';
+    final bool showPremium = normalizedCurrent != 'premium';
 
     return Dialog(
       backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFFAF9F6),
@@ -49,7 +56,7 @@ class SubscriptionTierDialog extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Enroll with $educatorName',
+                      currentTier != null ? 'Upgrade Plan with $educatorName' : 'Enroll with $educatorName',
                       style: GoogleFonts.outfit(
                         fontSize: isMobile ? 20 : 26,
                         fontWeight: FontWeight.w800,
@@ -72,74 +79,94 @@ class SubscriptionTierDialog extends StatelessWidget {
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     children: [
-                      // Basic Tier Card
-                      _buildTierCard(
-                        context,
-                        isDark: isDark,
-                        tier: 'Basic',
-                        price: 'Free',
-                        badgeText: 'Free for 30 days',
-                        badgeColor: isDark ? Colors.white12 : Colors.grey.shade200,
-                        badgeTextColor: isDark ? Colors.white70 : Colors.grey.shade800,
-                        subtitle: "For learners who want to explore an educator's lessons.",
-                        inclusions: const [
-                          'Access to public lessons uploaded by the educator',
-                          'Access to publicly available learning materials',
-                          'View basic lesson information',
-                          'Free trial for 30 days',
-                          'Cancel anytime',
-                          'No access to exclusive private lessons',
-                          'No personal mentorship from the educator',
-                        ],
-                        buttonColor: const Color(0xFFF9D866),
-                        buttonTextColor: const Color(0xFF4A4A4A),
-                      ),
-                      const SizedBox(height: 16),
+                      if (showBasic) ...[
+                        // Basic Tier Card
+                        _buildTierCard(
+                          context,
+                          isDark: isDark,
+                          tier: 'Basic',
+                          price: 'Free',
+                          badgeText: 'Free for 30 days',
+                          badgeColor: isDark ? Colors.white12 : Colors.grey.shade200,
+                          badgeTextColor: isDark ? Colors.white70 : Colors.grey.shade800,
+                          subtitle: "For learners who want to explore an educator's lessons.",
+                          inclusions: const [
+                            'Access to public lessons uploaded by the educator',
+                            'Access to publicly available learning materials',
+                            'View basic lesson information',
+                            'Free trial for 30 days',
+                            'Cancel anytime',
+                            'No access to exclusive private lessons',
+                            'No personal mentorship from the educator',
+                          ],
+                          buttonColor: const Color(0xFFF9D866),
+                          buttonTextColor: const Color(0xFF4A4A4A),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
-                      // Standard Tier Card
-                      _buildTierCard(
-                        context,
-                        isDark: isDark,
-                        tier: 'Standard',
-                        price: '\$$standardPrice/mo',
-                        badgeText: 'Exclusive Lessons',
-                        badgeColor: const Color(0xFF3B82F6).withValues(alpha: 0.15),
-                        badgeTextColor: const Color(0xFF2563EB),
-                        subtitle: 'For learners who want access to additional learning materials.',
-                        inclusions: const [
-                          'Everything available in Basic',
-                          'Access to private and exclusive educator lessons',
-                          'Access to additional lessons and learning resources',
-                          'Access to educator-only learning materials marked for enrolled learners',
-                          'Enrollment applies only to the selected educator',
-                        ],
-                        buttonColor: const Color(0xFF98E274),
-                        buttonTextColor: const Color(0xFF1E3A1A),
-                      ),
-                      const SizedBox(height: 16),
+                      if (showStandard) ...[
+                        // Standard Tier Card
+                        _buildTierCard(
+                          context,
+                          isDark: isDark,
+                          tier: 'Standard',
+                          price: '\$$standardPrice/mo',
+                          badgeText: 'Exclusive Lessons',
+                          badgeColor: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                          badgeTextColor: const Color(0xFF2563EB),
+                          subtitle: 'For learners who want access to additional learning materials.',
+                          inclusions: const [
+                            'Everything available in Basic',
+                            'Access to private and exclusive educator lessons',
+                            'Access to additional lessons and learning resources',
+                            'Access to educator-only learning materials marked for enrolled learners',
+                            'Enrollment applies only to the selected educator',
+                          ],
+                          buttonColor: const Color(0xFF98E274),
+                          buttonTextColor: const Color(0xFF1E3A1A),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
-                      // Premium Tier Card
-                      _buildTierCard(
-                        context,
-                        isDark: isDark,
-                        tier: 'Premium',
-                        price: '\$$premiumPrice/mo',
-                        badgeText: 'Mentorship',
-                        badgeColor: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                        badgeTextColor: const Color(0xFF7C3AED),
-                        subtitle: 'For learners who want exclusive lessons and direct guidance.',
-                        inclusions: const [
-                          'Everything included in Standard',
-                          'Personal mentorship with the educator',
-                          'Opportunity to ask questions and receive guidance',
-                          'Personalized feedback on learning progress',
-                          'Additional learning support from the educator',
-                          'Priority access to mentorship sessions, if offered',
-                          'Enrollment applies only to the selected educator',
-                        ],
-                        buttonColor: const Color(0xFFF67576),
-                        buttonTextColor: Colors.white,
-                      ),
+                      if (showPremium) ...[
+                        // Premium Tier Card
+                        _buildTierCard(
+                          context,
+                          isDark: isDark,
+                          tier: 'Premium',
+                          price: '\$$premiumPrice/mo',
+                          badgeText: 'Mentorship',
+                          badgeColor: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                          badgeTextColor: const Color(0xFF7C3AED),
+                          subtitle: 'For learners who want exclusive lessons and direct guidance.',
+                          inclusions: const [
+                            'Everything included in Standard',
+                            'Personal mentorship with the educator',
+                            'Opportunity to ask questions and receive guidance',
+                            'Personalized feedback on learning progress',
+                            'Additional learning support from the educator',
+                            'Priority access to mentorship sessions, if offered',
+                            'Enrollment applies only to the selected educator',
+                          ],
+                          buttonColor: const Color(0xFFF67576),
+                          buttonTextColor: Colors.white,
+                        ),
+                      ],
+
+                      if (!showBasic && !showStandard && !showPremium)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 32),
+                          child: Text(
+                            'You are already enrolled in the highest tier (Premium).',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

@@ -878,22 +878,6 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
           return true;
         }).toList();
 
-        final filteredPublished = widget.publishedItems.where((item) {
-          if (_searchQuery.isNotEmpty) {
-            final q = _searchQuery.toLowerCase();
-            final matches = item.title.toLowerCase().contains(q) ||
-                (item.createdByEmail ?? '').toLowerCase().contains(q);
-            if (!matches) return false;
-          }
-          final isCompleted = progress[item.id]?['completed'] == true;
-          final isStarted = progress[item.id] != null && !isCompleted;
-          final isNotStarted = progress[item.id] == null;
-          if (_selectedDateFilter == 'Completed ✓') return isCompleted;
-          if (_selectedDateFilter == 'In Progress') return isStarted;
-          if (_selectedDateFilter == 'Not Started') return isNotStarted;
-          return true;
-        }).toList();
-
         filteredLessons.sort((a, b) {
           final tsA = a.createdAt;
           final tsB = b.createdAt;
@@ -903,46 +887,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
           return _sortNewestFirst ? tsB.compareTo(tsA) : tsA.compareTo(tsB);
         });
 
-        filteredPublished.sort((a, b) {
-          final tsA = a.createdAt;
-          final tsB = b.createdAt;
-          if (tsA == null && tsB == null) return a.title.compareTo(b.title);
-          if (tsA == null) return 1;
-          if (tsB == null) return -1;
-          return _sortNewestFirst ? tsB.compareTo(tsA) : tsA.compareTo(tsB);
-        });
-
-        final flashcards = filteredPublished
-            .where((p) => p.type == NotebookOutputType.flashcards)
-            .toList();
-        final mindMaps = filteredPublished
-            .where((p) => p.type == NotebookOutputType.mindMap)
-            .toList();
-        final studyGuides = filteredPublished
-            .where((p) => p.type == NotebookOutputType.studyGuide)
-            .toList();
-        final timelines = filteredPublished
-            .where((p) => p.type == NotebookOutputType.timeline)
-            .toList();
-        final briefings = filteredPublished
-            .where((p) => p.type == NotebookOutputType.briefing)
-            .toList();
-        final faqs = filteredPublished
-            .where((p) => p.type == NotebookOutputType.faq)
-            .toList();
-
-        final hasAnyItems = filteredLessons.isNotEmpty ||
-            flashcards.isNotEmpty ||
-            mindMaps.isNotEmpty ||
-            studyGuides.isNotEmpty ||
-            timelines.isNotEmpty ||
-            briefings.isNotEmpty ||
-            faqs.isNotEmpty;
-
-        final authorLabel = (widget.pillLabel == 'From Grammatica' ||
-                widget.pillLabel == 'Grammatica')
-            ? 'Grammatica'
-            : null;
+        final hasAnyItems = filteredLessons.isNotEmpty;
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -1043,29 +988,6 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                 const SizedBox(height: 8),
               ],
             );
-
-            Widget buildSection(String title, List<Widget> cards) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 20),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: cards,
-                  ),
-                ],
-              );
-            }
 
             Widget buildStatusLegendItem(IconData icon, String label, Color color) {
               return Row(
@@ -1300,6 +1222,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                                 progress: pVal,
                                 isExpanded: isExpanded,
                                 quizScore: scoreStr,
+                                progressMap: progress,
                                 companionItems: widget.publishedItems
                                     .where((item) =>
                                         item.lessonId == l.id ||
@@ -1425,108 +1348,6 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
                           ],
                         );
                       },
-                    ),
-                  if (flashcards.isNotEmpty)
-                    buildSection(
-                      'Flashcard Decks (${flashcards.length})',
-                      flashcards.map((f) {
-                        final completed =
-                            progress[f.id]?['completed'] == true;
-                        final isStarted = progress[f.id] != null && !completed;
-                        return _buildSmallPublishedItemCard(
-                          context,
-                          item: f,
-                          completed: completed,
-                          isStarted: isStarted,
-                          authorLabel: authorLabel,
-                          isMobile: isMobile,
-                        );
-                      }).toList(),
-                    ),
-                  if (mindMaps.isNotEmpty)
-                    buildSection(
-                      'Mind Maps (${mindMaps.length})',
-                      mindMaps.map((m) {
-                        final completed =
-                            progress[m.id]?['completed'] == true;
-                        final isStarted = progress[m.id] != null && !completed;
-                        return _buildSmallPublishedItemCard(
-                          context,
-                          item: m,
-                          completed: completed,
-                          isStarted: isStarted,
-                          authorLabel: authorLabel,
-                          isMobile: isMobile,
-                        );
-                      }).toList(),
-                    ),
-                  if (studyGuides.isNotEmpty)
-                    buildSection(
-                      'Study Guides (${studyGuides.length})',
-                      studyGuides.map((g) {
-                        final completed =
-                            progress[g.id]?['completed'] == true;
-                        final isStarted = progress[g.id] != null && !completed;
-                        return _buildSmallPublishedItemCard(
-                          context,
-                          item: g,
-                          completed: completed,
-                          isStarted: isStarted,
-                          authorLabel: authorLabel,
-                          isMobile: isMobile,
-                        );
-                      }).toList(),
-                    ),
-                  if (timelines.isNotEmpty)
-                    buildSection(
-                      'Timelines (${timelines.length})',
-                      timelines.map((t) {
-                        final completed =
-                            progress[t.id]?['completed'] == true;
-                        final isStarted = progress[t.id] != null && !completed;
-                        return _buildSmallPublishedItemCard(
-                          context,
-                          item: t,
-                          completed: completed,
-                          isStarted: isStarted,
-                          authorLabel: authorLabel,
-                          isMobile: isMobile,
-                        );
-                      }).toList(),
-                    ),
-                  if (briefings.isNotEmpty)
-                    buildSection(
-                      'Briefing Documents (${briefings.length})',
-                      briefings.map((b) {
-                        final completed =
-                            progress[b.id]?['completed'] == true;
-                        final isStarted = progress[b.id] != null && !completed;
-                        return _buildSmallPublishedItemCard(
-                          context,
-                          item: b,
-                          completed: completed,
-                          isStarted: isStarted,
-                          authorLabel: authorLabel,
-                          isMobile: isMobile,
-                        );
-                      }).toList(),
-                    ),
-                  if (faqs.isNotEmpty)
-                    buildSection(
-                      'Frequently Asked Questions (${faqs.length})',
-                      faqs.map((q) {
-                        final completed =
-                            progress[q.id]?['completed'] == true;
-                        final isStarted = progress[q.id] != null && !completed;
-                        return _buildSmallPublishedItemCard(
-                          context,
-                          item: q,
-                          completed: completed,
-                          isStarted: isStarted,
-                          authorLabel: authorLabel,
-                          isMobile: isMobile,
-                        );
-                      }).toList(),
                     ),
                 ],
               );
@@ -1866,6 +1687,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildSmallPublishedItemCard(
     BuildContext context, {
     required PublishedContentItem item,
@@ -2146,7 +1968,6 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     int completedCount = 0;
-    double totalProgressSum = 0.0;
     List<Map<String, dynamic>> recentActivities = [];
     Lesson? nextUncompletedLesson;
 
@@ -2155,17 +1976,8 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       final isCompleted = p != null && p['completed'] == true;
       if (isCompleted) {
         completedCount++;
-        totalProgressSum += 1.0;
       } else {
         nextUncompletedLesson ??= l;
-        if (p != null) {
-          final prog = (p['progress'] as num?)?.toDouble() ?? 0.0;
-          if (prog > 0) {
-            totalProgressSum += prog.clamp(0.0, 0.95);
-          } else if (p['lastReadAt'] != null) {
-            totalProgressSum += 0.2; // Viewed/Started
-          }
-        }
       }
 
       if (p != null) {
@@ -2197,19 +2009,12 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
 
     for (var item in publishedItems) {
       final p = progress[item.id];
+      final isCompleted = p != null && p['completed'] == true;
+      if (isCompleted) {
+        completedCount++;
+      }
+
       if (p != null) {
-        final isCompleted = p['completed'] == true;
-        if (isCompleted) {
-          completedCount++;
-          totalProgressSum += 1.0;
-        } else {
-          final prog = (p['progress'] as num?)?.toDouble() ?? 0.0;
-          if (prog > 0) {
-            totalProgressSum += prog.clamp(0.0, 0.95);
-          } else if (p['lastReadAt'] != null) {
-            totalProgressSum += 0.2;
-          }
-        }
         final dynamic rawTs = p['lastReadAt'] ?? p['completedAt'];
         DateTime? parsedDate;
         if (rawTs is Timestamp) {
@@ -2237,7 +2042,7 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
     }
 
     final totalItems = lessons.length + publishedItems.length;
-    double percent = totalItems == 0 ? 0.0 : (totalProgressSum / totalItems).clamp(0.0, 1.0);
+    double percent = totalItems == 0 ? 0.0 : (completedCount / totalItems).clamp(0.0, 1.0);
     final percentInt = (percent * 100).toInt();
 
     recentActivities.sort(
@@ -2510,37 +2315,30 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
         // ── STI eLMS: Grade & Scores Dual Gauges ──
         Builder(
           builder: (context) {
-            final folderQuizIds = lessons
-                .map((l) => l.quizId)
-                .where((id) => id != null && id.isNotEmpty)
-                .cast<String>()
-                .toSet();
+            final folderQuizIds = <String>{};
+            for (final l in lessons) {
+              if (l.quizId != null && l.quizId!.isNotEmpty) {
+                folderQuizIds.add(l.quizId!);
+              }
+              folderQuizIds.add(l.id);
+            }
+            for (final item in publishedItems) {
+              if (item.type == NotebookOutputType.quiz) {
+                folderQuizIds.add(item.id);
+              }
+            }
 
             int quizzesTaken = 0;
             double scorePercentageSum = 0.0;
 
             for (final qId in folderQuizIds) {
               final qp = quizProgress[qId];
-              if (qp != null && (qp['attemptsUsed'] as num? ?? 0) > 0) {
+              if (qp != null && ((qp['attemptsUsed'] as num? ?? 0) > 0 || qp['score'] != null)) {
                 final score = (qp['score'] as num?)?.toDouble() ?? 0.0;
                 final total = (qp['totalQuestions'] as num?)?.toDouble() ?? 0.0;
                 if (total > 0) {
                   quizzesTaken++;
                   scorePercentageSum += (score / total) * 100.0;
-                }
-              }
-            }
-
-            // Fallback: If folder lessons don't define linked quizIds, check learner's quizProgress overall
-            if (quizzesTaken == 0 && folderQuizIds.isEmpty) {
-              for (final qp in quizProgress.values) {
-                if ((qp['attemptsUsed'] as num? ?? 0) > 0) {
-                  final score = (qp['score'] as num?)?.toDouble() ?? 0.0;
-                  final total = (qp['totalQuestions'] as num?)?.toDouble() ?? 0.0;
-                  if (total > 0) {
-                    quizzesTaken++;
-                    scorePercentageSum += (score / total) * 100.0;
-                  }
                 }
               }
             }

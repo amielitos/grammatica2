@@ -1125,7 +1125,7 @@ class _SignupPageState extends State<SignupPage> {
                   TextSpan(
                     text: cleanHint,
                     style: TextStyle(
-                      color: isDark ? Colors.white38 : Colors.black45,
+                      color: isDark ? Colors.white70 : Colors.black54,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1143,12 +1143,12 @@ class _SignupPageState extends State<SignupPage> {
               : null,
           hintText: isRequired ? null : cleanHint,
           hintStyle: TextStyle(
-            color: isDark ? Colors.white38 : Colors.black45,
+            color: isDark ? Colors.white70 : Colors.black54,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
           floatingLabelBehavior: FloatingLabelBehavior.never,
-          prefixIcon: IconTheme(data: IconThemeData(color: isDark ? Colors.white60 : Colors.black45), child: prefixIcon),
+          prefixIcon: IconTheme(data: IconThemeData(color: isDark ? Colors.white70 : Colors.black54), child: prefixIcon),
           suffixIcon: suffixIcon,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
@@ -1194,7 +1194,7 @@ class _SignupPageState extends State<SignupPage> {
           hint: Text(
             "Suffix (Optional)",
             style: TextStyle(
-              color: isDark ? Colors.white38 : Colors.black45,
+              color: isDark ? Colors.white70 : Colors.black54,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),

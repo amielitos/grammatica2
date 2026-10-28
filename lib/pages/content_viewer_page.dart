@@ -465,12 +465,11 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
                               ),
                             ),
                           ),
-                          if (_type != NotebookOutputType.flashcards)
-                            StreamBuilder<Map<String, Map<String, dynamic>>>(
-                              stream: DatabaseService.instance.progressStream(_effectiveUser),
-                              builder: (context, snapshot) {
-                                final progressMap = snapshot.data ?? {};
-                                final isCompleted = progressMap[_contentId]?['completed'] == true;
+                          StreamBuilder<Map<String, Map<String, dynamic>>>(
+                            stream: DatabaseService.instance.progressStream(_effectiveUser),
+                            builder: (context, snapshot) {
+                              final progressMap = snapshot.data ?? {};
+                              final isCompleted = progressMap[_contentId]?['completed'] == true;
 
                                 return TextButton.icon(
                                   onPressed: () async {

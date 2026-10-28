@@ -10,6 +10,8 @@ class TaglineHeroText extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: EdgeInsets.only(
         left: isMobile ? 20.0 : 60.0,
@@ -25,7 +27,7 @@ class TaglineHeroText extends StatelessWidget {
             style: GoogleFonts.tiroDevanagariHindi(
               fontSize: isMobile ? 42 : 76,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF2d5a27), // Deep elegant green matching design
+              color: isDark ? const Color(0xFF81B655) : const Color(0xFF2d5a27),
               height: 1.1,
               shadows: const [
                 Shadow(

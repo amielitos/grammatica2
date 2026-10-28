@@ -214,48 +214,6 @@ class ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // Keeping the dialog version for the "warning" section if needed,
-  // or we can remove it if the inline field is sufficient.
-  // For now, I'll remove _showUpdatePhoneDialog as it's redundant with the inline field.
-
-  Future<void> _updateDob() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now().subtract(const Duration(days: 365 * 7)),
-    );
-    if (picked == null) return;
-
-    // Validate Age >= 7
-    final now = DateTime.now();
-    final age =
-        now.year -
-        picked.year -
-        ((now.month < picked.month ||
-                (now.month == picked.month && now.day < picked.day))
-            ? 1
-            : 0);
-    if (age < 7) {
-      _showSnack('You must be at least 7 years old.', error: true);
-      return;
-    }
-
-    try {
-      await DatabaseService.instance.updateUserField(
-        widget.user.uid,
-        'date_of_birth',
-        Timestamp.fromDate(picked),
-      );
-      if (mounted) {
-        fetchProfile();
-        _showSnack('Date of birth updated');
-      }
-    } catch (e) {
-      _showSnack('Failed to update date of birth', error: true);
-    }
-  }
-
   InputDecoration _customInputDecoration({
     required String hint,
     Widget? suffixIcon,
@@ -733,16 +691,30 @@ class ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 24),
             
-            _buildEditLabel('Date of Birth *'),
-            InkWell(
-              onTap: _updateDob,
-              borderRadius: BorderRadius.circular(8),
-              child: InputDecorator(
-                decoration: _customInputDecoration(hint: ''),
-                child: Text(
-                  _dob != null ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}' : 'Select Date of Birth',
-                  style: TextStyle(fontSize: 14, color: _dob != null ? (isDark ? Colors.white : Colors.black) : (isDark ? Colors.white54 : Colors.black54)),
+            Row(
+              children: [
+                _buildEditLabel('Date of Birth'),
+                const SizedBox(width: 6),
+                Tooltip(
+                  message: 'Date of birth cannot be modified.',
+                  child: Icon(Icons.lock_outline_rounded, size: 14, color: isDark ? Colors.white38 : Colors.grey),
                 ),
+              ],
+            ),
+            InputDecorator(
+              decoration: _customInputDecoration(hint: '').copyWith(
+                filled: true,
+                fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade100,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _dob != null ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}' : 'Not specified',
+                    style: TextStyle(fontSize: 14, color: isDark ? Colors.white60 : Colors.black54),
+                  ),
+                  Icon(Icons.lock_rounded, size: 16, color: isDark ? Colors.white24 : Colors.grey.shade400),
+                ],
               ),
             ),
             

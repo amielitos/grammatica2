@@ -41,6 +41,7 @@ class STIModuleCard extends StatefulWidget {
   final ValueChanged<bool> onExpansionChanged;
   final List<PublishedContentItem> companionItems;
   final String? quizScore;
+  final Map<String, dynamic>? progressMap;
 
   const STIModuleCard({
     super.key,
@@ -52,6 +53,7 @@ class STIModuleCard extends StatefulWidget {
     required this.onExpansionChanged,
     this.companionItems = const [],
     this.quizScore,
+    this.progressMap,
   });
 
   @override
@@ -115,14 +117,16 @@ class _STIModuleCardState extends State<STIModuleCard> {
 
     // 2. Slides / Presentation
     for (final pres in presItems) {
+      final isPresDone = widget.progressMap?[pres.id]?['completed'] == true;
+      final isPresStarted = widget.progressMap?[pres.id] != null && !isPresDone;
       sections.add(
         STIModuleSection(
           id: 'slides_${pres.id}',
           title: '${itemNumber.toString().padLeft(2, '0')} Slides: ${pres.title.isNotEmpty ? pres.title : l.title}',
           typeLabel: 'Slides',
           icon: Icons.slideshow_rounded,
-          isSubmitted: isDone,
-          status: isDone ? 'completed' : 'partial',
+          isSubmitted: isPresDone,
+          status: isPresDone ? 'completed' : (isPresStarted ? 'partial' : 'available'),
           onTap: () => NavigationService.instance.goToContent(context, pres),
         ),
       );
@@ -131,14 +135,16 @@ class _STIModuleCardState extends State<STIModuleCard> {
 
     // 3. Flashcards
     for (final fc in fcItems) {
+      final isFcDone = widget.progressMap?[fc.id]?['completed'] == true;
+      final isFcStarted = widget.progressMap?[fc.id] != null && !isFcDone;
       sections.add(
         STIModuleSection(
           id: 'flashcards_${fc.id}',
           title: '${itemNumber.toString().padLeft(2, '0')} Flashcards: ${fc.title.isNotEmpty ? fc.title : l.title}',
           typeLabel: 'Flashcards',
           icon: Icons.style_outlined,
-          isSubmitted: false,
-          status: 'partial',
+          isSubmitted: isFcDone,
+          status: isFcDone ? 'completed' : (isFcStarted ? 'partial' : 'available'),
           onTap: () => NavigationService.instance.goToContent(context, fc),
         ),
       );
@@ -147,13 +153,16 @@ class _STIModuleCardState extends State<STIModuleCard> {
 
     // 4. Mind Map
     for (final mm in mmItems) {
+      final isMmDone = widget.progressMap?[mm.id]?['completed'] == true;
+      final isMmStarted = widget.progressMap?[mm.id] != null && !isMmDone;
       sections.add(
         STIModuleSection(
           id: mm.id,
           title: '${itemNumber.toString().padLeft(2, '0')} Mind Map: ${mm.title}',
           typeLabel: 'Mind Map',
           icon: Icons.hub_outlined,
-          status: 'completed',
+          isSubmitted: isMmDone,
+          status: isMmDone ? 'completed' : (isMmStarted ? 'partial' : 'available'),
           onTap: () => NavigationService.instance.goToContent(context, mm),
         ),
       );
@@ -162,13 +171,16 @@ class _STIModuleCardState extends State<STIModuleCard> {
 
     // 5. Study Guide
     for (final sg in guideItems) {
+      final isSgDone = widget.progressMap?[sg.id]?['completed'] == true;
+      final isSgStarted = widget.progressMap?[sg.id] != null && !isSgDone;
       sections.add(
         STIModuleSection(
           id: sg.id,
           title: '${itemNumber.toString().padLeft(2, '0')} Study Guide: ${sg.title}',
           typeLabel: 'Study Guide',
           icon: Icons.menu_book_rounded,
-          status: 'completed',
+          isSubmitted: isSgDone,
+          status: isSgDone ? 'completed' : (isSgStarted ? 'partial' : 'available'),
           onTap: () => NavigationService.instance.goToContent(context, sg),
         ),
       );
@@ -177,15 +189,16 @@ class _STIModuleCardState extends State<STIModuleCard> {
 
     // 6. Quiz / Assessment
     if (hasQuiz) {
+      final isQuizDone = widget.quizScore != null;
       sections.add(
         STIModuleSection(
           id: 'quiz_${l.id}',
           title: '${itemNumber.toString().padLeft(2, '0')} Quiz Assessment',
           typeLabel: 'Quiz',
           icon: Icons.quiz_outlined,
-          isSubmitted: widget.quizScore != null,
+          isSubmitted: isQuizDone,
           score: widget.quizScore,
-          status: widget.quizScore != null ? 'completed' : 'partial',
+          status: isQuizDone ? 'completed' : 'available',
           onTap: () async {
             if (l.quizId != null && l.quizId!.isNotEmpty) {
               try {

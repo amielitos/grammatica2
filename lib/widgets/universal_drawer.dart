@@ -8,6 +8,8 @@ import '../services/role_service.dart';
 import '../services/auth_service.dart';
 import '../pages/home_page.dart';
 import '../pages/admin_dashboard.dart';
+import '../pages/practice_tab.dart';
+import 'center_notice_dialog.dart';
 
 class UniversalDrawer extends StatelessWidget {
   final User user;
@@ -103,6 +105,14 @@ class UniversalDrawer extends StatelessWidget {
       return AdminSidebar(
         selectedIndex: currentIndex ?? -1,
         onItemSelected: (i) {
+          if (PracticeTab.isGenerating.value) {
+            CenterNoticeDialog.show(
+              context,
+              title: 'Generation in Progress',
+              message: 'Please wait until the AI finishes generating before switching tabs.',
+            );
+            return;
+          }
           if (onTap != null) {
             onTap!(i);
           } else {
@@ -129,6 +139,14 @@ class UniversalDrawer extends StatelessWidget {
       return Sidebar(
         currentIndex: currentIndex ?? -1,
         onTap: (i) {
+          if (PracticeTab.isGenerating.value) {
+            CenterNoticeDialog.show(
+              context,
+              title: 'Generation in Progress',
+              message: 'Please wait until the AI finishes generating before switching tabs.',
+            );
+            return;
+          }
           if (onTap != null) {
             onTap!(i);
           } else {

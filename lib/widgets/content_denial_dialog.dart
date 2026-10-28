@@ -165,33 +165,7 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                // ── Warning Notification Notice ──────────────────────────
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.notifications_active_rounded,
-                          color: Colors.amber, size: 18),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'The author will receive an official notification containing the category and explanation below.',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
 
                 // ── Category Selection ──────────────────────────────────
                 Text(

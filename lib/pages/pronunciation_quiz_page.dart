@@ -20,6 +20,7 @@ import '../widgets/ai_quota_exceeded_dialog.dart';
 import '../widgets/generation_loading_overlay.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'practice_tab.dart';
 
 
 class PronunciationQuizPage extends StatefulWidget {
@@ -155,6 +156,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         _speech.cancel();
       } catch (_) {}
     }
+    PracticeTab.isGenerating.value = false;
     super.dispose();
   }
 
@@ -198,6 +200,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   Future<void> _startSession(SpellingDifficulty difficulty) async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
+    PracticeTab.isGenerating.value = true;
 
     List<SpellingWord> allWords;
 
@@ -246,6 +249,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       }
       return;
     } finally {
+      PracticeTab.isGenerating.value = false;
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -641,16 +645,10 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     }
   }
 
-  void _resetRecording() {
-    _stopRecording();
-    if (mounted) {
-      setState(() {
-        _recognizedText = "";
-      });
-    }
-  }
-
   void _submitAnswer() {
+    if (_isRecording) {
+      _stopRecording();
+    }
     if (_isTransitioning || _currentIndex >= _sessionWords.length) return;
 
     // Clean up the recognized text: lowercase, trim, and remove punctuation
@@ -1078,8 +1076,61 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     );
   }
 
-  Widget _buildStatBox(String title, String value, IconData icon, Color color) {
+  Widget _buildStatBox(String title, String value, IconData icon, Color color, {bool isMobile = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (isMobile) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF262626) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: 14),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: isDark ? Colors.white60 : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       width: 220,
@@ -1162,8 +1213,10 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         break;
     }
 
+    final isMobile = MediaQuery.of(context).size.width < 700;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 32, 24, 40),
+      padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 16 : 32, isMobile ? 16 : 24, 40),
       child: Column(
         children: [
           // Header Badge
@@ -1191,20 +1244,55 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: isMobile ? 12 : 20),
 
           // KPI Stats Cards
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            alignment: WrapAlignment.center,
-            children: [
-              _buildStatBox('Progress', '${_currentIndex + 1} / ${_sessionWords.length}', Icons.subtitles_rounded, AppColors.primary),
-              _buildStatBox('Current Score', '$_score / ${_sessionWords.length}', Icons.stars_rounded, const Color(0xFFF59E0B)),
-              _buildStatBox('Time Left', '$minutes:$seconds', Icons.timer_rounded, const Color(0xFFEF4444)),
-            ],
-          ),
-          const SizedBox(height: 36),
+          if (isMobile)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatBox(
+                    'Progress',
+                    '${_currentIndex + 1} / ${_sessionWords.length}',
+                    Icons.subtitles_rounded,
+                    AppColors.primary,
+                    isMobile: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatBox(
+                    'Score',
+                    '$_score / ${_sessionWords.length}',
+                    Icons.stars_rounded,
+                    const Color(0xFFF59E0B),
+                    isMobile: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatBox(
+                    'Time Left',
+                    '$minutes:$seconds',
+                    Icons.timer_rounded,
+                    const Color(0xFFEF4444),
+                    isMobile: true,
+                  ),
+                ),
+              ],
+            )
+          else
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              alignment: WrapAlignment.center,
+              children: [
+                _buildStatBox('Progress', '${_currentIndex + 1} / ${_sessionWords.length}', Icons.subtitles_rounded, AppColors.primary),
+                _buildStatBox('Current Score', '$_score / ${_sessionWords.length}', Icons.stars_rounded, const Color(0xFFF59E0B)),
+                _buildStatBox('Time Left', '$minutes:$seconds', Icons.timer_rounded, const Color(0xFFEF4444)),
+              ],
+            ),
+          SizedBox(height: isMobile ? 16 : 36),
 
           // Main Interactive Card
           ConstrainedBox(
@@ -1363,19 +1451,6 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Reset Button
-                      OutlinedButton.icon(
-                        onPressed: _resetRecording,
-                        icon: const Icon(Icons.refresh_rounded, size: 18),
-                        label: Text('Reset', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: isDark ? Colors.white70 : AppColors.textSecondary,
-                          side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                      ),
-                      const SizedBox(width: 24),
                       // Mic Button
                       GestureDetector(
                         onTap: _isRecording ? _stopRecording : _startRecording,
@@ -1412,7 +1487,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                         ),
                       ),
                     ],
@@ -1433,10 +1508,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                       ),
                       const SizedBox(width: 12),
                       TextButton.icon(
-                        onPressed: () {
-                          _timer?.cancel();
-                          setState(() => _selectedDifficulty = null);
-                        },
+                        onPressed: _confirmQuitSession,
                         icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
                         label: Text(
                           'Quit Session',
@@ -1458,6 +1530,62 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     );
   }
 
+  Future<void> _confirmQuitSession() async {
+    final shouldQuit = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'Quit Session?',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to quit this practice session? Your progress in this session will not be saved.',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: isDark ? Colors.white70 : AppColors.textSecondary,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(
+                'Stay',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white70 : AppColors.textSecondary,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(
+                'Quit',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    if (shouldQuit == true) {
+      _timer?.cancel();
+      _stopRecording();
+      setState(() => _selectedDifficulty = null);
+    }
+  }
+
   Widget _buildGameOver() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final total = _sessionWords.length;
@@ -1465,34 +1593,24 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 
     String tierTitle;
     String tierSubtitle;
-    IconData tierIcon;
     Color tierColor;
-    String tierBadge;
 
     if (pct == 100) {
       tierTitle = 'Pronunciation Royalty!';
       tierSubtitle = 'Flawless articulation! Your accent and clarity match native standards!';
-      tierIcon = Icons.record_voice_over_rounded;
       tierColor = const Color(0xFFF59E0B);
-      tierBadge = '🏆 FLAWLESS ORATOR';
     } else if (pct >= 80) {
       tierTitle = 'Outstanding Voice & Clarity!';
       tierSubtitle = 'Superb speech clarity! You sound confident, natural, and expressive!';
-      tierIcon = Icons.stars_rounded;
       tierColor = const Color(0xFF10B981);
-      tierBadge = '🌟 SPEECH MASTER';
     } else if (pct >= 50) {
       tierTitle = 'Great Vocal Practice!';
       tierSubtitle = 'Solid pronunciation flow! A few more rounds will get you to 100%!';
-      tierIcon = Icons.graphic_eq_rounded;
       tierColor = const Color(0xFF3B82F6);
-      tierBadge = '🎯 CLEAR & STEADY';
     } else {
       tierTitle = 'Vocal Journey Begins!';
       tierSubtitle = 'Speaking is a muscle that strengthens with every word. Let\'s try again!';
-      tierIcon = Icons.mic_rounded;
       tierColor = const Color(0xFF8B5CF6);
-      tierBadge = '💪 PRACTICE MAKES PERFECT';
     }
 
     return SingleChildScrollView(
@@ -1523,51 +1641,6 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                 ),
                 child: Column(
                   children: [
-                    // Tier Pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: tierColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(color: tierColor.withValues(alpha: 0.3)),
-                      ),
-                      child: Text(
-                        tierBadge,
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: tierColor,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Glowing Icon
-                    Container(
-                      width: 96,
-                      height: 96,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [tierColor, tierColor.withValues(alpha: 0.7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: tierColor.withValues(alpha: 0.4),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Icon(tierIcon, size: 48, color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
                     // Title
                     Text(
                       tierTitle,

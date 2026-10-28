@@ -9,6 +9,8 @@ import 'ai_assessment_generator_page.dart';
 
 
 class PracticeTab extends StatefulWidget {
+  static final ValueNotifier<bool> isGenerating = ValueNotifier<bool>(false);
+
   final int? initialSubTab;
   final bool initialShowEditor;
   const PracticeTab({

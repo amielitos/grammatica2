@@ -14,6 +14,7 @@ import '../widgets/ai_quota_exceeded_dialog.dart';
 import '../widgets/generation_loading_overlay.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'practice_tab.dart';
 
 /// AI Assessment Generator page for Learner Practice Tools.
 ///
@@ -427,6 +428,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
       _isLoading = true;
       _errorMessage = null;
     });
+    PracticeTab.isGenerating.value = true;
 
     try {
       final String customInstructions;
@@ -513,6 +515,8 @@ MANDATORY RULES:
           });
         }
       }
+    } finally {
+      PracticeTab.isGenerating.value = false;
     }
   }
 
@@ -603,6 +607,12 @@ MANDATORY RULES:
       previewMode: false,
       autoStart: true,
     );
+  }
+
+  @override
+  void dispose() {
+    PracticeTab.isGenerating.value = false;
+    super.dispose();
   }
 }
 

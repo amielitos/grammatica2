@@ -20,6 +20,7 @@ import '../widgets/ai_quota_exceeded_dialog.dart';
 import '../widgets/generation_loading_overlay.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/badge_service.dart';
+import 'practice_tab.dart';
 
 
 class SpellingBeePage extends StatefulWidget {
@@ -93,6 +94,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     _audioPlayer.dispose();
     _answerController.dispose();
     _focusNode.dispose();
+    PracticeTab.isGenerating.value = false;
     super.dispose();
   }
 
@@ -133,6 +135,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   Future<void> _startSession(SpellingDifficulty difficulty) async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
+    PracticeTab.isGenerating.value = true;
 
     List<SpellingWord> allWords;
 
@@ -182,6 +185,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       }
       return;
     } finally {
+      PracticeTab.isGenerating.value = false;
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -951,10 +955,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                       ),
                       const SizedBox(width: 12),
                       TextButton.icon(
-                        onPressed: () {
-                          _timer?.cancel();
-                          setState(() => _selectedDifficulty = null);
-                        },
+                        onPressed: _confirmQuitSession,
                         icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
                         label: Text(
                           'Quit Session',
@@ -976,6 +977,61 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     );
   }
 
+  Future<void> _confirmQuitSession() async {
+    final shouldQuit = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'Quit Session?',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to quit this practice session? Your progress in this session will not be saved.',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: isDark ? Colors.white70 : AppColors.textSecondary,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(
+                'Stay',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white70 : AppColors.textSecondary,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(
+                'Quit',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    if (shouldQuit == true) {
+      _timer?.cancel();
+      setState(() => _selectedDifficulty = null);
+    }
+  }
+
   Widget _buildGameOver() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final total = _sessionWords.length;
@@ -983,34 +1039,24 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
 
     String tierTitle;
     String tierSubtitle;
-    IconData tierIcon;
     Color tierColor;
-    String tierBadge;
 
     if (pct == 100) {
       tierTitle = 'Flawless Victory!';
       tierSubtitle = 'You spelled every single word perfectly without a hitch!';
-      tierIcon = Icons.emoji_events_rounded;
       tierColor = const Color(0xFFF59E0B);
-      tierBadge = '🏆 PERFECT SPELLCASTER';
     } else if (pct >= 80) {
       tierTitle = 'Spectacular Spelling!';
       tierSubtitle = 'Outstanding performance! You are mastering this vocabulary level!';
-      tierIcon = Icons.stars_rounded;
       tierColor = const Color(0xFF10B981);
-      tierBadge = '🌟 SPELLING MASTER';
     } else if (pct >= 50) {
       tierTitle = 'Great Effort!';
       tierSubtitle = 'Solid work! Keep practicing to get even closer to perfection!';
-      tierIcon = Icons.thumb_up_rounded;
       tierColor = const Color(0xFF3B82F6);
-      tierBadge = '🎯 ON TARGET';
     } else {
       tierTitle = 'Keep Practicing!';
       tierSubtitle = 'Every attempt builds stronger language memory. You got this!';
-      tierIcon = Icons.fitness_center_rounded;
       tierColor = const Color(0xFF8B5CF6);
-      tierBadge = '💪 PRACTICE MAKES PERFECT';
     }
 
     return SingleChildScrollView(
@@ -1041,51 +1087,6 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                 ),
                 child: Column(
                   children: [
-                    // Tier Pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: tierColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(color: tierColor.withValues(alpha: 0.3)),
-                      ),
-                      child: Text(
-                        tierBadge,
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: tierColor,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Glowing Icon
-                    Container(
-                      width: 96,
-                      height: 96,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [tierColor, tierColor.withValues(alpha: 0.7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: tierColor.withValues(alpha: 0.4),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Icon(tierIcon, size: 48, color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
                     // Title
                     Text(
                       tierTitle,

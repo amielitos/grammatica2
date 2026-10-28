@@ -20,6 +20,7 @@ import '../services/role_service.dart';
 import 'browse_educators_tab.dart';
 import 'practice_tab.dart';
 import '../widgets/notification_widgets.dart';
+import '../widgets/center_notice_dialog.dart';
 import '../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -29,6 +30,8 @@ import '../models/playlist.dart';
 import '../widgets/playlist_card.dart';
 import '../models/badge_model.dart';
 import '../services/badge_service.dart';
+import '../models/published_content_item.dart';
+import '../models/notebook_models.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -65,7 +68,6 @@ class _HomePageState extends State<HomePage> {
   late int _tabIndex;
 
   final _profileKey = GlobalKey<ProfilePageState>();
-  final _firestore = FirebaseFirestore.instance;
   Timer? _mentorshipReminderTimer;
 
   @override
@@ -104,46 +106,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _checkProfileCompletion() async {
-    try {
-      final String? phone = widget.userData['phone_number'];
-      final Timestamp? dobTs = widget.userData['date_of_birth'] as Timestamp?;
-
-      if (phone == null || phone.isEmpty || dobTs == null) {
-        final achRef = _firestore
-            .collection('users')
-            .doc(widget.user.uid)
-            .collection('achievements')
-            .doc('profile_reminder');
-
-        final achDoc = await achRef.get();
-        bool shouldNotify = false;
-
-        if (!achDoc.exists) {
-          shouldNotify = true;
-        } else {
-          final lastSent = (achDoc.data()?['achievedAt'] as Timestamp?)
-              ?.toDate();
-          if (lastSent != null) {
-            final daysSince = DateTime.now().difference(lastSent).inDays;
-            if (daysSince >= 7) {
-              shouldNotify = true;
-            }
-          }
-        }
-
-        if (shouldNotify) {
-          await NotificationService.instance.sendProfileReminderNotification(
-            widget.user.uid,
-          );
-          await achRef.set({
-            'achievedAt': FieldValue.serverTimestamp(),
-            'id': 'profile_reminder',
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error checking profile completion: $e');
-    }
+    // Disabled automated profile reminder notifications
   }
 
   List<ModernNavItem> _buildNavItems(User user) {
@@ -206,6 +169,14 @@ class _HomePageState extends State<HomePage> {
           );
         },
         onLogoTap: () {
+          if (PracticeTab.isGenerating.value) {
+            CenterNoticeDialog.show(
+              context,
+              title: 'Generation in Progress',
+              message: 'Please wait until the AI finishes generating before returning to dashboard.',
+            );
+            return;
+          }
           setState(() {
             _tabIndex = 0;
           });
@@ -225,6 +196,14 @@ class _HomePageState extends State<HomePage> {
         currentIndex: _tabIndex,
         navItems: navItems,
         onTap: (index) {
+          if (PracticeTab.isGenerating.value) {
+            CenterNoticeDialog.show(
+              context,
+              title: 'Generation in Progress',
+              message: 'Please wait until the AI finishes generating before switching tabs.',
+            );
+            return;
+          }
           setState(() {
             _tabIndex = index;
             _persistedTabIndex = index;
@@ -266,6 +245,7 @@ class _LessonsListState extends State<_LessonsList> {
   String _selectedFilter = 'All';
   late Stream<Map<String, Map<String, dynamic>>> _progressStream;
   late final Stream<List<Lesson>> _lessonsStream;
+  late final Stream<List<PublishedContentItem>> _publishedStream;
 
   @override
   void initState() {
@@ -275,6 +255,7 @@ class _LessonsListState extends State<_LessonsList> {
       userId: widget.user.uid,
     );
     _progressStream = DatabaseService.instance.progressStream(widget.user);
+    _publishedStream = DatabaseService.instance.streamPublishedContent();
     DatabaseService.instance.migrateAdminLessonsToGrammaticaOfficial();
   }
 
@@ -301,47 +282,51 @@ class _LessonsListState extends State<_LessonsList> {
         }
         final lessons = snapshot.data!;
 
-        return StreamBuilder<Map<String, Map<String, dynamic>>>(
-          stream: _progressStream,
-          builder: (context, progressSnap) {
-            final progressMap = progressSnap.data ?? {};
+        return StreamBuilder<List<PublishedContentItem>>(
+          stream: _publishedStream,
+          builder: (context, pubSnap) {
+            final publishedItems = pubSnap.data ?? const <PublishedContentItem>[];
 
-            final grammaticaLessons = lessons
-                .where((l) =>
-                    l.isGrammaticaLesson == true ||
-                    (l.createdByEmail != null &&
-                        l.createdByEmail!.toLowerCase().contains('admin')))
-                .toList();
+            return StreamBuilder<Map<String, Map<String, dynamic>>>(
+              stream: _progressStream,
+              builder: (context, progressSnap) {
+                final progressMap = progressSnap.data ?? {};
 
-            final publicLessons = lessons.where((l) {
-              if (l.isGrammaticaLesson) return false;
-              if (l.createdByEmail != null &&
-                  l.createdByEmail!.toLowerCase().contains('admin')) {
-                return false;
-              }
-              if (!l.isVisible) return false;
-              return true;
-            }).toList();
-            // Calculate completed counts for each hub
-            final int grammaticaCompleted = grammaticaLessons.where((l) => progressMap[l.id]?['completed'] == true).length;
-            final int publicCompleted = publicLessons.where((l) => progressMap[l.id]?['completed'] == true).length;
+                final grammaticaLessons = lessons
+                    .where((l) =>
+                        l.isGrammaticaLesson == true ||
+                        (l.createdByEmail != null &&
+                            l.createdByEmail!.toLowerCase().contains('admin')))
+                    .toList();
 
+                final publicLessons = lessons.where((l) {
+                  if (l.isGrammaticaLesson) return false;
+                  if (l.createdByEmail != null &&
+                      l.createdByEmail!.toLowerCase().contains('admin')) {
+                    return false;
+                  }
+                  if (!l.isVisible) return false;
+                  return true;
+                }).toList();
+                // Calculate completed counts for each hub
+                final int grammaticaCompleted = grammaticaLessons.where((l) => progressMap[l.id]?['completed'] == true).length;
+                final int publicCompleted = publicLessons.where((l) => progressMap[l.id]?['completed'] == true).length;
 
-
-            if (_activeFolder != null) {
-              return LessonFolderPage(
-                user: widget.user,
-                title: _activeFolder!['title'],
-                pillLabel: _activeFolder!['pillLabel'],
-                lessons: _activeFolder!['lessons'],
-                isPublicContentFolder:
-                    _activeFolder!['isPublicFolder'] ?? false,
-                onBack: () {
-                  setState(() => _activeFolder = null);
-                  widget.onFolderChanged?.call(null);
-                },
-              );
-            }
+                if (_activeFolder != null) {
+                  return LessonFolderPage(
+                    user: widget.user,
+                    title: _activeFolder!['title'],
+                    pillLabel: _activeFolder!['pillLabel'],
+                    lessons: _activeFolder!['lessons'],
+                    publishedItems: publishedItems,
+                    isPublicContentFolder:
+                        _activeFolder!['isPublicFolder'] ?? false,
+                    onBack: () {
+                      setState(() => _activeFolder = null);
+                      widget.onFolderChanged?.call(null);
+                    },
+                  );
+                }
 
             // Workaround: Display the 'last lesson' the user viewed instead of attempting
             // to compute an uncompleted/current lesson (which incorrectly reported legacy
@@ -442,7 +427,8 @@ class _LessonsListState extends State<_LessonsList> {
                       _buildLiveStatsOverview(
                         context,
                         isDark: isDark,
-                        fallbackLessonsCompleted: grammaticaCompleted + publicCompleted,
+                        allLessons: lessons,
+                        publishedItems: publishedItems,
                       ),
                       const SizedBox(height: 16),
 
@@ -730,6 +716,8 @@ class _LessonsListState extends State<_LessonsList> {
         );
       },
     );
+  },
+);
   }
 
   Widget _buildPlaylistsSection(BuildContext context, bool isDark) {
@@ -994,7 +982,8 @@ class _LessonsListState extends State<_LessonsList> {
   Widget _buildLiveStatsOverview(
     BuildContext context, {
     required bool isDark,
-    required int fallbackLessonsCompleted,
+    required List<Lesson> allLessons,
+    required List<PublishedContentItem> publishedItems,
   }) {
     return StreamBuilder<Map<String, dynamic>>(
       stream: DatabaseService.instance.userStatsSummaryStream(widget.user.uid),
@@ -1005,14 +994,60 @@ class _LessonsListState extends State<_LessonsList> {
           stream: DatabaseService.instance.progressStream(widget.user),
           builder: (context, progressSnap) {
             final liveProgressMap = progressSnap.data ?? {};
-            final liveCompletedLessons = liveProgressMap.values.where((p) => p['completed'] == true).length;
-            final summaryLessons = (stats['totalLessonsCompleted'] as num?)?.toInt() ?? 0;
-            final int lessons = liveCompletedLessons > summaryLessons ? liveCompletedLessons : (summaryLessons > 0 ? summaryLessons : fallbackLessonsCompleted);
 
             return StreamBuilder<Map<String, Map<String, dynamic>>>(
               stream: DatabaseService.instance.quizProgressStream(widget.user),
               builder: (context, quizSnap) {
                 final quizMap = quizSnap.data ?? {};
+
+                // Compute fully completed lessons (Requirement: all components completed)
+                int liveCompletedLessons = 0;
+                for (final l in allLessons) {
+                  // 1. Handout / Lesson reading
+                  final handoutDone = liveProgressMap[l.id]?['completed'] == true;
+                  if (!handoutDone) continue;
+
+                  final companions = publishedItems.where((p) =>
+                      p.lessonId == l.id ||
+                      (l.notebookId != null && p.notebookId == l.notebookId)).toList();
+
+                  // 2. Slides
+                  final presItems = companions.where((p) => p.type == NotebookOutputType.presentation).toList();
+                  bool slidesDone = true;
+                  if (presItems.isNotEmpty) {
+                    slidesDone = presItems.every((p) =>
+                        liveProgressMap[p.id]?['completed'] == true ||
+                        liveProgressMap['${l.id}_slides']?['completed'] == true);
+                  }
+                  if (!slidesDone) continue;
+
+                  // 3. Flashcards
+                  final fcItems = companions.where((p) => p.type == NotebookOutputType.flashcards).toList();
+                  bool fcDone = true;
+                  if (fcItems.isNotEmpty) {
+                    fcDone = fcItems.every((p) =>
+                        liveProgressMap[p.id]?['completed'] == true ||
+                        liveProgressMap['${l.id}_flashcards']?['completed'] == true);
+                  }
+                  if (!fcDone) continue;
+
+                  // 4. Quiz
+                  final quizItems = companions.where((p) => p.type == NotebookOutputType.quiz).toList();
+                  final qId = (l.quizId != null && l.quizId!.isNotEmpty)
+                      ? l.quizId
+                      : (quizItems.isNotEmpty ? quizItems.first.id : null);
+                  bool quizDone = true;
+                  if (qId != null) {
+                    final qp = quizMap[qId];
+                    quizDone = qp != null && (qp['completed'] == true || qp['passed'] == true);
+                  }
+                  if (!quizDone) continue;
+
+                  liveCompletedLessons++;
+                }
+
+                final summaryLessons = (stats['totalLessonsCompleted'] as num?)?.toInt() ?? 0;
+                final int lessons = liveCompletedLessons > summaryLessons ? liveCompletedLessons : summaryLessons;
                 int liveQuizzesTaken = 0;
                 double liveScoreSum = 0;
                 int liveScoredCount = 0;

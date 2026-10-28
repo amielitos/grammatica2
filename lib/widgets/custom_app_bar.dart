@@ -8,6 +8,8 @@ import '../pages/home_page.dart';
 import '../pages/admin_dashboard.dart';
 import '../services/auth_service.dart';
 import 'universal_drawer.dart';
+import 'center_notice_dialog.dart';
+import '../pages/practice_tab.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final User user;
@@ -99,6 +101,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       hoverColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
                       mouseCursor: SystemMouseCursors.click,
                       onTap: () {
+                        if (PracticeTab.isGenerating.value) {
+                          CenterNoticeDialog.show(
+                            context,
+                            title: 'Generation in Progress',
+                            message: 'Please wait until the AI finishes generating before returning to the dashboard.',
+                          );
+                          return;
+                        }
                         AdminDashboard.resetToDashboard();
                         HomePage.resetToDashboard();
                         if (onLogoTap != null) {

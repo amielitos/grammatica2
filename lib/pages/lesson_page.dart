@@ -141,36 +141,24 @@ class _LessonPageState extends State<LessonPage> {
     if (!_scrollController.hasClients) return;
 
     final maxScroll = _scrollController.position.maxScrollExtent;
-    // Do not auto-complete on initial layout or small/unscrollable content
+    // Do not update on initial layout or unscrollable content
     if (maxScroll <= 50) return;
 
     final currentScroll = _scrollController.position.pixels;
     if (currentScroll <= 0) return;
 
     final hasLinkedQuiz = _lesson.quizId != null && _lesson.quizId!.isNotEmpty;
-    // If it has a quiz, reading only gives up to 50% progress. Passing the quiz completes the rest.
-    final double maxReadingProgress = hasLinkedQuiz ? 0.5 : 1.0;
+    // If it has a quiz, reading accounts for up to 50% of the lesson progress.
+    final double maxReadingProgress = hasLinkedQuiz ? 0.5 : 0.95;
     final double rawRatio = (currentScroll / maxScroll).clamp(0.0, 1.0);
-    double newProgress = (rawRatio * maxReadingProgress).clamp(0.0, maxReadingProgress);
-
-    final reachedBottom = currentScroll >= (maxScroll - 30);
-    if (!hasLinkedQuiz && reachedBottom) {
-      newProgress = 1.0;
-    }
+    final double newProgress = (rawRatio * maxReadingProgress).clamp(0.0, maxReadingProgress);
 
     if (newProgress > _progress) {
       setState(() {
         _progress = newProgress;
-        if (!hasLinkedQuiz && reachedBottom) {
-          _isCompleted = true;
-        }
       });
-      if (_isCompleted) {
-        _updateProgressToDb();
-      } else {
-        _debounceTimer?.cancel();
-        _debounceTimer = Timer(const Duration(seconds: 2), _updateProgressToDb);
-      }
+      _debounceTimer?.cancel();
+      _debounceTimer = Timer(const Duration(seconds: 2), _updateProgressToDb);
     }
   }
 

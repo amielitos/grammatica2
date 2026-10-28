@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/study_guide_models.dart';
+import '../../services/auth_service.dart';
+import '../../services/database_service.dart';
 import '../../theme/app_colors.dart';
 
 /// Clean, responsive slideshow presentation viewer for generated presentations.
@@ -48,6 +50,26 @@ class _PresentationViewState extends State<PresentationView> {
   void _nextSlide() {
     if (_currentSlideIndex < _slides.length - 1) {
       setState(() => _currentSlideIndex++);
+    }
+  }
+
+  Future<void> _completePresentation() async {
+    final user = AuthService.liveUser;
+    if (widget.outputId.isNotEmpty) {
+      await DatabaseService.instance.markContentCompleted(
+        user: user,
+        contentId: widget.outputId,
+        completed: true,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Presentation completed! Great job! 🎉'),
+            backgroundColor: Color(0xFF10B981),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -439,9 +461,9 @@ class _PresentationViewState extends State<PresentationView> {
                   ),
                 ),
 
-                // Next Slide Button
+                // Next Slide / Completed Button
                 ElevatedButton.icon(
-                  onPressed: isLast ? null : _nextSlide,
+                  onPressed: isLast ? _completePresentation : _nextSlide,
                   icon: Text(
                     isLast ? 'Completed' : 'Next',
                     style: GoogleFonts.inter(fontWeight: FontWeight.bold),
@@ -451,7 +473,7 @@ class _PresentationViewState extends State<PresentationView> {
                     size: 18,
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6366F1),
+                    backgroundColor: isLast ? const Color(0xFF10B981) : const Color(0xFF6366F1),
                     foregroundColor: Colors.white,
                     disabledForegroundColor: isDark ? Colors.white24 : Colors.grey.shade400,
                     disabledBackgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade200,

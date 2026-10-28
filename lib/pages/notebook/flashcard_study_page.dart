@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/flashcard_models.dart';
 import '../../services/auth_service.dart';
+import '../../services/database_service.dart';
 import '../../services/spaced_repetition_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/notebook/flashcard_widget.dart';
@@ -381,6 +382,15 @@ class _FlashcardStudyPageState extends State<FlashcardStudyPage> {
       session: session,
     );
     _sessionReviews.clear();
+
+    final liveUser = AuthService.liveUser;
+    if (widget.deck.id.isNotEmpty) {
+      DatabaseService.instance.markContentCompleted(
+        user: liveUser,
+        contentId: widget.deck.id,
+        completed: true,
+      );
+    }
 
     setState(() {
       _isSessionFinished = true;

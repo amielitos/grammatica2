@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +10,7 @@ import '../../widgets/author_name_widget.dart';
 import '../../widgets/content_denial_dialog.dart';
 import '../../widgets/interactive_markdown.dart';
 import '../../widgets/archive_management_dialog.dart';
+import '../../widgets/pagination_bar.dart';
 import '../../theme/app_colors.dart';
 import '../lesson_page.dart';
 
@@ -23,14 +25,20 @@ class AdminLessonDatabaseTab extends StatefulWidget {
 
 class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
   String _searchQuery = '';
-  String _searchCriteria = 'all'; // 'all', 'title', 'author'
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  int _currentPage = 1;
+  static const int _pageSize = 8;
   String _statusFilter = 'all'; // 'all', 'approved', 'awaiting_approval', 'rejected'
+  String _authorFilter = 'all'; // 'all' or specific author email
   DateTime? _selectedDate;
   final Set<String> _superAdminUids = {};
+  late final Stream<List<Lesson>> _lessonsStream;
 
   @override
   void initState() {
     super.initState();
+    _lessonsStream = DatabaseService.instance.streamAllLessonsDatabase();
     FirebaseFirestore.instance
         .collection('users')
         .where('role', isEqualTo: 'SUPERADMIN')
@@ -42,6 +50,13 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   String _formatDate(dynamic ts) {
@@ -70,6 +85,39 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
     if (ts is Timestamp) return ts.toDate().toLocal();
     if (ts is DateTime) return ts.toLocal();
     return null;
+  }
+
+  static final Map<String, String> _authorNameCache = {};
+
+  String _getAuthorDisplayName(String uid, String? email, bool isGrammatica) {
+    if (isGrammatica || (email != null && email.toLowerCase().contains('admin@'))) {
+      return 'Grammatica Official';
+    }
+    if (uid.isNotEmpty && _authorNameCache.containsKey(uid)) {
+      return _authorNameCache[uid]!;
+    }
+    if (uid.isNotEmpty) {
+      FirebaseFirestore.instance.collection('users').doc(uid).get().then((doc) {
+        if (doc.exists && doc.data() != null) {
+          final d = doc.data()!;
+          final fn = (d['first_name'] as String?)?.trim() ?? '';
+          final ln = (d['last_name'] as String?)?.trim() ?? '';
+          final full = [fn, ln].where((s) => s.isNotEmpty).join(' ');
+          final display = (d['displayName'] as String?)?.trim() ?? (d['username'] as String?)?.trim() ?? '';
+          final name = full.isNotEmpty ? full : (display.isNotEmpty ? display : (email?.split('@').first ?? 'Educator'));
+          if (mounted && _authorNameCache[uid] != name) {
+            setState(() {
+              _authorNameCache[uid] = name;
+            });
+          }
+        }
+      }).catchError((_) {});
+    }
+    if (email != null && email.contains('@')) {
+      final handle = email.split('@').first;
+      return handle.isNotEmpty ? handle : 'Educator';
+    }
+    return email ?? 'Educator';
   }
 
   Color _statusColor(String? status) {
@@ -106,7 +154,10 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
       },
     );
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        _currentPage = 1;
+      });
     }
   }
 
@@ -605,7 +656,7 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return StreamBuilder<List<Lesson>>(
-      stream: DatabaseService.instance.streamAllLessonsDatabase(),
+      stream: _lessonsStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -627,17 +678,42 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
           );
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final allLessons = snapshot.data ?? [];
+
+        // Extract unique authors for filtering
+        final Map<String, _AuthorFilterItem> authorMap = {};
+        for (final l in allLessons) {
+          final key = (l.createdByUid != null && l.createdByUid!.isNotEmpty)
+              ? l.createdByUid!
+              : (l.createdByEmail?.trim() ?? '');
+          if (key.isNotEmpty && !authorMap.containsKey(key)) {
+            final name = _getAuthorDisplayName(l.createdByUid ?? '', l.createdByEmail, l.isGrammaticaLesson);
+            authorMap[key] = _AuthorFilterItem(key, name);
+          }
+        }
+        final sortedAuthors = authorMap.values.toList()
+          ..sort((a, b) => a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()));
 
         // Apply Search & Filters
         var filteredLessons = allLessons.where((lesson) {
           // Admin (non-superadmin) should not view lessons for approval
           if (widget.role == UserRole.admin && lesson.validationStatus == 'awaiting_approval') {
             return false;
+          }
+
+          // Author filter
+          if (_authorFilter != 'all') {
+            final authorKey = (lesson.createdByUid != null && lesson.createdByUid!.isNotEmpty)
+                ? lesson.createdByUid!
+                : (lesson.createdByEmail ?? '');
+            if (authorKey.toLowerCase() != _authorFilter.toLowerCase() &&
+                (lesson.createdByEmail ?? '').toLowerCase() != _authorFilter.toLowerCase()) {
+              return false;
+            }
           }
 
           // Status filter
@@ -659,19 +735,16 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
             }
           }
 
-          // Text Search filter
+          // Text Search filter (searches across all lesson fields)
           if (_searchQuery.trim().isNotEmpty) {
             final q = _searchQuery.trim().toLowerCase();
             final titleMatch = lesson.title.toLowerCase().contains(q);
             final authorMatch = (lesson.createdByEmail ?? '').toLowerCase().contains(q);
             final promptMatch = lesson.prompt.toLowerCase().contains(q);
+            final contentMatch = lesson.answer.toLowerCase().contains(q);
 
-            if (_searchCriteria == 'title') {
-              return titleMatch;
-            } else if (_searchCriteria == 'author') {
-              return authorMatch;
-            } else {
-              return titleMatch || authorMatch || promptMatch;
+            if (!(titleMatch || authorMatch || promptMatch || contentMatch)) {
+              return false;
             }
           }
 
@@ -749,60 +822,9 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                     ),
                     const SizedBox(height: 20),
 
-                    // ── 30-Day Archive Retention Notice ──────────────────────
+                    // ── Clean Search Bar ─────────────────────────────────────
                     Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                          width: 1.2,
-                        ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.archive_outlined,
-                            color: Color(0xFFE05050),
-                            size: 26,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'CONTENT ARCHIVE & 30-DAY RETENTION',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.8,
-                                    color: const Color(0xFFE05050),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Deleted lessons are moved to the Archive. After 30 days, the content will be permanently deleted from Grammatica. You can restore archived content at any time before expiration.',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    color: isDark ? Colors.white70 : const Color(0xFF475569),
-                                    height: 1.45,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ── Search & Filter Controls ─────────────────────────────
-                    Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
@@ -817,200 +839,81 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                           ),
                         ],
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
                         children: [
-                          // Search row
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? const Color(0xFF0F172A).withValues(alpha: 0.6)
-                                        : const Color(0xFFF8FAFC),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: isDark ? Colors.white12 : Colors.grey.shade200,
-                                    ),
-                                  ),
-                                  child: TextField(
-                                    onChanged: (val) => setState(() => _searchQuery = val),
-                                    style: GoogleFonts.inter(fontSize: 14),
-                                    decoration: InputDecoration(
-                                      hintText: 'Search by title, prompt, author name, or email...',
-                                      hintStyle: GoogleFonts.inter(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 13,
-                                      ),
-                                      prefixIcon: const Icon(
-                                        Icons.search_rounded,
-                                        color: AppColors.primary,
-                                        size: 20,
-                                      ),
-                                      suffixIcon: _searchQuery.isNotEmpty
-                                          ? IconButton(
-                                              icon: const Icon(Icons.clear, size: 18),
-                                              onPressed: () => setState(() => _searchQuery = ''),
-                                            )
-                                          : null,
-                                      border: InputBorder.none,
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 14,
-                                      ),
-                                    ),
-                                  ),
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF0F172A).withValues(alpha: 0.6)
+                                    : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isDark ? Colors.white12 : Colors.grey.shade200,
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Filter chips row: Search Criteria, Date Filter, Status Filter
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              // Criteria Selector
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: isDark ? Colors.white10 : Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Criteria: ',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                    DropdownButton<String>(
-                                      value: _searchCriteria,
-                                      underline: const SizedBox.shrink(),
-                                      isDense: true,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark ? Colors.white : AppColors.textPrimary,
-                                      ),
-                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                      items: const [
-                                        DropdownMenuItem(value: 'all', child: Text('All Fields')),
-                                        DropdownMenuItem(value: 'title', child: Text('Title')),
-                                        DropdownMenuItem(value: 'author', child: Text('Author')),
-                                      ],
-                                      onChanged: (v) {
-                                        if (v != null) setState(() => _searchCriteria = v);
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              // Status Selector
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: isDark ? Colors.white10 : Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Status: ',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                    DropdownButton<String>(
-                                      value: _statusFilter,
-                                      underline: const SizedBox.shrink(),
-                                      isDense: true,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDark ? Colors.white : AppColors.textPrimary,
-                                      ),
-                                      dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                      items: [
-                                        const DropdownMenuItem(value: 'all', child: Text('All Statuses')),
-                                        const DropdownMenuItem(value: 'approved', child: Text('Published')),
-                                        if (widget.role != UserRole.admin)
-                                          const DropdownMenuItem(value: 'awaiting_approval', child: Text('Pending Review')),
-                                        const DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
-                                      ],
-                                      onChanged: (v) {
-                                        if (v != null) setState(() => _statusFilter = v);
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              // Date Filter Button
-                              ActionChip(
-                                avatar: Icon(
-                                  Icons.calendar_today_rounded,
-                                  size: 14,
-                                  color: _selectedDate != null ? Colors.white : AppColors.primary,
-                                ),
-                                label: Text(
-                                  _selectedDate != null
-                                      ? 'Date: ${_formatDate(_selectedDate)}'
-                                      : 'Filter by Date',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: _selectedDate != null ? Colors.white : AppColors.primary,
-                                  ),
-                                ),
-                                backgroundColor: _selectedDate != null
-                                    ? AppColors.primary
-                                    : AppColors.primary.withValues(alpha: 0.1),
-                                onPressed: () => _pickDate(context),
-                              ),
-
-                              // Reset Date filter if set
-                              if (_selectedDate != null)
-                                TextButton.icon(
-                                  onPressed: () => setState(() => _selectedDate = null),
-                                  icon: const Icon(Icons.clear_rounded, size: 14),
-                                  label: Text(
-                                    'Clear Date',
-                                    style: GoogleFonts.inter(fontSize: 12),
-                                  ),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.redAccent,
-                                  ),
-                                ),
-
-                              // Count Badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: isDark ? Colors.white10 : Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  '${filteredLessons.length} lessons found',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                              child: TextField(
+                                controller: _searchController,
+                                onChanged: (val) {
+                                  _searchDebounce?.cancel();
+                                  _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+                                    if (mounted) {
+                                      setState(() {
+                                        _searchQuery = val;
+                                        _currentPage = 1;
+                                      });
+                                    }
+                                  });
+                                },
+                                style: GoogleFonts.inter(fontSize: 14),
+                                decoration: InputDecoration(
+                                  hintText: 'Search by title, prompt, author name, or email...',
+                                  hintStyle: GoogleFonts.inter(
                                     color: AppColors.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.search_rounded,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
+                                  suffixIcon: _searchController.text.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.clear, size: 18),
+                                          onPressed: () {
+                                            _searchDebounce?.cancel();
+                                            _searchController.clear();
+                                            setState(() {
+                                              _searchQuery = '';
+                                              _currentPage = 1;
+                                            });
+                                          },
+                                        )
+                                      : null,
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 14,
                                   ),
                                 ),
                               ),
-                            ],
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white10 : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${filteredLessons.length} lessons',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -1018,6 +921,14 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                     const SizedBox(height: 16),
                   ],
                 ),
+              ),
+            ),
+
+            // ── Table Header With Column Filters ──────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                child: _buildTableHeader(context, isDark, sortedAuthors),
               ),
             ),
 
@@ -1046,34 +957,330 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Try clearing search keywords or resetting the date filter.',
+                          'Try clearing search keywords or resetting table filters.',
                           style: GoogleFonts.inter(
                             fontSize: 13,
                             color: AppColors.textSecondary,
                           ),
                         ),
+                        if (_authorFilter != 'all' || _statusFilter != 'all' || _selectedDate != null || _searchQuery.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              _searchDebounce?.cancel();
+                              _searchController.clear();
+                              setState(() {
+                                _searchQuery = '';
+                                _authorFilter = 'all';
+                                _statusFilter = 'all';
+                                _selectedDate = null;
+                                _currentPage = 1;
+                              });
+                            },
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Reset All Filters'),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ),
               )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final lesson = filteredLessons[index];
-                      return _buildLessonDatabaseRow(context, lesson, isDark);
-                    },
-                    childCount: filteredLessons.length,
+            else ...[
+              Builder(
+                builder: (context) {
+                  final totalItems = filteredLessons.length;
+                  final maxPage = (totalItems / _pageSize).ceil().clamp(1, 9999);
+                  final currentPageSafe = _currentPage.clamp(1, maxPage);
+                  final startIndex = (currentPageSafe - 1) * _pageSize;
+                  final pageLessons = filteredLessons.skip(startIndex).take(_pageSize).toList();
+
+                  return SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final lesson = pageLessons[index];
+                          return _buildLessonDatabaseRow(context, lesson, isDark);
+                        },
+                        childCount: pageLessons.length,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              if (filteredLessons.length > _pageSize)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                    child: PaginationBar(
+                      currentPage: _currentPage,
+                      totalItems: filteredLessons.length,
+                      pageSize: _pageSize,
+                      itemName: 'lessons',
+                      onPageChanged: (newPage) {
+                        setState(() => _currentPage = newPage);
+                      },
+                    ),
                   ),
                 ),
-              ),
+            ],
             const SliverToBoxAdapter(child: SizedBox(height: 48)),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildTableHeader(BuildContext context, bool isDark, List<_AuthorFilterItem> authors) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.7) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : Colors.grey.shade300,
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth >= 720;
+          if (!isDesktop) {
+            // Mobile compact filters
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildStatusFilterDropdown(isDark),
+                  const SizedBox(width: 8),
+                  _buildAuthorFilterDropdown(isDark, authors),
+                  const SizedBox(width: 8),
+                  _buildDateFilterChip(context, isDark),
+                ],
+              ),
+            );
+          }
+
+          return Row(
+            children: [
+              // Icon spacer 44 + 16
+              const SizedBox(width: 60),
+              // Lesson Title column (flex 4)
+              Expanded(
+                flex: 4,
+                child: Text(
+                  'LESSON DETAILS',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Author column (flex 3) with Author Filter Dropdown
+              Expanded(
+                flex: 3,
+                child: _buildAuthorFilterDropdown(isDark, authors),
+              ),
+              const SizedBox(width: 16),
+              // Status column (flex 2) with Status Filter Dropdown
+              Expanded(
+                flex: 2,
+                child: _buildStatusFilterDropdown(isDark),
+              ),
+              const SizedBox(width: 16),
+              // Created Date column (flex 2) with Date Filter Picker
+              Expanded(
+                flex: 2,
+                child: _buildDateFilterChip(context, isDark),
+              ),
+              const SizedBox(width: 16),
+              // Actions column header (approx width matching action buttons)
+              SizedBox(
+                width: 155,
+                child: Center(
+                  child: Text(
+                    'ACTIONS',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildAuthorFilterDropdown(bool isDark, List<_AuthorFilterItem> authors) {
+    final selectedItem = authors.firstWhere(
+      (a) => a.key.toLowerCase() == _authorFilter.toLowerCase(),
+      orElse: () => _AuthorFilterItem('all', 'All Authors'),
+    );
+
+    return PopupMenuButton<String>(
+      tooltip: 'Filter by author',
+      onSelected: (val) {
+        setState(() {
+          _authorFilter = val;
+          _currentPage = 1;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: _authorFilter != 'all' ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                _authorFilter == 'all'
+                    ? 'AUTHOR'
+                    : 'AUTHOR: ${selectedItem.displayName.toUpperCase()}',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: _authorFilter != 'all' ? AppColors.primary : AppColors.textSecondary,
+                  letterSpacing: 0.6,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.filter_list_rounded,
+              size: 14,
+              color: _authorFilter != 'all' ? AppColors.primary : AppColors.textSecondary,
+            ),
+            if (_authorFilter != 'all') ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () => setState(() {
+                  _authorFilter = 'all';
+                  _currentPage = 1;
+                }),
+                child: const Icon(Icons.close_rounded, size: 14, color: Colors.redAccent),
+              ),
+            ],
+          ],
+        ),
+      ),
+      itemBuilder: (ctx) => [
+        const PopupMenuItem(value: 'all', child: Text('All Authors')),
+        ...authors.map((a) => PopupMenuItem(value: a.key, child: Text(a.displayName))),
+      ],
+    );
+  }
+
+  Widget _buildStatusFilterDropdown(bool isDark) {
+    return PopupMenuButton<String>(
+      tooltip: 'Filter by status',
+      onSelected: (val) {
+        setState(() {
+          _statusFilter = val;
+          _currentPage = 1;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: _statusFilter != 'all' ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _statusFilter == 'all' ? 'STATUS' : 'STATUS: ${_statusFilter.toUpperCase()}',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: _statusFilter != 'all' ? AppColors.primary : AppColors.textSecondary,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.filter_alt_outlined,
+              size: 14,
+              color: _statusFilter != 'all' ? AppColors.primary : AppColors.textSecondary,
+            ),
+            if (_statusFilter != 'all') ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () => setState(() {
+                  _statusFilter = 'all';
+                  _currentPage = 1;
+                }),
+                child: const Icon(Icons.close_rounded, size: 14, color: Colors.redAccent),
+              ),
+            ],
+          ],
+        ),
+      ),
+      itemBuilder: (ctx) => [
+        const PopupMenuItem(value: 'all', child: Text('All Statuses')),
+        const PopupMenuItem(value: 'approved', child: Text('Published')),
+        if (widget.role != UserRole.admin)
+          const PopupMenuItem(value: 'awaiting_approval', child: Text('Pending Review')),
+        const PopupMenuItem(value: 'rejected', child: Text('Rejected')),
+      ],
+    );
+  }
+
+  Widget _buildDateFilterChip(BuildContext context, bool isDark) {
+    return InkWell(
+      onTap: () => _pickDate(context),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: _selectedDate != null ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _selectedDate == null ? 'CREATED' : 'CREATED: ${_formatDate(_selectedDate)}',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: _selectedDate != null ? AppColors.primary : AppColors.textSecondary,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 13,
+              color: _selectedDate != null ? AppColors.primary : AppColors.textSecondary,
+            ),
+            if (_selectedDate != null) ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () => setState(() {
+                  _selectedDate = null;
+                  _currentPage = 1;
+                }),
+                child: const Icon(Icons.close_rounded, size: 14, color: Colors.redAccent),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -1442,4 +1649,10 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
       ),
     );
   }
+}
+
+class _AuthorFilterItem {
+  final String key;
+  final String displayName;
+  _AuthorFilterItem(this.key, this.displayName);
 }

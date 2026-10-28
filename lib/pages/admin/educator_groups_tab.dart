@@ -8,6 +8,7 @@ import '../../services/agora_service.dart';
 import 'package:intl/intl.dart';
 import '../conference_page.dart';
 import '../../widgets/pagination_bar.dart';
+import '../../widgets/center_notice_dialog.dart';
 
 Widget buildConferenceAppBadge(String? app, {bool compact = false}) {
   const brand = Color(0xFF81B655);
@@ -131,28 +132,6 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: 'mobile_set_availability_fab',
-            onPressed: () => _showSetAvailabilityDialog(context),
-            icon: const Icon(Icons.event_available_rounded, color: Color(0xFF81B655), size: 20),
-            label: const Text('Set Availability', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF81B655))),
-            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-            elevation: 3,
-          ),
-          const SizedBox(height: 10),
-          FloatingActionButton.extended(
-            heroTag: 'mobile_new_mentorship_fab',
-            backgroundColor: primaryPurple,
-            onPressed: () => _showBookingModal(context),
-            icon: const Icon(Icons.video_call_rounded, color: Colors.white, size: 22),
-            label: const Text('New mentorship', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
-          ),
-        ],
-      ),
       body: Column(
         children: [
           // Month Header & Navigation
@@ -1371,10 +1350,12 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
   String? _sid;
   String? _snam;
   bool _isSubmitting = false;
+  bool _titleTouched = false;
 
   @override
   void initState() {
     super.initState();
+    _titleController.addListener(_onTitleChanged);
     final now = DateTime.now();
     int nextHour = now.minute > 30 ? (now.hour + 2) : (now.hour + 1);
     if (nextHour >= 24) {
@@ -1399,6 +1380,17 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
         if (diff > 0) _duration = diff;
       }
     }
+  }
+
+  void _onTitleChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _titleController.removeListener(_onTitleChanged);
+    _titleController.dispose();
+    super.dispose();
   }
 
   @override
@@ -1499,6 +1491,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                 style: GoogleFonts.inter(fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'e.g. Grammar Practice & Accent Coaching',
+                  errorText: _titleTouched && _titleController.text.trim().isEmpty ? 'Meeting title is required' : null,
                   filled: true,
                   fillColor: isDark ? Colors.white10 : Colors.grey.withValues(alpha: canEditName ? 0.05 : 0.15),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.divider)),
@@ -1727,7 +1720,26 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             elevation: 0,
           ),
-          onPressed: _isSubmitting || (isEditing && !canEditName) ? null : _handleSchedule,
+          onPressed: _isSubmitting || (isEditing && !canEditName)
+              ? null
+              : () {
+                  final title = _titleController.text.trim();
+                  if (title.isEmpty) {
+                    setState(() => _titleTouched = true);
+                    return;
+                  }
+                  if (_sid == null || _sid!.isEmpty) {
+                    CenterNoticeDialog.show(
+                      context,
+                      title: 'Student Required',
+                      message: 'Please select an enrolled student to proceed with scheduling.',
+                      icon: Icons.person_search_rounded,
+                      iconColor: Colors.amber,
+                    );
+                    return;
+                  }
+                  _handleSchedule();
+                },
           child: _isSubmitting 
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : Text(isEditing ? 'Update' : 'Schedule', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
@@ -1737,8 +1749,19 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
   }
 
   Future<void> _handleSchedule() async {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      setState(() => _titleTouched = true);
+      return;
+    }
     if (_sid == null || _sid!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a student')));
+      CenterNoticeDialog.show(
+        context,
+        title: 'Student Required',
+        message: 'Please select an enrolled student to proceed with scheduling.',
+        icon: Icons.person_search_rounded,
+        iconColor: Colors.amber,
+      );
       return;
     }
     setState(() => _isSubmitting = true);
@@ -1834,12 +1857,6 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
       }
     }
   }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    super.dispose();
-  }
 }
 
 class EducatorSetAvailabilityDialog extends StatefulWidget {
@@ -1851,10 +1868,11 @@ class EducatorSetAvailabilityDialog extends StatefulWidget {
 }
 
 class _EducatorSetAvailabilityDialogState extends State<EducatorSetAvailabilityDialog> {
-  final _topicController = TextEditingController(text: '1-on-1 Mentorship');
+  final _topicController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   late TimeOfDay _startTime;
   bool _isSaving = false;
+  bool _titleTouched = false;
 
   @override
   void initState() {
@@ -1921,12 +1939,16 @@ class _EducatorSetAvailabilityDialogState extends State<EducatorSetAvailabilityD
             mainAxisSize: MainAxisSize.min,
             children: [
               // Topic
-              const Text('Session Topic / Title', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const Text('Session Topic / Title *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
               const SizedBox(height: 6),
               TextField(
                 controller: _topicController,
+                onChanged: (_) {
+                  if (_titleTouched && mounted) setState(() {});
+                },
                 decoration: InputDecoration(
-                  hintText: 'e.g. 1-on-1 Grammar Review',
+                  hintText: 'Enter session topic or title (e.g. Grammar Practice & Coaching)',
+                  errorText: _titleTouched && _topicController.text.trim().isEmpty ? 'Topic / Title is required' : null,
                   filled: true,
                   fillColor: isDark ? Colors.white10 : Colors.grey.withValues(alpha: 0.06),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
@@ -2180,6 +2202,12 @@ class _EducatorSetAvailabilityDialogState extends State<EducatorSetAvailabilityD
   }
 
   Future<void> _addSlot() async {
+    final title = _topicController.text.trim();
+    if (title.isEmpty) {
+      setState(() => _titleTouched = true);
+      return;
+    }
+
     final start = DateTime(
       _selectedDate.year,
       _selectedDate.month,

@@ -188,7 +188,7 @@ class _ConferencePageState extends State<ConferencePage>
               _remoteUid = uid;
               _remoteVideoController = VideoViewController.remote(
                 rtcEngine: _engine!,
-                canvas: VideoCanvas(uid: uid),
+                canvas: VideoCanvas(uid: uid, renderMode: RenderModeType.renderModeFit),
                 connection: RtcConnection(channelId: widget.channelName),
               );
             });
@@ -213,7 +213,7 @@ class _ConferencePageState extends State<ConferencePage>
                 _remoteUid = remoteUid;
                 _remoteVideoController = VideoViewController.remote(
                   rtcEngine: _engine!,
-                  canvas: VideoCanvas(uid: remoteUid),
+                  canvas: VideoCanvas(uid: remoteUid, renderMode: RenderModeType.renderModeFit),
                   connection: RtcConnection(channelId: widget.channelName),
                 );
               });
@@ -263,7 +263,7 @@ class _ConferencePageState extends State<ConferencePage>
           _localVideoReady = true;
           _localVideoController = VideoViewController(
             rtcEngine: _engine!,
-            canvas: const VideoCanvas(uid: 0),
+            canvas: const VideoCanvas(uid: 0, renderMode: RenderModeType.renderModeFit),
           );
         });
       }
@@ -658,6 +658,20 @@ class _ConferencePageState extends State<ConferencePage>
 
   Widget _buildRemoteVideo() {
     if (_remoteUid != null && _remoteVideoController != null) {
+      final isPhone = MediaQuery.of(context).size.width < 600 ||
+          MediaQuery.of(context).size.shortestSide < 600;
+      if (isPhone) {
+        return Container(
+          color: Colors.black,
+          alignment: Alignment.center,
+          child: AspectRatio(
+            aspectRatio: 9 / 16,
+            child: AgoraVideoView(
+              controller: _remoteVideoController!,
+            ),
+          ),
+        );
+      }
       return SizedBox.expand(
         child: AgoraVideoView(
           controller: _remoteVideoController!,

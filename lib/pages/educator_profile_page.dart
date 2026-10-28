@@ -18,6 +18,7 @@ import 'conference_page.dart';
 import '../models/playlist.dart';
 import '../widgets/playlist_card.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/center_notice_dialog.dart';
 
 class EducatorProfilePage extends StatefulWidget {
   final Map<String, dynamic> educator;
@@ -473,6 +474,101 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
     );
   }
 
+  Future<void> _handleSubscriptionOrUpgrade(
+    BuildContext context,
+    String uid,
+    String username,
+    String? currentTier,
+  ) async {
+    final tier = await showDialog<String>(
+      context: context,
+      builder: (context) => SubscriptionTierDialog(
+        pricing: widget.educator['subscription_pricing'],
+        educatorName: username,
+        currentTier: currentTier,
+      ),
+    );
+    if (tier != null) {
+      if (tier == 'Basic') {
+        await DatabaseService.instance.subscribeToEducator(uid, tier);
+        if (context.mounted) {
+          CenterNoticeDialog.show(
+            context,
+            title: 'Enrollment Activated',
+            message: 'You have enrolled in the Free Tier.',
+            isSuccess: true,
+          );
+        }
+      } else {
+        final pricingData = widget.educator['subscription_pricing'] ?? {};
+        double amountInUSD = tier == 'Standard'
+            ? (pricingData['standard']?.toDouble() ?? 3.0)
+            : (pricingData['premium']?.toDouble() ?? 7.0);
+        double amountInPhp = amountInUSD * 56.0;
+        if (!context.mounted) return;
+        final paymentIdempotencyKey =
+            IdempotencyService.instance.generatePaymentKey(
+          learnerUid: widget.currentUser.uid,
+          educatorUid: uid,
+          tier: tier,
+        );
+
+        final paymentResult = await showDialog<PaymongoPaymentResult>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => PaymongoQrDialog(
+            tier: tier,
+            amount: amountInPhp,
+            educatorName: username,
+            learnerName: widget.currentUser.displayName ?? 'Learner',
+            learnerEmail: widget.currentUser.email,
+            idempotencyKey: paymentIdempotencyKey,
+          ),
+        );
+        if (paymentResult != null && paymentResult.isSuccess) {
+          final recordResult = await DatabaseService.instance
+              .recordSubscriptionPayment(
+            educatorUid: uid,
+            educatorName: username,
+            tier: tier,
+            amount: amountInPhp,
+            referenceNumber: paymentResult.referenceNumber,
+            paymentMethod: paymentResult.paymentMethod,
+            paymongoLinkId: paymentResult.linkId,
+            idempotencyKey: paymentResult.idempotencyKey ?? paymentIdempotencyKey,
+          );
+
+          final userEmail = widget.currentUser.email;
+          if (!recordResult.isDuplicate &&
+              userEmail != null &&
+              userEmail.isNotEmpty) {
+            EmailSenderService.sendSubscriptionPaymentReceiptEmail(
+              recipientEmail: userEmail,
+              recipientName: widget.currentUser.displayName ?? 'Learner',
+              educatorName: username,
+              tier: tier,
+              amount: amountInPhp,
+              referenceNumber: paymentResult.referenceNumber,
+              paymentMethod: paymentResult.paymentMethod,
+              paymentDate: paymentResult.paidAt,
+            );
+          }
+
+          if (context.mounted) {
+            CenterNoticeDialog.show(
+              context,
+              title: currentTier != null ? 'Plan Upgraded!' : 'Enrollment Successful!',
+              message: recordResult.isDuplicate
+                  ? 'Enrollment in $tier is already active!'
+                  : 'Payment Successful! You are now enrolled in $tier. Receipt sent to ${userEmail ?? "your email"}.',
+              isSuccess: true,
+            );
+          }
+        }
+      }
+    }
+  }
+
   Widget _buildHeaderActions(
     String uid,
     String username,
@@ -480,10 +576,18 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
     Color textColor,
     Color borderColor,
   ) {
-    return StreamBuilder<bool>(
-      stream: DatabaseService.instance.isSubscribedStream(uid),
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.currentUser.uid)
+          .collection('subscriptions')
+          .doc(uid)
+          .snapshots(),
       builder: (context, subSnap) {
-        final isSubscribed = subSnap.data ?? false;
+        final docData = subSnap.data?.data();
+        final isSubscribed = subSnap.data?.exists == true && docData?['status'] == 'active';
+        final currentTier = isSubscribed ? (docData?['tier'] as String? ?? 'Basic') : null;
+
         return Wrap(
           spacing: 10,
           runSpacing: 10,
@@ -491,162 +595,21 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
             SizedBox(
               height: 44,
               child: ElevatedButton.icon(
-                onPressed: isSubscribed
-                    ? () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            title: Text(
-                              'Cancel Enrollment',
-                              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
-                            ),
-                            content: Text(
-                              'Are you sure you want to cancel your enrollment with $username? You will lose access to member-exclusive materials and mentorship scheduling.',
-                              style: GoogleFonts.inter(fontSize: 14),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(ctx, false),
-                                child: Text('Keep Enrollment', style: GoogleFonts.outfit(color: Colors.grey)),
-                              ),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.redAccent,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                                onPressed: () => Navigator.pop(ctx, true),
-                                child: Text('Cancel Enrollment', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          await DatabaseService.instance.unsubscribeFromEducator(uid);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Enrollment with $username cancelled.'),
-                                backgroundColor: Colors.redAccent,
-                              ),
-                            );
-                          }
-                        }
-                      }
-                    : () async {
-                        final tier = await showDialog<String>(
-                          context: context,
-                          builder: (context) => SubscriptionTierDialog(
-                            pricing: widget.educator['subscription_pricing'],
-                            educatorName: username,
-                          ),
-                        );
-                        if (tier != null) {
-                          if (tier == 'Basic') {
-                            await DatabaseService.instance.subscribeToEducator(uid, tier);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Enrolled in Free Tier.')),
-                              );
-                            }
-                          } else {
-                            final pricingData = widget.educator['subscription_pricing'] ?? {};
-                            double amountInUSD = tier == 'Standard'
-                                ? (pricingData['standard']?.toDouble() ?? 3.0)
-                                : (pricingData['premium']?.toDouble() ?? 7.0);
-                            double amountInPhp = amountInUSD * 56.0;
-                            if (!context.mounted) return;
-                            final paymentIdempotencyKey =
-                                IdempotencyService.instance.generatePaymentKey(
-                              learnerUid: widget.currentUser.uid,
-                              educatorUid: uid,
-                              tier: tier,
-                            );
-
-                            final paymentResult =
-                                await showDialog<PaymongoPaymentResult>(
-                              context: context,
-                              barrierDismissible: false,
-                              builder: (context) => PaymongoQrDialog(
-                                tier: tier,
-                                amount: amountInPhp,
-                                educatorName: username,
-                                learnerName:
-                                    widget.currentUser.displayName ?? 'Learner',
-                                learnerEmail: widget.currentUser.email,
-                                idempotencyKey: paymentIdempotencyKey,
-                              ),
-                            );
-                            if (paymentResult != null && paymentResult.isSuccess) {
-                              // Record payment in Firestore idempotently and activate subscription
-                              final recordResult = await DatabaseService.instance
-                                  .recordSubscriptionPayment(
-                                educatorUid: uid,
-                                educatorName: username,
-                                tier: tier,
-                                amount: amountInPhp,
-                                referenceNumber: paymentResult.referenceNumber,
-                                paymentMethod: paymentResult.paymentMethod,
-                                paymongoLinkId: paymentResult.linkId,
-                                idempotencyKey: paymentResult.idempotencyKey ?? paymentIdempotencyKey,
-                              );
-
-                              // Send email payment receipt & confirmation ONLY IF fresh transaction
-                              final userEmail = widget.currentUser.email;
-                              if (!recordResult.isDuplicate &&
-                                  userEmail != null &&
-                                  userEmail.isNotEmpty) {
-                                EmailSenderService
-                                    .sendSubscriptionPaymentReceiptEmail(
-                                  recipientEmail: userEmail,
-                                  recipientName:
-                                      widget.currentUser.displayName ?? 'Learner',
-                                  educatorName: username,
-                                  tier: tier,
-                                  amount: amountInPhp,
-                                  referenceNumber: paymentResult.referenceNumber,
-                                  paymentMethod: paymentResult.paymentMethod,
-                                  paymentDate: paymentResult.paidAt,
-                                );
-                              }
-
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      recordResult.isDuplicate
-                                          ? 'Enrollment in $tier is already active!'
-                                          : 'Payment Successful! Enrolled in $tier. Receipt sent to ${userEmail ?? "your email"}.',
-                                    ),
-                                    backgroundColor: const Color(0xFF16A34A),
-                                  ),
-                                );
-                              }
-                            }
-                          }
-                        }
-                      },
+                onPressed: () => _handleSubscriptionOrUpgrade(context, uid, username, currentTier),
                 icon: Icon(
-                  isSubscribed ? Icons.check_circle_rounded : Icons.star_rounded,
+                  isSubscribed ? Icons.arrow_circle_up_rounded : Icons.star_rounded,
                   size: 16,
                 ),
                 label: Text(
-                  isSubscribed ? 'Enrolled' : 'Enroll',
+                  isSubscribed ? 'Upgrade' : 'Enroll',
                   style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isSubscribed
-                      ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))
-                      : const Color(0xFF81B655),
-                  foregroundColor: isSubscribed
-                      ? (isDark ? Colors.white54 : const Color(0xFF64748B))
-                      : Colors.white,
+                  backgroundColor: const Color(0xFF81B655),
+                  foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   shape: RoundedRectangleBorder(
@@ -661,14 +624,14 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
               child: OutlinedButton.icon(
                 onPressed: isSubscribed
                     ? () async {
-                        final subData = await DatabaseService.instance.getSubscription(widget.currentUser.uid, uid);
-                        final subscribedAt = (subData?['subscribedAt'] as Timestamp?)?.toDate();
+                        final subscribedAt = (docData?['subscribedAt'] as Timestamp?)?.toDate();
                         if (subscribedAt == null) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('You must be enrolled for at least 7 days before leaving a review.'),
-                              ),
+                            CenterNoticeDialog.show(
+                              context,
+                              title: 'Review Notice',
+                              message: 'You must be enrolled for at least 7 days before leaving a review.',
+                              isSuccess: false,
                             );
                           }
                           return;
@@ -677,10 +640,11 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                         if (daysSubscribed < 7) {
                           final daysLeft = 7 - daysSubscribed;
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('You can leave a review after 7 days of enrollment ($daysLeft day${daysLeft > 1 ? 's' : ''} remaining).'),
-                              ),
+                            CenterNoticeDialog.show(
+                              context,
+                              title: 'Review Notice',
+                              message: 'You can leave a review after 7 days of enrollment ($daysLeft day${daysLeft > 1 ? 's' : ''} remaining).',
+                              isSuccess: false,
                             );
                           }
                           return;
@@ -689,8 +653,11 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                           _showReviewDialog(context, uid, isDark);
                         }
                       }
-                    : () => ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Enroll to leave a review')),
+                    : () => CenterNoticeDialog.show(
+                          context,
+                          title: 'Enrollment Required',
+                          message: 'Please enroll with this educator first to leave a review.',
+                          isSuccess: false,
                         ),
                 icon: const Icon(Icons.rate_review_outlined, size: 16),
                 label: Text(

@@ -38,8 +38,7 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-// AppCheck disabled for production to avoid 403 token fetch error without reCAPTCHA setup
-
+  // AppCheck disabled for production to avoid 403 token fetch error without reCAPTCHA setup
 
   if (kIsWeb) {
     try {
@@ -152,17 +151,24 @@ class _AuthWrapper extends StatelessWidget {
             }
             if (!userDocSnap.hasData || !(userDocSnap.data?.exists ?? false)) {
               return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('deleted_users').doc(user.uid).get(),
+                future: FirebaseFirestore.instance
+                    .collection('deleted_users')
+                    .doc(user.uid)
+                    .get(),
                 builder: (context, deletedSnap) {
                   if (deletedSnap.connectionState == ConnectionState.waiting) {
                     return const Scaffold(
                       body: Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
                       ),
                     );
                   }
-                  if (deletedSnap.hasData && (deletedSnap.data?.exists ?? false)) {
-                    final data = deletedSnap.data?.data() as Map<String, dynamic>?;
+                  if (deletedSnap.hasData &&
+                      (deletedSnap.data?.exists ?? false)) {
+                    final data =
+                        deletedSnap.data?.data() as Map<String, dynamic>?;
                     final isSuperAdmin = data?['bySuperAdmin'] == true;
                     WidgetsBinding.instance.addPostFrameCallback((_) async {
                       await AuthService.instance.signOut();
@@ -180,17 +186,24 @@ class _AuthWrapper extends StatelessWidget {
                   }
 
                   // Auto-create missing user document in Firestore to prevent infinite loading
-                  FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-                    'uid': user.uid,
-                    'email': user.email ?? '',
-                    'createdAt': FieldValue.serverTimestamp(),
-                    'role': 'LEARNER',
-                    'status': 'ACTIVE',
-                    'subscription_status': 'NONE',
-                    'username': user.displayName ?? ((user.email != null && user.email!.contains('@')) ? user.email!.split('@')[0] : 'Grammatica Learner'),
-                    'photoUrl': user.photoURL ?? '',
-                    'has_completed_onboarding': false,
-                  }, SetOptions(merge: true));
+                  FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .set({
+                        'uid': user.uid,
+                        'email': user.email ?? '',
+                        'createdAt': FieldValue.serverTimestamp(),
+                        'role': 'LEARNER',
+                        'status': 'ACTIVE',
+                        'subscription_status': 'NONE',
+                        'username':
+                            user.displayName ??
+                            ((user.email != null && user.email!.contains('@'))
+                                ? user.email!.split('@')[0]
+                                : 'Grammatica Learner'),
+                        'photoUrl': user.photoURL ?? '',
+                        'has_completed_onboarding': false,
+                      }, SetOptions(merge: true));
 
                   return const Scaffold(
                     body: Center(
@@ -230,11 +243,12 @@ class _AuthWrapper extends StatelessWidget {
             final isGoogleUser = user.providerData.any(
               (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
             );
-            final bool requiresEmailVerification = (data['requires_email_verification'] == true);
-            if (!isGoogleUser && requiresEmailVerification && !user.emailVerified) {
-              return OtpVerificationPage(
-                email: user.email ?? '',
-              );
+            final bool requiresEmailVerification =
+                (data['requires_email_verification'] == true);
+            if (!isGoogleUser &&
+                requiresEmailVerification &&
+                !user.emailVerified) {
+              return OtpVerificationPage(email: user.email ?? '');
             }
 
             // Sync theme preference
@@ -249,7 +263,6 @@ class _AuthWrapper extends StatelessWidget {
                 });
               }
             }
-
 
             // Derive role and info status
             final roleStr = (data['role'] as String?) ?? 'LEARNER';

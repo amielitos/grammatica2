@@ -16,6 +16,7 @@ import '../../theme/app_colors.dart';
 import '../../widgets/design_ornaments.dart';
 import '../../widgets/content_denial_dialog.dart';
 import '../../widgets/pagination_bar.dart';
+import '../../widgets/center_notice_dialog.dart';
 
 class AdminValidationTab extends StatefulWidget {
   final UserRole role;
@@ -54,6 +55,9 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
   List<String> get _tabLabels {
     if (widget.role == UserRole.admin) {
       return ['Validator Applications', 'Rejected Validator Applications'];
+    }
+    if (widget.role == UserRole.validator) {
+      return ['Lessons', 'Educator Applications', 'Rejected'];
     }
     return ['Lessons', 'Validator Applications', 'Educator Applications', 'Rejected'];
   }
@@ -315,30 +319,49 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                         role: widget.role,
                       ),
                     ]
-                  : [
-                      _ValidationList(
-                        stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
-                        collection: 'lessons',
-                        formatDate: _formatTs,
-                        role: widget.role,
-                      ),
-                      _EducatorApplicationsList(
-                        formatDate: _formatTs,
-                        type: 'validator',
-                        showRejected: false,
-                        role: widget.role,
-                      ),
-                      _EducatorApplicationsList(
-                        formatDate: _formatTs,
-                        type: 'educator',
-                        showRejected: false,
-                        role: widget.role,
-                      ),
-                      _AllRejectedTab(
-                        formatDate: _formatTs,
-                        role: widget.role,
-                      ),
-                    ],
+                  : widget.role == UserRole.validator
+                      ? [
+                          _ValidationList(
+                            stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
+                            collection: 'lessons',
+                            formatDate: _formatTs,
+                            role: widget.role,
+                          ),
+                          _EducatorApplicationsList(
+                            formatDate: _formatTs,
+                            type: 'educator',
+                            showRejected: false,
+                            role: widget.role,
+                          ),
+                          _AllRejectedTab(
+                            formatDate: _formatTs,
+                            role: widget.role,
+                          ),
+                        ]
+                      : [
+                          _ValidationList(
+                            stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
+                            collection: 'lessons',
+                            formatDate: _formatTs,
+                            role: widget.role,
+                          ),
+                          _EducatorApplicationsList(
+                            formatDate: _formatTs,
+                            type: 'validator',
+                            showRejected: false,
+                            role: widget.role,
+                          ),
+                          _EducatorApplicationsList(
+                            formatDate: _formatTs,
+                            type: 'educator',
+                            showRejected: false,
+                            role: widget.role,
+                          ),
+                          _AllRejectedTab(
+                            formatDate: _formatTs,
+                            role: widget.role,
+                          ),
+                        ],
             ),
           ),
         ],
@@ -474,8 +497,9 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
                           appliedAtStr: appliedAtStr,
                         );
 
-                        final isSuperAdmin = widget.role == UserRole.superadmin;
-                        final canApproveThis = isSuperAdmin;
+                        final canApproveThis = app.applicationType == 'validator'
+                            ? (widget.role == UserRole.admin)
+                            : (widget.role == UserRole.validator);
                         final actions = Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -521,7 +545,9 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
                               ),
                             ] else ...[
                               Tooltip(
-                                message: 'Only Super Admin can approve or reject applications',
+                                message: widget.role == UserRole.superadmin
+                                    ? 'Super Admin has view-only access to educator applications'
+                                    : 'Only designated validators or admins can review applications',
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                                   decoration: BoxDecoration(
@@ -535,7 +561,7 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
                                       Icon(Icons.visibility_rounded, color: Colors.grey.shade600, size: 14),
                                       const SizedBox(width: 6),
                                       Text(
-                                        'VIEW ONLY (ADMIN)',
+                                        widget.role == UserRole.superadmin ? 'VIEW ONLY (SUPER ADMIN)' : 'VIEW ONLY',
                                         style: GoogleFonts.outfit(
                                           color: Colors.grey.shade600,
                                           fontWeight: FontWeight.w700,
@@ -664,13 +690,18 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
     BuildContext context,
     EducatorApplication app,
   ) async {
-    if (widget.role != UserRole.superadmin) {
+    final canApprove = app.applicationType == 'validator'
+        ? (widget.role == UserRole.admin)
+        : (widget.role == UserRole.validator);
+    if (!canApprove) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Only Super Admin can approve applications.'),
-            backgroundColor: Colors.redAccent,
-          ),
+        CenterNoticeDialog.show(
+          context,
+          title: 'Access Restricted',
+          message: widget.role == UserRole.superadmin
+              ? 'Super Admin has view-only access to educator applications.'
+              : 'You do not have permission to approve this application.',
+          isSuccess: false,
         );
       }
       return;
@@ -746,13 +777,18 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
     BuildContext context,
     EducatorApplication app,
   ) async {
-    if (widget.role != UserRole.superadmin) {
+    final canReject = app.applicationType == 'validator'
+        ? (widget.role == UserRole.admin)
+        : (widget.role == UserRole.validator);
+    if (!canReject) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Only Super Admin can reject applications.'),
-            backgroundColor: Colors.redAccent,
-          ),
+        CenterNoticeDialog.show(
+          context,
+          title: 'Access Restricted',
+          message: widget.role == UserRole.superadmin
+              ? 'Super Admin has view-only access to educator applications.'
+              : 'You do not have permission to reject this application.',
+          isSuccess: false,
         );
       }
       return;
@@ -898,24 +934,27 @@ class _ValidationListState extends State<_ValidationList> {
                   final isMobile = MediaQuery.of(context).size.width < 600;
                   final isDark = Theme.of(context).brightness == Brightness.dark;
 
+                  final isSuperAdmin = widget.role == UserRole.superadmin;
                   final actionRow = Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
                         icon: const Icon(Icons.visibility, color: Colors.blue),
-                        tooltip: 'Review Content',
+                        tooltip: isSuperAdmin ? 'View Lesson (View Only)' : 'Review Content',
                         onPressed: () => _showReviewModal(context, item, widget.collection),
                       ),
-                IconButton(
-                  icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-                  onPressed: () => _approve(context, item),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.highlight_off, color: Colors.red),
-                  onPressed: () => _reject(context, item),
-                ),
-              ],
-            );
+                      if (!isSuperAdmin) ...[
+                        IconButton(
+                          icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                          onPressed: () => _approve(context, item),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.highlight_off, color: Colors.red),
+                          onPressed: () => _reject(context, item),
+                        ),
+                      ],
+                    ],
+                  );
 
             final infoBlock = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1185,40 +1224,52 @@ class _ValidationListState extends State<_ValidationList> {
                     ),
                   ],
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _reject(context, item);
-                        },
-                        icon: const Icon(Icons.close),
-                        label: const Text('Deny Content'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                child: widget.role == UserRole.superadmin
+                    ? SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close),
+                          label: const Text('Close Preview (View Only)'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
                         ),
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _reject(context, item);
+                              },
+                              icon: const Icon(Icons.close),
+                              label: const Text('Deny Content'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                                side: const BorderSide(color: Colors.red),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _approve(context, item);
+                              },
+                              icon: const Icon(Icons.check),
+                              label: const Text('Approve Content'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _approve(context, item);
-                        },
-                        icon: const Icon(Icons.check),
-                        label: const Text('Approve Content'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
           ],
@@ -1228,6 +1279,17 @@ class _ValidationListState extends State<_ValidationList> {
   }
 
   Future<void> _approve(BuildContext context, dynamic item) async {
+    if (widget.role == UserRole.superadmin) {
+      if (context.mounted) {
+        CenterNoticeDialog.show(
+          context,
+          title: 'Access Restricted',
+          message: 'Super Admin has view-only access to lessons.',
+          isSuccess: false,
+        );
+      }
+      return;
+    }
     if (!await _ensureCanValidate(context)) return;
     if (!context.mounted) return;
 
@@ -1308,6 +1370,17 @@ class _ValidationListState extends State<_ValidationList> {
   }
 
   Future<void> _reject(BuildContext context, dynamic item) async {
+    if (widget.role == UserRole.superadmin) {
+      if (context.mounted) {
+        CenterNoticeDialog.show(
+          context,
+          title: 'Access Restricted',
+          message: 'Super Admin has view-only access to lessons.',
+          isSuccess: false,
+        );
+      }
+      return;
+    }
     if (!await _ensureCanValidate(context)) return;
     if (!context.mounted) return;
 

@@ -557,11 +557,6 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
                       _buildLessonsList(context, showRejected: false, cardColor: cardColor, textPrimary: textPrimary, textSecondary: textSecondary),
                       const SizedBox(height: 24),
 
-                      _buildSectionHeader('Pending Validator Applications', Icons.verified_user_rounded, Colors.indigo, textPrimary),
-                      const SizedBox(height: 12),
-                      _buildApplicationsList(context, type: 'validator', showRejected: false, cardColor: cardColor, textPrimary: textPrimary),
-                      const SizedBox(height: 24),
-
                       _buildSectionHeader('Pending Educator Applications', Icons.how_to_reg, Colors.teal, textPrimary),
                       const SizedBox(height: 12),
                       _buildApplicationsList(context, type: 'educator', showRejected: false, cardColor: cardColor, textPrimary: textPrimary),
@@ -759,7 +754,7 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
               context,
               app: a,
               showRejected: showRejected,
-              onTap: () => widget.onReviewRequests?.call(showRejected ? 3 : (type == 'validator' ? 1 : 2)),
+              onTap: () => widget.onReviewRequests?.call(showRejected ? 2 : 1),
               cardColor: cardColor,
               textPrimary: textPrimary,
             )),
@@ -1115,11 +1110,11 @@ class _StatsGrid extends StatelessWidget {
       stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
       builder: (ctx, lessonSnap) {
         return StreamBuilder<List<EducatorApplication>>(
-          stream: DatabaseService.instance.streamEducatorApplications(type: 'validator'),
-          builder: (ctx, valSnap) {
-            return StreamBuilder<List<EducatorApplication>>(
-              stream: DatabaseService.instance.streamEducatorApplications(type: 'educator'),
-              builder: (ctx, eduSnap) {
+          stream: DatabaseService.instance.streamEducatorApplications(type: 'educator'),
+          builder: (ctx, eduSnap) {
+            return StreamBuilder<List<Lesson>>(
+              stream: DatabaseService.instance.streamRejectedLessons(),
+              builder: (ctx, rejSnap) {
                 final items = [
                   _StatCard(
                     label: 'Pending Lessons',
@@ -1129,17 +1124,17 @@ class _StatsGrid extends StatelessWidget {
                     onTap: () => onReviewRequests?.call(0),
                   ),
                   _StatCard(
-                    label: 'Validator Requests',
-                    value: valSnap.data?.length ?? 0,
-                    icon: Icons.verified_user_rounded,
-                    color: Colors.indigo,
-                    onTap: () => onReviewRequests?.call(1),
-                  ),
-                  _StatCard(
                     label: 'Educator Requests',
                     value: eduSnap.data?.length ?? 0,
                     icon: Icons.how_to_reg_rounded,
                     color: Colors.teal,
+                    onTap: () => onReviewRequests?.call(1),
+                  ),
+                  _StatCard(
+                    label: 'Rejected Content',
+                    value: rejSnap.data?.length ?? 0,
+                    icon: Icons.block_rounded,
+                    color: _kRejected,
                     onTap: () => onReviewRequests?.call(2),
                   ),
                 ];

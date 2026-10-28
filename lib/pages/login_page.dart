@@ -764,7 +764,7 @@ class _LoginPageState extends State<LoginPage> {
                   TextSpan(
                     text: cleanHint,
                     style: TextStyle(
-                      color: isDark ? Colors.white38 : Colors.black45,
+                      color: isDark ? Colors.white70 : Colors.black54,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -782,9 +782,9 @@ class _LoginPageState extends State<LoginPage> {
               : null,
           floatingLabelBehavior: FloatingLabelBehavior.never,
           hintStyle: TextStyle(
-              color: isDark ? Colors.white38 : Colors.black45, fontSize: 14, fontWeight: FontWeight.w600),
+              color: isDark ? Colors.white70 : Colors.black54, fontSize: 14, fontWeight: FontWeight.w600),
           prefixIcon: IconTheme(
-              data: IconThemeData(color: isDark ? Colors.white60 : Colors.black45),
+              data: IconThemeData(color: isDark ? Colors.white70 : Colors.black54),
               child: prefixIcon),
           suffixIcon: suffixIcon,
           border: OutlineInputBorder(
@@ -801,17 +801,18 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildDivider() {
-    return const Row(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
       children: [
-        Expanded(child: Divider()),
+        Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.grey.shade300)),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             "Or continue with",
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w500),
           ),
         ),
-        Expanded(child: Divider()),
+        Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.grey.shade300)),
       ],
     );
   }
