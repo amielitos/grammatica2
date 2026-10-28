@@ -9,6 +9,12 @@ abstract class WebService {
 
   Future<Uint8List?> fetchBlobAsBytes(String url);
 
+  // Method to check speech recognition support (only works on web)
+  bool isSpeechRecognitionSupported();
+
+  // Explicit mic permission request via getUserMedia
+  Future<bool> requestMicPermission();
+
   // Method to get a speech recognition instance (only works on web)
   dynamic createSpeechRecognition();
 

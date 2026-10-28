@@ -74,6 +74,40 @@ class WebServiceWeb implements WebService {
   }
 
   @override
+  bool isSpeechRecognitionSupported() {
+    try {
+      _WebkitSpeechRecognition();
+      return true;
+    } catch (_) {
+      try {
+        _StandardSpeechRecognition();
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+  }
+
+  @override
+  Future<bool> requestMicPermission() async {
+    try {
+      final stream = await web.window.navigator.mediaDevices
+          .getUserMedia(
+            web.MediaStreamConstraints(audio: true.toJS, video: false.toJS),
+          )
+          .toDart;
+      final tracks = stream.getTracks().toDart;
+      for (final track in tracks) {
+        track.stop();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[WebServiceWeb] requestMicPermission error: $e');
+      return false;
+    }
+  }
+
+  @override
   dynamic createSpeechRecognition() {
     try {
       return _WebkitSpeechRecognition();
@@ -81,7 +115,7 @@ class WebServiceWeb implements WebService {
       try {
         return _StandardSpeechRecognition();
       } catch (e) {
-        debugPrint('SpeechRecognition creation note: $e');
+        debugPrint('[WebServiceWeb] SpeechRecognition creation error: $e');
         return null;
       }
     }
@@ -89,23 +123,25 @@ class WebServiceWeb implements WebService {
 
   @override
   void startSpeechRecognition(dynamic recognition) {
+    if (recognition == null) return;
     try {
       (recognition as SpeechRecognitionObject).start();
     } catch (e) {
-      debugPrint('startSpeechRecognition error: $e');
+      debugPrint('[WebServiceWeb] startSpeechRecognition error: $e');
     }
   }
 
   @override
   void stopSpeechRecognition(dynamic recognition) {
+    if (recognition == null) return;
     try {
       final sr = recognition as SpeechRecognitionObject;
-      sr.abort();
+      sr.stop();
     } catch (_) {
       try {
-        (recognition as SpeechRecognitionObject).stop();
+        (recognition as SpeechRecognitionObject).abort();
       } catch (e) {
-        debugPrint('stopSpeechRecognition error: $e');
+        debugPrint('[WebServiceWeb] stopSpeechRecognition error: $e');
       }
     }
   }
@@ -169,8 +205,9 @@ class WebServiceWeb implements WebService {
   /// Starts mic capture, sets up AnalyserNode for volume and optionally
   /// routes mic → speaker so the user can hear themselves.
   @override
-  Future<void> startMicMonitor({bool enableMonitoring = true}) async {
+  Future<void> startMicMonitor({bool enableMonitoring = false}) async {
     try {
+      stopMicMonitor();
       // Request mic access using the existing web package MediaDevices
       final stream = await web.window.navigator.mediaDevices
           .getUserMedia(

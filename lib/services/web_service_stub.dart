@@ -6,6 +6,12 @@ class WebServiceStub implements WebService {
   Future<Uint8List?> fetchBlobAsBytes(String url) async => null;
 
   @override
+  bool isSpeechRecognitionSupported() => false;
+
+  @override
+  Future<bool> requestMicPermission() async => true;
+
+  @override
   dynamic createSpeechRecognition() => null;
 
   @override

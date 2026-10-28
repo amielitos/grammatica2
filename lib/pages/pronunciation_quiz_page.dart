@@ -57,6 +57,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   double _micVolume = 0.0;
   Timer? _volumeTimer;
   Timer? _watchdogTimer;
+  Timer? _submissionDebounceTimer;
 
   // List to track user answers for the preview pane
   List<String?> _userAnswers = [];
@@ -137,9 +138,16 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     _timer?.cancel();
     _volumeTimer?.cancel();
     _watchdogTimer?.cancel();
-    if (kIsWeb && _webRecognition != null) {
+    _submissionDebounceTimer?.cancel();
+    if (kIsWeb) {
+      if (_webRecognition != null) {
+        try {
+          WebService.instance.stopSpeechRecognition(_webRecognition);
+        } catch (_) {}
+        _webRecognition = null;
+      }
       try {
-        WebService.instance.stopSpeechRecognition(_webRecognition);
+        WebService.instance.stopMicMonitor();
       } catch (_) {}
     }
     if (!kIsWeb) {
@@ -274,110 +282,165 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     if (_isTransitioning) return;
 
     if (kIsWeb) {
-      _startWebRecording();
+      await _startWebRecording();
     } else {
       await _startMobileRecording();
     }
   }
 
-  void _startWebRecording() {
-    try {
-      if (_webRecognition != null) {
-        try {
-          WebService.instance.stopSpeechRecognition(_webRecognition);
-        } catch (_) {}
-        _webRecognition = null;
-      }
+  Future<void> _startWebRecording() async {
+    if (_isStartingRecording) return;
+    _isStartingRecording = true;
 
-      setState(() {
-        _isRecording = true;
-        _recognizedText = "Listening...";
-        _micVolume = 0.0;
-      });
-
-      _resetWatchdog();
-
-      final recognition = WebService.instance.createSpeechRecognition();
-      if (recognition != null) {
-        _webRecognition = recognition;
-        WebService.instance.configureSpeechRecognition(
-          recognition: recognition,
-          onResult: (transcript, isFinal) {
-            debugPrint('[WebSpeech] Recognized: "$transcript", isFinal: $isFinal');
-            if (mounted && !_isTransitioning) {
-              final cleanText = transcript.trim();
-              if (cleanText.isNotEmpty) {
-                setState(() {
-                  _recognizedText = cleanText;
-                });
-              }
-              if (isFinal && cleanText.isNotEmpty && cleanText != "Listening...") {
-                Future.delayed(const Duration(milliseconds: 700), () {
-                  if (mounted && _isRecording && !_isTransitioning) {
-                    _autoSubmit();
-                  }
-                });
-              }
-            }
-          },
-          onError: (e) {
-            debugPrint('[WebSpeech] Error: $e');
-            final errStr = e.toString().toLowerCase();
-            if (errStr.contains('not-allowed') || errStr.contains('denied')) {
-              _stopRecording();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Microphone permission blocked in browser.')),
-                );
-              }
-            } else if (errStr.contains('no-speech')) {
-              debugPrint('[WebSpeech] no-speech: waiting for user speech...');
-            } else if (errStr.contains('aborted')) {
-              debugPrint('[WebSpeech] aborted');
-            } else {
-              _stopRecording();
-            }
-          },
-          onEnd: () {
-            debugPrint('[WebSpeech] onEnd event');
-            if (mounted && _isRecording && !_isTransitioning) {
-              if (_recognizedText.isNotEmpty && _recognizedText != "Listening...") {
-                _autoSubmit();
-              } else {
-                // Keep listening on web without closing on silence
-                try {
-                  final newRec = WebService.instance.createSpeechRecognition();
-                  if (newRec != null) {
-                    _webRecognition = newRec;
-                    _startWebRecording();
-                  }
-                } catch (_) {
-                  _stopRecording();
-                }
-              }
-            }
-          },
+    // 1. Verify browser support
+    if (!WebService.instance.isSpeechRecognitionSupported()) {
+      _isStartingRecording = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.'),
+            duration: Duration(seconds: 4),
+          ),
         );
-
-        WebService.instance.startSpeechRecognition(recognition);
-
-        // Animate wave pulses to show active listening on web
-        _volumeTimer?.cancel();
-        double phase = 0.0;
-        _volumeTimer = Timer.periodic(const Duration(milliseconds: 80), (_) {
-          if (mounted && _isRecording) {
-            phase += 0.35;
-            final wave = 0.35 + 0.35 * sin(phase).abs();
-            setState(() => _micVolume = wave);
-          }
-        });
-      } else {
-        // Fallback to mobile recognizer if browser API unavailable
-        _startMobileRecording();
       }
+      return;
+    }
+
+    if (!mounted || _isTransitioning) {
+      _isStartingRecording = false;
+      return;
+    }
+
+    // Clean up any lingering recognition
+    if (_webRecognition != null) {
+      try {
+        WebService.instance.stopSpeechRecognition(_webRecognition);
+      } catch (_) {}
+      _webRecognition = null;
+      await Future.delayed(const Duration(milliseconds: 150));
+    }
+
+    _submissionDebounceTimer?.cancel();
+    _submissionDebounceTimer = null;
+
+    setState(() {
+      _isRecording = true;
+      _recognizedText = "Listening...";
+      _micVolume = 0.0;
+    });
+
+    _isStartingRecording = false;
+    _resetWatchdog();
+
+    // Smooth listening waveform animation (without locking the hardware mic)
+    _volumeTimer?.cancel();
+    double phase = 0.0;
+    _volumeTimer = Timer.periodic(const Duration(milliseconds: 80), (_) {
+      if (mounted && _isRecording) {
+        phase += 0.35;
+        final wave = 0.25 + 0.45 * sin(phase).abs();
+        setState(() => _micVolume = wave);
+      }
+    });
+
+    _startWebSpeechSession();
+  }
+
+  void _startWebSpeechSession() {
+    if (!mounted || !_isRecording || _isTransitioning) return;
+
+    try {
+      final recognition = WebService.instance.createSpeechRecognition();
+      if (recognition == null) {
+        debugPrint('[WebSpeech] Could not create SpeechRecognition instance');
+        return;
+      }
+
+      _webRecognition = recognition;
+
+      WebService.instance.configureSpeechRecognition(
+        recognition: recognition,
+        onResult: (transcript, isFinal) {
+          debugPrint('[WebSpeech] Recognized: "$transcript", isFinal: $isFinal');
+          if (mounted && !_isTransitioning) {
+            final cleanText = transcript.trim();
+            if (cleanText.isNotEmpty) {
+              setState(() {
+                _recognizedText = cleanText;
+                _micVolume = 0.9;
+              });
+            }
+            if (isFinal && cleanText.isNotEmpty && cleanText != "Listening...") {
+              // Give user 1.2 seconds to finish before auto-submitting
+              _submissionDebounceTimer?.cancel();
+              _submissionDebounceTimer = Timer(const Duration(milliseconds: 1200), () {
+                if (mounted && _isRecording && !_isTransitioning) {
+                  _autoSubmit();
+                }
+              });
+            }
+          }
+        },
+        onError: (e) {
+          debugPrint('[WebSpeech] Error: $e');
+          final errStr = e.toString().toLowerCase();
+          if (errStr.contains('not-allowed') || errStr.contains('denied') || errStr.contains('permission')) {
+            _stopRecording();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Microphone access blocked. Please allow microphone in browser address bar permissions.'),
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            }
+          } else if (errStr.contains('no-speech')) {
+            debugPrint('[WebSpeech] no-speech: waiting for user speech...');
+          } else if (errStr.contains('audio-capture')) {
+            debugPrint('[WebSpeech] audio-capture busy or unavailable');
+            _stopRecording();
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Microphone was busy. Tap the mic to try again.'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          } else if (errStr.contains('network')) {
+            debugPrint('[WebSpeech] network note: browser speech service temporarily unavailable');
+          } else if (errStr.contains('aborted')) {
+            debugPrint('[WebSpeech] session aborted');
+          } else {
+            debugPrint('[WebSpeech] unhandled error: $errStr');
+          }
+        },
+        onEnd: () {
+          debugPrint('[WebSpeech] onEnd event');
+          if (mounted && _isRecording && !_isTransitioning) {
+            if (_recognizedText.isNotEmpty && _recognizedText != "Listening...") {
+              // Word captured; submit after short delay
+              _submissionDebounceTimer?.cancel();
+              _submissionDebounceTimer = Timer(const Duration(milliseconds: 1000), () {
+                if (mounted && _isRecording && !_isTransitioning) {
+                  _autoSubmit();
+                }
+              });
+            } else {
+              // Silence timeout: cleanly restart after 400ms so Android/Chrome audio service can cycle cleanly
+              Future.delayed(const Duration(milliseconds: 400), () {
+                if (mounted && _isRecording && !_isTransitioning) {
+                  _startWebSpeechSession();
+                }
+              });
+            }
+          }
+        },
+      );
+
+      WebService.instance.startSpeechRecognition(recognition);
     } catch (e) {
-      debugPrint('[WebSpeech] Start failed: $e');
-      _startMobileRecording();
+      debugPrint('[WebSpeech] Session start exception: $e');
     }
   }
 
@@ -536,12 +599,19 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     _volumeTimer = null;
     _watchdogTimer?.cancel();
     _watchdogTimer = null;
+    _submissionDebounceTimer?.cancel();
+    _submissionDebounceTimer = null;
 
-    if (kIsWeb && _webRecognition != null) {
+    if (kIsWeb) {
+      if (_webRecognition != null) {
+        try {
+          WebService.instance.stopSpeechRecognition(_webRecognition);
+        } catch (_) {}
+        _webRecognition = null;
+      }
       try {
-        WebService.instance.stopSpeechRecognition(_webRecognition);
+        WebService.instance.stopMicMonitor();
       } catch (_) {}
-      _webRecognition = null;
     }
 
     if (!kIsWeb) {
