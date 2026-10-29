@@ -17,9 +17,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Map<String, dynamic>? userData;
   final VoidCallback onNotificationTap;
   /// If [onLogoTap] is provided and returns `false`, default dashboard navigation is cancelled.
-  final FutureOr<bool?> Function()? onLogoTap;
+  final FutureOr<dynamic> Function()? onLogoTap;
   /// If [onProfileTap] is provided and returns `false`, default profile navigation is cancelled.
-  final FutureOr<bool?> Function()? onProfileTap;
+  final FutureOr<dynamic> Function()? onProfileTap;
   final bool showBackButton;
 
   const CustomAppBar({

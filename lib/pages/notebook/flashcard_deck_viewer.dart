@@ -61,7 +61,7 @@ class _FlashcardDeckViewerState extends State<FlashcardDeckViewer> {
               user: currentUser,
               showBackButton: true,
               onLogoTap: () {
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                // Handled by CustomAppBar
               },
               onNotificationTap: () {
                 showDialog(

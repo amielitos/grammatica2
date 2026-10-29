@@ -33,7 +33,7 @@ class LearnerDecksPage extends StatelessWidget {
         user: user,
         showBackButton: true,
         onLogoTap: () {
-          Navigator.of(context).popUntil((route) => route.isFirst);
+          // Handled by CustomAppBar
         },
         onNotificationTap: () {
           showDialog(

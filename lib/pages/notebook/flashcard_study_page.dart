@@ -98,7 +98,7 @@ class _FlashcardStudyPageState extends State<FlashcardStudyPage> {
               user: currentUser,
               showBackButton: true,
               onLogoTap: () {
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                // Handled by CustomAppBar
               },
               onNotificationTap: () {
                 showDialog(
@@ -408,7 +408,7 @@ class _FlashcardStudyPageState extends State<FlashcardStudyPage> {
               user: currentUser,
               showBackButton: true,
               onLogoTap: () {
-                Navigator.of(context).popUntil((route) => route.isFirst);
+                // Handled by CustomAppBar
               },
               onNotificationTap: () {
                 showDialog(
