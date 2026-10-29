@@ -578,6 +578,30 @@ class MentorshipScheduleDialog extends StatefulWidget {
       _MentorshipScheduleDialogState();
 }
 
+bool isNotificationMentorshipExpired(NotificationModel notification) {
+  final msg = notification.message;
+  if (msg.contains(' for ')) {
+    final parts = msg.split(' for ');
+    var timeStr = parts.sublist(1).join(' for ').trim();
+    if (timeStr.endsWith('.')) {
+      timeStr = timeStr.substring(0, timeStr.length - 1).trim();
+    }
+    for (final pattern in [
+      'EEE, MMM d, yyyy @ h:mm a',
+      'EEEE, MMMM d, yyyy • h:mm a',
+      'MMMM d, yyyy @ h:mm a',
+      'MMM d, yyyy @ h:mm a',
+    ]) {
+      try {
+        final parsed = DateFormat(pattern).parse(timeStr);
+        final endTime = parsed.add(const Duration(minutes: 90));
+        return DateTime.now().isAfter(endTime);
+      } catch (_) {}
+    }
+  }
+  return false;
+}
+
 class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
   String? _educatorName;
   String? _sessionTitle;
@@ -585,6 +609,19 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
   String? _meetingLink;
   String? _agoraChannel;
   String? _sessionId;
+  DateTime? _sessionStartTime;
+  DateTime? _sessionEndTime;
+
+  bool get _isPastSession {
+    final now = DateTime.now();
+    if (_sessionEndTime != null) {
+      return now.isAfter(_sessionEndTime!);
+    }
+    if (_sessionStartTime != null) {
+      return now.isAfter(_sessionStartTime!.add(const Duration(minutes: 90)));
+    }
+    return false;
+  }
 
   @override
   void initState() {
@@ -656,8 +693,11 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
           _sessionTitle = data['meetingTitle'].toString();
         }
         final startTs = data['startTime'] as Timestamp?;
+        final endTs = data['endTime'] as Timestamp?;
         if (startTs != null) {
           final dt = startTs.toDate();
+          _sessionStartTime = dt;
+          _sessionEndTime = endTs?.toDate() ?? dt.add(const Duration(minutes: 90));
           _timeStr = DateFormat('EEEE, MMMM d, yyyy • h:mm a').format(dt);
         }
 
@@ -682,6 +722,20 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
           if (u != null && u.isNotEmpty) {
             _educatorName = u;
           }
+        }
+      }
+      if (_sessionStartTime == null && fallbackTime.isNotEmpty) {
+        for (final pattern in [
+          'EEE, MMM d, yyyy @ h:mm a',
+          'EEEE, MMMM d, yyyy • h:mm a',
+          'MMMM d, yyyy @ h:mm a',
+          'MMM d, yyyy @ h:mm a',
+        ]) {
+          try {
+            _sessionStartTime = DateFormat(pattern).parse(fallbackTime);
+            _sessionEndTime = _sessionStartTime!.add(const Duration(minutes: 90));
+            break;
+          } catch (_) {}
         }
       }
     } catch (e) {
@@ -1010,24 +1064,33 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
                         const SizedBox(width: 12),
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: accentGreen,
-                            foregroundColor: Colors.white,
+                            backgroundColor: _isPastSession
+                                ? (isDark ? Colors.white12 : Colors.grey.shade300)
+                                : accentGreen,
+                            foregroundColor: _isPastSession
+                                ? (isDark ? Colors.white38 : Colors.grey.shade600)
+                                : Colors.white,
+                            disabledBackgroundColor: isDark ? Colors.white12 : Colors.grey.shade300,
+                            disabledForegroundColor: isDark ? Colors.white38 : Colors.grey.shade600,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          icon: const Icon(Icons.video_call_rounded, size: 20),
+                          icon: Icon(
+                            _isPastSession ? Icons.event_busy_rounded : Icons.video_call_rounded,
+                            size: 20,
+                          ),
                           label: Text(
-                            'JOIN',
+                            _isPastSession ? 'SESSION ENDED' : 'JOIN',
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.5,
                             ),
                           ),
-                          onPressed: _handleJoin,
+                          onPressed: _isPastSession ? null : _handleJoin,
                         ),
                       ],
                     ),
@@ -1362,6 +1425,8 @@ class NotificationDetailDialog extends StatelessWidget {
         notification.type == NotificationType.mentorship ||
         notification.title.toLowerCase().contains('mentorship') ||
         notification.message.toLowerCase().contains('scheduled'));
+
+    final isMentorshipExpired = isMentorship && isNotificationMentorshipExpired(notification);
 
     String lessonTitle = '';
     if (isLessonUpload) {
@@ -1751,21 +1816,32 @@ class NotificationDetailDialog extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: MouseRegion(
-                              cursor: SystemMouseCursors.click,
+                              cursor: isMentorshipExpired
+                                  ? SystemMouseCursors.basic
+                                  : SystemMouseCursors.click,
                               child: ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF16A34A),
-                                  foregroundColor: Colors.white,
+                                  backgroundColor: isMentorshipExpired
+                                      ? (isDark ? Colors.white12 : Colors.grey.shade300)
+                                      : const Color(0xFF16A34A),
+                                  foregroundColor: isMentorshipExpired
+                                      ? (isDark ? Colors.white38 : Colors.grey.shade600)
+                                      : Colors.white,
+                                  disabledBackgroundColor: isDark ? Colors.white12 : Colors.grey.shade300,
+                                  disabledForegroundColor: isDark ? Colors.white38 : Colors.grey.shade600,
                                   elevation: 0,
                                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
-                                icon: const Icon(Icons.video_call_rounded, size: 18),
+                                icon: Icon(
+                                  isMentorshipExpired ? Icons.event_busy_rounded : Icons.video_call_rounded,
+                                  size: 18,
+                                ),
                                 label: Text(
-                                  'JOIN',
+                                  isMentorshipExpired ? 'SESSION ENDED' : 'JOIN',
                                   style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.5),
                                 ),
-                                onPressed: () {
+                                onPressed: isMentorshipExpired ? null : () {
                                   final nav = Navigator.of(context, rootNavigator: true);
                                   nav.pop();
                                   showDialog(

@@ -22,7 +22,6 @@ class SubscriptionTierDialog extends StatelessWidget {
     final isMobile = screenWidth < 700;
 
     final normalizedCurrent = currentTier?.trim().toLowerCase();
-    final bool showBasic = normalizedCurrent != 'basic' && normalizedCurrent != 'standard' && normalizedCurrent != 'premium';
     final bool showPremium = normalizedCurrent != 'premium';
 
     return Dialog(
@@ -54,9 +53,9 @@ class SubscriptionTierDialog extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      currentTier != null ? 'Upgrade Plan with $educatorName' : 'Enroll with $educatorName',
+                      'Upgrade to Premium with $educatorName',
                       style: GoogleFonts.outfit(
-                        fontSize: isMobile ? 20 : 26,
+                        fontSize: isMobile ? 18 : 24,
                         fontWeight: FontWeight.w800,
                         color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
@@ -77,32 +76,6 @@ class SubscriptionTierDialog extends StatelessWidget {
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     children: [
-                      if (showBasic) ...[
-                        // Basic Tier Card
-                        _buildTierCard(
-                          context,
-                          isDark: isDark,
-                          tier: 'Basic',
-                          price: 'Free',
-                          badgeText: 'Free for 30 days',
-                          badgeColor: isDark ? Colors.white12 : Colors.grey.shade200,
-                          badgeTextColor: isDark ? Colors.white70 : Colors.grey.shade800,
-                          subtitle: "For learners who want to explore an educator's lessons.",
-                          inclusions: const [
-                            'Access to public lessons uploaded by the educator',
-                            'Access to publicly available learning materials',
-                            'View basic lesson information',
-                            'Free trial for 30 days',
-                            'Cancel anytime',
-                            'No access to exclusive private lessons',
-                            'No personal mentorship from the educator',
-                          ],
-                          buttonColor: const Color(0xFFF9D866),
-                          buttonTextColor: const Color(0xFF4A4A4A),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
                       if (showPremium) ...[
                         // Premium Tier Card
                         _buildTierCard(
@@ -113,27 +86,26 @@ class SubscriptionTierDialog extends StatelessWidget {
                           badgeText: 'Exclusive & Mentorship',
                           badgeColor: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
                           badgeTextColor: const Color(0xFF7C3AED),
-                          subtitle: 'For learners who want exclusive lessons and direct guidance.',
+                          subtitle: 'For learners who want exclusive lessons, personal guidance, and mentorship.',
                           inclusions: const [
-                            'Everything available in Basic',
-                            'Access to private and exclusive educator lessons',
+                            'Full access to all public and exclusive lessons by this educator',
                             'Access to educator-only learning materials marked for enrolled learners',
-                            'Personal mentorship with the educator',
-                            'Opportunity to ask questions and receive guidance',
+                            'Personal 1-on-1 mentorship with the educator',
+                            'Opportunity to ask questions and receive dedicated guidance',
                             'Personalized feedback on learning progress',
-                            'Priority access to mentorship sessions, if offered',
-                            'Enrollment applies only to the selected educator',
+                            'Priority access to mentorship sessions',
+                            'Enrollment applies directly to this educator',
                           ],
                           buttonColor: const Color(0xFFF67576),
                           buttonTextColor: Colors.white,
                         ),
                       ],
 
-                      if (!showBasic && !showPremium)
+                      if (!showPremium)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 32),
                           child: Text(
-                            'You are already enrolled in the highest tier (Premium).',
+                            'You are already enrolled with $educatorName (Premium).',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.outfit(
                               fontSize: 16,
@@ -203,35 +175,41 @@ class SubscriptionTierDialog extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row: Tier Title + Badge + Button
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Text(
-                tier,
-                style: GoogleFonts.outfit(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  badgeText,
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: badgeTextColor,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    tier,
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: badgeColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      badgeText,
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: badgeTextColor,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, tier),
                 style: ElevatedButton.styleFrom(

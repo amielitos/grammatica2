@@ -261,6 +261,9 @@ class _NotebookListPageState extends State<NotebookListPage> {
         }
 
         final columns = _calculateColumnCount(maxAvailableWidth);
+        final double childAspectRatio = columns == 1
+            ? (maxAvailableWidth < 420 ? 1.3 : 1.45)
+            : (columns == 2 ? 1.15 : 1.12);
 
         return GridView.builder(
           shrinkWrap: true,
@@ -269,7 +272,7 @@ class _NotebookListPageState extends State<NotebookListPage> {
             crossAxisCount: columns,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
-            childAspectRatio: 1.15,
+            childAspectRatio: childAspectRatio,
           ),
           itemCount: notebooks.length,
           itemBuilder: (context, index) {
@@ -294,9 +297,9 @@ class _NotebookListPageState extends State<NotebookListPage> {
   }
 
   int _calculateColumnCount(double width) {
-    if (width > 1100) return 4;
-    if (width > 800) return 3;
-    if (width > 500) return 2;
+    if (width > 1200) return 4;
+    if (width > 850) return 3;
+    if (width > 560) return 2;
     return 1;
   }
 

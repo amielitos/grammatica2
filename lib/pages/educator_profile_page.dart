@@ -129,48 +129,6 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                             backgroundColor: Colors.white.withValues(alpha: 0.04),
                           ),
                         ),
-                        // Back Button inside Cover Banner
-                        Positioned(
-                          top: 20,
-                          left: 24,
-                          child: MouseRegion(
-                            cursor: SystemMouseCursors.click,
-                            child: GestureDetector(
-                              onTap: () => Navigator.pop(context),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.25),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.arrow_back_rounded,
-                                      size: 16,
-                                      color: Colors.white,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Back',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -593,20 +551,29 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
             SizedBox(
               height: 44,
               child: ElevatedButton.icon(
-                onPressed: () => _handleSubscriptionOrUpgrade(context, uid, username, currentTier),
+                onPressed: isSubscribed
+                    ? () {
+                        CenterNoticeDialog.show(
+                          context,
+                          title: 'Enrolled',
+                          message: 'You are currently enrolled with $username.',
+                          isSuccess: true,
+                        );
+                      }
+                    : () => _handleSubscriptionOrUpgrade(context, uid, username, currentTier),
                 icon: Icon(
-                  isSubscribed ? Icons.arrow_circle_up_rounded : Icons.star_rounded,
+                  isSubscribed ? Icons.check_circle_rounded : Icons.workspace_premium_rounded,
                   size: 16,
                 ),
                 label: Text(
-                  isSubscribed ? 'Upgrade' : 'Enroll',
+                  isSubscribed ? 'Enrolled' : 'Upgrade to Premium',
                   style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF81B655),
+                  backgroundColor: isSubscribed ? const Color(0xFF16A34A) : const Color(0xFF81B655),
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -2260,7 +2227,7 @@ class _EducatorMentorshipCalendarDialogState
                                 ElevatedButton.icon(
                                   icon: const Icon(Icons.star_rounded, size: 16),
                                   label: Text(
-                                    'Enroll to Reserve',
+                                    'Upgrade to Premium to Reserve',
                                     style: GoogleFonts.outfit(
                                         fontWeight: FontWeight.bold, fontSize: 12),
                                   ),

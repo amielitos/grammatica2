@@ -350,7 +350,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             }
             setState(() {
               _index = profileTabIndex;
+              _persistedIndex = profileTabIndex;
             });
+            AdminDashboard.activeTabNotifier.value = profileTabIndex;
           }
         },
       ),

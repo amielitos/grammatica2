@@ -873,7 +873,8 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: color,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade300,
+                    disabledBackgroundColor: isDark ? const Color(0xFF243022) : Colors.grey.shade300,
+                    disabledForegroundColor: isDark ? Colors.white38 : Colors.grey.shade500,
                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
@@ -886,7 +887,10 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                     child: Text(
                       'Please upload at least one readable document/source to enable generation.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(fontSize: 12, color: Colors.orange.shade700),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFFFBBF24) : Colors.orange.shade800,
+                      ),
                     ),
                   ),
               ],

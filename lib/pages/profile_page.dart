@@ -204,30 +204,60 @@ class ProfilePageState extends State<ProfilePage> {
   Future<void> _confirmCancelEdit() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
-            SizedBox(width: 8),
-            Text('Discard Changes?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Discard Changes?',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to cancel? Any unsaved edits will be discarded.',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              height: 1.4,
+              color: isDark ? Colors.white70 : const Color(0xFF475569),
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: isDark ? Colors.white70 : const Color(0xFF64748B),
+                side: BorderSide(color: isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Keep Editing', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Discard', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+            ),
           ],
-        ),
-        content: const Text(
-          'Are you sure you want to cancel? Any unsaved edits will be discarded.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep Editing'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Discard'),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
     if (confirm == true && mounted) {
@@ -1567,7 +1597,7 @@ class ProfilePageState extends State<ProfilePage> {
     final age = _userAge;
     final accountDays = _accountAgeDays;
     final isAgeValid = age != null && age >= 21;
-    final isAccountAgeValid = accountDays >= 30;
+    final isAccountAgeValid = accountDays >= 7;
 
     if (!isAgeValid || !isAccountAgeValid) {
       showDialog(
@@ -1663,7 +1693,7 @@ class ProfilePageState extends State<ProfilePage> {
                                   color: isDark ? Colors.white : const Color(0xFF1E293B),
                                 ),
                                 children: [
-                                  const TextSpan(text: 'Joined 30+ days: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  const TextSpan(text: 'Joined 7+ days: ', style: TextStyle(fontWeight: FontWeight.bold)),
                                   TextSpan(
                                     text: '$accountDays days as member',
                                     style: TextStyle(
@@ -1708,112 +1738,247 @@ class ProfilePageState extends State<ProfilePage> {
 
   void _showApplicationStatusDialog(EducatorApplication application) {
     final isValidator = application.applicationType == 'validator';
+    final isPending = application.status == 'pending';
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          isValidator ? 'Validator Application' : 'Educator Application',
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            isValidator ? 'Validator Application' : 'Educator Application',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Status: ',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    const Text(
+                      'Status: ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isPending
+                            ? (isDark ? const Color(0xFF14532D) : const Color(0xFFDCFCE7))
+                            : (isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFEE2E2)),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isPending
+                              ? (isDark ? const Color(0xFF22C55E) : const Color(0xFF86EFAC))
+                              : (isDark ? const Color(0xFFEF4444) : const Color(0xFFFCA5A5)),
+                        ),
+                      ),
+                      child: Text(
+                        application.status.toUpperCase(),
+                        style: TextStyle(
+                          color: isPending
+                              ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D))
+                              : (isDark ? const Color(0xFFF87171) : const Color(0xFFB91C1C)),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                const SizedBox(height: 16),
+                Text(
+                  isPending
+                      ? 'Your application for the ${isValidator ? 'Validator' : 'Educator'} role is currently being reviewed by our super admins.'
+                      : 'Unfortunately, your application was not approved at this time. Please review the reason below or contact support.',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: isDark ? Colors.white70 : const Color(0xFF475569),
                   ),
-                  decoration: BoxDecoration(
-                    color: application.status == 'pending'
-                        ? Theme.of(context).colorScheme.primaryContainer
-                        : Theme.of(context).colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    application.status.toUpperCase(),
-                    style: TextStyle(
-                      color: application.status == 'pending'
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.error,
-                      fontWeight: FontWeight.bold,
+                ),
+                if (!isPending) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF450A0A).withValues(alpha: 0.35) : const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF991B1B) : const Color(0xFFFCA5A5),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFEF4444)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Reason for Rejection:',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13.5,
+                                color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          (application.rejectionReason != null && application.rejectionReason!.trim().isNotEmpty)
+                              ? application.rejectionReason!
+                              : (application.rejectionDescription != null && application.rejectionDescription!.trim().isNotEmpty)
+                                  ? application.rejectionDescription!
+                                  : 'Credentials did not satisfy platform verification requirements.',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            height: 1.4,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : const Color(0xFF7F1D1D),
+                          ),
+                        ),
+                        if (application.rejectionDescription != null &&
+                            application.rejectionDescription!.trim().isNotEmpty &&
+                            application.rejectionReason != null &&
+                            application.rejectionReason!.trim().isNotEmpty &&
+                            application.rejectionDescription!.trim() != application.rejectionReason!.trim()) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            application.rejectionDescription!,
+                            style: GoogleFonts.inter(
+                              fontSize: 12.5,
+                              height: 1.4,
+                              color: isDark ? Colors.white70 : const Color(0xFF991B1B),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                ],
+                const SizedBox(height: 24),
+                Text(
+                  'Submitted Credentials:',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildCredentialCard(
+                  icon: Icons.assignment_ind_rounded,
+                  iconColor: const Color(0xFF81B655),
+                  title: 'CV Document',
+                  actionIcon: Icons.open_in_new_rounded,
+                  isDark: isDark,
+                  onTap: () async {
+                    final uri = Uri.parse(application.cvUrl);
+                    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
+                ),
+                ...application.certificateUrls.asMap().entries.map((e) => _buildCredentialCard(
+                  icon: Icons.verified_rounded,
+                  iconColor: Colors.indigo,
+                  title: 'Certificate Document ${e.key + 1}',
+                  actionIcon: Icons.open_in_new_rounded,
+                  isDark: isDark,
+                  onTap: () async {
+                    final uri = Uri.parse(e.value);
+                    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
+                )),
+                _buildCredentialCard(
+                  icon: Icons.videocam_rounded,
+                  iconColor: Theme.of(context).colorScheme.primary,
+                  title: 'Teaching Demo Video',
+                  actionIcon: Icons.play_circle_outline_rounded,
+                  isDark: isDark,
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => VideoPlayerModal(
+                        videoUrl: application.videoUrl,
+                        title: 'Teaching Demo',
+                      ),
+                    );
+                  },
+                ),
+                _buildCredentialCard(
+                  icon: Icons.insert_drive_file_rounded,
+                  iconColor: Colors.teal,
+                  title: 'Teaching Syllabus PDF',
+                  actionIcon: Icons.open_in_new_rounded,
+                  isDark: isDark,
+                  onTap: () async {
+                    final uri = Uri.parse(application.syllabusUrl);
+                    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              application.status == 'pending'
-                  ? 'Your application for the ${isValidator ? 'Validator' : 'Educator'} role is currently being reviewed by our super admins.'
-                  : 'Unfortunately, your application was not approved at this time. Please contact support or await further evaluation.',
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Submitted Credentials:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.assignment_ind, color: Color(0xFF81B655)),
-              title: const Text('CV Document'),
-              trailing: const Icon(Icons.open_in_new, size: 16),
-              onTap: () async {
-                final uri = Uri.parse(application.cvUrl);
-                if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
-              },
-            ),
-            ...application.certificateUrls.asMap().entries.map((e) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.verified, color: Colors.indigo),
-              title: Text('Certificate Document ${e.key + 1}'),
-              trailing: const Icon(Icons.open_in_new, size: 16),
-              onTap: () async {
-                final uri = Uri.parse(e.value);
-                if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
-              },
-            )),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.videocam, color: Theme.of(context).colorScheme.primary),
-              title: const Text('Teaching Demo Video'),
-              trailing: const Icon(Icons.play_circle_outline, size: 16),
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => VideoPlayerModal(
-                    videoUrl: application.videoUrl,
-                    title: 'Teaching Demo',
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.insert_drive_file, color: Colors.teal),
-              title: const Text('Teaching Syllabus PDF'),
-              trailing: const Icon(Icons.open_in_new, size: 16),
-              onTap: () async {
-                final uri = Uri.parse(application.syllabusUrl);
-                if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
-              },
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF81B655),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: Text('Close', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+        );
+      },
+    );
+  }
+
+  Widget _buildCredentialCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required IconData actionIcon,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E281C) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+      ),
+      child: ListTile(
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
           ),
-        ],
+          child: Icon(icon, color: iconColor, size: 20),
+        ),
+        title: Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+        ),
+        trailing: Icon(actionIcon, size: 18, color: isDark ? Colors.white54 : const Color(0xFF64748B)),
+        onTap: onTap,
       ),
     );
   }

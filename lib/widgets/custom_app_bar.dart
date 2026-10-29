@@ -57,6 +57,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                 : 'User');
         final String profileImageUrl = liveData['photoUrl'] ?? liveData['profile_image_url'] ?? user.photoURL ?? '';
 
+        final bool hasBackButton = showBackButton || (ModalRoute.of(context)?.canPop ?? false);
+
         return AppBar(
           backgroundColor: isDark ? const Color(0xFF333333) : Colors.white,
       elevation: 0,
@@ -75,23 +77,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         height: 70,
         child: Stack(
           children: [
-
-            
-            // Left Group: Burger + Logo
+            // Left Group: Burger or Back Button + Logo
             Align(
               alignment: Alignment.centerLeft,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.menu, color: isDark ? Colors.white : Colors.black87),
-                    onPressed: () => _openDrawer(context),
-                  ),
-                  if (showBackButton || (ModalRoute.of(context)?.canPop ?? false))
+                  if (hasBackButton)
                     IconButton(
                       tooltip: 'Back',
                       icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black87, size: 28),
                       onPressed: () => Navigator.maybePop(context),
+                    )
+                  else
+                    IconButton(
+                      icon: Icon(Icons.menu, color: isDark ? Colors.white : Colors.black87),
+                      onPressed: () => _openDrawer(context),
                     ),
                   const SizedBox(width: 4),
                   Material(

@@ -46,6 +46,7 @@ class _SignupPageState extends State<SignupPage> {
   bool _isEmailTaken = false;
   bool _isInvalidDomain = false;
   bool _isValidatingEmail = false;
+  Timer? _emailDebounceTimer;
 
   // Step 3 Controllers
   final _passwordController = TextEditingController();
@@ -62,7 +63,6 @@ class _SignupPageState extends State<SignupPage> {
   @override
   void initState() {
     super.initState();
-    _emailController.addListener(_validateEmailRealTime);
     _authSubscription = AuthService.instance.authStateChanges().listen((user) {
       if (user != null && mounted) {
         final isGoogleUser = user.providerData.any(
@@ -75,38 +75,48 @@ class _SignupPageState extends State<SignupPage> {
     });
   }
 
-  void _validateEmailRealTime() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty || !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+  void _onEmailChanged(String val) {
+    _emailDebounceTimer?.cancel();
+    if (_isEmailTaken || _isInvalidDomain) {
       setState(() {
         _isEmailTaken = false;
         _isInvalidDomain = false;
       });
-      return;
     }
+    final email = val.trim();
+    if (email.isEmpty) return;
 
-    if (!EmailValidatorService.isAllowedEmail(email)) {
-      setState(() {
-        _isInvalidDomain = true;
-        _isEmailTaken = false;
-        _isValidatingEmail = false;
-      });
-      return;
-    } else {
-      if (_isInvalidDomain) {
-        setState(() => _isInvalidDomain = false);
+    _emailDebounceTimer = Timer(const Duration(milliseconds: 700), () async {
+      if (!mounted) return;
+      final current = _emailController.text.trim();
+      if (current.isEmpty || !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(current)) {
+        return;
       }
-    }
 
-    setState(() => _isValidatingEmail = true);
-    final taken = await AuthService.instance.isEmailTaken(email);
-    if (mounted) {
-      setState(() {
-        _isEmailTaken = taken;
-        _isValidatingEmail = false;
-      });
-    }
+      if (!EmailValidatorService.isAllowedEmail(current)) {
+        if (mounted) {
+          setState(() {
+            _isInvalidDomain = true;
+            _isEmailTaken = false;
+            _isValidatingEmail = false;
+          });
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() => _isValidatingEmail = true);
+      }
+      final taken = await AuthService.instance.isEmailTaken(current);
+      if (mounted && _emailController.text.trim() == current) {
+        setState(() {
+          _isEmailTaken = taken;
+          _isValidatingEmail = false;
+        });
+      }
+    });
   }
+
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime maxAllowedDate = DateTime(2014, 12, 31);
@@ -188,6 +198,7 @@ class _SignupPageState extends State<SignupPage> {
               }
             });
 
+            final isDark = Theme.of(context).brightness == Brightness.dark;
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: const Text("Terms & Privacy Policy", style: TextStyle(fontWeight: FontWeight.bold)),
@@ -199,26 +210,72 @@ class _SignupPageState extends State<SignupPage> {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.grey[50],
+                          color: isDark ? const Color(0xFF1E293B) : Colors.grey[50],
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[200]!),
+                          border: Border.all(color: isDark ? Colors.white12 : Colors.grey[300]!),
                         ),
                         child: SingleChildScrollView(
                           controller: scrollController,
                           padding: const EdgeInsets.all(16),
-                          child: const Column(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text("Terms of Service", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                              SizedBox(height: 8),
-                              Text("Welcome to Grammatica. By using our services, you agree to these terms. Please read them carefully. We provide an educational platform for grammar learning. You are responsible for maintaining the confidentiality of your account..."),
-                              SizedBox(height: 16),
-                              Text("Privacy Policy", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                              SizedBox(height: 8),
-                              Text("We value your privacy. We collect information to provide better services to our users. This includes your name, email, and progress data. We do not sell your data to third parties..."),
-                              SizedBox(height: 400, child: Center(child: Text("Scroll down to accept terms...", style: TextStyle(color: Colors.grey)))),
-                              Text("End of Document", style: TextStyle(fontWeight: FontWeight.bold)),
-                              Text("Thank you for choosing Grammatica! Now you can proceed."),
+                              Text(
+                                "Terms of Service",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Welcome to Grammatica. By using our services, you agree to these terms. Please read them carefully. We provide an educational platform for grammar learning. You are responsible for maintaining the confidentiality of your account...",
+                                style: TextStyle(
+                                  color: isDark ? Colors.white70 : Colors.black87,
+                                  height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                "Privacy Policy",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "We value your privacy. We collect information to provide better services to our users. This includes your name, email, and progress data. We do not sell your data to third parties...",
+                                style: TextStyle(
+                                  color: isDark ? Colors.white70 : Colors.black87,
+                                  height: 1.4,
+                                ),
+                              ),
+                              SizedBox(
+                                height: 400,
+                                child: Center(
+                                  child: Text(
+                                    "Scroll down to accept terms...",
+                                    style: TextStyle(color: isDark ? Colors.white38 : Colors.grey),
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                "End of Document",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Thank you for choosing Grammatica! Now you can proceed.",
+                                style: TextStyle(
+                                  color: isDark ? Colors.white70 : Colors.black87,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -232,7 +289,12 @@ class _SignupPageState extends State<SignupPage> {
                           onChanged: _hasScrolledToBottom ? (val) => setModalState(() => _agreedToTerms = val!) : null,
                           activeColor: const Color(0xFF81B655),
                         ),
-                        const Expanded(child: Text("I have read and agree to the terms.")),
+                        Expanded(
+                          child: Text(
+                            "I have read and agree to the terms.",
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -801,7 +863,7 @@ class _SignupPageState extends State<SignupPage> {
                   if (_isEmailTaken) return 'This email has already been taken';
                   return null;
                 },
-                onChanged: (val) => _validateEmailRealTime(),
+                onChanged: _onEmailChanged,
                 suffixIcon: _isValidatingEmail 
                   ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
                   : _isInvalidDomain
@@ -1264,8 +1326,8 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   void dispose() {
+    _emailDebounceTimer?.cancel();
     _authSubscription?.cancel();
-    _emailController.removeListener(_validateEmailRealTime);
     _firstNameController.dispose();
     _lastNameController.dispose();
     _dobController.dispose();

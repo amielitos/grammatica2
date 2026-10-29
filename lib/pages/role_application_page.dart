@@ -236,8 +236,8 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         final created = createdAt?.toDate() ?? widget.user.metadata.creationTime;
         if (created != null) {
           final days = DateTime.now().difference(created).inDays;
-          if (days < 30) {
-            throw Exception('Educator applicants must be registered on Grammatica for at least 30 days. You have been a member for $days days.');
+          if (days < 7) {
+            throw Exception('Educator applicants must be registered on Grammatica for at least 7 days. You have been a member for $days days.');
           }
         }
       }
@@ -412,49 +412,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Back Button
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF81B655).withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: const Color(0xFF81B655).withValues(alpha: 0.25),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.arrow_back_rounded,
-                                size: 16,
-                                color: Color(0xFF81B655),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Back',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF81B655),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+
 
                   // Header Title
                   Text(

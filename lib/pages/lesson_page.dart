@@ -49,19 +49,39 @@ class _LessonPageState extends State<LessonPage> {
   bool get _canAccessLesson {
     if (_lesson.isArchived) return false;
     if (_lesson.validationStatus == 'approved') return true;
-    if (_lesson.createdByUid != null &&
-        _lesson.createdByUid == _effectiveUser.uid) {
+    final curUid = _effectiveUser.uid;
+    final curEmail = _effectiveUser.email?.toLowerCase();
+    if (_lesson.createdByUid != null && _lesson.createdByUid == curUid) {
       return true;
     }
-    return _userRole == UserRole.validator;
+    if (_lesson.createdByEmail != null && curEmail != null &&
+        _lesson.createdByEmail!.toLowerCase() == curEmail) {
+      return true;
+    }
+    if (widget.playlist != null) {
+      if (widget.playlist!.createdByUid == curUid) return true;
+      if (curEmail != null && widget.playlist!.createdByEmail.toLowerCase() == curEmail) return true;
+    }
+    final role = _userData?['role']?.toString().toUpperCase();
+    if (role == 'SUPERADMIN' || role == 'ADMIN' || role == 'VALIDATOR') return true;
+    return _userRole == UserRole.validator || _userRole == UserRole.admin || _userRole == UserRole.superadmin;
   }
 
   bool get _needsRoleCheckBeforeRender {
     if (_lesson.isArchived) return false;
     if (_lesson.validationStatus == 'approved') return false;
-    if (_lesson.createdByUid != null &&
-        _lesson.createdByUid == _effectiveUser.uid) {
+    final curUid = _effectiveUser.uid;
+    final curEmail = _effectiveUser.email?.toLowerCase();
+    if (_lesson.createdByUid != null && _lesson.createdByUid == curUid) {
       return false;
+    }
+    if (_lesson.createdByEmail != null && curEmail != null &&
+        _lesson.createdByEmail!.toLowerCase() == curEmail) {
+      return false;
+    }
+    if (widget.playlist != null) {
+      if (widget.playlist!.createdByUid == curUid) return false;
+      if (curEmail != null && widget.playlist!.createdByEmail.toLowerCase() == curEmail) return false;
     }
     return !_roleLoaded;
   }
@@ -575,104 +595,70 @@ class _LessonPageState extends State<LessonPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Row: Back button & Status Badges
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: InkWell(
-                        onTap: () => Navigator.maybePop(context),
-                        borderRadius: BorderRadius.circular(100),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                // Top Row: Status Badges
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (_isCompleted)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
+                            color: const Color(0xFF22C55E).withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(100),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.arrow_back_rounded, size: 15, color: Colors.white),
-                              const SizedBox(width: 6),
+                              const Icon(Icons.check_circle_rounded, size: 14, color: Colors.white),
+                              const SizedBox(width: 5),
                               Text(
-                                'Back to Lessons',
+                                'COMPLETED',
                                 style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
                                   color: Colors.white,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        alignment: WrapAlignment.end,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (_isCompleted)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF22C55E).withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(100),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.check_circle_rounded, size: 14, color: Colors.white),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'COMPLETED',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.5,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _lesson.isMembersOnly ? Icons.lock_outline_rounded : Icons.public_rounded,
+                              size: 13,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              _lesson.isMembersOnly ? 'MEMBERS ONLY' : 'PUBLIC LESSON',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                                color: Colors.white,
                               ),
                             ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(100),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  _lesson.isMembersOnly ? Icons.lock_outline_rounded : Icons.public_rounded,
-                                  size: 13,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  _lesson.isMembersOnly ? 'MEMBERS ONLY' : 'PUBLIC LESSON',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 22),
 

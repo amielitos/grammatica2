@@ -338,13 +338,14 @@ class _StatsOverview extends StatelessWidget {
                         ];
 
                         if (isNarrow) {
-                          return Column(
-                            children: items
-                                .map((w) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 10),
-                                      child: w,
-                                    ))
-                                .toList(),
+                          return GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 2.15,
+                            children: items,
                           );
                         }
 

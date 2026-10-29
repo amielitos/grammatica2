@@ -167,11 +167,17 @@ class EmailSenderService {
     debugPrint('==============================================');
 
     final codeDigits = otpCode.split('');
-    final digitsHtml = codeDigits.map((digit) => '''
+    final digitsHtml = codeDigits
+        .map(
+          (digit) =>
+              '''
       <span style="display: inline-block; background-color: #FFFFFF; color: #0F172A; font-size: 32px; font-weight: 900; width: 52px; height: 60px; border-radius: 12px; line-height: 60px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1.5px solid #C8E6B5; font-family: 'Courier New', monospace;">$digit</span>
-    ''').join('');
+    ''',
+        )
+        .join('');
 
-    final contentHtml = '''
+    final contentHtml =
+        '''
       <p style="color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 28px;">
         Thank you for registering with <strong>Grammatica</strong>! To activate and secure your account, please use the 6-digit verification code below:
       </p>
@@ -197,7 +203,8 @@ class EmailSenderService {
 
     final body = _buildBrandedEmailTemplate(
       title: 'Verify Your Email Address',
-      subtitle: 'Complete your registration to start your language learning journey',
+      subtitle:
+          'Complete your registration to start your language learning journey',
       badgeIcon: '🔑',
       badgeText: 'Email Verification',
       recipientName: recipientName,
@@ -225,11 +232,17 @@ class EmailSenderService {
     debugPrint('==============================================');
 
     final codeDigits = otpCode.split('');
-    final digitsHtml = codeDigits.map((digit) => '''
+    final digitsHtml = codeDigits
+        .map(
+          (digit) =>
+              '''
       <span style="display: inline-block; background-color: #FFFFFF; color: #0F172A; font-size: 32px; font-weight: 900; width: 52px; height: 60px; border-radius: 12px; line-height: 60px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1.5px solid #C8E6B5; font-family: 'Courier New', monospace;">$digit</span>
-    ''').join('');
+    ''',
+        )
+        .join('');
 
-    final contentHtml = '''
+    final contentHtml =
+        '''
       <p style="color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 28px;">
         We received a request to reset the password for your <strong>Grammatica</strong> account. Use the 6-digit verification code below to confirm your identity and set a new password:
       </p>
@@ -279,12 +292,15 @@ class EmailSenderService {
     int lockoutMinutes = 5,
   }) async {
     debugPrint('==============================================');
-    debugPrint('🔒 ACCOUNT LOCKED ALERT FOR $recipientEmail ($lockoutMinutes min)');
+    debugPrint(
+      '🔒 ACCOUNT LOCKED ALERT FOR $recipientEmail ($lockoutMinutes min)',
+    );
     debugPrint('==============================================');
 
     final name = recipientName ?? 'Learner';
 
-    final contentHtml = '''
+    final contentHtml =
+        '''
       <p style="color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
         For your protection, your Grammatica account has been temporarily locked for <strong>$lockoutMinutes minutes</strong> after 3 consecutive unsuccessful login attempts.
       </p>
@@ -321,7 +337,8 @@ class EmailSenderService {
 
     return await sendEmail(
       toEmail: recipientEmail,
-      subject: 'Security Alert: Your Grammatica Account Has Been Temporarily Locked',
+      subject:
+          'Security Alert: Your Grammatica Account Has Been Temporarily Locked',
       body: body,
     );
   }
@@ -340,7 +357,8 @@ class EmailSenderService {
     if (conferenceApp.toLowerCase().contains('zoom')) appName = 'Zoom';
     if (conferenceApp.toLowerCase().contains('team')) appName = 'MS Teams';
 
-    final contentHtml = '''
+    final contentHtml =
+        '''
       <p style="color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
         Your educator <strong>$educatorName</strong> has scheduled an interactive 1-on-1 mentorship session with you on Grammatica!
       </p>
@@ -386,7 +404,8 @@ class EmailSenderService {
 
     return await sendEmail(
       toEmail: recipientEmail,
-      subject: '📅 Mentorship Session Scheduled: $meetingTitle with $educatorName',
+      subject:
+          '📅 Mentorship Session Scheduled: $meetingTitle with $educatorName',
       body: body,
     );
   }
@@ -397,7 +416,8 @@ class EmailSenderService {
     required String recipientName,
     required String resetLink,
   }) async {
-    final contentHtml = '''
+    final contentHtml =
+        '''
       <p style="color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
         We received a request to reset the password for your <strong>Grammatica</strong> account.
       </p>
@@ -446,7 +466,8 @@ class EmailSenderService {
     required String recipientName,
     required String tempPassword,
   }) async {
-    final contentHtml = '''
+    final contentHtml =
+        '''
       <p style="color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 28px;">
         Thank you for registering with Google! To give you full access to Grammatica across all devices and web platforms, we generated a secure <strong>Temporary Password</strong> for your account:
       </p>
@@ -538,16 +559,16 @@ class EmailSenderService {
     String paymentMethod = 'PayMongo QR PH / Checkout',
     DateTime? paymentDate,
   }) async {
-    final dateStr = (paymentDate ?? DateTime.now())
-        .toLocal()
-        .toString()
-        .split('.')[0];
+    final dateStr = (paymentDate ?? DateTime.now()).toLocal().toString().split(
+      '.',
+    )[0];
 
     debugPrint('==============================================');
     debugPrint('🧾 PAYMENT RECEIPT FOR $recipientEmail: ₱$amount ($tier)');
     debugPrint('==============================================');
 
-    final contentHtml = '''
+    final contentHtml =
+        '''
       <p style="color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
         Thank you for your payment! Your subscription to <strong>$educatorName</strong> has been successfully processed and your <strong>$tier Tier</strong> benefits are now active.
       </p>
@@ -627,7 +648,8 @@ class EmailSenderService {
 
     return await sendEmail(
       toEmail: recipientEmail,
-      subject: '💳 Payment Receipt & Confirmation: $tier Subscription to $educatorName',
+      subject:
+          '💳 Payment Receipt & Confirmation: $tier Subscription to $educatorName',
       body: body,
       idempotencyKey: emailKey,
     );
@@ -638,7 +660,8 @@ class EmailSenderService {
     required String recipientEmail,
     required String temporaryPassword,
   }) async {
-    final contentHtml = '''
+    final contentHtml =
+        '''
       <p style="color: #475569; font-size: 15px; line-height: 1.7; margin-bottom: 24px;">
         You have been granted <strong>Admin</strong> privileges on the Grammatica platform.
       </p>
@@ -688,7 +711,8 @@ class EmailSenderService {
     required String body,
     String? idempotencyKey,
   }) async {
-    final effectiveKey = idempotencyKey ??
+    final effectiveKey =
+        idempotencyKey ??
         IdempotencyService.instance.generateEmailReceiptKey(
           recipientEmail: toEmail,
           referenceNumber: subject.hashCode.abs().toString(),
@@ -705,30 +729,36 @@ class EmailSenderService {
         if (kIsWeb) {
           // --- Try Dart relay first (dart run scripts/local_email_relay.dart) ---
           try {
-            debugPrint('📧 Trying Dart relay at http://localhost:8081/send-generic ...');
+            debugPrint(
+              '📧 Trying Dart relay at http://localhost:8081/send-generic ...',
+            );
             final smtpEmail = _smtpEmail;
             final smtpPassword = _smtpPassword;
-            final dartResponse = await http.post(
-              Uri.parse('http://localhost:8081/send-generic'),
-              headers: {
-                'Content-Type': 'application/json',
-                'Idempotency-Key': effectiveKey,
-                'X-Idempotency-Key': effectiveKey,
-              },
-              body: jsonEncode({
-                'smtpEmail': smtpEmail,
-                'smtpPassword': smtpPassword,
-                'recipientEmail': toEmail,
-                'subject': subject,
-                'body': body,
-              }),
-            ).timeout(const Duration(seconds: 6));
+            final dartResponse = await http
+                .post(
+                  Uri.parse('http://localhost:8081/send-generic'),
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Idempotency-Key': effectiveKey,
+                    'X-Idempotency-Key': effectiveKey,
+                  },
+                  body: jsonEncode({
+                    'smtpEmail': smtpEmail,
+                    'smtpPassword': smtpPassword,
+                    'recipientEmail': toEmail,
+                    'subject': subject,
+                    'body': body,
+                  }),
+                )
+                .timeout(const Duration(seconds: 6));
 
             if (dartResponse.statusCode == 200) {
               debugPrint('✅ Dart relay sent email to $toEmail');
               return true;
             } else {
-              debugPrint('⚠️ Dart relay returned ${dartResponse.statusCode}: ${dartResponse.body}');
+              debugPrint(
+                '⚠️ Dart relay returned ${dartResponse.statusCode}: ${dartResponse.body}',
+              );
             }
           } catch (_) {
             debugPrint('⚠️ Dart relay not available, trying Python backend...');
@@ -738,21 +768,25 @@ class EmailSenderService {
           try {
             final backendUrl = AIConfig.pythonBackendUrl;
             final apiKey = AIConfig.pythonApiKey;
-            debugPrint('📧 Trying Python backend at $backendUrl/api/v1/email/send ...');
-            final response = await http.post(
-              Uri.parse('$backendUrl/api/v1/email/send'),
-              headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': apiKey,
-                'Idempotency-Key': effectiveKey,
-                'X-Idempotency-Key': effectiveKey,
-              },
-              body: jsonEncode({
-                'recipientEmail': toEmail,
-                'subject': subject,
-                'body': body,
-              }),
-            ).timeout(const Duration(seconds: 10));
+            debugPrint(
+              '📧 Trying Python backend at $backendUrl/api/v1/email/send ...',
+            );
+            final response = await http
+                .post(
+                  Uri.parse('$backendUrl/api/v1/email/send'),
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey,
+                    'Idempotency-Key': effectiveKey,
+                    'X-Idempotency-Key': effectiveKey,
+                  },
+                  body: jsonEncode({
+                    'recipientEmail': toEmail,
+                    'subject': subject,
+                    'body': body,
+                  }),
+                )
+                .timeout(const Duration(seconds: 10));
 
             if (response.statusCode == 200) {
               debugPrint('✅ Python backend sent email to $toEmail');
@@ -767,21 +801,20 @@ class EmailSenderService {
           }
         }
 
+        final smtpServer = gmail(_smtpEmail, _smtpPassword);
+        final message = Message()
+          ..from = Address(_smtpEmail, 'Grammatica Team')
+          ..recipients.add(toEmail)
+          ..subject = subject
+          ..html = body;
 
-    final smtpServer = gmail(_smtpEmail, _smtpPassword);
-    final message = Message()
-      ..from = Address(_smtpEmail, 'Grammatica Team')
-      ..recipients.add(toEmail)
-      ..subject = subject
-      ..html = body;
-
-    try {
-      await send(message, smtpServer);
-      return true;
-    } catch (e) {
-      debugPrint('Error sending email: $e');
-      return false;
-    }
+        try {
+          await send(message, smtpServer);
+          return true;
+        } catch (e) {
+          debugPrint('Error sending email: $e');
+          return false;
+        }
       },
     );
   }

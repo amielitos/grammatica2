@@ -9,6 +9,7 @@ import '../../theme/app_colors.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/content_denial_dialog.dart';
 import '../../widgets/archive_management_dialog.dart';
+import '../../widgets/author_name_widget.dart';
 import '../../models/playlist.dart';
 
 class LessonsListTab extends StatefulWidget {
@@ -27,11 +28,17 @@ class LessonsListTab extends StatefulWidget {
 
 class _LessonsListTabState extends State<LessonsListTab> {
   String _searchQuery = '';
-  String _selectedFilter = 'Create Date';
-  final List<String> _filterOptions = ['Name', 'Status', 'Create Date'];
+  String _selectedFilter = 'Date Created';
+  final List<String> _filterOptions = ['Name', 'Status', 'Date Created'];
   final Set<String> _superAdminUids = {};
   int _activeView = 0; // 0: Lessons, 1: Playlists
-  String? _activeFolder; // null: all, 'public': Public Lessons folder, 'members': Members Only Lessons folder
+  String _selectedCategory = 'All Lessons';
+  final List<String> _categoryOptions = [
+    'All Lessons',
+    'Public Lessons',
+    'Members Only Lessons',
+    'Rejected Lessons',
+  ];
 
   @override
   void initState() {
@@ -138,6 +145,15 @@ class _LessonsListTabState extends State<LessonsListTab> {
               }).toList();
             }
 
+            // Category filter dropdown: 'All Lessons', 'Public Lessons', 'Members Only Lessons', 'Rejected Lessons'
+            if (_selectedCategory == 'Public Lessons') {
+              lessons = lessons.where((l) => !l.isMembersOnly && l.validationStatus != 'rejected').toList();
+            } else if (_selectedCategory == 'Members Only Lessons') {
+              lessons = lessons.where((l) => l.isMembersOnly && l.validationStatus != 'rejected').toList();
+            } else if (_selectedCategory == 'Rejected Lessons') {
+              lessons = lessons.where((l) => l.validationStatus == 'rejected').toList();
+            }
+
             // Sort
             lessons.sort((a, b) {
               if (_selectedFilter == 'Name') {
@@ -167,13 +183,14 @@ class _LessonsListTabState extends State<LessonsListTab> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Wrap(
-                          alignment: WrapAlignment.spaceBetween,
+                          alignment: WrapAlignment.start,
                           crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 16,
-                          runSpacing: 16,
+                          spacing: 20,
+                          runSpacing: 14,
                           children: [
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
                                   _activeView == 0 ? 'Lessons' : 'Playlists',
@@ -196,8 +213,10 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                 ),
                               ],
                             ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 // View switcher
                                 Container(
@@ -207,6 +226,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                   ),
                                   padding: const EdgeInsets.all(4),
                                   child: Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
                                       ChoiceChip(
                                         label: const Text('Lessons'),
@@ -242,20 +262,19 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                // Create Playlist button
-                                FilledButton.icon(
-                                  onPressed: () => _showPlaylistDialog(context, lessons),
-                                  icon: const Icon(Icons.playlist_add_rounded, size: 18),
-                                  label: const Text('New Playlist'),
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                // Create Playlist button (only visible when in Playlists view)
+                                if (_activeView == 1)
+                                  FilledButton.icon(
+                                    onPressed: () => _showPlaylistDialog(context, lessons),
+                                    icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                                    label: const Text('New Playlist'),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.primary,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 10),
                                 // Archive dialog button
                                 OutlinedButton.icon(
                                   onPressed: () {
@@ -280,82 +299,177 @@ class _LessonsListTabState extends State<LessonsListTab> {
                         const SizedBox(height: 24),
 
                         if (_activeView == 0) ...[
-                          // ── Search + Filter Bar ──
-                          Container(
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                const SizedBox(width: 16),
-                                Icon(Icons.search_rounded,
-                                    color: AppColors.textSecondary, size: 20),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: TextField(
-                                    onChanged: (v) => setState(() => _searchQuery = v),
-                                    style: GoogleFonts.inter(fontSize: 14),
-                                    decoration: InputDecoration(
-                                      hintText: 'Search by title…',
-                                      hintStyle: GoogleFonts.inter(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 14,
-                                      ),
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
-                                      fillColor: Colors.transparent,
-                                      filled: true,
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isNarrow = constraints.maxWidth < 650;
+
+                              final searchField = Container(
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.04),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                                // Filter Chip
-                                GestureDetector(
-                                  onTap: () => _showFilterSheet(context),
-                                  child: Container(
-                                    margin: const EdgeInsets.all(8),
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.tune_rounded,
-                                            color: AppColors.primary, size: 16),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          _selectedFilter,
-                                          style: GoogleFonts.inter(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.primary,
+                                child: Row(
+                                  children: [
+                                    const SizedBox(width: 16),
+                                    Icon(Icons.search_rounded,
+                                        color: AppColors.textSecondary, size: 20),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextField(
+                                        onChanged: (v) => setState(() => _searchQuery = v),
+                                        style: GoogleFonts.inter(fontSize: 14),
+                                        decoration: InputDecoration(
+                                          hintText: 'Search by title…',
+                                          hintStyle: GoogleFonts.inter(
+                                            color: AppColors.textSecondary,
+                                            fontSize: 14,
                                           ),
+                                          border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                                          fillColor: Colors.transparent,
+                                          filled: true,
                                         ),
-                                      ],
+                                      ),
                                     ),
+                                    // Sort Filter Dropdown
+                                    Container(
+                                      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          value: _selectedFilter,
+                                          dropdownColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                                          borderRadius: BorderRadius.circular(14),
+                                          icon: const Padding(
+                                            padding: EdgeInsets.only(left: 4),
+                                            child: Icon(Icons.arrow_drop_down_rounded, color: AppColors.primary, size: 20),
+                                          ),
+                                          items: _filterOptions.map((opt) {
+                                            return DropdownMenuItem<String>(
+                                              value: opt,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    opt == 'Name'
+                                                        ? Icons.sort_by_alpha_rounded
+                                                        : (opt == 'Status' ? Icons.traffic_rounded : Icons.calendar_today_rounded),
+                                                    size: 14,
+                                                    color: AppColors.primary,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    opt,
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 13,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: AppColors.primary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }).toList(),
+                                          onChanged: (val) {
+                                            if (val != null) setState(() => _selectedFilter = val);
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              final categoryDropdown = Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.04),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: _selectedCategory,
+                                    dropdownColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    icon: const Icon(Icons.filter_list_rounded, color: AppColors.primary, size: 20),
+                                    items: _categoryOptions.map((opt) {
+                                      Color color = AppColors.primary;
+                                      IconData icon = Icons.apps_rounded;
+                                      if (opt == 'Public Lessons') {
+                                        color = AppColors.primary;
+                                        icon = Icons.public_rounded;
+                                      } else if (opt == 'Members Only Lessons') {
+                                        color = const Color(0xFF9B59B6);
+                                        icon = Icons.lock_rounded;
+                                      } else if (opt == 'Rejected Lessons') {
+                                        color = const Color(0xFFD32F2F);
+                                        icon = Icons.cancel_rounded;
+                                      }
+                                      return DropdownMenuItem<String>(
+                                        value: opt,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(icon, size: 16, color: color),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              opt,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: isDark ? Colors.white : AppColors.textPrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) setState(() => _selectedCategory = val);
+                                    },
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // ── 2 Folders: Public Lessons & Members Only Lessons ──
-                          _buildFolderCardsRow(
-                            context: context,
-                            publicCount: lessons.where((l) => !l.isMembersOnly).length,
-                            membersCount: lessons.where((l) => l.isMembersOnly).length,
-                            isDark: isDark,
+                              );
+
+                              if (isNarrow) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    searchField,
+                                    const SizedBox(height: 12),
+                                    categoryDropdown,
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  Expanded(child: searchField),
+                                  const SizedBox(width: 14),
+                                  categoryDropdown,
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: 24),
                         ],
@@ -400,81 +514,16 @@ class _LessonsListTabState extends State<LessonsListTab> {
                       ),
                     ),
                   )
-                else if (_activeFolder == 'public') ...[
-                  // ── Folder View: Public Lessons Only ──
-                  _buildLessonSectionHeader(
-                    title: 'Folder: Public Lessons',
-                    count: lessons.where((l) => !l.isMembersOnly).length,
-                    icon: Icons.public_rounded,
-                    color: AppColors.primary,
-                    isDark: isDark,
-                  ),
+                else
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
                     sliver: SliverLayoutBuilder(
                       builder: (context, slc) {
                         final isWide = slc.crossAxisExtent > 700;
-                        final publicList = lessons.where((l) => !l.isMembersOnly).toList();
-                        return _buildLessonSliverGrid(publicList, canEdit, isDark, isWide);
+                        return _buildLessonSliverGrid(lessons, canEdit, isDark, isWide);
                       },
                     ),
                   ),
-                ] else if (_activeFolder == 'members') ...[
-                  // ── Folder View: Members-Only Lessons Only ──
-                  _buildLessonSectionHeader(
-                    title: 'Folder: Members Only Lessons',
-                    count: lessons.where((l) => l.isMembersOnly).length,
-                    icon: Icons.lock_rounded,
-                    color: const Color(0xFF8E24AA),
-                    isDark: isDark,
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-                    sliver: SliverLayoutBuilder(
-                      builder: (context, slc) {
-                        final isWide = slc.crossAxisExtent > 700;
-                        final membersList = lessons.where((l) => l.isMembersOnly).toList();
-                        return _buildLessonSliverGrid(membersList, canEdit, isDark, isWide);
-                      },
-                    ),
-                  ),
-                ] else ...[
-                  // ── Both Folders View: Separated Public & Members-Only Sections ──
-                  _buildLessonSectionHeader(
-                    title: 'Public Lessons Folder',
-                    count: lessons.where((l) => !l.isMembersOnly).length,
-                    icon: Icons.public_rounded,
-                    color: AppColors.primary,
-                    isDark: isDark,
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-                    sliver: SliverLayoutBuilder(
-                      builder: (context, slc) {
-                        final isWide = slc.crossAxisExtent > 700;
-                        final publicList = lessons.where((l) => !l.isMembersOnly).toList();
-                        return _buildLessonSliverGrid(publicList, canEdit, isDark, isWide);
-                      },
-                    ),
-                  ),
-                  _buildLessonSectionHeader(
-                    title: 'Members Only Lessons Folder',
-                    count: lessons.where((l) => l.isMembersOnly).length,
-                    icon: Icons.lock_rounded,
-                    color: const Color(0xFF8E24AA),
-                    isDark: isDark,
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-                    sliver: SliverLayoutBuilder(
-                      builder: (context, slc) {
-                        final isWide = slc.crossAxisExtent > 700;
-                        final membersList = lessons.where((l) => l.isMembersOnly).toList();
-                        return _buildLessonSliverGrid(membersList, canEdit, isDark, isWide);
-                      },
-                    ),
-                  ),
-                ],
               ],
             );
           },
@@ -483,282 +532,9 @@ class _LessonsListTabState extends State<LessonsListTab> {
     );
   }
 
-  Widget _buildFolderCardsRow({
-    required BuildContext context,
-    required int publicCount,
-    required int membersCount,
-    required bool isDark,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.folder_shared_rounded, size: 20, color: AppColors.primary),
-            const SizedBox(width: 8),
-            Text(
-              'Lesson Folders',
-              style: GoogleFonts.outfit(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-            if (_activeFolder != null) ...[
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Filtered: ${_activeFolder == 'public' ? 'Public Lessons' : 'Members Only'}',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    InkWell(
-                      onTap: () => setState(() => _activeFolder = null),
-                      child: const Icon(Icons.close_rounded, size: 14, color: AppColors.primary),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isNarrow = constraints.maxWidth < 650;
-            final publicCard = _buildFolderCard(
-              title: 'Public Lessons',
-              subtitle: 'Free & open access curriculum for all learners',
-              count: publicCount,
-              icon: Icons.public_rounded,
-              color: AppColors.primary,
-              isSelected: _activeFolder == 'public',
-              isDark: isDark,
-              onTap: () {
-                setState(() {
-                  _activeFolder = (_activeFolder == 'public') ? null : 'public';
-                });
-              },
-            );
-
-            final membersCard = _buildFolderCard(
-              title: 'Members Only Lessons',
-              subtitle: 'Exclusive lessons curated for enrolled members',
-              count: membersCount,
-              icon: Icons.lock_rounded,
-              color: const Color(0xFF8E24AA),
-              isSelected: _activeFolder == 'members',
-              isDark: isDark,
-              onTap: () {
-                setState(() {
-                  _activeFolder = (_activeFolder == 'members') ? null : 'members';
-                });
-              },
-            );
-
-            if (isNarrow) {
-              return Column(
-                children: [
-                  publicCard,
-                  const SizedBox(height: 12),
-                  membersCard,
-                ],
-              );
-            }
-
-            return Row(
-              children: [
-                Expanded(child: publicCard),
-                const SizedBox(width: 16),
-                Expanded(child: membersCard),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFolderCard({
-    required String title,
-    required String subtitle,
-    required int count,
-    required IconData icon,
-    required Color color,
-    required bool isSelected,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? color.withValues(alpha: isDark ? 0.22 : 0.08)
-                : (isDark ? const Color(0xFF2A2A2A) : Colors.white),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected ? color : (isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-              width: isSelected ? 2 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: color.withValues(alpha: 0.25)),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Icon(Icons.folder_rounded, color: color, size: 34),
-                    Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: Icon(icon, color: Colors.white, size: 14),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: GoogleFonts.outfit(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '$count',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: color,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: isDark ? Colors.white60 : AppColors.textSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                isSelected ? Icons.folder_open_rounded : Icons.chevron_right_rounded,
-                color: isSelected ? color : (isDark ? Colors.white38 : Colors.grey),
-                size: 22,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
 
-  Widget _buildLessonSectionHeader({
-    required String title,
-    required int count,
-    required IconData icon,
-    required Color color,
-    required bool isDark,
-  }) {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 18, color: color),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: GoogleFonts.outfit(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '$count',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildLessonSliverGrid(
     List<Lesson> list,
@@ -824,85 +600,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
     );
   }
 
-  void _showFilterSheet(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Sort By',
-              style: GoogleFonts.outfit(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ..._filterOptions.map((opt) {
-              final selected = _selectedFilter == opt;
-              return GestureDetector(
-                onTap: () {
-                  setState(() => _selectedFilter = opt);
-                  Navigator.pop(context);
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? AppColors.primary.withValues(alpha: 0.08)
-                        : (isDark ? const Color(0xFF333333) : const Color(0xFFF5F5F5)),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: selected ? AppColors.primary : Colors.transparent,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        opt,
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                          color: selected
-                              ? AppColors.primary
-                              : (isDark ? Colors.white : AppColors.textPrimary),
-                        ),
-                      ),
-                      const Spacer(),
-                      if (selected)
-                        const Icon(Icons.check_rounded,
-                            color: AppColors.primary, size: 20),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Future<void> _confirmDelete(BuildContext context, Lesson lesson) async {
     final user = AuthService.instance.currentUser;
@@ -1019,10 +717,13 @@ class _LessonsListTabState extends State<LessonsListTab> {
     if (user == null) return;
 
     // Preference: Playlists can only include approved lessons authored by the creator (or official Grammatica lessons)
-    final allowedLessons = allLessons.where((l) =>
-      (l.createdByUid == user.uid || l.isGrammaticaLesson == true) &&
-      l.validationStatus == 'approved'
-    ).toList();
+    final userEmail = user.email?.toLowerCase();
+    final allowedLessons = allLessons.where((l) {
+      final matchesUid = l.createdByUid == user.uid;
+      final matchesEmail = userEmail != null && l.createdByEmail?.toLowerCase() == userEmail;
+      final isOfficial = l.isGrammaticaLesson == true;
+      return (matchesUid || matchesEmail || isOfficial) && l.validationStatus == 'approved';
+    }).toList();
 
     final titleCtrl = TextEditingController(text: existing?.title ?? '');
     final descCtrl = TextEditingController(text: existing?.description ?? '');
@@ -1035,225 +736,383 @@ class _LessonsListTabState extends State<LessonsListTab> {
       barrierDismissible: false,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (context, setDialogState) {
-          return Dialog(
-            backgroundColor: isDark ? const Color(0xFF242424) : Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 650, maxHeight: 720),
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          Future<void> confirmCancel() async {
+            final shouldDiscard = await showDialog<bool>(
+              context: dialogCtx,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                title: Row(
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 24),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            existing == null ? 'Create Lesson Playlist' : 'Edit Playlist',
-                            style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => Navigator.pop(dialogCtx),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    TextField(
-                      controller: titleCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Playlist Title',
-                        hintText: 'e.g. Master English Tenses in Order',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      child: const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 22),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: descCtrl,
-                      maxLines: 2,
-                      decoration: InputDecoration(
-                        labelText: 'Description (Optional)',
-                        hintText: 'Describe the sequence or goal of this playlist',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Select & Arrange Lessons (${selectedLessonIds.length} selected)',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Lessons will be viewed sequentially in this order by learners.',
-                      style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 12),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: allowedLessons.isEmpty
-                          ? Center(
-                              child: Text(
-                                'No authored or official Grammatica lessons available to add.',
-                                style: GoogleFonts.inter(color: AppColors.textSecondary),
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: allowedLessons.length,
-                              itemBuilder: (ctx, i) {
-                                final lesson = allowedLessons[i];
-                                final isSelected = selectedLessonIds.contains(lesson.id);
-                                final orderIndex = selectedLessonIds.indexOf(lesson.id);
-
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? AppColors.primary.withValues(alpha: 0.08)
-                                        : (isDark ? const Color(0xFF2E2E2E) : const Color(0xFFF8FAFC)),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : (isDark ? Colors.white12 : Colors.black12),
-                                    ),
-                                  ),
-                                  child: ListTile(
-                                    leading: isSelected
-                                        ? CircleAvatar(
-                                            radius: 14,
-                                            backgroundColor: AppColors.primary,
-                                            child: Text(
-                                              '${orderIndex + 1}',
-                                              style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
-                                            ),
-                                          )
-                                        : const Icon(Icons.circle_outlined, size: 20, color: Colors.grey),
-                                    title: Text(
-                                      lesson.title,
-                                      style: GoogleFonts.inter(
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      lesson.isGrammaticaLesson ? 'Official Grammatica' : (lesson.createdByEmail ?? ''),
-                                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
-                                    ),
-                                    trailing: isSelected
-                                        ? Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              if (orderIndex > 0)
-                                                IconButton(
-                                                  icon: const Icon(Icons.arrow_upward_rounded, size: 18),
-                                                  tooltip: 'Move up',
-                                                  onPressed: () {
-                                                    setDialogState(() {
-                                                      final id = selectedLessonIds.removeAt(orderIndex);
-                                                      selectedLessonIds.insert(orderIndex - 1, id);
-                                                    });
-                                                  },
-                                                ),
-                                              if (orderIndex < selectedLessonIds.length - 1)
-                                                IconButton(
-                                                  icon: const Icon(Icons.arrow_downward_rounded, size: 18),
-                                                  tooltip: 'Move down',
-                                                  onPressed: () {
-                                                    setDialogState(() {
-                                                      final id = selectedLessonIds.removeAt(orderIndex);
-                                                      selectedLessonIds.insert(orderIndex + 1, id);
-                                                    });
-                                                  },
-                                                ),
-                                              IconButton(
-                                                icon: const Icon(Icons.remove_circle_outline_rounded, color: Colors.red, size: 20),
-                                                tooltip: 'Remove',
-                                                onPressed: () {
-                                                  setDialogState(() {
-                                                    selectedLessonIds.remove(lesson.id);
-                                                  });
-                                                },
-                                              ),
-                                            ],
-                                          )
-                                        : TextButton(
-                                            onPressed: () {
-                                              setDialogState(() {
-                                                selectedLessonIds.add(lesson.id);
-                                              });
-                                            },
-                                            child: const Text('Add'),
-                                          ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogCtx),
-                          child: const Text('Cancel'),
-                        ),
-                        const SizedBox(width: 12),
-                        FilledButton(
-                          onPressed: selectedLessonIds.isEmpty || titleCtrl.text.trim().isEmpty
-                              ? null
-                              : () async {
-                                  try {
-                                    if (existing == null) {
-                                      await DatabaseService.instance.createPlaylist(
-                                        title: titleCtrl.text.trim(),
-                                        description: descCtrl.text.trim(),
-                                        createdByUid: user.uid,
-                                        createdByEmail: user.email ?? '',
-                                        lessonIds: selectedLessonIds,
-                                      );
-                                    } else {
-                                      await DatabaseService.instance.updatePlaylist(
-                                        id: existing.id,
-                                        title: titleCtrl.text.trim(),
-                                        description: descCtrl.text.trim(),
-                                        lessonIds: selectedLessonIds,
-                                      );
-                                    }
-                                    if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(existing == null ? 'Playlist created!' : 'Playlist updated!'),
-                                          backgroundColor: AppColors.primary,
-                                        ),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Error saving playlist: $e'), backgroundColor: Colors.red),
-                                      );
-                                    }
-                                  }
-                                },
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          ),
-                          child: Text(existing == null ? 'Create Playlist' : 'Save Changes'),
-                        ),
-                      ],
+                      child: Text(
+                        existing == null ? 'Cancel Playlist Creation?' : 'Discard Changes?',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ],
+                ),
+                content: Text(
+                  existing == null
+                      ? 'Are you sure you want to cancel creating this playlist? Any entered information will be lost.'
+                      : 'Are you sure you want to discard your changes? Any unsaved modifications will be lost.',
+                  style: GoogleFonts.inter(fontSize: 14, height: 1.5),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text('Keep Editing', style: GoogleFonts.inter(color: AppColors.textSecondary)),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD32F2F),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Discard', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            );
+            if (shouldDiscard == true && dialogCtx.mounted) {
+              Navigator.pop(dialogCtx);
+            }
+          }
+
+          final mediaQuery = MediaQuery.of(dialogCtx);
+          final isMobile = mediaQuery.size.width < 600;
+          final maxHeight = mediaQuery.size.height * (isMobile ? 0.92 : 0.85);
+
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop) confirmCancel();
+            },
+            child: Dialog(
+              backgroundColor: isDark ? const Color(0xFF242424) : Colors.white,
+              insetPadding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 12 : 40,
+                vertical: isMobile ? 16 : 40,
+              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 650,
+                  maxHeight: maxHeight,
+                ),
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    isMobile ? 16 : 28,
+                    isMobile ? 16 : 28,
+                    isMobile ? 16 : 28,
+                    isMobile ? 16 : 24,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Top Header ──
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              existing == null ? 'Create Lesson Playlist' : 'Edit Playlist',
+                              style: GoogleFonts.outfit(
+                                fontSize: isMobile ? 18 : 22,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: confirmCancel,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // ── Inputs ──
+                      TextField(
+                        controller: titleCtrl,
+                        decoration: InputDecoration(
+                          labelText: 'Playlist Title',
+                          hintText: 'e.g. Master English Tenses in Order',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: descCtrl,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          labelText: 'Description (Optional)',
+                          hintText: 'Describe the sequence or goal of this playlist',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Select & Arrange Lessons (${selectedLessonIds.length} selected)',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Lessons will be viewed sequentially in this order by learners.',
+                        style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 12),
+                      if (allowedLessons.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text(
+                              'No authored or official Grammatica lessons available to add.',
+                              style: GoogleFonts.inter(color: AppColors.textSecondary),
+                            ),
+                          ),
+                        )
+                      else
+                        ...allowedLessons.map((lesson) {
+                          final isSelected = selectedLessonIds.contains(lesson.id);
+                          final orderIndex = selectedLessonIds.indexOf(lesson.id);
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primary.withValues(alpha: 0.08)
+                                  : (isDark ? const Color(0xFF2E2E2E) : const Color(0xFFF8FAFC)),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : (isDark ? Colors.white12 : Colors.black12),
+                              ),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                              onTap: isSelected
+                                  ? null
+                                  : () {
+                                      setDialogState(() {
+                                        selectedLessonIds.add(lesson.id);
+                                      });
+                                    },
+                              leading: isSelected
+                                  ? CircleAvatar(
+                                      radius: 13,
+                                      backgroundColor: AppColors.primary,
+                                      child: Text(
+                                        '${orderIndex + 1}',
+                                        style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
+                                      ),
+                                    )
+                                  : null,
+                              title: Text(
+                                lesson.title,
+                                style: GoogleFonts.inter(
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              subtitle: lesson.isGrammaticaLesson
+                                  ? Text(
+                                      'Official Grammatica',
+                                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                                    )
+                                  : AuthorName(
+                                      uid: lesson.createdByUid,
+                                      fallbackEmail: lesson.createdByEmail,
+                                      prefix: '',
+                                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                                    ),
+                              trailing: isSelected
+                                  ? Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (orderIndex > 0)
+                                          IconButton(
+                                            icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+                                            tooltip: 'Move up',
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                                            onPressed: () {
+                                              setDialogState(() {
+                                                final id = selectedLessonIds.removeAt(orderIndex);
+                                                selectedLessonIds.insert(orderIndex - 1, id);
+                                              });
+                                            },
+                                          ),
+                                        if (orderIndex < selectedLessonIds.length - 1)
+                                          IconButton(
+                                            icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+                                            tooltip: 'Move down',
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                                            onPressed: () {
+                                              setDialogState(() {
+                                                final id = selectedLessonIds.removeAt(orderIndex);
+                                                selectedLessonIds.insert(orderIndex + 1, id);
+                                              });
+                                            },
+                                          ),
+                                        IconButton(
+                                          icon: const Icon(Icons.remove_circle_outline_rounded, color: Colors.red, size: 20),
+                                          tooltip: 'Remove',
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                                          onPressed: () {
+                                            setDialogState(() {
+                                              selectedLessonIds.remove(lesson.id);
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    )
+                                  : TextButton(
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          selectedLessonIds.add(lesson.id);
+                                        });
+                                      },
+                                      child: const Text('Add'),
+                                    ),
+                            ),
+                          );
+                        }),
+                      const SizedBox(height: 18),
+
+                      // ── Actions (Positioned directly beneath lessons list) ──
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: confirmCancel,
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 12),
+                          FilledButton(
+                            onPressed: selectedLessonIds.isEmpty || titleCtrl.text.trim().isEmpty
+                                ? null
+                                : () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: dialogCtx,
+                                      builder: (ctx) => AlertDialog(
+                                        backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                        title: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.primary.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: const Icon(Icons.playlist_add_check_rounded, color: AppColors.primary, size: 22),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text(
+                                                existing == null ? 'Create Playlist?' : 'Save Changes?',
+                                                style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        content: Text(
+                                          existing == null
+                                              ? 'Are you sure you want to create "${titleCtrl.text.trim()}" with ${selectedLessonIds.length} lesson${selectedLessonIds.length == 1 ? '' : 's'}?'
+                                              : 'Are you sure you want to save changes to "${titleCtrl.text.trim()}"?',
+                                          style: GoogleFonts.inter(fontSize: 14, height: 1.5),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx, false),
+                                            child: Text('Cancel', style: GoogleFonts.inter(color: AppColors.textSecondary)),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.primary,
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            ),
+                                            child: Text(existing == null ? 'Create' : 'Save',
+                                                style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed != true) return;
+
+                                    try {
+                                      if (existing == null) {
+                                        await DatabaseService.instance.createPlaylist(
+                                          title: titleCtrl.text.trim(),
+                                          description: descCtrl.text.trim(),
+                                          createdByUid: user.uid,
+                                          createdByEmail: user.email ?? '',
+                                          lessonIds: selectedLessonIds,
+                                        );
+                                      } else {
+                                        await DatabaseService.instance.updatePlaylist(
+                                          id: existing.id,
+                                          title: titleCtrl.text.trim(),
+                                          description: descCtrl.text.trim(),
+                                          lessonIds: selectedLessonIds,
+                                        );
+                                      }
+                                      if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(existing == null ? 'Playlist created!' : 'Playlist updated!'),
+                                            backgroundColor: AppColors.primary,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Error saving playlist: $e'), backgroundColor: Colors.red),
+                                        );
+                                      }
+                                    }
+                                  },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            ),
+                            child: Text(existing == null ? 'Create Playlist' : 'Save Changes'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1266,7 +1125,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
   Widget _buildPlaylistsSection(BuildContext context, List<Lesson> allLessons, bool isDark, String currentUid) {
     final stream = (widget.role == UserRole.admin || widget.role == UserRole.superadmin)
         ? DatabaseService.instance.streamAllPlaylists()
-        : DatabaseService.instance.streamPlaylistsByCreator(currentUid);
+        : DatabaseService.instance.streamPlaylistsByCreator(currentUid, email: AuthService.instance.currentUser?.email);
 
     return StreamBuilder<List<LessonPlaylist>>(
       stream: stream,
@@ -1308,68 +1167,83 @@ class _LessonsListTabState extends State<LessonsListTab> {
 
         return SliverPadding(
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.6,
-              crossAxisSpacing: 20,
-              mainAxisSpacing: 20,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final p = playlists[index];
-                return _PlaylistCard(
-                  playlist: p,
-                  isDark: isDark,
-                  canEdit: p.createdByUid == currentUid || widget.role == UserRole.superadmin || widget.role == UserRole.admin,
-                  onEdit: () => _showPlaylistDialog(context, allLessons, existing: p),
-                  onDelete: () async {
-                    final ok = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Delete Playlist?'),
-                        content: Text('Are you sure you want to delete playlist "${p.title}"? Lessons inside the playlist will NOT be deleted.'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                          ElevatedButton(
-                            onPressed: () => Navigator.pop(ctx, true),
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                            child: const Text('Delete'),
+          sliver: SliverLayoutBuilder(
+            builder: (context, slc) {
+              final isMobile = slc.crossAxisExtent < 650;
+              final isWide = slc.crossAxisExtent > 1100;
+              final crossAxisCount = isMobile ? 1 : (isWide ? 3 : 2);
+              final childAspectRatio = isMobile ? 1.6 : 1.5;
+
+              return SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  childAspectRatio: childAspectRatio,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final p = playlists[index];
+                    final curEmail = AuthService.instance.currentUser?.email?.toLowerCase();
+                    final canEdit = p.createdByUid == currentUid ||
+                        (curEmail != null && p.createdByEmail.toLowerCase() == curEmail) ||
+                        widget.role == UserRole.superadmin ||
+                        widget.role == UserRole.admin;
+
+                    return _PlaylistCard(
+                      playlist: p,
+                      isDark: isDark,
+                      canEdit: canEdit,
+                      onEdit: () => _showPlaylistDialog(context, allLessons, existing: p),
+                      onDelete: () async {
+                        final ok = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete Playlist?'),
+                            content: Text('Are you sure you want to delete playlist "${p.title}"? Lessons inside the playlist will NOT be deleted.'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                child: const Text('Delete'),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        );
+                        if (ok == true) {
+                          await DatabaseService.instance.deletePlaylist(p.id);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Playlist deleted.')));
+                          }
+                        }
+                      },
+                      onTap: () async {
+                        if (p.lessonIds.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This playlist has no lessons yet.')));
+                          return;
+                        }
+                        final firstLessonId = p.lessonIds.first;
+                        final matches = allLessons.where((l) => l.id == firstLessonId);
+                        final Lesson? lesson = matches.isNotEmpty
+                            ? matches.first
+                            : await DatabaseService.instance.getLesson(firstLessonId);
+                        if (lesson == null) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not load the first lesson in this playlist.')));
+                          }
+                          return;
+                        }
+                        if (context.mounted) {
+                          NavigationService.instance.goToLesson(context, lesson, playlist: p);
+                        }
+                      },
                     );
-                    if (ok == true) {
-                      await DatabaseService.instance.deletePlaylist(p.id);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Playlist deleted.')));
-                      }
-                    }
                   },
-                  onTap: () async {
-                    if (p.lessonIds.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This playlist has no lessons yet.')));
-                      return;
-                    }
-                    final firstLessonId = p.lessonIds.first;
-                    final matches = allLessons.where((l) => l.id == firstLessonId);
-                    final Lesson? lesson = matches.isNotEmpty
-                        ? matches.first
-                        : await DatabaseService.instance.getLesson(firstLessonId);
-                    if (lesson == null) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not load the first lesson in this playlist.')));
-                      }
-                      return;
-                    }
-                    if (context.mounted) {
-                      NavigationService.instance.goToLesson(context, lesson, playlist: p);
-                    }
-                  },
-                );
-              },
-              childCount: playlists.length,
-            ),
+                  childCount: playlists.length,
+                ),
+              );
+            },
           ),
         );
       },
@@ -1680,21 +1554,21 @@ class _PlaylistCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 24),
+                    child: const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 22),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1706,11 +1580,14 @@ class _PlaylistCard extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                             color: AppColors.primary,
                           ),
-                        ),
-                        Text(
-                          playlist.createdByEmail.isNotEmpty ? playlist.createdByEmail : 'Creator',
-                          style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                        ),
+                        AuthorName(
+                          uid: playlist.createdByUid,
+                          fallbackEmail: playlist.createdByEmail,
+                          prefix: '',
+                          style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
                         ),
                       ],
                     ),
@@ -1719,42 +1596,52 @@ class _PlaylistCard extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.edit_rounded, size: 18),
                       tooltip: 'Edit Playlist',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       onPressed: onEdit,
                     ),
+                    const SizedBox(width: 4),
                     IconButton(
                       icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
                       tooltip: 'Delete Playlist',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       onPressed: onDelete,
                     ),
                   ],
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Text(
                 playlist.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.outfit(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white : AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Expanded(
                 child: Text(
                   playlist.description.isNotEmpty ? playlist.description : 'Sequential learning playlist folder.',
-                  maxLines: 3,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Start Sequential Journey',
-                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  Flexible(
+                    child: Text(
+                      'Start Sequential Journey',
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const SizedBox(width: 4),
                   const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primary),

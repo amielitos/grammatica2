@@ -74,7 +74,7 @@ class _NotebookCardState extends State<NotebookCard> {
               children: [
                 // Top banner with gradient and icon
                 Container(
-                  height: 90,
+                  height: 78,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -93,8 +93,8 @@ class _NotebookCardState extends State<NotebookCard> {
                         right: -15,
                         top: -15,
                         child: Container(
-                          width: 80,
-                          height: 80,
+                          width: 70,
+                          height: 70,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white.withValues(alpha: 0.1),
@@ -102,15 +102,15 @@ class _NotebookCardState extends State<NotebookCard> {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
                         child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(10),
+                              padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: Colors.white.withValues(alpha: 0.3),
                                 ),
@@ -118,13 +118,14 @@ class _NotebookCardState extends State<NotebookCard> {
                               child: const Icon(
                                 Icons.auto_stories_rounded,
                                 color: Colors.white,
-                                size: 24,
+                                size: 20,
                               ),
                             ),
                             const Spacer(),
                             // Context Menu
                             PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert, color: Colors.white),
+                              icon: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+                              padding: EdgeInsets.zero,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -167,21 +168,22 @@ class _NotebookCardState extends State<NotebookCard> {
 
                 // Card content
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.fromLTRB(14.0, 10.0, 14.0, 10.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         widget.notebook.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.outfit(
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: isDark ? Colors.white : AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         widget.notebook.description.isNotEmpty
                             ? widget.notebook.description
@@ -189,34 +191,47 @@ class _NotebookCardState extends State<NotebookCard> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
-                          fontSize: 13,
+                          fontSize: 12.5,
                           color: isDark ? Colors.white60 : AppColors.textSecondary,
-                          height: 1.4,
+                          height: 1.35,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 10),
 
                       // Metrics & Date row
                       Row(
                         children: [
-                          _buildBadge(
-                            icon: Icons.description_outlined,
-                            text: '${widget.notebook.sourceIds.length} sources',
-                            color: AppColors.primary,
-                            isDark: isDark,
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const NeverScrollableScrollPhysics(),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildBadge(
+                                    icon: Icons.description_outlined,
+                                    text: '${widget.notebook.sourceIds.length} sources',
+                                    color: AppColors.primary,
+                                    isDark: isDark,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _buildBadge(
+                                    icon: Icons.auto_awesome_rounded,
+                                    text: '${widget.notebook.outputIds.length} outputs',
+                                    color: const Color(0xFFF5A623),
+                                    isDark: isDark,
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          _buildBadge(
-                            icon: Icons.auto_awesome_rounded,
-                            text: '${widget.notebook.outputIds.length} outputs',
-                            color: const Color(0xFFF5A623),
-                            isDark: isDark,
-                          ),
-                          const Spacer(),
+                          const SizedBox(width: 6),
                           Text(
                             formattedDate,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10.5,
                               color: isDark ? Colors.white38 : Colors.black38,
                             ),
                           ),
@@ -240,20 +255,20 @@ class _NotebookCardState extends State<NotebookCard> {
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: isDark ? 0.15 : 0.08),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
+          Icon(icon, size: 11, color: color),
           const SizedBox(width: 4),
           Text(
             text,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
               color: color,
             ),

@@ -221,10 +221,16 @@ class PlaylistDetailModal extends StatelessWidget {
       );
       return;
     }
+    final currentEmail = AuthService.instance.currentUser?.email?.toLowerCase();
     final canAccess = !lesson.isArchived &&
         (lesson.validationStatus == 'approved' ||
             (currentUid != null && lesson.createdByUid == currentUid) ||
-            role == UserRole.validator);
+            (currentEmail != null && lesson.createdByEmail?.toLowerCase() == currentEmail) ||
+            (currentUid != null && playlist.createdByUid == currentUid) ||
+            (currentEmail != null && playlist.createdByEmail.toLowerCase() == currentEmail) ||
+            role == UserRole.validator ||
+            role == UserRole.admin ||
+            role == UserRole.superadmin);
     if (!canAccess) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This lesson is awaiting approval and is not yet available.')),

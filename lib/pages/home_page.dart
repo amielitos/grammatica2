@@ -202,7 +202,9 @@ class _HomePageState extends State<HomePage> {
             }
             setState(() {
               _tabIndex = profileIndex;
+              _persistedTabIndex = profileIndex;
             });
+            HomePage.activeTabNotifier.value = profileIndex;
           }
         },
       ),

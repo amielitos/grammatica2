@@ -230,9 +230,13 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
 
                   // ── Stat Cards ─────────────────────────────────────────
                   if (isMobile)
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 1.6,
                       children: [
                         _buildStatCard(label: 'Admins', count: adminCount, icon: Icons.shield_rounded, color: const Color(0xFF8B5CF6), roleKey: 'ADMIN', expanded: false),
                         _buildStatCard(label: 'Validators', count: validatorCount, icon: Icons.verified_rounded, color: const Color(0xFF3B82F6), roleKey: 'VALIDATOR', expanded: false),
