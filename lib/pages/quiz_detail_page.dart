@@ -851,22 +851,16 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         onLogoTap: () async {
           if (_quizStarted && !_completedLocal && !_previewMode) {
             final shouldPop = await _showExitConfirmation();
-            if (shouldPop == true && context.mounted) {
-              Navigator.of(context).pop();
-            }
-          } else {
-            Navigator.of(context).pop();
+            return shouldPop == true;
           }
+          return true;
         },
         onProfileTap: () async {
           if (_quizStarted && !_completedLocal && !_previewMode) {
             final shouldPop = await _showExitConfirmation();
-            if (shouldPop == true && context.mounted) {
-              Navigator.of(context).pop();
-            }
-          } else {
-            Navigator.of(context).pop();
+            return shouldPop == true;
           }
+          return true;
         },
       ),
       drawer: UniversalDrawer(

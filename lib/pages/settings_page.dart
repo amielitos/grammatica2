@@ -29,9 +29,6 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: CustomAppBar(
         user: widget.user,
         showBackButton: true,
-        onLogoTap: () {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        },
         onNotificationTap: () {
           showDialog(
             context: context,

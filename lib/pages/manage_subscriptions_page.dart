@@ -27,10 +27,27 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
   Map<String, dynamic>? _userData;
   int _mentorshipPage = 1;
   static const int _mentorshipPageSize = 4;
+  late final Stream<List<Map<String, dynamic>>> _learnerSubscriptionsStream;
+  late final Stream<List<Map<String, dynamic>>> _mentorshipSessionsStream;
+  late final Stream<List<Map<String, dynamic>>> _learnerPaymentsStream;
+  final Map<String, Future<Map<String, dynamic>?>> _educatorDocFutures = {};
+
+  Future<Map<String, dynamic>?> _getEducatorDocFuture(String educatorId) {
+    return _educatorDocFutures.putIfAbsent(
+      educatorId,
+      () => DatabaseService.instance.getUserDoc(educatorId),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
+    _learnerSubscriptionsStream =
+        DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid);
+    _mentorshipSessionsStream =
+        DatabaseService.instance.streamStudentMentorshipSessions(widget.user.uid);
+    _learnerPaymentsStream =
+        DatabaseService.instance.streamLearnerPayments(widget.user.uid);
     _checkRoleAndLoadPricing();
   }
 
@@ -114,8 +131,6 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             builder: (context) => NotificationsDialog(userId: widget.user.uid),
           );
         },
-        onLogoTap: () => Navigator.pop(context),
-        onProfileTap: () => Navigator.pop(context),
       ),
       drawer: UniversalDrawer(
         user: widget.user,
@@ -349,9 +364,9 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     Color subtitleColor,
   ) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid),
+      stream: _learnerSubscriptionsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
         final subscriptions = snapshot.data ?? [];
@@ -407,9 +422,9 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     Color subtitleColor,
   ) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: DatabaseService.instance.streamStudentMentorshipSessions(widget.user.uid),
+      stream: _mentorshipSessionsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
         final sessions = snapshot.data ?? [];
@@ -521,7 +536,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                     ),
                     const SizedBox(height: 6),
                     FutureBuilder<Map<String, dynamic>?>(
-                      future: DatabaseService.instance.getUserDoc(educatorId),
+                      future: _getEducatorDocFuture(educatorId),
                       builder: (context, eduSnap) {
                         final eduName = eduSnap.data?['username'] ?? 'Educator';
                         return Text(
@@ -918,9 +933,9 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     Color subtitleColor,
   ) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: DatabaseService.instance.streamLearnerPayments(widget.user.uid),
+      stream: _learnerPaymentsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
         final payments = snapshot.data ?? [];

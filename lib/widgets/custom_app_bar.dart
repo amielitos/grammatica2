@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -15,8 +16,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final User user;
   final Map<String, dynamic>? userData;
   final VoidCallback onNotificationTap;
-  final VoidCallback? onLogoTap;
-  final VoidCallback? onProfileTap;
+  /// If [onLogoTap] is provided and returns `false`, default dashboard navigation is cancelled.
+  final FutureOr<bool?> Function()? onLogoTap;
+  /// If [onProfileTap] is provided and returns `false`, default profile navigation is cancelled.
+  final FutureOr<bool?> Function()? onProfileTap;
   final bool showBackButton;
 
   const CustomAppBar({
@@ -112,11 +115,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         }
                         if (!await PracticeTab.canLeavePracticeSession()) return;
                         if (!context.mounted) return;
+                        if (onLogoTap != null) {
+                          final allow = await onLogoTap!();
+                          if (allow == false) return;
+                        }
+                        if (!context.mounted) return;
                         AdminDashboard.resetToDashboard();
                         HomePage.resetToDashboard();
-                        if (onLogoTap != null) {
-                          onLogoTap!();
-                        }
                         Navigator.of(context).popUntil((route) => route.isFirst);
                       },
                       child: Padding(
@@ -137,8 +142,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (screenWidth > 600)
-                      PopupMenuButton<String>(
+                    PopupMenuButton<String>(
                         offset: const Offset(0, 45),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         color: isDark ? const Color(0xFF333333) : Colors.white,
@@ -154,7 +158,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           if (!await PracticeTab.canLeavePracticeSession()) return;
                           if (!context.mounted) return;
                           if (value == 'profile') {
-                            onProfileTap?.call();
+                            if (onProfileTap != null) {
+                              final allow = await onProfileTap!();
+                              if (allow == false) return;
+                            }
+                            if (!context.mounted) return;
+                            AdminDashboard.navigateToProfile(context);
+                            HomePage.navigateToProfile(context);
                           } else if (value == 'settings') {
                             Navigator.push(
                               context,

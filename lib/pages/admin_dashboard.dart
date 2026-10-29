@@ -17,6 +17,7 @@ import '../services/notification_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import 'admin/validator_dashboard_tab.dart';
+import 'admin/validator_approved_tab.dart';
 import 'admin/educator_dashboard_tab.dart';
 import 'admin/admin_landing_settings_tab.dart';
 import 'notebook/notebook_list_page.dart';
@@ -46,6 +47,13 @@ class AdminDashboard extends StatefulWidget {
     activeTabNotifier.value = 0;
   }
 
+  static void navigateToProfile(BuildContext context) {
+    // Profile is always the last tab in AdminDashboard (999 clamps to the last index: ProfilePage)
+    _AdminDashboardState._persistedIndex = 999;
+    activeTabNotifier.value = 999;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   static void navigateToTab(BuildContext context, int tabIndex) {
     _AdminDashboardState._persistedIndex = tabIndex;
     activeTabNotifier.value = tabIndex;
@@ -60,6 +68,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   static int _persistedIndex = 0;
   late int _index;
   int _initialValidationTabIndex = 0;
+  int _initialApprovedTabIndex = 0;
   int? _initialPracticeSubTab;
   bool _initialPracticeShowEditor = false;
   StreamSubscription? _notifSubscription;
@@ -166,7 +175,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
               onReviewRequests: isApprovedValidator
                   ? (subIndex) => setState(() {
                       _index = 1;
+                      _persistedIndex = 1;
                       _initialValidationTabIndex = subIndex;
+                    })
+                  : null,
+              onViewApproved: isApprovedValidator
+                  ? (subIndex) => setState(() {
+                      _index = 2;
+                      _persistedIndex = 2;
+                      _initialApprovedTabIndex = subIndex;
                     })
                   : null,
             ),
@@ -185,6 +202,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
             );
             navItems.add(
               const ModernNavItem(icon: Icons.rate_review_rounded, label: 'Content Review'),
+            );
+
+            tabs.add(
+              ValidatorApprovedTab(
+                key: ValueKey('approved_$_initialApprovedTabIndex'),
+                initialTabIndex: _initialApprovedTabIndex,
+              ),
+            );
+            navItems.add(
+              const ModernNavItem(icon: Icons.verified_rounded, label: 'Approved'),
             );
           }
         } else {
@@ -315,7 +342,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     navItems.add(const ModernNavItem(icon: Icons.person, label: 'My Profile'));
 
     if (_index >= tabs.length) {
-      _index = 0;
+      _index = tabs.length - 1;
+      _persistedIndex = _index;
     }
 
     return Scaffold(
@@ -331,29 +359,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
           );
         },
         onLogoTap: () async {
-          if (_index != 0) {
-            if (!await PracticeTab.canLeavePracticeSession()) return;
-            if (!mounted) return;
-          }
           setState(() {
             _index = 0;
+            _persistedIndex = 0;
           });
+          return true;
         },
         onProfileTap: () async {
           final profileTabIndex = navItems.indexWhere(
             (item) => item.icon == Icons.person,
           );
           if (profileTabIndex != -1) {
-            if (_index != profileTabIndex) {
-              if (!await PracticeTab.canLeavePracticeSession()) return;
-              if (!mounted) return;
-            }
             setState(() {
               _index = profileTabIndex;
               _persistedIndex = profileTabIndex;
             });
             AdminDashboard.activeTabNotifier.value = profileTabIndex;
           }
+          return true;
         },
       ),
       drawer: UniversalDrawer(

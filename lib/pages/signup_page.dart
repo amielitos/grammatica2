@@ -119,8 +119,13 @@ class _SignupPageState extends State<SignupPage> {
 
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime maxAllowedDate = DateTime(2014, 12, 31);
-    DateTime defaultInitDate = DateTime(2005, 1, 1);
+    final bool isValidator = _selectedRole == 'validator';
+    final DateTime maxAllowedDate = isValidator
+        ? DateTime(2005, 12, 31)
+        : DateTime(2014, 12, 31);
+    DateTime defaultInitDate = isValidator
+        ? DateTime(2005, 1, 1)
+        : DateTime(2014, 1, 1);
     if (_selectedDate != null) {
       defaultInitDate = _selectedDate!.isAfter(maxAllowedDate) ? maxAllowedDate : _selectedDate!;
     }
@@ -676,7 +681,13 @@ class _SignupPageState extends State<SignupPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: InkWell(
-                    onTap: () => setState(() => _selectedRole = 'validator'),
+                    onTap: () => setState(() {
+                      _selectedRole = 'validator';
+                      if (_selectedDate != null && _selectedDate!.isAfter(DateTime(2005, 12, 31))) {
+                        _selectedDate = null;
+                        _dobController.clear();
+                      }
+                    }),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -769,14 +780,22 @@ class _SignupPageState extends State<SignupPage> {
             const SizedBox(height: 12),
             _buildTextField(
               controller: _dobController,
-              hintText: 'Date of Birth (2014 or earlier) *',
+              hintText: _selectedRole == 'validator'
+                  ? 'Date of Birth (2005 or earlier) *'
+                  : 'Date of Birth (2014 or earlier) *',
               prefixIcon: const Icon(Icons.calendar_month_outlined),
               readOnly: true,
               onTap: () => _selectDate(context),
               validator: (val) {
                 if (val == null || val.trim().isEmpty) return 'Date of birth is required';
-                if (_selectedDate != null && _selectedDate!.isAfter(DateTime(2014, 12, 31))) {
-                  return 'Must be born in 2014 or earlier (minimum 12 years old)';
+                if (_selectedRole == 'validator') {
+                  if (_selectedDate != null && _selectedDate!.isAfter(DateTime(2005, 12, 31))) {
+                    return 'Must be born in 2005 or earlier (minimum 21 years old)';
+                  }
+                } else {
+                  if (_selectedDate != null && _selectedDate!.isAfter(DateTime(2014, 12, 31))) {
+                    return 'Must be born in 2014 or earlier (minimum 12 years old)';
+                  }
                 }
                 return null;
               },
@@ -836,14 +855,9 @@ class _SignupPageState extends State<SignupPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text.rich(
-              TextSpan(
-                text: "Account Email",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54),
-                children: const [
-                  TextSpan(text: ' *', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                ],
-              ),
+            Text(
+              "Account Email",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white70 : Colors.black54),
             ),
             const SizedBox(height: 16),
             Tooltip(

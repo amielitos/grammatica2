@@ -69,12 +69,8 @@ class _QuizFolderPageState extends State<QuizFolderPage> {
         user: widget.user,
         showBackButton: true,
         onLogoTap: () {
-          if (widget.onBack != null) {
-            widget.onBack!();
-          }
-          if (Navigator.canPop(context)) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          }
+          widget.onBack?.call();
+          return true;
         },
         onNotificationTap: () {
           showDialog(

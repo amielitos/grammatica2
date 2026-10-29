@@ -10,6 +10,7 @@ import 'ai_assessment_generator_page.dart';
 
 class PracticeTab extends StatefulWidget {
   static final ValueNotifier<bool> isGenerating = ValueNotifier<bool>(false);
+  static final ValueNotifier<bool> isInPracticeActivity = ValueNotifier<bool>(false);
   static Future<bool> Function()? confirmExitActiveSession;
 
   static Future<bool> canLeavePracticeSession() async {
@@ -39,6 +40,17 @@ class _PracticeTabState extends State<PracticeTab> {
     super.initState();
     _selectedSubTab = widget.initialSubTab;
     _showAssessmentEditor = widget.initialShowEditor;
+    PracticeTab.isInPracticeActivity.value = _selectedSubTab != null;
+  }
+
+  void _setSubTab(int? subTab, {bool? showEditor}) {
+    setState(() {
+      _selectedSubTab = subTab;
+      if (showEditor != null) {
+        _showAssessmentEditor = showEditor;
+      }
+    });
+    PracticeTab.isInPracticeActivity.value = subTab != null;
   }
 
   @override
@@ -58,13 +70,13 @@ class _PracticeTabState extends State<PracticeTab> {
         if (_selectedSubTab == 0) {
           return SpellingBeePage(
             user: user,
-            onBack: () => setState(() => _selectedSubTab = null),
+            onBack: () => _setSubTab(null),
           );
         }
         if (_selectedSubTab == 1) {
           return PronunciationQuizPage(
             user: user,
-            onBack: () => setState(() => _selectedSubTab = null),
+            onBack: () => _setSubTab(null),
           );
         }
         // English Assessment sub-tab
@@ -112,10 +124,7 @@ class _PracticeTabState extends State<PracticeTab> {
                         appBar: AppBar(
                           leading: IconButton(
                             icon: const Icon(Icons.arrow_back),
-                            onPressed: () => setState(() {
-                              _showAssessmentEditor = false;
-                              _selectedSubTab = null;
-                            }),
+                            onPressed: () => _setSubTab(null, showEditor: false),
                           ),
                           title: const Text('Assessment Editor'),
                         ),
@@ -123,7 +132,7 @@ class _PracticeTabState extends State<PracticeTab> {
                       )
                     : AiAssessmentGeneratorPage(
                         user: user,
-                        onBack: () => setState(() => _selectedSubTab = null),
+                        onBack: () => _setSubTab(null),
                       ),
               ),
             ],
@@ -132,7 +141,7 @@ class _PracticeTabState extends State<PracticeTab> {
 
 
         return _PracticeToolsHome(
-          onSelectTool: (index) => setState(() => _selectedSubTab = index),
+          onSelectTool: (index) => _setSubTab(index),
         );
       },
     );

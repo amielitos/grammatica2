@@ -1323,24 +1323,59 @@ class ProfilePageState extends State<ProfilePage> {
                       );
                     }
 
-                    // If user has applied and it's pending or rejected, show status button (no re-application)
+                    // If user has applied and it's pending or rejected, handle status & re-application rules
                     if (application != null && (application.status == 'pending' || application.status == 'rejected')) {
                       final isPending = application.status == 'pending';
+                      if (isPending) {
+                        return SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showApplicationStatusDialog(application),
+                            icon: const Icon(
+                              Icons.hourglass_top_rounded,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              'View Application Status (Pending)',
+                              style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD97706),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                          ),
+                        );
+                      }
+
+                      // Rejected state
+                      final isBlockedForSexualMisconduct = application.isSexualMisconductRejection;
+                      final canReapplyNow = application.canReapplyNow;
+                      final daysRemaining = application.daysUntilReapply;
+
                       return SizedBox(
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton.icon(
                           onPressed: () => _showApplicationStatusDialog(application),
                           icon: Icon(
-                            isPending ? Icons.hourglass_top_rounded : Icons.info_outline_rounded,
+                            isBlockedForSexualMisconduct
+                                ? Icons.block_rounded
+                                : Icons.info_outline_rounded,
                             color: Colors.white,
                           ),
                           label: Text(
-                            isPending ? 'View Application Status (Pending)' : 'View Application Status (Rejected)',
+                            isBlockedForSexualMisconduct
+                                ? 'Application Blocked (Sexual Misconduct)'
+                                : canReapplyNow
+                                    ? 'View Previous Application Status (Rejected)'
+                                    : 'View Application Status (Re-apply in $daysRemaining ${daysRemaining == 1 ? 'day' : 'days'})',
                             style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isPending ? const Color(0xFFD97706) : const Color(0xFFDC2626),
+                            backgroundColor: const Color(0xFFDC2626),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 0,
@@ -1862,6 +1897,62 @@ class ProfilePageState extends State<ProfilePage> {
                       ],
                     ),
                   ),
+                  if (!isValidator) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: application.isSexualMisconductRejection
+                            ? (isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2))
+                            : application.canReapplyNow
+                                ? (isDark ? const Color(0xFF14532D).withValues(alpha: 0.4) : const Color(0xFFDCFCE7))
+                                : (isDark ? const Color(0xFF422006).withValues(alpha: 0.4) : const Color(0xFFFEF3C7)),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: application.isSexualMisconductRejection
+                              ? const Color(0xFFEF4444)
+                              : application.canReapplyNow
+                                  ? const Color(0xFF22C55E)
+                                  : const Color(0xFFF59E0B),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            application.isSexualMisconductRejection
+                                ? Icons.block_rounded
+                                : application.canReapplyNow
+                                    ? Icons.check_circle_outline_rounded
+                                    : Icons.schedule_rounded,
+                            size: 18,
+                            color: application.isSexualMisconductRejection
+                                ? const Color(0xFFEF4444)
+                                : application.canReapplyNow
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFFD97706),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              application.isSexualMisconductRejection
+                                  ? 'You are permanently blocked from re-applying as an Educator due to a Sexual Content / Misconduct policy violation.'
+                                  : application.canReapplyNow
+                                      ? 'Your 7-day waiting period has passed. You may now submit a new Educator application.'
+                                      : 'You can re-apply as an Educator 7 days after your rejection date (${application.daysUntilReapply} ${application.daysUntilReapply == 1 ? 'day' : 'days'} remaining).',
+                              style: GoogleFonts.inter(
+                                fontSize: 12.5,
+                                height: 1.4,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : const Color(0xFF1E293B),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 24),
                 Text(
@@ -1927,6 +2018,21 @@ class ProfilePageState extends State<ProfilePage> {
           ),
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           actions: [
+            if (!isPending && !isValidator && application.canReapplyNow)
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF81B655),
+                  side: const BorderSide(color: Color(0xFF81B655)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  _startEducatorApplication();
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text('Re-apply Now', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+              ),
             FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF81B655),

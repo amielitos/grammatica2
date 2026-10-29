@@ -88,12 +88,8 @@ class _LessonFolderPageState extends State<LessonFolderPage> {
       appBar: CustomAppBar(
         user: widget.user,
         onLogoTap: () {
-          if (widget.onBack != null) {
-            widget.onBack!();
-          }
-          if (Navigator.canPop(context)) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          }
+          widget.onBack?.call();
+          return true;
         },
         onNotificationTap: () {
           showDialog(

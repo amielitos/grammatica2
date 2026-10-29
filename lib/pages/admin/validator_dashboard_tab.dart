@@ -5,7 +5,6 @@ import '../../services/database_service.dart';
 import '../../widgets/author_name_widget.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/application_preview_widgets.dart';
-import '../../widgets/pagination_bar.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
@@ -41,11 +40,13 @@ class ValidatorDashboardTab extends StatefulWidget {
   final User? user;
   final Map<String, dynamic>? userData;
   final Function(int)? onReviewRequests;
+  final Function(int)? onViewApproved;
   const ValidatorDashboardTab({
     super.key,
     this.user,
     this.userData,
     this.onReviewRequests,
+    this.onViewApproved,
   });
 
   @override
@@ -55,10 +56,7 @@ class ValidatorDashboardTab extends StatefulWidget {
 class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
   bool _isUploadingPrc = false;
   bool _isDeletingPrc = false;
-  int _lessonsPage = 1;
-  static const int _lessonsPageSize = 5;
-  int _educatorAppsPage = 1;
-  static const int _educatorAppsPageSize = 5;
+  static const int _previewLimit = 3;
 
   Future<void> _deletePrc(String uid) async {
     final confirm = await showDialog<bool>(
@@ -546,7 +544,11 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
                       const SizedBox(height: 80),
                     ] else ...[
                       // ── Verified Validator View: Stats row + pending lessons ──
-                      _StatsGrid(onReviewRequests: widget.onReviewRequests, isDark: isDark),
+                      _StatsGrid(
+                        onReviewRequests: widget.onReviewRequests,
+                        onViewApproved: widget.onViewApproved,
+                        isDark: isDark,
+                      ),
 
                       const SizedBox(height: 24),
 
@@ -615,17 +617,10 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
           );
         }
 
-        final startIndex = (_lessonsPage - 1) * _lessonsPageSize;
-        final clampedStart = startIndex >= items.length ? 0 : startIndex;
-        if (startIndex >= items.length && _lessonsPage != 1) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _lessonsPage = 1);
-          });
-        }
-        final endIndex = (clampedStart + _lessonsPageSize).clamp(0, items.length);
-        final pageItems = items.sublist(clampedStart, endIndex);
+        final pageItems = items.take(_previewLimit).toList();
 
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ...pageItems.map((l) => _buildContentCard(
               context,
@@ -686,12 +681,26 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
               cardColor: cardColor,
               textPrimary: textPrimary,
             )),
-            PaginationBar(
-              currentPage: _lessonsPage,
-              totalItems: items.length,
-              pageSize: _lessonsPageSize,
-              itemName: 'lessons',
-              onPageChanged: (newPage) => setState(() => _lessonsPage = newPage),
+            const SizedBox(height: 4),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: OutlinedButton.icon(
+                onPressed: () => widget.onReviewRequests?.call(showRejected ? 2 : 0),
+                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                label: Text(
+                  'View All Pending Lessons (${items.length})',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF81B655),
+                  side: BorderSide(color: const Color(0xFF81B655).withValues(alpha: 0.45), width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
             ),
           ],
         );
@@ -725,24 +734,10 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
           );
         }
 
-        final currentPage = _educatorAppsPage;
-        const pageSize = _educatorAppsPageSize;
-
-        final startIndex = (currentPage - 1) * pageSize;
-        final clampedStart = startIndex >= items.length ? 0 : startIndex;
-        if (startIndex >= items.length && currentPage != 1) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _educatorAppsPage = 1;
-              });
-            }
-          });
-        }
-        final endIndex = (clampedStart + pageSize).clamp(0, items.length);
-        final pageItems = items.sublist(clampedStart, endIndex);
+        final pageItems = items.take(_previewLimit).toList();
 
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ...pageItems.map((a) => _buildApplicationCard(
               context,
@@ -752,16 +747,26 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
               cardColor: cardColor,
               textPrimary: textPrimary,
             )),
-            PaginationBar(
-              currentPage: currentPage,
-              totalItems: items.length,
-              pageSize: pageSize,
-              itemName: 'educator applications',
-              onPageChanged: (newPage) {
-                setState(() {
-                  _educatorAppsPage = newPage;
-                });
-              },
+            const SizedBox(height: 4),
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: OutlinedButton.icon(
+                onPressed: () => widget.onReviewRequests?.call(showRejected ? 2 : 1),
+                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                label: Text(
+                  'View All Pending Educator Applications (${items.length})',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF81B655),
+                  side: BorderSide(color: const Color(0xFF81B655).withValues(alpha: 0.45), width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
             ),
           ],
         );
@@ -1091,68 +1096,86 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
 // ─────────────────────────────────────────────
 class _StatsGrid extends StatelessWidget {
   final Function(int)? onReviewRequests;
+  final Function(int)? onViewApproved;
   final bool isDark;
-  const _StatsGrid({this.onReviewRequests, this.isDark = false});
+  const _StatsGrid({
+    this.onReviewRequests,
+    this.onViewApproved,
+    this.isDark = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Lesson>>(
-      stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
+      stream: DatabaseService.instance.streamApprovedLessons(),
       builder: (ctx, lessonSnap) {
         return StreamBuilder<List<EducatorApplication>>(
-          stream: DatabaseService.instance.streamEducatorApplications(type: 'educator'),
+          stream: DatabaseService.instance.streamApprovedEducatorApplications(type: 'educator'),
           builder: (ctx, eduSnap) {
             return StreamBuilder<List<Lesson>>(
               stream: DatabaseService.instance.streamRejectedLessons(),
-              builder: (ctx, rejSnap) {
-                final items = [
-                  _StatCard(
-                    label: 'Pending Lessons',
-                    value: lessonSnap.data?.length ?? 0,
-                    icon: Icons.auto_stories_rounded,
-                    color: _kPending,
-                    onTap: () => onReviewRequests?.call(0),
-                  ),
-                  _StatCard(
-                    label: 'Educator Requests',
-                    value: eduSnap.data?.length ?? 0,
-                    icon: Icons.how_to_reg_rounded,
-                    color: Colors.teal,
-                    onTap: () => onReviewRequests?.call(1),
-                  ),
-                  _StatCard(
-                    label: 'Rejected Content',
-                    value: rejSnap.data?.length ?? 0,
-                    icon: Icons.block_rounded,
-                    color: _kRejected,
-                    onTap: () => onReviewRequests?.call(2),
-                  ),
-                ];
+              builder: (ctx, rejLessonSnap) {
+                return StreamBuilder<List<EducatorApplication>>(
+                  stream: DatabaseService.instance.streamRejectedApplications(),
+                  builder: (ctx, rejAppSnap) {
+                    final approvedEducatorsCount = (eduSnap.data ?? [])
+                        .where((a) => a.applicationType != 'validator')
+                        .length;
+                    final rejectedLessonsCount = rejLessonSnap.data?.length ?? 0;
+                    final rejectedAppsCount = (rejAppSnap.data ?? [])
+                        .where((a) => a.applicationType != 'validator')
+                        .length;
 
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isNarrow = constraints.maxWidth < 600;
-                    if (isNarrow) {
-                      return GridView.count(
-                        crossAxisCount: 2,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 2.15,
-                        children: items,
-                      );
-                    }
+                    final items = [
+                      _StatCard(
+                        label: 'Approved Lessons',
+                        value: lessonSnap.data?.length ?? 0,
+                        icon: Icons.auto_stories_rounded,
+                        color: const Color(0xFF16A34A),
+                        onTap: () => onViewApproved?.call(0),
+                      ),
+                      _StatCard(
+                        label: 'Approved Educators',
+                        value: approvedEducatorsCount,
+                        icon: Icons.verified_user_rounded,
+                        color: Colors.teal,
+                        onTap: () => onViewApproved?.call(1),
+                      ),
+                      _StatCard(
+                        label: 'Rejected Content',
+                        value: rejectedLessonsCount + rejectedAppsCount,
+                        icon: Icons.block_rounded,
+                        color: _kRejected,
+                        onTap: () => onReviewRequests?.call(2),
+                      ),
+                    ];
 
-                    return Row(
-                      children: items
-                          .map((w) => Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5),
-                                  child: w,
-                                ),
-                              ))
-                          .toList(),
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isNarrow = constraints.maxWidth < 600;
+                        if (isNarrow) {
+                          return GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 2.15,
+                            children: items,
+                          );
+                        }
+
+                        return Row(
+                          children: items
+                              .map((w) => Expanded(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                                      child: w,
+                                    ),
+                                  ))
+                              .toList(),
+                        );
+                      },
                     );
                   },
                 );

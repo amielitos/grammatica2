@@ -20,7 +20,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
   Timer? _debounceTimer;
   late final Stream<List<Map<String, dynamic>>> _educatorsStream;
   late final Stream<Set<String>> _subscriptionsStream;
-  String _activeTab = 'all'; // 'all', 'enrolled', 'discover'
+  String _activeTab = 'discover'; // 'enrolled', 'discover'
 
   @override
   void initState() {
@@ -226,19 +226,11 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                               ),
                               const SizedBox(height: 16),
 
-                              // Segmented Filter Tabs: All, My Enrolled, Explore Others
+                              // Segmented Filter Tabs: My Enrolled, Explore Others
                               SingleChildScrollView(
                                 scrollDirection: Axis.horizontal,
                                 child: Row(
                                   children: [
-                                    _buildFilterChip(
-                                      id: 'all',
-                                      label: 'All Educators',
-                                      count: filtered.length,
-                                      icon: Icons.grid_view_rounded,
-                                      isDark: isDark,
-                                    ),
-                                    const SizedBox(width: 8),
                                     _buildFilterChip(
                                       id: 'enrolled',
                                       label: 'My Subscribed Educators',

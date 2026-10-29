@@ -220,6 +220,23 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
 
     try {
       if (widget.applicationType != 'validator') {
+        final existingApp = await DatabaseService.instance
+            .streamUserApplication(widget.user.uid)
+            .first;
+        if (existingApp != null && existingApp.status == 'rejected') {
+          if (existingApp.isSexualMisconductRejection) {
+            throw Exception(
+              'You are permanently blocked from applying as an Educator due to a Sexual Content / Misconduct policy violation.',
+            );
+          }
+          if (!existingApp.canReapplyNow) {
+            final days = existingApp.daysUntilReapply;
+            throw Exception(
+              'You can re-apply as an Educator 7 days after your rejection date ($days ${days == 1 ? 'day' : 'days'} remaining).',
+            );
+          }
+        }
+
         final dob = _userData?['date_of_birth'] as Timestamp?;
         final createdAt = _userData?['createdAt'] as Timestamp?;
         if (dob != null) {
@@ -396,8 +413,6 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
             builder: (context) => NotificationsDialog(userId: widget.user.uid),
           );
         },
-        onLogoTap: () => Navigator.pop(context),
-        onProfileTap: () => Navigator.pop(context),
       ),
       drawer: UniversalDrawer(
         user: widget.user,

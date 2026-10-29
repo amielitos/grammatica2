@@ -82,6 +82,8 @@ class EducatorApplication {
   final String status; // 'pending', 'approved', 'rejected'
   final String applicationType; // 'educator', 'validator'
   final Timestamp? appliedAt;
+  final Timestamp? rejectedAt;
+  final Timestamp? reviewedAt;
   final String? rejectionReason;
   final String? rejectionDescription;
   final String? cvFileName;
@@ -100,6 +102,8 @@ class EducatorApplication {
     required this.status,
     required this.applicationType,
     required this.appliedAt,
+    this.rejectedAt,
+    this.reviewedAt,
     this.rejectionReason,
     this.rejectionDescription,
     this.cvFileName,
@@ -126,6 +130,8 @@ class EducatorApplication {
       status: data['status'] ?? 'pending',
       applicationType: data['applicationType'] ?? 'educator',
       appliedAt: data['appliedAt'] as Timestamp?,
+      rejectedAt: (data['rejectedAt'] as Timestamp?) ?? (data['reviewedAt'] as Timestamp?),
+      reviewedAt: (data['reviewedAt'] as Timestamp?) ?? (data['approvedAt'] as Timestamp?),
       rejectionReason: (data['rejectionReason'] as String?)?.isNotEmpty == true ? data['rejectionReason'] as String? : null,
       rejectionDescription: (data['rejectionDescription'] as String?)?.isNotEmpty == true ? data['rejectionDescription'] as String? : null,
       cvFileName: data['cvFileName'] as String?,
@@ -133,6 +139,36 @@ class EducatorApplication {
       videoFileName: data['videoFileName'] as String?,
       syllabusFileName: data['syllabusFileName'] as String?,
     );
+  }
+
+  bool get isSexualMisconductRejection {
+    final reason = (rejectionReason ?? '').toLowerCase();
+    final desc = (rejectionDescription ?? '').toLowerCase();
+    return reason.contains('sexual') || desc.contains('sexual misconduct');
+  }
+
+  DateTime? get reapplyAvailableAt {
+    if (status != 'rejected' || isSexualMisconductRejection) return null;
+    final baseDate = (rejectedAt ?? appliedAt)?.toDate();
+    if (baseDate == null) return null;
+    return baseDate.add(const Duration(days: 7));
+  }
+
+  bool get canReapplyNow {
+    if (status != 'rejected') return false;
+    if (isSexualMisconductRejection) return false;
+    final availableAt = reapplyAvailableAt;
+    if (availableAt == null) return true;
+    return !DateTime.now().isBefore(availableAt);
+  }
+
+  int get daysUntilReapply {
+    final availableAt = reapplyAvailableAt;
+    if (availableAt == null) return 0;
+    final diff = availableAt.difference(DateTime.now());
+    if (diff.isNegative || diff.inSeconds <= 0) return 0;
+    final days = (diff.inHours / 24).ceil();
+    return days < 1 ? 1 : days;
   }
 
   String get prcUrl => certificateUrls.isNotEmpty ? certificateUrls.first : '';
@@ -163,6 +199,7 @@ class Lesson {
   final String prompt;
   final String answer;
   final Timestamp? createdAt;
+  final Timestamp? reviewedAt;
   final String? createdByUid;
   final String? createdByEmail;
   final String? attachmentUrl;
@@ -194,6 +231,7 @@ class Lesson {
     required this.prompt,
     required this.answer,
     this.createdAt,
+    this.reviewedAt,
     this.createdByUid,
     this.createdByEmail,
     this.attachmentUrl,
@@ -222,6 +260,7 @@ class Lesson {
       prompt: (data['prompt'] ?? '').toString(),
       answer: (data['answer'] ?? '').toString(),
       createdAt: data['createdAt'] as Timestamp?,
+      reviewedAt: (data['reviewedAt'] as Timestamp?) ?? (data['approvedAt'] as Timestamp?),
       createdByUid: (data['createdByUid'] ?? '') == ''
           ? null
           : (data['createdByUid'] as String?),
@@ -886,7 +925,50 @@ class DatabaseService {
   }
 
   Future<void> updateApplicationStatus(String id, String status) async {
-    await _educatorApplications.doc(id).update({'status': status});
+    await _educatorApplications.doc(id).update({
+      'status': status,
+      'reviewedAt': FieldValue.serverTimestamp(),
+      if (status == 'approved') 'approvedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Stream<List<EducatorApplication>> streamApprovedEducatorApplications({String? type}) {
+    return _educatorApplications.snapshots().map((snapshot) {
+      var apps = snapshot.docs
+          .map(EducatorApplication.fromDoc)
+          .where((a) => a.status == 'approved')
+          .toList();
+      if (type != null) {
+        apps = apps.where((a) => a.applicationType == type).toList();
+      }
+      apps.sort((a, b) {
+        final tsA = a.reviewedAt ?? a.appliedAt;
+        final tsB = b.reviewedAt ?? b.appliedAt;
+        if (tsA == null && tsB == null) return 0;
+        if (tsA == null) return 1;
+        if (tsB == null) return -1;
+        return tsB.compareTo(tsA);
+      });
+      return apps;
+    });
+  }
+
+  Stream<List<Lesson>> streamApprovedLessons() {
+    return _lessons.snapshots().map((snapshot) {
+      final list = snapshot.docs
+          .map(Lesson.fromDoc)
+          .where((l) => !l.isArchived && l.validationStatus == 'approved')
+          .toList();
+      list.sort((a, b) {
+        final tsA = a.reviewedAt ?? a.createdAt;
+        final tsB = b.reviewedAt ?? b.createdAt;
+        if (tsA == null && tsB == null) return 0;
+        if (tsA == null) return 1;
+        if (tsB == null) return -1;
+        return tsB.compareTo(tsA);
+      });
+      return list;
+    });
   }
 
   Future<void> createMentorshipSession({
@@ -1379,6 +1461,7 @@ class DatabaseService {
       'syllabusUrl': '',
       'rejectionReason': reason,
       'rejectionDescription': description,
+      'rejectedAt': FieldValue.serverTimestamp(),
     });
   }
 

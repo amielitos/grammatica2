@@ -47,10 +47,19 @@ class HomePage extends StatefulWidget {
   });
 
   static final ValueNotifier<int> activeTabNotifier = ValueNotifier<int>(0);
+  static final ValueNotifier<int> dashboardResetSignal = ValueNotifier<int>(0);
 
   static void resetToDashboard() {
     _HomePageState._persistedTabIndex = 0;
     activeTabNotifier.value = 0;
+    dashboardResetSignal.value++;
+  }
+
+  static void navigateToProfile(BuildContext context) {
+    const profileIndex = 3; // Profile tab index in HomePage
+    _HomePageState._persistedTabIndex = profileIndex;
+    activeTabNotifier.value = profileIndex;
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   static void navigateToTab(BuildContext context, int tabIndex) {
@@ -118,7 +127,7 @@ class _HomePageState extends State<HomePage> {
       const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
       if (widget.role != UserRole.learner)
         const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
-      const ModernNavItem(icon: Icons.credit_card, label: 'Subscription'),
+      const ModernNavItem(icon: Icons.credit_card, label: 'Enrollment'),
       const ModernNavItem(
         icon: Icons.person,
         label: 'My Profile',
@@ -131,6 +140,11 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final user = widget.user;
     final navItems = _buildNavItems(user);
+
+    if (_tabIndex >= navItems.length) {
+      _tabIndex = navItems.length - 1;
+      _persistedTabIndex = _tabIndex;
+    }
 
     final mainContent = ResponsiveWrapper(
       child: IndexedStack(
@@ -156,86 +170,76 @@ class _HomePageState extends State<HomePage> {
       ),
     );
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: CustomAppBar(
-        user: user,
-        userData: widget.userData,
-        onNotificationTap: () {
-          showDialog(
-            context: context,
-            barrierColor: Colors.transparent,
-            builder: (context) => NotificationsDialog(userId: user.uid),
-          );
-        },
-        onLogoTap: () async {
-          if (PracticeTab.isGenerating.value) {
-            CenterNoticeDialog.show(
-              context,
-              title: 'Generation in Progress',
-              message: 'Please wait until the AI finishes generating before returning to dashboard.',
-            );
-            return;
-          }
-          if (_tabIndex != 0) {
-            if (!await PracticeTab.canLeavePracticeSession()) return;
-            if (!mounted) return;
-          }
-          setState(() {
-            _tabIndex = 0;
-          });
-        },
-        onProfileTap: () async {
-          if (PracticeTab.isGenerating.value) {
-            CenterNoticeDialog.show(
-              context,
-              title: 'Generation in Progress',
-              message: 'Please wait until the AI finishes generating before switching tabs.',
-            );
-            return;
-          }
-          final profileIndex = navItems.indexWhere((item) => item.icon == Icons.person);
-          if (profileIndex != -1) {
-            if (_tabIndex != profileIndex) {
-              if (!await PracticeTab.canLeavePracticeSession()) return;
-              if (!mounted) return;
-            }
-            setState(() {
-              _tabIndex = profileIndex;
-              _persistedTabIndex = profileIndex;
-            });
-            HomePage.activeTabNotifier.value = profileIndex;
-          }
-        },
-      ),
-      drawer: UniversalDrawer(
-        user: user,
-        userData: widget.userData,
-        currentIndex: _tabIndex,
-        navItems: navItems,
-        onTap: (index) async {
-          if (PracticeTab.isGenerating.value) {
-            CenterNoticeDialog.show(
-              context,
-              title: 'Generation in Progress',
-              message: 'Please wait until the AI finishes generating before switching tabs.',
-            );
-            return;
-          }
-          if (_tabIndex != index) {
-            if (!await PracticeTab.canLeavePracticeSession()) return;
-            if (!mounted) return;
-          }
-          setState(() {
-            _tabIndex = index;
-            _persistedTabIndex = index;
-          });
-          if (index >= 0 && index < navItems.length && navItems[index].icon == Icons.person) {
-            _profileKey.currentState?.fetchProfile();
-          }
-        },
-      ),
-      body: mainContent,
+    return ValueListenableBuilder<bool>(
+      valueListenable: PracticeTab.isInPracticeActivity,
+      builder: (context, isInPracticeActivity, _) {
+        final hideHeader = _tabIndex == 1 && isInPracticeActivity;
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: hideHeader
+              ? null
+              : CustomAppBar(
+                  user: user,
+                  userData: widget.userData,
+                  onNotificationTap: () {
+                    showDialog(
+                      context: context,
+                      barrierColor: Colors.transparent,
+                      builder: (context) => NotificationsDialog(userId: user.uid),
+                    );
+                  },
+                  onLogoTap: () async {
+                    setState(() {
+                      _tabIndex = 0;
+                      _persistedTabIndex = 0;
+                    });
+                    return true;
+                  },
+                  onProfileTap: () async {
+                    final profileIndex = navItems.indexWhere((item) => item.icon == Icons.person);
+                    if (profileIndex != -1) {
+                      setState(() {
+                        _tabIndex = profileIndex;
+                        _persistedTabIndex = profileIndex;
+                      });
+                      HomePage.activeTabNotifier.value = profileIndex;
+                      _profileKey.currentState?.fetchProfile();
+                    }
+                    return true;
+                  },
+                ),
+          drawer: hideHeader
+              ? null
+              : UniversalDrawer(
+                  user: user,
+                  userData: widget.userData,
+                  currentIndex: _tabIndex,
+                  navItems: navItems,
+                  onTap: (index) async {
+                    if (PracticeTab.isGenerating.value) {
+                      CenterNoticeDialog.show(
+                        context,
+                        title: 'Generation in Progress',
+                        message: 'Please wait until the AI finishes generating before switching tabs.',
+                      );
+                      return;
+                    }
+                    if (_tabIndex != index) {
+                      if (!await PracticeTab.canLeavePracticeSession()) return;
+                      if (!mounted) return;
+                    }
+                    setState(() {
+                      _tabIndex = index;
+                      _persistedTabIndex = index;
+                    });
+                    if (index >= 0 && index < navItems.length && navItems[index].icon == Icons.person) {
+                      _profileKey.currentState?.fetchProfile();
+                    }
+                  },
+                ),
+          body: mainContent,
+        );
+      },
     );
   }
 }
@@ -281,10 +285,19 @@ class _LessonsListState extends State<_LessonsList> {
       userRole: widget.role,
       userId: widget.user.uid,
     );
+    HomePage.dashboardResetSignal.addListener(_onDashboardReset);
+  }
+
+  void _onDashboardReset() {
+    if (mounted && _activeFolder != null) {
+      setState(() => _activeFolder = null);
+      widget.onFolderChanged?.call(null);
+    }
   }
 
   @override
   void dispose() {
+    HomePage.dashboardResetSignal.removeListener(_onDashboardReset);
     _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -408,29 +421,15 @@ class _LessonsListState extends State<_LessonsList> {
             final isDark = Theme.of(context).brightness == Brightness.dark;
             final username = widget.userData['username'] as String? ?? 'Learner';
             final query = _searchQuery.trim().toLowerCase();
-            final matchingLessons = query.isEmpty || _selectedFilter == 'Playlists'
+            final allFolderLessons = <Lesson>[
+              ...grammaticaLessons,
+              ...publicLessons,
+            ];
+            final matchingLessons = query.isEmpty
                 ? <Lesson>[]
-                : lessons.where((l) {
-                    if (_selectedFilter == 'Grammatica') {
-                      final isGramm = l.isGrammaticaLesson == true ||
-                          (l.createdByEmail != null &&
-                              l.createdByEmail!.toLowerCase().contains('admin'));
-                      if (!isGramm) return false;
-                    } else if (_selectedFilter == 'Public') {
-                      if (l.isGrammaticaLesson) return false;
-                      if (l.createdByEmail != null &&
-                          l.createdByEmail!.toLowerCase().contains('admin')) {
-                        return false;
-                      }
-                      if (!l.isVisible) return false;
-                    } else if (_selectedFilter == 'Completed') {
-                      if (progressMap[l.id]?['completed'] != true) return false;
-                    }
-
+                : allFolderLessons.where((l) {
                     final title = l.title.toLowerCase();
-                    final prompt = l.prompt.toLowerCase();
-                    final author = (l.createdByEmail ?? '').toLowerCase();
-                    return title.contains(query) || prompt.contains(query) || author.contains(query);
+                    return title.contains(query);
                   }).toList();
 
             return CustomPaint(
@@ -535,6 +534,19 @@ class _LessonsListState extends State<_LessonsList> {
                             itemBuilder: (context, idx) {
                               final l = matchingLessons[idx];
                               final isCompleted = progressMap[l.id]?['completed'] == true;
+                              final isOfficialFolder = l.isGrammaticaLesson == true ||
+                                  (l.createdByEmail != null &&
+                                      l.createdByEmail!.toLowerCase().contains('admin'));
+                              final folderLabel = isOfficialFolder
+                                  ? 'Grammatica Official'
+                                  : 'Community Hub';
+                              final folderColor = isOfficialFolder
+                                  ? const Color(0xFFD97706)
+                                  : const Color(0xFFDC2626);
+                              final folderIcon = isOfficialFolder
+                                  ? Icons.verified_rounded
+                                  : Icons.public_rounded;
+
                               return Container(
                                 decoration: BoxDecoration(
                                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -564,16 +576,48 @@ class _LessonsListState extends State<_LessonsList> {
                                       size: 24,
                                     ),
                                   ),
-                                  title: Text(
-                                    l.title,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                      color: isDark ? Colors.white : Colors.black87,
-                                    ),
+                                  title: Wrap(
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 8,
+                                    runSpacing: 4,
+                                    children: [
+                                      Text(
+                                        l.title,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                          color: isDark ? Colors.white : Colors.black87,
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: folderColor.withValues(alpha: isDark ? 0.2 : 0.12),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: folderColor.withValues(alpha: 0.35),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(folderIcon, size: 12, color: folderColor),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              folderLabel,
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w800,
+                                                color: folderColor,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   subtitle: Text(
-                                    l.prompt.isNotEmpty ? l.prompt : (l.isGrammaticaLesson ? 'Official Curriculum' : (l.createdByEmail ?? 'Community')),
+                                    l.prompt.isNotEmpty ? l.prompt : folderLabel,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -1295,7 +1339,7 @@ class _LessonsListState extends State<_LessonsList> {
             },
             decoration: InputDecoration(
               border: InputBorder.none,
-              hintText: 'Search lessons, topics, or educators...',
+              hintText: 'Search lessons...',
               hintStyle: TextStyle(
                 color: isDark ? Colors.white38 : Colors.grey.shade400,
                 fontSize: 14,

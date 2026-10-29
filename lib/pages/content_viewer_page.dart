@@ -416,9 +416,6 @@ class _ContentViewerPageState extends State<ContentViewerPage> {
       appBar: CustomAppBar(
         user: _effectiveUser,
         showBackButton: true,
-        onLogoTap: () {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        },
         onNotificationTap: () {
           showDialog(
             context: context,

@@ -288,9 +288,6 @@ class _LessonPageState extends State<LessonPage> {
         user: _effectiveUser,
         userData: _userData,
         showBackButton: widget.previewMode || Navigator.canPop(context),
-        onLogoTap: () {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        },
         onNotificationTap: () {
           showDialog(
             context: context,

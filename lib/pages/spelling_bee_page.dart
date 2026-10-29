@@ -328,33 +328,25 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
+              automaticallyImplyLeading: false,
               leadingWidth: 240,
-              leading: Padding(
-                padding: const EdgeInsets.only(left: 16.0),
-                child: TextButton.icon(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
-                  label: Text(
-                    _selectedDifficulty == null ? 'Back to Practice Tools' : 'Back to Spelling Bee',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
-                    alignment: Alignment.centerLeft,
-                  ),
-                  onPressed: _isLoading ? null : () async {
-                    if (_selectedDifficulty == null) {
-                      widget.onBack();
-                    } else if (_isGameOver) {
-                      if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
-                        PracticeTab.confirmExitActiveSession = null;
-                      }
-                      setState(() => _selectedDifficulty = null);
-                    } else {
-                      await _confirmQuitSession();
-                    }
-                  },
-                ),
-              ),
+              leading: _selectedDifficulty == null
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 16.0),
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+                        label: const Text(
+                          'Back to Practice Tools',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.textSecondary,
+                          alignment: Alignment.centerLeft,
+                        ),
+                        onPressed: _isLoading ? null : () => widget.onBack(),
+                      ),
+                    )
+                  : null,
               actions: [
                 StreamBuilder<UserRole>(
                   stream: RoleService.instance.roleStream(widget.user.uid),

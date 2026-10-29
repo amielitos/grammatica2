@@ -61,7 +61,8 @@ class UniversalDrawer extends StatelessWidget {
 
           items.add(const ModernNavItem(icon: Icons.dashboard, label: 'Dashboard'));
           if (isApprovedValidator) {
-            items.add(const ModernNavItem(icon: Icons.rate_review_rounded, label: 'Lesson Review'));
+            items.add(const ModernNavItem(icon: Icons.rate_review_rounded, label: 'Content Review'));
+            items.add(const ModernNavItem(icon: Icons.verified_rounded, label: 'Approved'));
           }
         } else {
           if (isEducator) {
