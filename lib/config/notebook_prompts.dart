@@ -64,35 +64,47 @@ Do NOT wrap in markdown backticks. Return raw JSON only.
     String? difficulty,
     bool isAssessment = false,
     String? customInstructions,
+    List<String>? questionTypes,
   }) {
+    final effectiveTypes = (questionTypes != null && questionTypes.isNotEmpty)
+        ? questionTypes.where((t) => t != 'passage').toList()
+        : const ['multiple_choice', 'fill_in_the_blank', 'pronunciation'];
+    final typesStr = effectiveTypes.map((t) => '"$t"').join(', ');
+
     if (isAssessment) {
       return '''
-You are a senior academic assessment examiner creating a formal reading assessment (similar to IELTS or Cambridge English).
-Analyze the provided source material and produce a passage-based reading assessment.
+You are a senior academic English assessment examiner creating a formal English assessment (similar to IELTS or Cambridge English).
+Analyze the provided source material and produce $count standalone assessment questions strictly in the English language.
 ${difficulty != null ? 'Target difficulty level: $difficulty.' : ''}
 ${customInstructions != null && customInstructions.isNotEmpty ? 'Special Instructions: $customInstructions' : ''}
 
 Rules:
-1. Provide a comprehensive academic reading passage (350-500 words) based directly on the provided texts, placed in the "passage" field.
-2. Generate $count analytical comprehension questions testing inference, main ideas, factual details, and vocabulary in context.
-3. Every single question MUST be "multiple_choice" with exactly 4 distinct options. Strictly do NOT use short_answer, textboxes, or fill-in-the-blank questions as answers cannot be automatically checked.
+1. Do NOT generate reading passages or nested passage questions. Every question must be self-contained.
+2. Generate $count questions distributed across the allowed question types: $typesStr.
+3. Question type specifics:
+   - "multiple_choice": Provide 4 distinct options in English with exactly 1 correct answer matching one of the options. Set "blankAnswers": [] and "targetWord": "".
+   - "fill_in_the_blank": Formulate an English sentence where 2 to 3 words are missing and placed in square brackets like "The [rapid] growth of technology has [transformed] modern communication." Set "options": [], "blankAnswers": ["rapid", "transformed"], "correctAnswer": "rapid, transformed", and "targetWord": "".
+   - "pronunciation": Formulate an English sentence where one single target English word is placed in square brackets like "Please say the missing word: Effective writing requires clear [cohesion]." Set "options": [], "blankAnswers": [], "targetWord": "cohesion", and "correctAnswer": "cohesion".
 4. Include helpful hints and thorough explanations for why the correct answer is correct.
+5. All content, questions, options, blanks, and pronunciation words MUST be in the English language.
 
 Return ONLY a valid JSON object strictly matching this schema:
 {
-  "title": "Formal Reading Assessment Title",
-  "description": "Comprehensive passage-based assessment evaluating comprehension and critical analysis.",
-  "passage": "Full 350-500 word reading passage containing the necessary context, facts, and source material...",
+  "title": "Formal English Assessment Title",
+  "description": "Comprehensive assessment evaluating English comprehension, grammar, vocabulary, and pronunciation.",
+  "isAssessment": true,
   "questions": [
     {
       "questionType": "multiple_choice",
       "content": [
-        {"type": "text", "data": "Question prompt testing reading comprehension..."}
+        {"type": "text", "data": "Self-contained question prompt..."}
       ],
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctAnswer": "Option A",
-      "hint": "Clue referencing a section of the text",
-      "explanation": "Detailed explanation grounding the answer in the source text."
+      "blankAnswers": [],
+      "targetWord": "",
+      "hint": "Helpful clue",
+      "explanation": "Detailed explanation of why the answer is correct."
     }
   ]
 }
@@ -101,16 +113,18 @@ Do NOT wrap in markdown backticks. Return raw JSON only.
     }
 
     return '''
-You are an expert test creator and educator generating a comprehensive practice quiz.
-Analyze the provided sources and generate $count high-yield quiz questions testing comprehension and mastery.
+You are an expert test creator and educator generating a comprehensive English practice quiz.
+Analyze the provided sources and generate $count high-yield standalone quiz questions testing comprehension and mastery.
 ${difficulty != null ? 'Target difficulty level: $difficulty.' : ''}
 ${customInstructions != null && customInstructions.isNotEmpty ? 'Special Instructions: $customInstructions' : ''}
 
 Rules:
-1. All questions MUST be multiple-choice questionnaires with 4 plausible options (or true/false with ["True", "False"]). Strictly do NOT use short-answer, open-ended, or textbox questions.
-2. For multiple_choice, provide 4 plausible options with exactly 1 correct answer matching one of the options.
-3. For true_false, provide options ["True", "False"].
-4. Provide actionable hints and thorough explanations for each question.
+1. Do NOT generate reading passages or nested passage questions. Every question must be self-contained.
+2. Distribute questions across the allowed question types: $typesStr.
+3. For "multiple_choice", provide 4 plausible options with exactly 1 correct answer matching one of the options.
+4. For "fill_in_the_blank", place 2 to 3 missing English words in square brackets like "The [happy] dog barked [loudly]." and list them in "blankAnswers".
+5. For "pronunciation", place 1 single target English word in square brackets like "Say the missing word: I study English [grammar]." and set "targetWord" and "correctAnswer" to that word.
+6. Provide actionable hints and thorough explanations for each question.
 
 Return ONLY a valid JSON object strictly matching this schema:
 {
@@ -124,6 +138,8 @@ Return ONLY a valid JSON object strictly matching this schema:
       ],
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctAnswer": "Option A",
+      "blankAnswers": [],
+      "targetWord": "",
       "hint": "Helpful hint without giving away the full answer",
       "explanation": "Clear explanation of why this answer is correct."
     }

@@ -10,6 +10,13 @@ import 'ai_assessment_generator_page.dart';
 
 class PracticeTab extends StatefulWidget {
   static final ValueNotifier<bool> isGenerating = ValueNotifier<bool>(false);
+  static Future<bool> Function()? confirmExitActiveSession;
+
+  static Future<bool> canLeavePracticeSession() async {
+    final callback = confirmExitActiveSession;
+    if (callback == null) return true;
+    return await callback();
+  }
 
   final int? initialSubTab;
   final bool initialShowEditor;

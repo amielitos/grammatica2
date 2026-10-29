@@ -330,16 +330,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
             builder: (context) => NotificationsDialog(userId: widget.user.uid),
           );
         },
-        onLogoTap: () {
+        onLogoTap: () async {
+          if (_index != 0) {
+            if (!await PracticeTab.canLeavePracticeSession()) return;
+            if (!mounted) return;
+          }
           setState(() {
             _index = 0;
           });
         },
-        onProfileTap: () {
+        onProfileTap: () async {
           final profileTabIndex = navItems.indexWhere(
             (item) => item.icon == Icons.person,
           );
           if (profileTabIndex != -1) {
+            if (_index != profileTabIndex) {
+              if (!await PracticeTab.canLeavePracticeSession()) return;
+              if (!mounted) return;
+            }
             setState(() {
               _index = profileTabIndex;
             });
@@ -351,7 +359,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
         userData: currentData,
         currentIndex: _index,
         navItems: navItems,
-        onTap: (i) {
+        onTap: (i) async {
+          if (_index != i) {
+            if (!await PracticeTab.canLeavePracticeSession()) return;
+            if (!mounted) return;
+          }
           setState(() {
             _initialPracticeSubTab = null;
             _initialPracticeShowEditor = false;

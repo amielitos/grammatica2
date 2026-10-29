@@ -122,6 +122,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
 
   List<Lesson> _creatorLessons = [];
   String? _existingLessonIdForSameCreator;
+  String? _titleError;
 
   @override
   void initState() {
@@ -415,7 +416,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               ),
               const SizedBox(width: 16),
               ElevatedButton.icon(
-                onPressed: (_creatingLesson || _title.text.trim().isEmpty) ? null : _saveIntegratedLesson,
+                onPressed: _creatingLesson ? null : _saveIntegratedLesson,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -473,6 +474,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
             hint: 'e.g. Introduction to Nouns',
             icon: Icons.menu_book_rounded,
             isDark: isDark,
+            errorText: _titleError,
           ),
           if (_existingLessonIdForSameCreator != null) ...[
             const SizedBox(height: 10),
@@ -661,14 +663,42 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     required IconData icon,
     int maxLines = 1,
     required bool isDark,
+    String? errorText,
   }) {
+    final bool isRequired = label.trim().endsWith('*');
+    final String cleanLabel = isRequired
+        ? label.replaceAll(RegExp(r'\s*\*'), '').trim()
+        : label;
+
     return TextField(
       controller: controller,
       maxLines: maxLines,
       style: GoogleFonts.inter(fontSize: 16, color: isDark ? Colors.white : Colors.black87),
-      onChanged: (_) => setState(() {}),
+      onChanged: (_) => setState(() {
+        if (controller == _title && _titleError != null) {
+          _titleError = null;
+        }
+      }),
       decoration: InputDecoration(
-        labelText: maxLines == 1 ? label : null,
+        errorText: errorText,
+        labelText: (maxLines == 1 && !isRequired) ? label : null,
+        label: (maxLines == 1 && isRequired)
+            ? Text.rich(
+                TextSpan(
+                  text: cleanLabel,
+                  style: GoogleFonts.inter(color: isDark ? Colors.white60 : Colors.grey.shade600),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : null,
         hintText: hint,
         labelStyle: GoogleFonts.inter(color: isDark ? Colors.white60 : Colors.grey.shade600),
         hintStyle: GoogleFonts.inter(color: isDark ? Colors.white30 : Colors.grey.shade400),
@@ -1348,7 +1378,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           runSpacing: 12,
           children: [
             ChoiceChip(
-              label: Text('Public', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              label: Text('Basic', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               avatar: const Icon(Icons.public_rounded, size: 18),
               selected: _visibility == ContentVisibility.public,
               selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
@@ -1367,7 +1397,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
               },
             ),
             ChoiceChip(
-              label: Text('Members Only (Standard & Premium)', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+              label: Text('Premium', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
               avatar: const Icon(Icons.lock_outline_rounded, size: 18),
               selected: _visibility == ContentVisibility.membersOnly,
               selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
@@ -1560,6 +1590,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     _selectedLesson = null;
     _selectedQuizId = null;
     _existingLessonIdForSameCreator = null;
+    _titleError = null;
     _title.clear();
     _prompt.clear();
     _lessonImageUrl = null;
@@ -1580,9 +1611,11 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
 
   Future<void> _saveIntegratedLesson() async {
     if (_title.text.trim().isEmpty) {
+      setState(() => _titleError = 'Lesson title is required');
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lesson title is required')));
       return;
     }
+    setState(() => _titleError = null);
     // Early validation: check content isn't empty before starting uploads
     final preUploadPrompt = _contentBlocks.isNotEmpty
         ? _contentBlocks.map((c) => c.textCtrl.text).join('\n\n')

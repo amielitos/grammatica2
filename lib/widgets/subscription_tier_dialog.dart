@@ -15,7 +15,6 @@ class SubscriptionTierDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final standardPrice = pricing?['standard'] ?? 3;
     final premiumPrice = pricing?['premium'] ?? 7;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
@@ -24,7 +23,6 @@ class SubscriptionTierDialog extends StatelessWidget {
 
     final normalizedCurrent = currentTier?.trim().toLowerCase();
     final bool showBasic = normalizedCurrent != 'basic' && normalizedCurrent != 'standard' && normalizedCurrent != 'premium';
-    final bool showStandard = normalizedCurrent != 'standard' && normalizedCurrent != 'premium';
     final bool showPremium = normalizedCurrent != 'premium';
 
     return Dialog(
@@ -105,30 +103,6 @@ class SubscriptionTierDialog extends StatelessWidget {
                         const SizedBox(height: 16),
                       ],
 
-                      if (showStandard) ...[
-                        // Standard Tier Card
-                        _buildTierCard(
-                          context,
-                          isDark: isDark,
-                          tier: 'Standard',
-                          price: '\$$standardPrice/mo',
-                          badgeText: 'Exclusive Lessons',
-                          badgeColor: const Color(0xFF3B82F6).withValues(alpha: 0.15),
-                          badgeTextColor: const Color(0xFF2563EB),
-                          subtitle: 'For learners who want access to additional learning materials.',
-                          inclusions: const [
-                            'Everything available in Basic',
-                            'Access to private and exclusive educator lessons',
-                            'Access to additional lessons and learning resources',
-                            'Access to educator-only learning materials marked for enrolled learners',
-                            'Enrollment applies only to the selected educator',
-                          ],
-                          buttonColor: const Color(0xFF98E274),
-                          buttonTextColor: const Color(0xFF1E3A1A),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
                       if (showPremium) ...[
                         // Premium Tier Card
                         _buildTierCard(
@@ -136,16 +110,17 @@ class SubscriptionTierDialog extends StatelessWidget {
                           isDark: isDark,
                           tier: 'Premium',
                           price: '\$$premiumPrice/mo',
-                          badgeText: 'Mentorship',
+                          badgeText: 'Exclusive & Mentorship',
                           badgeColor: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
                           badgeTextColor: const Color(0xFF7C3AED),
                           subtitle: 'For learners who want exclusive lessons and direct guidance.',
                           inclusions: const [
-                            'Everything included in Standard',
+                            'Everything available in Basic',
+                            'Access to private and exclusive educator lessons',
+                            'Access to educator-only learning materials marked for enrolled learners',
                             'Personal mentorship with the educator',
                             'Opportunity to ask questions and receive guidance',
                             'Personalized feedback on learning progress',
-                            'Additional learning support from the educator',
                             'Priority access to mentorship sessions, if offered',
                             'Enrollment applies only to the selected educator',
                           ],
@@ -154,7 +129,7 @@ class SubscriptionTierDialog extends StatelessWidget {
                         ),
                       ],
 
-                      if (!showBasic && !showStandard && !showPremium)
+                      if (!showBasic && !showPremium)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 32),
                           child: Text(

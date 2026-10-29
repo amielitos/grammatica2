@@ -80,6 +80,7 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
 
   String _selectedCategory = 'Non-Educational';
   final TextEditingController _explanationController = TextEditingController();
+  String? _explanationError;
 
   @override
   void dispose() {
@@ -307,7 +308,19 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: _explanationController,
-                  onChanged: (_) => setState(() {}),
+                  onChanged: (val) {
+                    setState(() {
+                      if (_explanationError != null) {
+                        final trimmedLen = val.trim().length;
+                        if (trimmedLen >= _minCharLimit) {
+                          _explanationError = null;
+                        } else if (trimmedLen > 0) {
+                          _explanationError =
+                              'Please enter at least $_minCharLimit characters';
+                        }
+                      }
+                    });
+                  },
                   maxLines: 4,
                   minLines: 3,
                   style: GoogleFonts.inter(
@@ -321,6 +334,7 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                       fontSize: 13,
                       color: isDark ? Colors.white30 : Colors.grey.shade400,
                     ),
+                    errorText: _explanationError,
                     filled: true,
                     fillColor: isDark ? const Color(0xFF263346) : const Color(0xFFF8FAFC),
                     border: OutlineInputBorder(
@@ -338,6 +352,14 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide(color: primaryActionColor, width: 1.5),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
                     ),
                     contentPadding: const EdgeInsets.all(16),
                   ),
@@ -366,19 +388,31 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
                     ),
                     const SizedBox(width: 12),
                     MouseRegion(
-                      cursor: isLengthValid ? SystemMouseCursors.click : SystemMouseCursors.basic,
+                      cursor: SystemMouseCursors.click,
                       child: FilledButton.icon(
-                        onPressed: isLengthValid
-                            ? () {
-                                Navigator.pop(
-                                  context,
-                                  ContentDenialResult(
-                                    category: _selectedCategory,
-                                    explanation: _explanationController.text.trim(),
-                                  ),
-                                );
-                              }
-                            : null,
+                        onPressed: () {
+                          final trimmed = _explanationController.text.trim();
+                          if (trimmed.isEmpty) {
+                            setState(() {
+                              _explanationError = 'Detailed explanation is required';
+                            });
+                            return;
+                          }
+                          if (trimmed.length < _minCharLimit) {
+                            setState(() {
+                              _explanationError =
+                                  'Please enter at least $_minCharLimit characters';
+                            });
+                            return;
+                          }
+                          Navigator.pop(
+                            context,
+                            ContentDenialResult(
+                              category: _selectedCategory,
+                              explanation: trimmed,
+                            ),
+                          );
+                        },
                         style: FilledButton.styleFrom(
                           backgroundColor: primaryActionColor,
                           disabledBackgroundColor: isDark ? Colors.white12 : Colors.grey.shade300,

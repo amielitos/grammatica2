@@ -288,9 +288,12 @@ class NotificationService {
     required String applicationType,
   }) async {
     try {
+      final targetRoles = applicationType == 'validator'
+          ? ['admin', 'ADMIN', 'superadmin', 'SUPERADMIN']
+          : ['validator', 'VALIDATOR', 'superadmin', 'SUPERADMIN'];
       final validatorsSnap = await _firestore
           .collection('users')
-          .where('role', whereIn: ['validator', 'superadmin'])
+          .where('role', whereIn: targetRoles)
           .get();
 
       final labelType = applicationType == 'validator' ? 'Validator' : 'Educator';

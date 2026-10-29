@@ -157,6 +157,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       } catch (_) {}
     }
     PracticeTab.isGenerating.value = false;
+    if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
+      PracticeTab.confirmExitActiveSession = null;
+    }
     super.dispose();
   }
 
@@ -278,6 +281,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       _isLastCorrect = null;
       _isTransitioning = false;
     });
+    PracticeTab.confirmExitActiveSession = _confirmQuitSession;
 
     _startTimer();
   }
@@ -645,6 +649,14 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     }
   }
 
+  String _normalizeWord(String text) {
+    return text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
   void _submitAnswer() {
     if (_isRecording) {
       _stopRecording();
@@ -655,27 +667,19 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     String rawAnswer = _recognizedText.trim().toLowerCase();
     
     // Apply profanity filter
-    String answer = _filterProfanity(rawAnswer);
+    String filteredAnswer = _filterProfanity(rawAnswer);
     
-    if (answer != rawAnswer) {
+    if (filteredAnswer != rawAnswer) {
       _showProfanityWarning();
     }
 
-    answer = answer.replaceAll(RegExp(r'[^\w\s]'), ''); // Remove punctuation
-    
-    final correctWord = _sessionWords[_currentIndex].word.toLowerCase().trim();
+    final answer = _normalizeWord(filteredAnswer);
+    final correctWord = _normalizeWord(_sessionWords[_currentIndex].word);
 
     _userAnswers.add(_recognizedText);
 
-    // Matching logic:
-    // 1. Exact match after cleaning
-    // 2. Contains match (in case recognition adds extra words like "the apple")
-    // 3. Fuzzy match (allow for slight misrecognitions)
-    
-    double similarity = StringSimilarity.compareTwoStrings(answer, correctWord);
-    bool isCorrect = answer == correctWord || 
-                    answer.contains(correctWord) || 
-                    similarity >= 0.7; // Lowered from 0.8
+    // Matching logic: strict 1:1 match between the spoken word and the target word
+    bool isCorrect = answer.isNotEmpty && answer == correctWord;
 
     if (mounted) {
       setState(() {
@@ -710,6 +714,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       _startTimer();
     } else {
       _timer?.cancel();
+      if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
+        PracticeTab.confirmExitActiveSession = null;
+      }
       setState(() {
         _isGameOver = true;
       });
@@ -774,41 +781,6 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 
 
 
-  Future<bool?> _showExitConfirmation() async {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-            SizedBox(width: 12),
-            Text('Quit Quiz?'),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to quit this pronunciation quiz? Your progress will not be saved.',
-          style: TextStyle(fontSize: 16),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Yes, Quit'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -816,15 +788,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       canPop: !_isLoading && (_selectedDifficulty == null || _isGameOver),
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop || _isLoading) return;
-        final shouldPop = await _showExitConfirmation();
-        if (shouldPop == true && mounted) {
-          if (_selectedDifficulty != null && !_isGameOver) {
-            _timer?.cancel();
-            setState(() => _selectedDifficulty = null);
-          } else {
-            widget.onBack();
-          }
-        }
+        await _confirmQuitSession();
       },
       child: Stack(
         children: [
@@ -850,13 +814,12 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                     if (_selectedDifficulty == null) {
                       widget.onBack();
                     } else if (_isGameOver) {
+                      if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
+                        PracticeTab.confirmExitActiveSession = null;
+                      }
                       setState(() => _selectedDifficulty = null);
                     } else {
-                      final shouldPop = await _showExitConfirmation();
-                      if (shouldPop == true && mounted) {
-                        _timer?.cancel();
-                        setState(() => _selectedDifficulty = null);
-                      }
+                      await _confirmQuitSession();
                     }
                   },
                 ),
@@ -876,8 +839,8 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                         icon: const Icon(Icons.settings_rounded, color: AppColors.textPrimary),
                         onPressed: _isLoading ? null : () async {
                           if (_selectedDifficulty != null && !_isGameOver) {
-                            final shouldPop = await _showExitConfirmation();
-                            if (shouldPop != true) return;
+                            final shouldQuit = await _confirmQuitSession();
+                            if (!shouldQuit) return;
                           }
                           if (context.mounted) {
                             Navigator.of(context).push(
@@ -1530,7 +1493,14 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     );
   }
 
-  Future<void> _confirmQuitSession() async {
+  Future<bool> _confirmQuitSession() async {
+    if (_selectedDifficulty == null || _isGameOver) {
+      if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
+        PracticeTab.confirmExitActiveSession = null;
+      }
+      return true;
+    }
+    if (!mounted) return true;
     final shouldQuit = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -1581,9 +1551,17 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     );
     if (shouldQuit == true) {
       _timer?.cancel();
+      _submissionDebounceTimer?.cancel();
       _stopRecording();
-      setState(() => _selectedDifficulty = null);
+      if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
+        PracticeTab.confirmExitActiveSession = null;
+      }
+      if (mounted) {
+        setState(() => _selectedDifficulty = null);
+      }
+      return true;
     }
+    return false;
   }
 
   Widget _buildGameOver() {
@@ -1855,14 +1833,17 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                 ...List.generate(_sessionWords.length, (index) {
                   final wordObj = _sessionWords[index];
                   final userAnswer = _userAnswers[index];
+                  final cleanUser = userAnswer != null
+                      ? _normalizeWord(_filterProfanity(userAnswer.trim().toLowerCase()))
+                      : '';
+                  final cleanTarget = _normalizeWord(wordObj.word);
+                  final isCorrect = cleanUser.isNotEmpty && cleanUser == cleanTarget;
                   double similarity = 0;
-                  if (userAnswer != null) {
-                    similarity = StringSimilarity.compareTwoStrings(
-                      userAnswer.trim().toLowerCase(),
-                      wordObj.word.toLowerCase(),
-                    );
+                  if (cleanUser.isNotEmpty) {
+                    similarity = isCorrect
+                        ? 1.0
+                        : StringSimilarity.compareTwoStrings(cleanUser, cleanTarget).clamp(0.0, 0.99);
                   }
-                  final isCorrect = similarity >= 0.8;
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),

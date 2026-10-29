@@ -286,7 +286,7 @@ class _GenerationConfirmDialogState extends State<GenerationConfirmDialog> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Passage-based reading exam with timed evaluation.',
+                                'Formal timed exam with multiple-choice, fill-in-the-blank, and pronunciation questions.',
                                 style: GoogleFonts.inter(
                                   fontSize: 11,
                                   color: isDark ? Colors.white54 : AppColors.textSecondary,

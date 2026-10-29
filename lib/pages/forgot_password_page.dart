@@ -16,6 +16,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   final _emailController = TextEditingController();
   bool _isSending = false;
+  bool _submitted = false;
   String? _targetEmail;
   int _cooldownSeconds = 0;
   Timer? _cooldownTimer;
@@ -79,7 +80,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   Future<void> _sendResetLink() async {
+    setState(() => _submitted = true);
     final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      return;
+    }
     if (!_isEmailValid) {
       _showSnack('Please enter a valid email address.', error: true);
       return;
@@ -256,6 +261,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   Widget _buildEmailStep() {
     final emailText = _emailController.text.trim();
+    final showEmptyError = _submitted && emailText.isEmpty;
     final showEmailFeedback = emailText.isNotEmpty;
 
     return Column(
@@ -274,9 +280,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           hint: 'Recovery Email *',
           icon: Icons.alternate_email_rounded,
           keyboard: TextInputType.emailAddress,
-          isValid: showEmailFeedback ? _isEmailValid : null,
+          isValid: showEmptyError ? false : (showEmailFeedback ? _isEmailValid : null),
         ),
-        if (showEmailFeedback) ...[
+        if (showEmptyError) ...[
+          const SizedBox(height: 6),
+          _validationHint(
+            isValid: false,
+            text: 'Recovery email is required',
+          ),
+        ] else if (showEmailFeedback) ...[
           const SizedBox(height: 6),
           _validationHint(
             isValid: _isEmailValid,
@@ -287,7 +299,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         _btn(
           label: 'Send Reset Link',
           isLoading: _isSending,
-          enabled: _isEmailValid,
+          enabled: true,
           onTap: _sendResetLink,
         ),
       ],

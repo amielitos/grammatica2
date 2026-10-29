@@ -42,6 +42,7 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
   bool _isLoadingQuiz = true;
   bool _isPublishing = false;
   String? _errorMessage;
+  String? _titleError;
   String? _existingLessonIdForSameCreator;
   String? _approvedLessonTitle;
   bool _isValidatedApproved = false;
@@ -57,6 +58,9 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
   }
 
   void _onTitleChanged() {
+    if (_titleError != null && _titleCtrl.text.trim().isNotEmpty) {
+      _titleError = null;
+    }
     _checkExistingLessonTitle();
     setState(() {});
   }
@@ -150,12 +154,16 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
   Future<void> _publish() async {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
-      setState(() => _errorMessage = 'Lesson title cannot be empty.');
+      setState(() {
+        _titleError = 'Lesson title is required';
+        _errorMessage = 'Lesson title is required.';
+      });
       return;
     }
 
     setState(() {
       _isPublishing = true;
+      _titleError = null;
       _errorMessage = null;
     });
 
@@ -346,6 +354,7 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
                 style: GoogleFonts.inter(fontSize: 15),
                 decoration: InputDecoration(
                   hintText: 'e.g. Mastering English Relative Clauses',
+                  errorText: _titleError,
                   filled: true,
                   fillColor: isDark ? const Color(0xFF2A3428) : Colors.grey.shade50,
                   border: OutlineInputBorder(
@@ -394,7 +403,7 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
                 runSpacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('Public'),
+                    label: const Text('Basic'),
                     avatar: const Icon(Icons.public_rounded, size: 16),
                     selected: _visibility == ContentVisibility.public,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
@@ -404,7 +413,7 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Members Only (Standard & Premium)'),
+                    label: const Text('Premium'),
                     avatar: const Icon(Icons.card_membership_rounded, size: 16),
                     selected: _visibility == ContentVisibility.membersOnly,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
@@ -664,6 +673,7 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
   bool _isAssessment = false;
   bool _isPublishing = false;
   String? _errorMessage;
+  String? _titleError;
 
   @override
   void initState() {
@@ -685,12 +695,16 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
   Future<void> _publish() async {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
-      setState(() => _errorMessage = 'Quiz title cannot be empty.');
+      setState(() {
+        _titleError = 'Quiz title is required';
+        _errorMessage = 'Quiz title is required.';
+      });
       return;
     }
 
     setState(() {
       _isPublishing = true;
+      _titleError = null;
       _errorMessage = null;
     });
 
@@ -839,9 +853,15 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
               const SizedBox(height: 8),
               TextField(
                 controller: _titleCtrl,
+                onChanged: (_) {
+                  if (_titleError != null) {
+                    setState(() => _titleError = null);
+                  }
+                },
                 style: GoogleFonts.inter(fontSize: 15),
                 decoration: InputDecoration(
                   hintText: 'e.g. Relative Clauses Quiz',
+                  errorText: _titleError,
                   filled: true,
                   fillColor: isDark ? const Color(0xFF2A3428) : Colors.grey.shade50,
                   border: OutlineInputBorder(
@@ -945,7 +965,7 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
                 runSpacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('Public'),
+                    label: const Text('Basic'),
                     avatar: const Icon(Icons.public_rounded, size: 16),
                     selected: _visibility == ContentVisibility.public,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
@@ -955,7 +975,7 @@ class _PublishQuizDialogState extends State<PublishQuizDialog> {
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Members Only (Standard & Premium)'),
+                    label: const Text('Premium'),
                     avatar: const Icon(Icons.card_membership_rounded, size: 16),
                     selected: _visibility == ContentVisibility.membersOnly,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
@@ -1031,6 +1051,7 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
   List<String> _visibleTo = [];
   bool _isPublishing = false;
   String? _errorMessage;
+  String? _titleError;
 
   @override
   void initState() {
@@ -1060,12 +1081,16 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
   Future<void> _publish() async {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
-      setState(() => _errorMessage = 'Title cannot be empty.');
+      setState(() {
+        _titleError = 'Title is required';
+        _errorMessage = 'Title is required.';
+      });
       return;
     }
 
     setState(() {
       _isPublishing = true;
+      _titleError = null;
       _errorMessage = null;
     });
 
@@ -1237,9 +1262,15 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
               const SizedBox(height: 8),
               TextField(
                 controller: _titleCtrl,
+                onChanged: (_) {
+                  if (_titleError != null) {
+                    setState(() => _titleError = null);
+                  }
+                },
                 style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                 decoration: InputDecoration(
                   hintText: 'Enter title...',
+                  errorText: _titleError,
                   filled: true,
                   fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF8FAFC),
                   border: OutlineInputBorder(
@@ -1273,7 +1304,7 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
                 runSpacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('Public'),
+                    label: const Text('Basic'),
                     selected: _visibility == ContentVisibility.public,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
                     checkmarkColor: AppColors.primary,
@@ -1282,7 +1313,7 @@ class _PublishContentDialogState extends State<PublishContentDialog> {
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Members Only (Standard & Premium)'),
+                    label: const Text('Premium'),
                     selected: _visibility == ContentVisibility.membersOnly,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
                     checkmarkColor: AppColors.primary,
@@ -1888,7 +1919,7 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
                 runSpacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('Public (All Learners)'),
+                    label: const Text('Basic'),
                     selected: _visibility == ContentVisibility.public,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
                     checkmarkColor: AppColors.primary,
@@ -1897,7 +1928,7 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
                     },
                   ),
                   ChoiceChip(
-                    label: const Text('Members Only (Standard & Premium)'),
+                    label: const Text('Premium'),
                     selected: _visibility == ContentVisibility.membersOnly,
                     selectedColor: AppColors.primary.withValues(alpha: 0.2),
                     checkmarkColor: AppColors.primary,

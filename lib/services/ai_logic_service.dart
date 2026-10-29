@@ -78,9 +78,17 @@ Output ONLY the markdown text, nothing else.
 
   /// Builds a dynamic quiz system prompt based on the provided configuration.
   static String _buildQuizSystemPrompt(QuizGenerationConfig config) {
-    final questionTypesStr = config.questionTypes.isNotEmpty
-        ? config.questionTypes.map((t) => '"$t"').join(', ')
-        : '"multiple_choice", "fill_in_the_blank", "pronunciation"';
+    final allowedTypes = config.questionTypes
+        .where((t) => t != 'passage')
+        .toList();
+    final effectiveTypes = allowedTypes.isNotEmpty
+        ? allowedTypes
+        : const ['multiple_choice', 'fill_in_the_blank', 'pronunciation'];
+    final questionTypesStr = effectiveTypes.map((t) => '"$t"').join(', ');
+
+    final varietyInstruction = effectiveTypes.length > 1
+        ? 'You MUST vary and distribute the questionnaire types across all allowed types: $questionTypesStr.'
+        : 'Every single question MUST use the allowed question type: $questionTypesStr.';
 
     final difficultyInstruction = switch (config.difficulty) {
       'easy' =>
@@ -102,13 +110,14 @@ Output ONLY the markdown text, nothing else.
         : '';
 
     return '''
-You are Grammatica AI, an expert quiz creator. Your task is to generate an engaging, varied set of quiz questions based on the provided lesson content.
+You are Grammatica AI, an expert English language quiz creator. Your task is to generate an engaging set of standalone quiz questions based on the provided content.
 
 Difficulty level: ${config.difficulty.toUpperCase()}
 $difficultyInstruction
 
-Question Variety Requirement:
-Do NOT generate only multiple choice questionnaires. You MUST vary the questionnaire types across multiple choice, fill in the blanks, and pronunciation.
+Question Type Requirement:
+$varietyInstruction
+Do NOT generate reading passages or nested passage questions. Every question must be self-contained and strictly in the English language.
 
 Rules:
 1. The JSON must follow this exact structure:
@@ -119,20 +128,21 @@ Rules:
    }
 2. Each question object MUST have these exact fields:
    - "questionType": one of $questionTypesStr
-   - "question": a string containing the question text or the passage text if type is passage.
-   - "options": array of strings (required for multiple_choice; use empty array [] for fill_in_the_blank, pronunciation, or passage)
-   - "correctAnswer": string with the correct answer (use empty string "" for passage)
+   - "question": a string containing the standalone question or sentence prompt in English
+   - "options": array of strings (required for multiple_choice; use empty array [] for fill_in_the_blank or pronunciation)
+   - "correctAnswer": string with the correct answer (for fill_in_the_blank, comma-separated blank words; for pronunciation, the exact targetWord)
    - "blankAnswers": array of strings (for fill_in_the_blank, list the exact words that fill the blanks in order; for other types use [])
-   - "targetWord": string (for pronunciation, the exact word to pronounce; for other types use "")
+   - "targetWord": string (for pronunciation, the exact single English word to pronounce; for other types use "")
 $hintLine
 $explanationLine
 3. Question type specifics:
-   - "fill_in_the_blank": Formulate a sentence where MULTIPLE words (2 to 3 words, not only one word, but not too many) are missing and placed in square brackets like "The [happy] dog barked [loudly] at the mailman." List the bracketed words in "blankAnswers": ["happy", "loudly"].
-   - "pronunciation": Formulate a sentence where one target word is placed in square brackets like "Please say the missing word: I love studying English [grammar]." Set "targetWord": "grammar", and "correctAnswer": "grammar". The student will speak this word into their microphone instead of typing.
-   - "multiple_choice": Provide 3-4 distinct options.
-4. Only use the question types listed above. Distribute questions across the allowed types.
-5. Make questions that test comprehension, not just memorization.
-6. Output ONLY the valid JSON object, nothing else.$customBlock
+   - "fill_in_the_blank": Formulate a complete English sentence where MULTIPLE words (2 to 3 words, not only one word, but not too many) are missing and placed in square brackets like "The [happy] dog barked [loudly] at the mailman." List the bracketed words in "blankAnswers": ["happy", "loudly"].
+   - "pronunciation": Formulate an English sentence where one single target English word is placed in square brackets like "Please say the missing word: I love studying English [grammar]." Set "targetWord": "grammar", and "correctAnswer": "grammar". The student will speak this word into their microphone instead of typing.
+   - "multiple_choice": Provide 4 distinct options in English with exactly 1 correct answer matching one of the options.
+4. Only use the question types listed in $questionTypesStr. Never output "passage".
+5. Make questions that test comprehension and English mastery, not just memorization.
+6. All questions, sentences, options, blanks, and target words MUST be in English.
+7. Output ONLY the valid JSON object, nothing else.$customBlock
 ''';
   }
 

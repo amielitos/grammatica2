@@ -57,8 +57,6 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
   bool _isDeletingPrc = false;
   int _lessonsPage = 1;
   static const int _lessonsPageSize = 5;
-  int _validatorAppsPage = 1;
-  static const int _validatorAppsPageSize = 5;
   int _educatorAppsPage = 1;
   static const int _educatorAppsPageSize = 5;
 
@@ -710,25 +708,25 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
   }) {
     final stream = showRejected
         ? DatabaseService.instance.streamRejectedApplications()
-        : DatabaseService.instance.streamEducatorApplications(type: type);
+        : DatabaseService.instance.streamEducatorApplications(type: 'educator');
     return StreamBuilder<List<EducatorApplication>>(
       stream: stream,
       builder: (ctx, snap) {
         if (snap.connectionState == ConnectionState.waiting) return const _LoadingShimmer();
-        final items = snap.data ?? [];
+        final items = (snap.data ?? [])
+            .where((a) => a.applicationType != 'validator')
+            .toList();
         if (items.isEmpty) {
-          final typeStr = type == 'validator' ? 'validator' : 'educator';
           return _buildEmptyState(
-            showRejected ? 'No rejected $typeStr applications' : 'No pending $typeStr applications',
+            showRejected ? 'No rejected educator applications' : 'No pending educator applications',
             showRejected ? Icons.check_circle_outlined : Icons.verified_user_rounded,
-            showRejected ? _kRejected : (type == 'validator' ? Colors.indigo : Colors.teal),
+            showRejected ? _kRejected : Colors.teal,
             textPrimary,
           );
         }
 
-        final isValidator = type == 'validator';
-        final currentPage = isValidator ? _validatorAppsPage : _educatorAppsPage;
-        final pageSize = isValidator ? _validatorAppsPageSize : _educatorAppsPageSize;
+        final currentPage = _educatorAppsPage;
+        const pageSize = _educatorAppsPageSize;
 
         final startIndex = (currentPage - 1) * pageSize;
         final clampedStart = startIndex >= items.length ? 0 : startIndex;
@@ -736,11 +734,7 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               setState(() {
-                if (isValidator) {
-                  _validatorAppsPage = 1;
-                } else {
-                  _educatorAppsPage = 1;
-                }
+                _educatorAppsPage = 1;
               });
             }
           });
@@ -762,14 +756,10 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
               currentPage: currentPage,
               totalItems: items.length,
               pageSize: pageSize,
-              itemName: '$type applications',
+              itemName: 'educator applications',
               onPageChanged: (newPage) {
                 setState(() {
-                  if (isValidator) {
-                    _validatorAppsPage = newPage;
-                  } else {
-                    _educatorAppsPage = newPage;
-                  }
+                  _educatorAppsPage = newPage;
                 });
               },
             ),

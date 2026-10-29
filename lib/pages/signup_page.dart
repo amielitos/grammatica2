@@ -252,6 +252,8 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> _register() async {
+    if (!_formKey3.currentState!.validate()) return;
+
     final email = _emailController.text.trim();
     if (!EmailValidatorService.isAllowedEmail(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -268,7 +270,6 @@ class _SignupPageState extends State<SignupPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please read and agree to the Terms')));
       return;
     }
-    if (!_formKey3.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
@@ -338,6 +339,10 @@ class _SignupPageState extends State<SignupPage> {
       }
     } else if (_currentStep == 1) {
       final email = _emailController.text.trim();
+      if (email.isEmpty) {
+        _formKey2.currentState?.validate();
+        return;
+      }
       if (!EmailValidatorService.isAllowedEmail(email)) {
         setState(() => _isInvalidDomain = true);
         _formKey2.currentState?.validate();
@@ -549,13 +554,13 @@ class _SignupPageState extends State<SignupPage> {
   double _getStepHeight() {
     switch (_currentStep) {
       case 0:
-        return _selectedRole == 'validator' ? 490 : 470;
+        return _selectedRole == 'validator' ? 535 : 515;
       case 1:
         return 190;
       case 2:
         return 530;
       default:
-        return 470;
+        return 515;
     }
   }
 
@@ -661,8 +666,8 @@ class _SignupPageState extends State<SignupPage> {
                 _CapitalizerFormatter(),
               ],
               validator: (val) {
-                if (val == null || val.isEmpty) return 'Enter first name';
-                if (!RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(val)) return 'Only letters allowed';
+                if (val == null || val.trim().isEmpty) return 'First name is required';
+                if (!RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(val.trim())) return 'Only letters allowed';
                 return null;
               },
             ),
@@ -676,7 +681,7 @@ class _SignupPageState extends State<SignupPage> {
                 _CapitalizerFormatter(),
               ],
               validator: (val) {
-                if (val != null && val.isNotEmpty && !RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(val)) {
+                if (val != null && val.trim().isNotEmpty && !RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(val.trim())) {
                   return 'Only letters allowed';
                 }
                 return null;
@@ -692,8 +697,8 @@ class _SignupPageState extends State<SignupPage> {
                 _CapitalizerFormatter(),
               ],
               validator: (val) {
-                if (val == null || val.isEmpty) return 'Enter last name';
-                if (!RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(val)) return 'Only letters allowed';
+                if (val == null || val.trim().isEmpty) return 'Last name is required';
+                if (!RegExp(r'^[a-zA-Z\s\-]+$').hasMatch(val.trim())) return 'Only letters allowed';
                 return null;
               },
             ),
@@ -707,12 +712,47 @@ class _SignupPageState extends State<SignupPage> {
               readOnly: true,
               onTap: () => _selectDate(context),
               validator: (val) {
-                if (val == null || val.isEmpty) return 'Select date of birth';
+                if (val == null || val.trim().isEmpty) return 'Date of birth is required';
                 if (_selectedDate != null && _selectedDate!.isAfter(DateTime(2014, 12, 31))) {
                   return 'Must be born in 2014 or earlier (minimum 12 years old)';
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.amber.withValues(alpha: 0.1)
+                    : const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDark
+                      ? Colors.amber.withValues(alpha: 0.3)
+                      : Colors.amber.shade300,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline_rounded,
+                    size: 14,
+                    color: isDark ? Colors.amber.shade300 : Colors.amber.shade800,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Date of birth cannot be edited after registration.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -752,7 +792,7 @@ class _SignupPageState extends State<SignupPage> {
                 prefixIcon: const Icon(Icons.email_outlined),
                 keyboardType: TextInputType.emailAddress,
                 validator: (val) {
-                  if (val == null || val.trim().isEmpty) return 'Enter email';
+                  if (val == null || val.trim().isEmpty) return 'Email is required';
                   final clean = val.trim();
                   if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(clean)) return 'Enter valid email';
                   if (!EmailValidatorService.isAllowedEmail(clean) || _isInvalidDomain) {
@@ -962,7 +1002,11 @@ class _SignupPageState extends State<SignupPage> {
                 tooltip: _obscureConfirmPassword ? 'Show password' : 'Hide password',
                 onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
               ),
-              validator: (val) => (val != _passwordController.text) ? 'Passwords do not match' : null,
+              validator: (val) {
+                if (val == null || val.isEmpty) return 'Confirm password is required';
+                if (val != _passwordController.text) return 'Passwords do not match';
+                return null;
+              },
             ),
             if (_confirmPasswordController.text.isNotEmpty) ...[
               const SizedBox(height: 4),

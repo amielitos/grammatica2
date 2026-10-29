@@ -21,8 +21,8 @@ class ManageSubscriptionsPage extends StatefulWidget {
 }
 
 class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
-  final TextEditingController _standardController = TextEditingController();
   final TextEditingController _premiumController = TextEditingController();
+  String? _premiumError;
   bool _isEducator = false;
   Map<String, dynamic>? _userData;
   int _mentorshipPage = 1;
@@ -34,6 +34,12 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     _checkRoleAndLoadPricing();
   }
 
+  @override
+  void dispose() {
+    _premiumController.dispose();
+    super.dispose();
+  }
+
   Future<void> _checkRoleAndLoadPricing() async {
     final doc = await DatabaseService.instance.getUserData(widget.user.uid);
     if (doc != null) {
@@ -43,10 +49,8 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
           _isEducator = doc['role'] == 'Educator';
           final pricing = doc['subscription_pricing'] as Map<String, dynamic>?;
           if (pricing != null) {
-            _standardController.text = (pricing['standard'] ?? 3).toString();
             _premiumController.text = (pricing['premium'] ?? 7).toString();
           } else {
-            _standardController.text = '3';
             _premiumController.text = '7';
           }
         });
@@ -55,25 +59,29 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
   }
 
   Future<void> _savePricing() async {
-    final standard = int.tryParse(_standardController.text) ?? 3;
-    final premium = int.tryParse(_premiumController.text) ?? 7;
-
-    if (standard > 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Standard pricing cannot exceed \$10')),
-      );
+    final rawPremium = _premiumController.text.trim();
+    if (rawPremium.isEmpty) {
+      setState(() => _premiumError = 'Premium tier price is required');
       return;
     }
+    final premium = int.tryParse(rawPremium);
+    if (premium == null || premium <= 0) {
+      setState(() => _premiumError = 'Enter a valid price greater than 0');
+      return;
+    }
+
     if (premium > 30) {
+      setState(() => _premiumError = 'Premium pricing cannot exceed \$30');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Premium pricing cannot exceed \$30')),
       );
       return;
     }
 
+    setState(() => _premiumError = null);
+
     await DatabaseService.instance.updateSubscriptionPricing(
       widget.user.uid,
-      standard: standard,
       premium: premium,
     );
 
@@ -211,21 +219,18 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _buildPricingField(
-                            label: 'Standard Tier (Max \$10) *',
-                            controller: _standardController,
-                            icon: Icons.star_outline_rounded,
-                            isDark: isDark,
-                            borderColor: borderColor,
-                            textColor: textColor,
-                          ),
-                          const SizedBox(height: 16),
-                          _buildPricingField(
                             label: 'Premium Tier (Max \$30) *',
                             controller: _premiumController,
                             icon: Icons.auto_awesome_rounded,
                             isDark: isDark,
                             borderColor: borderColor,
                             textColor: textColor,
+                            errorText: _premiumError,
+                            onChanged: (_) {
+                              if (_premiumError != null) {
+                                setState(() => _premiumError = null);
+                              }
+                            },
                           ),
                           const SizedBox(height: 24),
                           SizedBox(
@@ -309,6 +314,8 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     required bool isDark,
     required Color borderColor,
     required Color textColor,
+    String? errorText,
+    ValueChanged<String>? onChanged,
   }) {
     final bool isRequired = label.trim().endsWith('*');
     final String cleanLabel = isRequired
@@ -318,11 +325,13 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     return TextField(
       controller: controller,
       keyboardType: TextInputType.number,
+      onChanged: onChanged,
       style: GoogleFonts.inter(
         fontSize: 14,
         color: textColor,
       ),
       decoration: InputDecoration(
+        errorText: errorText,
         labelText: isRequired ? null : label,
         label: isRequired
             ? Text.rich(
@@ -701,7 +710,8 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
   ) {
     final eduData = sub['educatorData'] as Map<String, dynamic>? ?? {};
     final username = eduData['username'] as String? ?? 'Educator';
-    final tier = sub['tier'] as String? ?? 'Basic';
+    final rawTier = sub['tier'] as String? ?? 'Basic';
+    final tier = rawTier.toLowerCase() == 'standard' ? 'Premium' : rawTier;
     final eduUid = sub['educatorUid'] as String;
 
     final lowerTier = tier.toLowerCase();
@@ -711,9 +721,6 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     if (lowerTier == 'premium') {
       pillBg = const Color(0xFF8B5CF6).withValues(alpha: 0.12);
       pillText = const Color(0xFF8B5CF6);
-    } else if (lowerTier == 'standard') {
-      pillBg = const Color(0xFF81B655).withValues(alpha: 0.12);
-      pillText = const Color(0xFF81B655);
     } else {
       pillBg = Colors.blue.withValues(alpha: 0.12);
       pillText = Colors.blue;
@@ -1318,6 +1325,8 @@ class _LearnerMentorshipBookingModalState
   int _duration = 60;
   String? _selectedEduUid;
   bool _isSubmitting = false;
+  String? _titleError;
+  String? _educatorError;
 
   @override
   void initState() {
@@ -1412,11 +1421,17 @@ class _LearnerMentorshipBookingModalState
               const SizedBox(height: 8),
               TextField(
                 controller: _titleController,
+                onChanged: (_) {
+                  if (_titleError != null) {
+                    setState(() => _titleError = null);
+                  }
+                },
                 style: GoogleFonts.inter(
                   color: isDark ? Colors.white : Colors.black87,
                 ),
                 decoration: InputDecoration(
                   hintText: 'e.g. Grammar Consultation & Practice',
+                  errorText: _titleError,
                   filled: true,
                   fillColor: isDark
                       ? Colors.white.withValues(alpha: 0.05)
@@ -1455,9 +1470,21 @@ class _LearnerMentorshipBookingModalState
                       .where((s) => s['status'] == 'active' && (s['tier'] as String?)?.toLowerCase() == 'premium')
                       .toList();
                   if (activeSubs.isEmpty) {
-                    return const Text(
-                        'No active premium educator subscriptions found. Mentorship is only available for Premium subscribers.',
-                        style: TextStyle(color: Colors.grey, fontSize: 13));
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                            'No active premium educator subscriptions found. Mentorship is only available for Premium subscribers.',
+                            style: TextStyle(color: Colors.grey, fontSize: 13)),
+                        if (_educatorError != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            _educatorError!,
+                            style: const TextStyle(color: Colors.red, fontSize: 12),
+                          ),
+                        ],
+                      ],
+                    );
                   }
 
                   final initialVal =
@@ -1472,6 +1499,7 @@ class _LearnerMentorshipBookingModalState
                     initialValue: _selectedEduUid,
                     isExpanded: true,
                     decoration: InputDecoration(
+                      errorText: _educatorError,
                       filled: true,
                       fillColor: isDark
                           ? Colors.white.withValues(alpha: 0.05)
@@ -1492,7 +1520,12 @@ class _LearnerMentorshipBookingModalState
                       );
                     }).toList(),
                     onChanged: (val) {
-                      if (val != null) setState(() => _selectedEduUid = val);
+                      if (val != null) {
+                        setState(() {
+                          _selectedEduUid = val;
+                          _educatorError = null;
+                        });
+                      }
                     },
                   );
                 },
@@ -1594,10 +1627,14 @@ class _LearnerMentorshipBookingModalState
   }
 
   Future<void> _handleSchedule() async {
+    final title = _titleController.text.trim();
     final eduUid = _selectedEduUid;
-    if (eduUid == null || eduUid.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select an educator')));
+    setState(() {
+      _titleError = title.isEmpty ? 'Session title is required' : null;
+      _educatorError =
+          (eduUid == null || eduUid.isEmpty) ? 'Please select an educator' : null;
+    });
+    if (_titleError != null || _educatorError != null || eduUid == null) {
       return;
     }
 

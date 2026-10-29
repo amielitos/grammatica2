@@ -324,7 +324,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                                           stream: DatabaseService.instance.getTieredSubscriberCounts(uid),
                                           builder: (context, subSnapshot) {
                                             final counts = subSnapshot.data ??
-                                                {'Basic': 0, 'Standard': 0, 'Premium': 0};
+                                                {'Basic': 0, 'Premium': 0};
 
                                             return StreamBuilder<List<LessonPlaylist>>(
                                               stream: DatabaseService.instance.streamPlaylistsByCreator(
@@ -337,9 +337,9 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                                                 return Row(
                                                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                                                   children: [
-                                                    _buildStatItem('Viewers', '${counts['Basic']}', Icons.remove_red_eye_rounded, const Color(0xFF3B82F6), isDark, textColor, subtitleColor),
+                                                    _buildStatItem('Viewers', '${counts['Basic'] ?? 0}', Icons.remove_red_eye_rounded, const Color(0xFF3B82F6), isDark, textColor, subtitleColor),
                                                     _buildVerticalDivider(borderColor),
-                                                    _buildStatItem('Enrolled', '${counts['Standard']}', Icons.people_rounded, const Color(0xFF81B655), isDark, textColor, subtitleColor),
+                                                    _buildStatItem('Enrolled', '${counts['Premium'] ?? 0}', Icons.people_rounded, const Color(0xFF81B655), isDark, textColor, subtitleColor),
                                                     _buildVerticalDivider(borderColor),
                                                     _buildStatItem(
                                                       'Playlists',
@@ -501,9 +501,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
         }
       } else {
         final pricingData = widget.educator['subscription_pricing'] ?? {};
-        double amountInUSD = tier == 'Standard'
-            ? (pricingData['standard']?.toDouble() ?? 3.0)
-            : (pricingData['premium']?.toDouble() ?? 7.0);
+        double amountInUSD = (pricingData['premium']?.toDouble() ?? 7.0);
         double amountInPhp = amountInUSD * 56.0;
         if (!context.mounted) return;
         final paymentIdempotencyKey =

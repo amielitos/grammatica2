@@ -682,7 +682,13 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final allLessons = snapshot.data ?? [];
+        final currentUid = AuthService.instance.currentUser?.uid;
+        final allLessons = (snapshot.data ?? []).where((lesson) {
+          if (lesson.validationStatus == 'approved') return true;
+          final isAuthor = currentUid != null && lesson.createdByUid == currentUid;
+          final isValidator = widget.role == UserRole.validator;
+          return isAuthor || isValidator;
+        }).toList();
 
         // Extract unique authors for filtering
         final Map<String, _AuthorFilterItem> authorMap = {};

@@ -1351,6 +1351,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
   String? _snam;
   bool _isSubmitting = false;
   bool _titleTouched = false;
+  bool _studentTouched = false;
 
   @override
   void initState() {
@@ -1480,9 +1481,17 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                   ),
                 ),
               const SizedBox(height: 8),
-              Text(
-                'Meeting Title / Topic *',
-                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+              Text.rich(
+                TextSpan(
+                  text: 'Meeting Title / Topic',
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -1525,18 +1534,33 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
               ),
               const SizedBox(height: 16),
 
-              Text('Select Student *', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              Text.rich(
+                TextSpan(
+                  text: 'Select Student',
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 8),
               StreamBuilder<List<Map<String, dynamic>>>(
                 stream: DatabaseService.instance.streamEducatorSubscribers(widget.user.uid),
                 builder: (context, snapshot) {
                   final allSubs = (snapshot.data ?? []).toList();
                   final subs = allSubs.where((s) => (s['tier']?.toString().toLowerCase() ?? '') == 'premium').toList();
+                  final studentError = _studentTouched && (_sid == null || _sid!.isEmpty)
+                      ? 'Student selection is required'
+                      : null;
                   
                   if (subs.isEmpty && snapshot.connectionState != ConnectionState.waiting) {
                     return DropdownButtonFormField<String>(
                       onChanged: null,
                       decoration: InputDecoration(
+                        errorText: studentError,
                         filled: true,
                         fillColor: isDark ? Colors.white10 : Colors.grey.withValues(alpha: 0.05),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.divider)),
@@ -1555,6 +1579,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                     style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white : AppColors.textPrimary),
                     dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                     decoration: InputDecoration(
+                      errorText: studentError,
                       filled: true,
                       fillColor: isDark ? Colors.white10 : Colors.grey.withValues(alpha: 0.05),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.divider)),
@@ -1582,6 +1607,7 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
                       final userData = await DatabaseService.instance.getUserDoc(val!);
                       setState(() {
                         _sid = val;
+                        _studentTouched = false;
                         _snam = userData?['username'] ?? userData?['email'] ?? 'Student';
                       });
                     },
@@ -1724,18 +1750,13 @@ class _MentorshipBookingModalState extends State<MentorshipBookingModal> {
               ? null
               : () {
                   final title = _titleController.text.trim();
-                  if (title.isEmpty) {
-                    setState(() => _titleTouched = true);
-                    return;
-                  }
-                  if (_sid == null || _sid!.isEmpty) {
-                    CenterNoticeDialog.show(
-                      context,
-                      title: 'Student Required',
-                      message: 'Please select an enrolled student to proceed with scheduling.',
-                      icon: Icons.person_search_rounded,
-                      iconColor: Colors.amber,
-                    );
+                  final missingTitle = title.isEmpty;
+                  final missingStudent = _sid == null || _sid!.isEmpty;
+                  if (missingTitle || missingStudent) {
+                    setState(() {
+                      if (missingTitle) _titleTouched = true;
+                      if (missingStudent) _studentTouched = true;
+                    });
                     return;
                   }
                   _handleSchedule();
@@ -1939,7 +1960,18 @@ class _EducatorSetAvailabilityDialogState extends State<EducatorSetAvailabilityD
             mainAxisSize: MainAxisSize.min,
             children: [
               // Topic
-              const Text('Session Topic / Title *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const Text.rich(
+                TextSpan(
+                  text: 'Session Topic / Title',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+                  children: [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 6),
               TextField(
                 controller: _topicController,

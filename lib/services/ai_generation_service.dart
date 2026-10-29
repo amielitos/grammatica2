@@ -118,11 +118,13 @@ class AIGenerationService {
         difficulty: difficulty,
         isAssessment: true,
         customInstructions: customInstructions,
+        questionTypes: config?.questionTypes,
       );
 
       final rawJson = await _executeGeneration(
         systemPrompt: systemPrompt,
-        userPrompt: 'Generate a passage-based reading assessment based on the following material:\n\n$sourceText',
+        userPrompt:
+            'Generate a formal English assessment with standalone questions based on the following material:\n\n$sourceText',
         backendEndpoint: '/api/v1/generate-quiz',
         backendPayload: {
           'sourceText': sourceText,
@@ -132,6 +134,7 @@ class AIGenerationService {
       );
 
       final parsed = _decodeJsonMap(rawJson);
+      parsed['isAssessment'] = true;
       return AIQuizResponse.fromJson(parsed);
     }
 

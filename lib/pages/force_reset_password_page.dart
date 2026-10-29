@@ -378,6 +378,7 @@ class _ForceResetPasswordPageState extends State<ForceResetPasswordPage> {
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                           ),
                           validator: (val) {
+                            if (val == null || val.isEmpty) return 'Confirm password is required';
                             if (val != _passwordController.text) return 'Passwords do not match';
                             return null;
                           },

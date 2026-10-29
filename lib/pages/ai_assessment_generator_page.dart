@@ -19,7 +19,8 @@ import 'practice_tab.dart';
 /// AI Assessment Generator page for Learner Practice Tools.
 ///
 /// Provides two modes: General English and IELTS.
-/// Generates passage-based assessments via AI and renders them
+/// Generates English language assessments via AI (Multiple Choice,
+/// Fill in the Blanks, and Pronunciation) and renders them
 /// using the existing quiz layout. Supports local caching of the last
 /// generated assessment.
 class AiAssessmentGeneratorPage extends StatefulWidget {
@@ -41,12 +42,18 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
   final AILogicService _aiService = AILogicService();
   bool _isLoading = false;
   String? _errorMessage;
+  String? _questionTypeError;
   String? _selectedMode; // 'general' or 'ielts'
   String? _selectedDifficulty;
+  final Set<String> _selectedQuestionTypes = {
+    'multiple_choice',
+    'fill_in_the_blank',
+    'pronunciation',
+  };
 
-  // Cache keys
-  static const _cacheKeyGeneral = 'cached_assessment_general';
-  static const _cacheKeyIelts = 'cached_assessment_ielts';
+  // Cache keys (v2: passage-free English assessments with varied question types)
+  static const _cacheKeyGeneral = 'cached_assessment_general_v2';
+  static const _cacheKeyIelts = 'cached_assessment_ielts_v2';
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +82,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                         ? 'Generating IELTS Assessment...'
                         : 'Generating English Assessment...',
                     subtitle:
-                        'Creating reading passages, comprehension questions, and scoring keys...',
+                        'Creating English assessment questions, answer keys, and explanations...',
                   ),
                 ),
               ),
@@ -143,7 +150,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Choose an assessment type to generate a practice exam with passages and questions.',
+                  'Choose an assessment type to generate an English language practice exam.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
                     fontSize: 14,
@@ -167,7 +174,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                             child: _AssessmentTypeCard(
                               title: 'English Assessment',
                               subtitle:
-                                  'General English grammar, vocabulary, and reading comprehension.',
+                                  'General English grammar, vocabulary, fill-in-the-blanks, and pronunciation.',
                               icon: Icons.menu_book_rounded,
                               color: const Color(0xFF4A7C59),
                               onTap: () =>
@@ -182,7 +189,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                             child: _AssessmentTypeCard(
                               title: 'IELTS Assessment',
                               subtitle:
-                                  'IELTS-style reading passages with academic question formats.',
+                                  'IELTS academic English vocabulary, grammar, usage, and pronunciation.',
                               icon: Icons.school_rounded,
                               color: const Color(0xFF2E5090),
                               onTap: () =>
@@ -200,7 +207,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                         _AssessmentTypeCard(
                           title: 'English Assessment',
                           subtitle:
-                              'General English grammar, vocabulary, and reading comprehension.',
+                              'General English grammar, vocabulary, fill-in-the-blanks, and pronunciation.',
                           icon: Icons.menu_book_rounded,
                           color: const Color(0xFF4A7C59),
                           onTap: () =>
@@ -212,7 +219,7 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                         _AssessmentTypeCard(
                           title: 'IELTS Assessment',
                           subtitle:
-                              'IELTS-style reading passages with academic question formats.',
+                              'IELTS academic English vocabulary, grammar, usage, and pronunciation.',
                           icon: Icons.school_rounded,
                           color: const Color(0xFF2E5090),
                           onTap: () => setState(() => _selectedMode = 'ielts'),
@@ -345,7 +352,108 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 36),
+                Text(
+                  'Question Types',
+                  style: GoogleFonts.outfit(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Select which English question formats to include in this assessment.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: isDark ? Colors.white54 : AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    (
+                      id: 'multiple_choice',
+                      label: 'Multiple Choice',
+                      icon: Icons.checklist_rounded,
+                    ),
+                    (
+                      id: 'fill_in_the_blank',
+                      label: 'Fill in the Blanks',
+                      icon: Icons.space_bar_rounded,
+                    ),
+                    (
+                      id: 'pronunciation',
+                      label: 'Pronunciation',
+                      icon: Icons.mic_rounded,
+                    ),
+                  ].map((item) {
+                    final isSelected =
+                        _selectedQuestionTypes.contains(item.id);
+                    return FilterChip(
+                      avatar: Icon(
+                        item.icon,
+                        size: 16,
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : AppColors.textPrimary),
+                      ),
+                      label: Text(item.label),
+                      selected: isSelected,
+                      showCheckmark: false,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedQuestionTypes.add(item.id);
+                            _questionTypeError = null;
+                          } else {
+                            _selectedQuestionTypes.remove(item.id);
+                          }
+                        });
+                      },
+                      labelStyle: GoogleFonts.inter(
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : AppColors.textPrimary),
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                      selectedColor: AppColors.primary,
+                      backgroundColor:
+                          isDark ? Colors.grey.shade800 : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(
+                          color: isSelected
+                              ? AppColors.primary
+                              : (isDark
+                                  ? Colors.grey.shade700
+                                  : Colors.grey.shade300),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                if (_questionTypeError != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _questionTypeError!,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.redAccent,
+                    ),
+                  ),
+                ],
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 20),
+                  _buildErrorCard(isDark),
+                ],
+                const SizedBox(height: 40),
                 SizedBox(
                   width: double.infinity,
                   height: 56,
@@ -421,54 +529,76 @@ class _AiAssessmentGeneratorPageState extends State<AiAssessmentGeneratorPage> {
 
   Future<void> _generateAssessment() async {
     if (_isLoading) return;
+    if (_selectedQuestionTypes.isEmpty) {
+      setState(() {
+        _questionTypeError = 'Please select at least one question type.';
+      });
+      return;
+    }
+
     final mode = _selectedMode!;
     final diff = _selectedDifficulty!;
+    final selectedTypes = _selectedQuestionTypes.toList();
+    final typesLabel = selectedTypes.map((t) => '"$t"').join(', ');
 
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _questionTypeError = null;
     });
     PracticeTab.isGenerating.value = true;
 
     try {
+      final typeRulesBuffer = StringBuffer();
+      if (selectedTypes.contains('multiple_choice')) {
+        typeRulesBuffer.writeln(
+          '- For "multiple_choice": Provide 4 distinct English options and 1 exact correctAnswer matching one of the options.',
+        );
+      }
+      if (selectedTypes.contains('fill_in_the_blank')) {
+        typeRulesBuffer.writeln(
+          '- For "fill_in_the_blank": Provide a complete English sentence where 2 to 3 English words are missing and wrapped in square brackets, e.g. "The [diligent] student [completed] the assignment." List those exact words in "blankAnswers": ["diligent", "completed"].',
+        );
+      }
+      if (selectedTypes.contains('pronunciation')) {
+        typeRulesBuffer.writeln(
+          '- For "pronunciation": Provide an English sentence with 1 single target English word wrapped in square brackets, e.g. "Please say the missing word: Clear [articulation] improves spoken fluency." Set both "targetWord" and "correctAnswer" to that exact single English word.',
+        );
+      }
+
       final String customInstructions;
       if (mode == 'ielts') {
-        customInstructions =
-            '''
-Generate an IELTS-style reading assessment for $diff difficulty level.
+        customInstructions = '''
+Generate an IELTS English Language assessment for $diff CEFR difficulty level.
 MANDATORY RULES:
-1. Provide a comprehensive academic reading passage (350-500 words) on a science, technology, history, or social issue topic. Put the complete passage text in the "passage" field.
-2. ALL questions MUST be multiple-choice questionnaires based directly on this passage.
-3. Every question MUST provide exactly 4 distinct options (e.g. A, B, C, D) and exactly 1 correct answer matching one of the options.
-4. DO NOT generate textboxes, short-answer, fill-in-the-blank, or identification questions as textboxes cannot be automatically graded. Stick purely to multiple-choice questionnaires.
-5. Provide helpful hints and clear explanations for each question.
+1. Source all data strictly from the ENGLISH LANGUAGE: IELTS Academic & General Training English lexical resource, academic vocabulary and collocations, grammatical range and accuracy, cohesive devices, complex sentence structure, and academic English pronunciation.
+2. Do NOT generate reading passages or nested passage questions. Every single question must be completely self-contained.
+3. ONLY use the selected question types: $typesLabel. Distribute questions across these selected types.
+${typeRulesBuffer.toString().trim()}
+4. Provide helpful hints and clear explanations in English for each question.
 ''';
       } else {
-        customInstructions =
-            '''
-Generate a General English reading assessment for $diff difficulty level.
+        customInstructions = '''
+Generate a General English Language assessment for $diff CEFR difficulty level.
 MANDATORY RULES:
-1. Provide a comprehensive reading passage (300-450 words) on an engaging general interest topic. Put the complete passage text in the "passage" field.
-2. ALL questions MUST be multiple-choice questionnaires based directly on this passage.
-3. Every question MUST provide exactly 4 distinct options (e.g. A, B, C, D) and exactly 1 correct answer matching one of the options.
-4. DO NOT generate textboxes, short-answer, fill-in-the-blank, or identification questions as textboxes cannot be automatically graded. Stick purely to multiple-choice questionnaires.
-5. Test grammar, vocabulary, skimming, scanning, and reading comprehension.
+1. Source all data strictly from the ENGLISH LANGUAGE: English grammar, verb tenses, subject-verb agreement, prepositions, parts of speech, idioms, everyday and academic English vocabulary, sentence usage, and English pronunciation.
+2. Do NOT generate reading passages or nested passage questions. Every single question must be completely self-contained.
+3. ONLY use the selected question types: $typesLabel. Distribute questions across these selected types.
+${typeRulesBuffer.toString().trim()}
+4. Provide helpful hints and clear explanations in English for each question.
 ''';
       }
 
       final config = QuizGenerationConfig(
-        questionTypes: [
-          'multiple_choice',
-        ],
+        questionTypes: selectedTypes,
         difficulty: diff,
         customInstructions: customInstructions,
         includeHints: true,
       );
 
-      // We use a generic prompt since we don't have specific lesson text
       final contextText = mode == 'ielts'
-          ? 'Create an IELTS Academic Reading assessment with passages and comprehension questions. The passages should cover academic topics like science, technology, history, or social issues.'
-          : 'Create a General English Examination with reading comprehension passages and questions. The passages should cover everyday topics like health, culture, environment, or education.';
+          ? 'Source Domain: English Language (IELTS Preparation). Test IELTS academic and general English vocabulary, collocations, complex grammar, sentence completion, cohesive devices, and academic English word pronunciation at the $diff level without reading passages.'
+          : 'Source Domain: English Language (General English Proficiency). Test core English grammar, parts of speech, verb tenses, vocabulary usage, sentence completion, and English word pronunciation at the $diff level without reading passages.';
 
       final aiResponse = await _aiService.generateQuiz(
         contextText,
@@ -581,9 +711,8 @@ MANDATORY RULES:
           ? 'IELTS Practice Assessment'
           : 'English Assessment',
       description: mode == 'ielts'
-          ? 'AI-generated IELTS-style reading assessment'
+          ? 'AI-generated IELTS English language assessment'
           : 'AI-generated General English assessment',
-      passage: aiResponse.passage,
       questions: nativeQuestions,
       duration: 30,
       maxAttempts: 1000000, // Unlimited for practice

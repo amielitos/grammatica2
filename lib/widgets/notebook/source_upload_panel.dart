@@ -453,88 +453,100 @@ class _SourceUploadPanelState extends State<SourceUploadPanel> {
     final titleController = TextEditingController();
     final textController = TextEditingController();
 
+    String? contentError;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Add Text Note'),
-        content: SizedBox(
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Note Title (Optional)',
-                  hintText: 'e.g., Chapter 1 Summary',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: textController,
-                maxLines: 8,
-                decoration: const InputDecoration(
-                  label: Text.rich(
-                    TextSpan(
-                      text: 'Content',
-                      children: [
-                        TextSpan(
-                          text: ' *',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Add Text Note'),
+          content: SizedBox(
+            width: 500,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Note Title (Optional)',
+                    hintText: 'e.g., Chapter 1 Summary',
+                    border: OutlineInputBorder(),
                   ),
-                  hintText: 'Paste lecture notes, study content, or excerpts here...',
-                  border: OutlineInputBorder(),
                 ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (textController.text.trim().isEmpty) return;
-              Navigator.pop(ctx);
-
-              setState(() {
-                _isUploading = true;
-                _uploadStatus = 'Saving text note...';
-              });
-
-              try {
-                final source = await SourceIngestionService.instance.ingestText(
-                  notebookId: widget.notebookId,
-                  title: titleController.text.trim().isNotEmpty
-                      ? titleController.text.trim()
-                      : 'Text Note',
-                  text: textController.text,
-                );
-
-                await NotebookService.instance.addSource(widget.notebookId, source);
-              } catch (e) {
-                _showErrorSnackBar('Error saving note: $e');
-              } finally {
-                if (mounted) setState(() => _isUploading = false);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+                const SizedBox(height: 16),
+                TextField(
+                  controller: textController,
+                  maxLines: 8,
+                  onChanged: (val) {
+                    if (contentError != null && val.trim().isNotEmpty) {
+                      setDialogState(() => contentError = null);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    label: const Text.rich(
+                      TextSpan(
+                        text: 'Content',
+                        children: [
+                          TextSpan(
+                            text: ' *',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    hintText: 'Paste lecture notes, study content, or excerpts here...',
+                    errorText: contentError,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ],
             ),
-            child: const Text('Add Note'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (textController.text.trim().isEmpty) {
+                  setDialogState(() => contentError = 'Content is required');
+                  return;
+                }
+                Navigator.pop(ctx);
+
+                setState(() {
+                  _isUploading = true;
+                  _uploadStatus = 'Saving text note...';
+                });
+
+                try {
+                  final source = await SourceIngestionService.instance.ingestText(
+                    notebookId: widget.notebookId,
+                    title: titleController.text.trim().isNotEmpty
+                        ? titleController.text.trim()
+                        : 'Text Note',
+                    text: textController.text,
+                  );
+
+                  await NotebookService.instance.addSource(widget.notebookId, source);
+                } catch (e) {
+                  _showErrorSnackBar('Error saving note: $e');
+                } finally {
+                  if (mounted) setState(() => _isUploading = false);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Add Note'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -542,88 +554,100 @@ class _SourceUploadPanelState extends State<SourceUploadPanel> {
   void _showUrlDialog() {
     final titleController = TextEditingController();
     final urlController = TextEditingController();
+    String? urlError;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Add Web Link'),
-        content: SizedBox(
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: urlController,
-                decoration: const InputDecoration(
-                  label: Text.rich(
-                    TextSpan(
-                      text: 'Webpage URL',
-                      children: [
-                        TextSpan(
-                          text: ' *',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Add Web Link'),
+          content: SizedBox(
+            width: 500,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: urlController,
+                  onChanged: (val) {
+                    if (urlError != null && val.trim().isNotEmpty) {
+                      setDialogState(() => urlError = null);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    label: const Text.rich(
+                      TextSpan(
+                        text: 'Webpage URL',
+                        children: [
+                          TextSpan(
+                            text: ' *',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    hintText: 'https://en.wikipedia.org/...',
+                    errorText: urlError,
+                    border: const OutlineInputBorder(),
                   ),
-                  hintText: 'https://en.wikipedia.org/...',
-                  border: OutlineInputBorder(),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Custom Title (Optional)',
-                  hintText: 'Leave blank to use page title',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Custom Title (Optional)',
+                    hintText: 'Leave blank to use page title',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (urlController.text.trim().isEmpty) return;
-              Navigator.pop(ctx);
-
-              setState(() {
-                _isUploading = true;
-                _uploadStatus = 'Fetching webpage content...';
-              });
-
-              try {
-                final source = await SourceIngestionService.instance.ingestUrl(
-                  notebookId: widget.notebookId,
-                  url: urlController.text.trim(),
-                  customTitle: titleController.text.trim().isNotEmpty
-                      ? titleController.text.trim()
-                      : null,
-                );
-
-                await NotebookService.instance.addSource(widget.notebookId, source);
-              } catch (e) {
-                _showErrorSnackBar('Error fetching URL: $e');
-              } finally {
-                if (mounted) setState(() => _isUploading = false);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              ],
             ),
-            child: const Text('Fetch & Add'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (urlController.text.trim().isEmpty) {
+                  setDialogState(() => urlError = 'Webpage URL is required');
+                  return;
+                }
+                Navigator.pop(ctx);
+
+                setState(() {
+                  _isUploading = true;
+                  _uploadStatus = 'Fetching webpage content...';
+                });
+
+                try {
+                  final source = await SourceIngestionService.instance.ingestUrl(
+                    notebookId: widget.notebookId,
+                    url: urlController.text.trim(),
+                    customTitle: titleController.text.trim().isNotEmpty
+                        ? titleController.text.trim()
+                        : null,
+                  );
+
+                  await NotebookService.instance.addSource(widget.notebookId, source);
+                } catch (e) {
+                  _showErrorSnackBar('Error fetching URL: $e');
+                } finally {
+                  if (mounted) setState(() => _isUploading = false);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Fetch & Add'),
+            ),
+          ],
+        ),
       ),
     );
   }

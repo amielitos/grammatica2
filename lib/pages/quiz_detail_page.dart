@@ -24,13 +24,9 @@ import '../services/badge_service.dart';
 
 class _RenderableQuestion {
   final QuizQuestion question;
-  final QuizQuestion? parentPassage;
-  final int? nestedIndex; // 0-indexed index within the passage
 
   _RenderableQuestion({
     required this.question,
-    this.parentPassage,
-    this.nestedIndex,
   });
 }
 
@@ -107,7 +103,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     final amPm = d.hour >= 12 ? 'PM' : 'AM';
     return '${months[d.month - 1]} ${d.day}, ${d.year} at $hour:$minute $amPm';
   }
-  bool _passageExpanded = true;
   bool get _previewMode => widget.previewMode;
   Map<String, dynamic>? _userData;
 
@@ -131,112 +126,15 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
   /// Live user object to preserve auth session continuity.
   User get _effectiveUser => AuthService.maybeLiveUser ?? widget.user;
 
-  String? _resolveCurrentPassage(_RenderableQuestion renderable) {
-    if (renderable.parentPassage != null &&
-        renderable.parentPassage!.question.trim().isNotEmpty) {
-      return renderable.parentPassage!.question.trim();
-    }
-    if (widget.quiz.passage != null &&
-        widget.quiz.passage!.trim().isNotEmpty) {
-      return widget.quiz.passage!.trim();
-    }
-    for (final q in widget.quiz.questions) {
-      if (q.type == 'passage' && q.question.trim().isNotEmpty) {
-        return q.question.trim();
-      }
-    }
-    for (final rq in _shuffledQuestions) {
-      if (rq.question.type == 'passage' &&
-          rq.question.question.trim().isNotEmpty) {
-        return rq.question.question.trim();
-      }
-    }
-    final desc = widget.quiz.description.trim();
-    if (desc.length > 150 && (desc.contains('\n') || desc.contains('. '))) {
-      return desc;
-    }
-    return null;
-  }
-
   @override
   void initState() {
     super.initState();
     _fetchUserData();
-    
-    // Flatten hierarchical questions (Passages with nested questions)
-    // First normalize: if a passage is present in a flat list or top-level quiz, nest subsequent questions under it
-    final List<QuizQuestion> normalizedQuestions = [];
-    QuizQuestion? activePassage;
-    final List<QuizQuestion> activeNested = [];
 
-    void flushPassageGroup() {
-      if (activePassage != null) {
-        normalizedQuestions.add(QuizQuestion(
-          question: activePassage!.question,
-          answer: activePassage!.answer,
-          type: 'passage',
-          options: activePassage!.options,
-          nestedQuestions: activeNested.isNotEmpty
-              ? List.from(activeNested)
-              : activePassage!.nestedQuestions,
-          hint: activePassage!.hint,
-          explanation: activePassage!.explanation,
-          imageUrl: activePassage!.imageUrl,
-          imageDescription: activePassage!.imageDescription,
-        ));
-        activePassage = null;
-        activeNested.clear();
-      }
-    }
-
-    final bool hasExplicitPassage = widget.quiz.questions.any((q) => q.type == 'passage');
-    final String? quizPassage = widget.quiz.passage;
-    if (!hasExplicitPassage && quizPassage != null && quizPassage.trim().isNotEmpty) {
-      activePassage = QuizQuestion(
-        question: quizPassage.trim(),
-        answer: '',
-        type: 'passage',
-      );
-    }
-
-    for (final q in widget.quiz.questions) {
-      if (q.type == 'passage') {
-        flushPassageGroup();
-        if (q.nestedQuestions != null && q.nestedQuestions!.isNotEmpty) {
-          normalizedQuestions.add(q);
-        } else {
-          activePassage = q;
-        }
-      } else {
-        if (activePassage != null) {
-          activeNested.add(q);
-        } else {
-          normalizedQuestions.add(q);
-        }
-      }
-    }
-    flushPassageGroup();
-
-    List<_RenderableQuestion> flattened = [];
-    for (var q in normalizedQuestions) {
-      if (q.type == 'passage') {
-        if (q.nestedQuestions != null && q.nestedQuestions!.isNotEmpty) {
-          for (int i = 0; i < q.nestedQuestions!.length; i++) {
-            flattened.add(_RenderableQuestion(
-              question: q.nestedQuestions![i],
-              parentPassage: q,
-              nestedIndex: i,
-            ));
-          }
-        } else {
-          flattened.add(_RenderableQuestion(question: q));
-        }
-      } else {
-        flattened.add(_RenderableQuestion(question: q));
-      }
-    }
-    
-    _shuffledQuestions = flattened;
+    _shuffledQuestions = widget.quiz.questions
+        .where((q) => q.type != 'passage')
+        .map((q) => _RenderableQuestion(question: q))
+        .toList();
     _answerCtrls = List.generate(
       _shuffledQuestions.length,
       (_) => TextEditingController(),
@@ -304,10 +202,15 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       final progress = await DatabaseService.instance.getLessonProgress(_effectiveUser.uid, reqId);
       final isCompleted = progress != null && (progress['completed'] == true || (progress['progress'] as num? ?? 0) >= 1.0);
       final lesson = await DatabaseService.instance.getLesson(reqId);
+      final canViewLesson = lesson != null &&
+          !lesson.isArchived &&
+          (lesson.validationStatus == 'approved' ||
+              lesson.createdByUid == _effectiveUser.uid ||
+              role == UserRole.validator);
       if (mounted) {
         setState(() {
           _prerequisiteMet = isCompleted;
-          _prerequisiteLesson = lesson;
+          _prerequisiteLesson = canViewLesson ? lesson : null;
         });
       }
     } catch (e) {
@@ -387,33 +290,15 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     }
   }
 
+  String _normalizePronunciation(String s) => s
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^\w\s]'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
   void _processSpokenWords(String rawWords, String targetWord, int questionIndex) {
-    final cleanWords = rawWords.trim().toLowerCase();
-    final target = targetWord.trim().toLowerCase().replaceAll(RegExp(r'[^\w]'), '');
-
-    final tokens = cleanWords
-        .split(RegExp(r'\s+'))
-        .map((w) => w.replaceAll(RegExp(r'[^\w]'), ''))
-        .where((w) => w.isNotEmpty)
-        .toList();
-
-    String bestWord = tokens.isNotEmpty ? tokens.last : cleanWords;
-    double highestSim = 0.0;
-
-    for (final token in tokens) {
-      if (token == target) {
-        bestWord = token;
-        highestSim = 1.0;
-        break;
-      }
-      final sim = StringSimilarity.compareTwoStrings(token, target);
-      if (sim > highestSim) {
-        highestSim = sim;
-        bestWord = token;
-      }
-    }
-
-    _answerCtrls[questionIndex].text = bestWord;
+    _answerCtrls[questionIndex].text = _normalizePronunciation(rawWords);
   }
 
   Future<void> _toggleListening(String targetWord, int questionIndex) async {
@@ -774,13 +659,9 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     super.dispose();
   }
 
-  bool get _allAnswered => _answerCtrls.asMap().entries.every((entry) {
-    final i = entry.key;
-    final ctrl = entry.value;
-    // Top-level passages (intro slides) don't require an answer
-    if (_shuffledQuestions[i].question.type == 'passage' && _shuffledQuestions[i].parentPassage == null) return true;
-    return ctrl.text.trim().isNotEmpty;
-  });
+  bool get _allAnswered => _answerCtrls.every(
+        (ctrl) => ctrl.text.trim().isNotEmpty,
+      );
 
   void _startQuiz() {
     setState(() {
@@ -830,32 +711,24 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     int scorableCount = 0;
     for (int i = 0; i < _shuffledQuestions.length; i++) {
       final q = _shuffledQuestions[i].question;
-      // Skip top-level passages (intro slides) from scoring
-      if (q.type == 'passage' && _shuffledQuestions[i].parentPassage == null) continue;
-      
       scorableCount++;
       final input = _normalize(_answerCtrls[i].text);
       final expected = _normalize(q.answer);
 
       bool isPass = false;
       if (q.type == 'pronunciation') {
-        final target = _normalize(q.targetWord ?? q.answer);
-        final similarity = StringSimilarity.compareTwoStrings(input, target);
+        final reg = RegExp(r'\[([^\]]+)\]');
+        final match = reg.firstMatch(q.question);
+        final rawTarget = match != null
+            ? match.group(1)!.trim()
+            : (q.targetWord ?? q.answer);
+        final target = _normalizePronunciation(rawTarget);
+        final rawHeard = _recognizedTranscripts[i] ?? '';
+        final spokenClean = _normalizePronunciation(
+          rawHeard.isNotEmpty ? rawHeard : _answerCtrls[i].text,
+        );
 
-        final rawHeard = _normalize(_recognizedTranscripts[i] ?? '');
-        bool containsMatch = false;
-        if (rawHeard.isNotEmpty) {
-          final heardTokens = rawHeard.split(RegExp(r'\s+'));
-          for (final token in heardTokens) {
-            if (token == target ||
-                StringSimilarity.compareTwoStrings(token, target) >= 0.70) {
-              containsMatch = true;
-              break;
-            }
-          }
-        }
-
-        isPass = similarity >= 0.70 || input == target || containsMatch;
+        isPass = spokenClean.isNotEmpty && spokenClean == target;
       } else if (q.type == 'fill_in_the_blank') {
         final reg = RegExp(r'\[([^\]]+)\]');
         final matches = reg.allMatches(q.question).toList();
@@ -1774,37 +1647,13 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     final String heard = _recognizedTranscripts[index] ?? '';
     final bool isListeningThis = _isListening && _listeningQuestionIndex == index;
 
-    final String targetClean = targetWord.trim().toLowerCase().replaceAll(RegExp(r'[^\w]'), '');
-    final double directSim = spoken.isNotEmpty
-        ? StringSimilarity.compareTwoStrings(spoken.toLowerCase(), targetClean)
+    final String targetClean = _normalizePronunciation(targetWord);
+    final String spokenClean = _normalizePronunciation(heard.isNotEmpty ? heard : spoken);
+    final bool isPassed = spokenClean.isNotEmpty && spokenClean == targetClean;
+    final double bestSim = spokenClean.isNotEmpty
+        ? (isPassed ? 1.0 : StringSimilarity.compareTwoStrings(spokenClean, targetClean).clamp(0.0, 0.99))
         : 0.0;
-
-    double bestSim = directSim;
-    String targetMatchedWord = spoken;
-    if (heard.isNotEmpty) {
-      final tokens = heard
-          .toLowerCase()
-          .split(RegExp(r'\s+'))
-          .map((w) => w.replaceAll(RegExp(r'[^\w]'), ''))
-          .where((w) => w.isNotEmpty)
-          .toList();
-      for (final t in tokens) {
-        if (t == targetClean) {
-          bestSim = 1.0;
-          targetMatchedWord = t;
-          break;
-        }
-        final sim = StringSimilarity.compareTwoStrings(t, targetClean);
-        if (sim > bestSim) {
-          bestSim = sim;
-          targetMatchedWord = t;
-        }
-      }
-    }
-
-    final bool isPassed = bestSim >= 0.70 ||
-        spoken.toLowerCase() == targetClean ||
-        heard.toLowerCase().contains(targetClean);
+    final String targetMatchedWord = spokenClean;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2049,7 +1898,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                           Text(
                             isPassed
                                 ? 'Excellent! Pronunciation accepted.'
-                                : 'Needs practice. Aim for 70%+ match.',
+                                : 'Needs practice. Say the exact target word.',
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -2106,7 +1955,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     }
     final renderable = _shuffledQuestions[_currentQuestionIndex];
     final question = renderable.question;
-    final passageText = _resolveCurrentPassage(renderable);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
     final textColor = isDark ? Colors.white : AppColors.textPrimary;
@@ -2116,119 +1964,20 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
         final isWide = constraints.maxWidth >= 850;
         final paddingAmount = constraints.maxWidth < 600 ? 20.0 : 40.0;
 
-        Widget buildPassageDropdown() {
-          if (passageText == null || passageText.trim().isEmpty) {
-            return const SizedBox.shrink();
-          }
-          return Container(
-            margin: const EdgeInsets.only(bottom: 24),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF262626) : const Color(0xFFF7FAF5),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.35),
-                width: 1.5,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                InkWell(
-                  onTap: () => setState(() => _passageExpanded = !_passageExpanded),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.menu_book_rounded,
-                            size: 20,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Reading Passage Reference',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : AppColors.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _passageExpanded
-                                    ? 'Tap to collapse passage text'
-                                    : 'Tap to expand full reading passage',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: isDark ? Colors.white60 : AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          _passageExpanded
-                              ? Icons.keyboard_arrow_up_rounded
-                              : Icons.keyboard_arrow_down_rounded,
-                          color: AppColors.primary,
-                          size: 26,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_passageExpanded) ...[
-                  Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: isDark ? Colors.white12 : AppColors.primary.withValues(alpha: 0.15),
-                  ),
-                  Container(
-                    constraints: BoxConstraints(maxHeight: isWide ? 400 : 250),
-                    padding: const EdgeInsets.all(20),
-                    child: SingleChildScrollView(
-                      child: SelectableText(
-                        passageText,
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          height: 1.65,
-                          color: isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF2D3748),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          );
-        }
-
         Widget buildQuestionBody() {
           List<String> effectiveOptions = [];
           if (question.options != null && question.options!.isNotEmpty) {
             effectiveOptions = question.options!;
-          } else if (question.type != 'passage' && question.type != 'fill_in_the_blank' && question.type != 'pronunciation') {
+          } else if (question.type != 'fill_in_the_blank' && question.type != 'pronunciation') {
             final ans = question.answer.trim();
             if (ans.toLowerCase() == 'true' || ans.toLowerCase() == 'false') {
               effectiveOptions = const ['True', 'False'];
             } else if (ans.isNotEmpty) {
               effectiveOptions = [
                 ans,
-                'Cannot be determined from the passage',
-                'Not stated in the text',
-                'Contradicts the passage'
+                'Option B',
+                'Option C',
+                'Option D',
               ];
             } else {
               effectiveOptions = const ['Option A', 'Option B', 'Option C', 'Option D'];
@@ -2238,91 +1987,59 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (question.type == 'passage') ...[
+              if (question.type != 'fill_in_the_blank' && question.type != 'pronunciation')
                 Text(
-                  'Reading Passage',
-                  style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.bold, color: textColor),
-                ),
-                const SizedBox(height: 24),
-                SelectableText(
                   question.question,
-                  style: GoogleFonts.inter(fontSize: 18, height: 1.6, color: textColor),
-                ),
-              ] else ...[
-                if (passageText != null && passageText.isNotEmpty) ...[
-                  buildPassageDropdown(),
-                ],
-                if (question.type != 'fill_in_the_blank' && question.type != 'pronunciation')
-                  Text(
-                    question.question,
-                    style: GoogleFonts.outfit(
-                      fontSize: isWide ? 26 : 22, 
-                      fontWeight: FontWeight.w600, 
-                      color: textColor, 
-                      height: 1.4,
-                    ),
+                  style: GoogleFonts.outfit(
+                    fontSize: isWide ? 26 : 22,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                    height: 1.4,
                   ),
-                if (question.imageUrl != null && question.imageUrl!.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 320),
-                        child: Image.network(
-                          question.imageUrl!,
-                          fit: BoxFit.contain,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              height: 200,
-                              alignment: Alignment.center,
-                              child: const CircularProgressIndicator(color: AppColors.primary),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.broken_image_rounded, color: Colors.grey),
-                                  SizedBox(width: 8),
-                                  Text('Image failed to load', style: TextStyle(color: Colors.grey)),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
+                ),
+              if (question.imageUrl != null && question.imageUrl!.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 320),
+                      child: Image.network(
+                        question.imageUrl!,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: 200,
+                            alignment: Alignment.center,
+                            child: const CircularProgressIndicator(color: AppColors.primary),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.broken_image_rounded, color: Colors.grey),
+                                SizedBox(width: 8),
+                                Text('Image failed to load', style: TextStyle(color: Colors.grey)),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
-                ],
+                ),
               ],
 
               const SizedBox(height: 32),
-              if (question.type == 'passage')
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF333333) : AppColors.primary.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: isDark ? Colors.white12 : AppColors.primary.withValues(alpha: 0.1)),
-                  ),
-                  child: SelectableText(
-                    question.question,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      height: 1.6,
-                      color: textColor,
-                    ),
-                  ),
-                )
-              else if (question.type == 'fill_in_the_blank')
+              if (question.type == 'fill_in_the_blank')
                 _buildFillInTheBlankBody(
                   question: question,
                   index: _currentQuestionIndex,
@@ -2673,9 +2390,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      _shuffledQuestions[index].parentPassage != null 
-                        ? 'Q ${index + 1} (Nested)' 
-                        : (_shuffledQuestions[index].question.type == 'passage' ? 'Passage' : 'Q ${index + 1}'),
+                      'Q ${index + 1}',
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: isSelected || isAnswered ? FontWeight.bold : FontWeight.w500,
@@ -2730,7 +2445,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
     final seconds = _timeTaken % 60;
     final timeStr = minutes > 0 ? '${minutes}m ${seconds}s' : '${seconds}s';
 
-    final scorableCount = _shuffledQuestions.where((q) => !(q.question.type == 'passage' && q.parentPassage == null)).length;
+    final scorableCount = _shuffledQuestions.length;
     final double percentage = scorableCount > 0 ? (_lastScore ?? 0) / scorableCount : 1.0;
     final int percentInt = (percentage * 100).round();
     

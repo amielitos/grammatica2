@@ -54,9 +54,16 @@ class ProfilePageState extends State<ProfilePage> {
   final _middleNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  // Cached streams to prevent StreamBuilder rebuilds from resetting scroll position
+  late Stream<UserRole> _roleStream;
+  late Stream<AIRateLimitStatus> _quotaStream;
+  late Stream<EducatorApplication?> _applicationStream;
 
   // Local state for profile data
   bool _isEditing = false;
+  bool _editSubmitted = false;
   String _displayName = 'User';
   String _roleStr = 'LEARNER';
   String? _photoUrl;
@@ -79,16 +86,33 @@ class ProfilePageState extends State<ProfilePage> {
     return DateTime.now().difference(created).inDays;
   }
 
+  void _initStreams() {
+    _roleStream = RoleService.instance.roleStream(widget.user.uid);
+    _quotaStream = AIRateLimitService.instance.quotaStream(widget.user.uid);
+    _applicationStream = DatabaseService.instance.streamUserApplication(widget.user.uid);
+  }
+
   @override
   void initState() {
     super.initState();
     _photoUrl = widget.user.photoURL;
     _displayName = widget.user.displayName ?? 'User';
+    _initStreams();
     fetchProfile();
   }
 
   @override
+  void didUpdateWidget(covariant ProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.uid != widget.user.uid) {
+      _initStreams();
+      fetchProfile();
+    }
+  }
+
+  @override
   void dispose() {
+    _scrollController.dispose();
     _usernameCtrl.dispose();
     _firstNameCtrl.dispose();
     _middleNameCtrl.dispose();
@@ -209,6 +233,7 @@ class ProfilePageState extends State<ProfilePage> {
     if (confirm == true && mounted) {
       fetchProfile();
       setState(() {
+        _editSubmitted = false;
         _isEditing = false;
       });
     }
@@ -217,6 +242,7 @@ class ProfilePageState extends State<ProfilePage> {
   InputDecoration _customInputDecoration({
     required String hint,
     Widget? suffixIcon,
+    String? errorText,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bool isRequired = hint.trim().endsWith('*');
@@ -226,6 +252,7 @@ class ProfilePageState extends State<ProfilePage> {
 
     return InputDecoration(
       hintText: isRequired ? null : hint,
+      errorText: errorText,
       label: isRequired
           ? Text.rich(
               TextSpan(
@@ -545,7 +572,10 @@ class ProfilePageState extends State<ProfilePage> {
                             if (_isEditing) {
                               _confirmCancelEdit();
                             } else {
-                              setState(() => _isEditing = true);
+                              setState(() {
+                                _editSubmitted = false;
+                                _isEditing = true;
+                              });
                             }
                           },
                           icon: Icon(_isEditing ? Icons.close : Icons.edit_outlined, size: 16),
@@ -616,13 +646,21 @@ class ProfilePageState extends State<ProfilePage> {
                     _buildEditLabel('First Name *'),
                     TextField(
                       controller: _firstNameCtrl,
+                      onChanged: (_) {
+                        if (_editSubmitted) setState(() {});
+                      },
                       textCapitalization: TextCapitalization.words,
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r"[a-zA-Z\s\-']")),
                         _ProfileCapitalizerFormatter(),
                       ],
                       style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
-                      decoration: _customInputDecoration(hint: 'First Name'),
+                      decoration: _customInputDecoration(
+                        hint: 'First Name',
+                        errorText: _editSubmitted && _firstNameCtrl.text.trim().isEmpty
+                            ? 'First Name is required'
+                            : null,
+                      ),
                     ),
                   ],
                 );
@@ -671,13 +709,21 @@ class ProfilePageState extends State<ProfilePage> {
             _buildEditLabel('Last Name *'),
             TextField(
               controller: _lastNameCtrl,
+              onChanged: (_) {
+                if (_editSubmitted) setState(() {});
+              },
               textCapitalization: TextCapitalization.words,
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r"[a-zA-Z\s\-']")),
                 _ProfileCapitalizerFormatter(),
               ],
               style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
-              decoration: _customInputDecoration(hint: 'Last Name'),
+              decoration: _customInputDecoration(
+                hint: 'Last Name',
+                errorText: _editSubmitted && _lastNameCtrl.text.trim().isEmpty
+                    ? 'Last Name is required'
+                    : null,
+              ),
             ),
             const SizedBox(height: 18),
 
@@ -710,16 +756,27 @@ class ProfilePageState extends State<ProfilePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    _dob != null ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}' : 'Not specified',
+                    _dob != null
+                        ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}'
+                        : 'Not specified',
                     style: TextStyle(fontSize: 14, color: isDark ? Colors.white60 : Colors.black54),
                   ),
                   Icon(Icons.lock_rounded, size: 16, color: isDark ? Colors.white24 : Colors.grey.shade400),
                 ],
               ),
             ),
+            const SizedBox(height: 6),
+            Text(
+              'Date of birth is set during registration and cannot be edited.',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.white38 : Colors.grey.shade600,
+              ),
+            ),
             
             const SizedBox(height: 48),
             _buildGreenButton('Save Changes', () async {
+               setState(() => _editSubmitted = true);
                final first = _capitalizeWords(_firstNameCtrl.text);
                final middle = _capitalizeWords(_middleNameCtrl.text);
                final last = _capitalizeWords(_lastNameCtrl.text);
@@ -728,12 +785,8 @@ class ProfilePageState extends State<ProfilePage> {
                _middleNameCtrl.text = middle;
                _lastNameCtrl.text = last;
 
-               if (first.isEmpty) {
-                 _showSnack('Please enter your First Name', error: true);
-                 return;
-               }
-               if (last.isEmpty) {
-                 _showSnack('Please enter your Last Name', error: true);
+               if (first.isEmpty || last.isEmpty) {
+                 _showSnack('Please fill in all required fields', error: true);
                  return;
                }
 
@@ -806,6 +859,7 @@ class ProfilePageState extends State<ProfilePage> {
                if (mounted) {
                  setState(() {
                    _displayName = fullName;
+                   _editSubmitted = false;
                    _isEditing = false;
                  });
                  _showSnack('Profile information updated successfully');
@@ -890,7 +944,7 @@ class ProfilePageState extends State<ProfilePage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return StreamBuilder<AIRateLimitStatus>(
-      stream: AIRateLimitService.instance.quotaStream(widget.user.uid),
+      stream: _quotaStream,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return _buildCard(
@@ -1205,7 +1259,7 @@ class ProfilePageState extends State<ProfilePage> {
                 Text('Role Application', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
                 const SizedBox(height: 24),
                 StreamBuilder<EducatorApplication?>(
-                  stream: DatabaseService.instance.streamUserApplication(widget.user.uid),
+                  stream: _applicationStream,
                   builder: (context, appSnap) {
                     if (appSnap.hasError) return Text('Error: ${appSnap.error}', style: const TextStyle(color: Colors.red));
                     final application = appSnap.data;
@@ -1467,18 +1521,19 @@ class ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<UserRole>(
-      stream: RoleService.instance.roleStream(widget.user.uid),
+      stream: _roleStream,
       builder: (context, roleSnap) {
-        if (roleSnap.connectionState == ConnectionState.waiting || !roleSnap.hasData) {
+        if (roleSnap.connectionState == ConnectionState.waiting && !roleSnap.hasData) {
           return const Scaffold(backgroundColor: Colors.transparent, body: Center(child: CircularProgressIndicator()));
         }
-        final role = roleSnap.data!;
+        final role = roleSnap.data ?? roleFromString(_roleStr);
         return Scaffold(
           backgroundColor: Colors.transparent,
           body: LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > 900;
               return SingleChildScrollView(
+                controller: _scrollController,
                 padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
                 child: Center(
                   child: ConstrainedBox(
@@ -1903,11 +1958,19 @@ class _ReauthDialog extends StatefulWidget {
 class _ReauthDialogState extends State<_ReauthDialog> {
   bool loading = false;
   String? errText;
+  String? _fieldError;
   bool _obscurePassword = true;
   Future<void> onConfirm() async {
+    if (widget.pwdCtrl.text.isEmpty) {
+      setState(() {
+        _fieldError = 'Password is required';
+      });
+      return;
+    }
     setState(() {
       loading = true;
       errText = null;
+      _fieldError = null;
     });
     try {
       final cred = EmailAuthProvider.credential(
@@ -1940,7 +2003,11 @@ class _ReauthDialogState extends State<_ReauthDialog> {
           TextField(
             controller: widget.pwdCtrl,
             obscureText: _obscurePassword,
+            onChanged: (_) {
+              if (_fieldError != null) setState(() => _fieldError = null);
+            },
             decoration: InputDecoration(
+              errorText: _fieldError,
               label: const Text.rich(
                 TextSpan(
                   text: 'Password',
@@ -2010,6 +2077,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _error;
+  String? _passwordFieldError;
 
   @override
   void dispose() {
@@ -2028,6 +2096,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
     setState(() {
       _isLoading = true;
       _error = null;
+      _passwordFieldError = null;
     });
 
     try {
@@ -2037,7 +2106,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
         if (pwd.isEmpty) {
           setState(() {
             _isLoading = false;
-            _error = 'Please enter your password to confirm.';
+            _passwordFieldError = 'Password is required';
           });
           return;
         }
@@ -2151,7 +2220,13 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
               TextField(
                 controller: _passwordCtrl,
                 obscureText: _obscurePassword,
+                onChanged: (_) {
+                  if (_passwordFieldError != null) {
+                    setState(() => _passwordFieldError = null);
+                  }
+                },
                 decoration: InputDecoration(
+                  errorText: _passwordFieldError,
                   label: const Text.rich(
                     TextSpan(
                       text: 'Enter your password',
@@ -2248,6 +2323,7 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  bool _submitted = false;
 
   @override
   void dispose() {
@@ -2261,10 +2337,38 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
     required BuildContext context,
     required String hint,
     Widget? suffixIcon,
+    String? errorText,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool isRequired = hint.trim().endsWith('*');
+    final String cleanHint = isRequired
+        ? hint.replaceAll(RegExp(r'\s*\*'), '').trim()
+        : hint;
+
     return InputDecoration(
-      hintText: hint,
+      hintText: isRequired ? null : hint,
+      errorText: errorText,
+      label: isRequired
+          ? Text.rich(
+              TextSpan(
+                text: cleanHint,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.white54 : Colors.black54,
+                ),
+                children: const [
+                  TextSpan(
+                    text: ' *',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : null,
+      floatingLabelBehavior: FloatingLabelBehavior.never,
       hintStyle: TextStyle(
         fontSize: 14,
         color: isDark ? Colors.white54 : Colors.black54,
@@ -2294,6 +2398,7 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
 
   Future<void> _updatePassword() async {
     setState(() {
+      _submitted = true;
       _info = null;
       _error = null;
     });
@@ -2302,12 +2407,12 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
     final newPass = _newPasswordCtrl.text;
     final confirm = _confirmPasswordCtrl.text;
 
-    if (email == null) {
-      setState(() => _error = 'No email on account.');
+    if (current.isEmpty || newPass.isEmpty || confirm.isEmpty) {
       return;
     }
-    if (current.isEmpty) {
-      setState(() => _error = 'Please enter your current password.');
+
+    if (email == null) {
+      setState(() => _error = 'No email on account.');
       return;
     }
     if (!_hasMinLength(newPass)) {
@@ -2332,6 +2437,7 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
         setState(() {
           _info = 'Password updated successfully!';
           _isLoading = false;
+          _submitted = false;
         });
         _currentPasswordCtrl.clear();
         _newPasswordCtrl.clear();
@@ -2419,12 +2525,6 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
         hasConfirmPass &&
         (newPass == _confirmPasswordCtrl.text);
 
-    final bool isStrongEnough = _isPasswordValid(newPass);
-    final bool canSubmit = !_isLoading &&
-        _currentPasswordCtrl.text.isNotEmpty &&
-        isStrongEnough &&
-        passwordsMatch;
-
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 24),
@@ -2463,6 +2563,9 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
             decoration: _inputDecoration(
               context: context,
               hint: 'Current Password *',
+              errorText: _submitted && _currentPasswordCtrl.text.isEmpty
+                  ? 'Current password is required'
+                  : null,
               suffixIcon: MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: IconButton(
@@ -2492,6 +2595,9 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
             decoration: _inputDecoration(
               context: context,
               hint: 'New Password *',
+              errorText: _submitted && _newPasswordCtrl.text.isEmpty
+                  ? 'New password is required'
+                  : null,
               suffixIcon: MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: IconButton(
@@ -2625,6 +2731,9 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
             decoration: _inputDecoration(
               context: context,
               hint: 'Confirm New Password *',
+              errorText: _submitted && _confirmPasswordCtrl.text.isEmpty
+                  ? 'Confirm new password is required'
+                  : null,
               suffixIcon: MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: IconButton(
@@ -2683,7 +2792,7 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: canSubmit ? _updatePassword : null,
+              onPressed: _isLoading ? null : _updatePassword,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF81B655),
                 foregroundColor: Colors.white,
@@ -2706,12 +2815,12 @@ class _ChangePasswordCardState extends State<_ChangePasswordCard> {
                         color: Colors.white,
                       ),
                     )
-                  : Text(
+                  : const Text(
                       'Update Password',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: canSubmit ? Colors.white : (isDark ? Colors.white38 : Colors.grey.shade600),
+                        color: Colors.white,
                       ),
                     ),
             ),

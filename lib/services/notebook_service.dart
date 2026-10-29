@@ -811,6 +811,7 @@ class NotebookService {
         notebookId: notebookId,
         outputId: outputId,
         lessonId: resolvedLessonId,
+        validationStatus: role == UserRole.superadmin ? 'approved' : 'awaiting_approval',
       );
     }
 

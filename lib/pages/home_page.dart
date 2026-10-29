@@ -168,7 +168,7 @@ class _HomePageState extends State<HomePage> {
             builder: (context) => NotificationsDialog(userId: user.uid),
           );
         },
-        onLogoTap: () {
+        onLogoTap: () async {
           if (PracticeTab.isGenerating.value) {
             CenterNoticeDialog.show(
               context,
@@ -177,13 +177,29 @@ class _HomePageState extends State<HomePage> {
             );
             return;
           }
+          if (_tabIndex != 0) {
+            if (!await PracticeTab.canLeavePracticeSession()) return;
+            if (!mounted) return;
+          }
           setState(() {
             _tabIndex = 0;
           });
         },
-        onProfileTap: () {
+        onProfileTap: () async {
+          if (PracticeTab.isGenerating.value) {
+            CenterNoticeDialog.show(
+              context,
+              title: 'Generation in Progress',
+              message: 'Please wait until the AI finishes generating before switching tabs.',
+            );
+            return;
+          }
           final profileIndex = navItems.indexWhere((item) => item.icon == Icons.person);
           if (profileIndex != -1) {
+            if (_tabIndex != profileIndex) {
+              if (!await PracticeTab.canLeavePracticeSession()) return;
+              if (!mounted) return;
+            }
             setState(() {
               _tabIndex = profileIndex;
             });
@@ -195,7 +211,7 @@ class _HomePageState extends State<HomePage> {
         userData: widget.userData,
         currentIndex: _tabIndex,
         navItems: navItems,
-        onTap: (index) {
+        onTap: (index) async {
           if (PracticeTab.isGenerating.value) {
             CenterNoticeDialog.show(
               context,
@@ -203,6 +219,10 @@ class _HomePageState extends State<HomePage> {
               message: 'Please wait until the AI finishes generating before switching tabs.',
             );
             return;
+          }
+          if (_tabIndex != index) {
+            if (!await PracticeTab.canLeavePracticeSession()) return;
+            if (!mounted) return;
           }
           setState(() {
             _tabIndex = index;
@@ -255,8 +275,10 @@ class _LessonsListState extends State<_LessonsList> {
       userId: widget.user.uid,
     );
     _progressStream = DatabaseService.instance.progressStream(widget.user);
-    _publishedStream = DatabaseService.instance.streamPublishedContent();
-    DatabaseService.instance.migrateAdminLessonsToGrammaticaOfficial();
+    _publishedStream = DatabaseService.instance.streamPublishedContent(
+      userRole: widget.role,
+      userId: widget.user.uid,
+    );
   }
 
   @override

@@ -4,8 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/playlist.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../services/navigation_service.dart';
+import '../services/role_service.dart';
 import '../theme/app_colors.dart';
 import '../pages/educator_profile_page.dart';
 import 'author_name_widget.dart';
@@ -208,10 +210,24 @@ class PlaylistDetailModal extends StatelessWidget {
 
   Future<void> _startAtLesson(BuildContext context, String lessonId) async {
     final lesson = await DatabaseService.instance.getLesson(lessonId);
+    final currentUid = AuthService.instance.currentUser?.uid;
+    final role = currentUid != null
+        ? await RoleService.instance.getRole(currentUid)
+        : UserRole.learner;
     if (!context.mounted) return;
     if (lesson == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not load this lesson.')),
+      );
+      return;
+    }
+    final canAccess = !lesson.isArchived &&
+        (lesson.validationStatus == 'approved' ||
+            (currentUid != null && lesson.createdByUid == currentUid) ||
+            role == UserRole.validator);
+    if (!canAccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This lesson is awaiting approval and is not yet available.')),
       );
       return;
     }
@@ -380,54 +396,76 @@ class PlaylistDetailModal extends StatelessWidget {
                           style: GoogleFonts.inter(color: textSecondary),
                         ),
                       )
-                    : ListView.separated(
-                        itemCount: playlist.lessonIds.length,
-                        separatorBuilder: (context, index) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final lessonId = playlist.lessonIds[index];
-                          return FutureBuilder(
-                            future: DatabaseService.instance.getLesson(lessonId),
-                            builder: (context, snapshot) {
-                              final lesson = snapshot.data;
-                              final title = lesson?.title ?? 'Lesson ${index + 1}';
-                              final prompt = lesson?.prompt ?? 'Loading details...';
+                    : FutureBuilder<UserRole>(
+                        future: AuthService.instance.currentUser != null
+                            ? RoleService.instance.getRole(AuthService.instance.currentUser!.uid)
+                            : Future.value(UserRole.learner),
+                        builder: (context, roleSnap) {
+                          final currentUid = AuthService.instance.currentUser?.uid;
+                          final role = roleSnap.data ?? UserRole.learner;
+                          return ListView.separated(
+                            itemCount: playlist.lessonIds.length,
+                            separatorBuilder: (context, index) => const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final lessonId = playlist.lessonIds[index];
+                              return FutureBuilder<Lesson?>(
+                                future: DatabaseService.instance.getLesson(lessonId),
+                                builder: (context, snapshot) {
+                                  final lesson = snapshot.data;
+                                  final isAvailable = lesson == null ||
+                                      (!lesson.isArchived &&
+                                          (lesson.validationStatus == 'approved' ||
+                                              (currentUid != null && lesson.createdByUid == currentUid) ||
+                                              role == UserRole.validator));
+                                  final title = !isAvailable
+                                      ? 'Lesson ${index + 1} (Pending Approval)'
+                                      : (lesson?.title ?? 'Lesson ${index + 1}');
+                                  final prompt = !isAvailable
+                                      ? 'This lesson will become available once approved.'
+                                      : (lesson?.prompt ?? 'Loading details...');
 
-                              return Container(
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                                  borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                                ),
-                                child: ListTile(
-                                  onTap: () => _startAtLesson(context, lessonId),
-                                  leading: CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                                    child: Text(
-                                      '${index + 1}',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: ListTile(
+                                      onTap: isAvailable ? () => _startAtLesson(context, lessonId) : null,
+                                      leading: CircleAvatar(
+                                        radius: 14,
+                                        backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                                        child: Text(
+                                          '${index + 1}',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                      title: Text(
+                                        title,
+                                        style: GoogleFonts.outfit(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                          color: isAvailable ? textPrimary : textSecondary,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        prompt,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(fontSize: 11, color: textSecondary),
+                                      ),
+                                      trailing: Icon(
+                                        isAvailable ? Icons.play_circle_fill_rounded : Icons.hourglass_top_rounded,
+                                        color: isAvailable ? AppColors.primary : textSecondary,
+                                        size: 24,
                                       ),
                                     ),
-                                  ),
-                                  title: Text(
-                                    title,
-                                    style: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14,
-                                      color: textPrimary,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    prompt,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.inter(fontSize: 11, color: textSecondary),
-                                  ),
-                                  trailing: const Icon(Icons.play_circle_fill_rounded, color: AppColors.primary, size: 24),
-                                ),
+                                  );
+                                },
                               );
                             },
                           );

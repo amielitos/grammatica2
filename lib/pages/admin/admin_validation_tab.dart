@@ -426,7 +426,10 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
             ),
           );
         }
-        final items = snapshot.data ?? [];
+        final rawItems = snapshot.data ?? [];
+        final items = widget.role == UserRole.validator
+            ? rawItems.where((a) => a.applicationType != 'validator').toList()
+            : rawItems;
         if (items.isEmpty) {
           final isDark = Theme.of(context).brightness == Brightness.dark;
           final typeStr = widget.type == 'validator' ? 'validator' : 'educator';
@@ -1480,11 +1483,14 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
             }
 
             final isAdmin = widget.role == UserRole.admin;
+            final isValidator = widget.role == UserRole.validator;
             final lessons = isAdmin ? <Lesson>[] : (lessonSnap.data ?? []);
             final allApps = appSnap.data ?? [];
             final applications = isAdmin
                 ? allApps.where((a) => a.applicationType == 'validator').toList()
-                : allApps;
+                : isValidator
+                    ? allApps.where((a) => a.applicationType != 'validator').toList()
+                    : allApps;
 
             final bool isEmpty = lessons.isEmpty && applications.isEmpty;
 
@@ -1584,7 +1590,11 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
                 if (applications.isNotEmpty) ...[
                   ..._buildSection(
                     context,
-                    isAdmin ? 'Rejected Validator Applications' : 'Applications',
+                    isAdmin
+                        ? 'Rejected Validator Applications'
+                        : isValidator
+                            ? 'Rejected Educator Applications'
+                            : 'Applications',
                     Icons.person_off_rounded,
                     pageApps
                         .map(

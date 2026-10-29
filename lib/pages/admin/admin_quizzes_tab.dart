@@ -54,11 +54,26 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
   Future<void> _loadLessons() async {
     try {
+      final uid = AuthService.instance.currentUser?.uid;
+      final role = uid != null
+          ? await RoleService.instance.getRole(uid)
+          : UserRole.learner;
       final lessons = await DatabaseService.instance.fetchLessons();
+      final visibleLessons = lessons
+          .where(
+            (l) =>
+                !l.isArchived &&
+                (l.validationStatus == 'approved' ||
+                    (uid != null && l.createdByUid == uid) ||
+                    role == UserRole.validator),
+          )
+          .toList();
       if (mounted) {
         setState(() {
-          _availableLessons = lessons;
-          if (lessons.isNotEmpty) _aiSelectedLessonId = lessons.first.id;
+          _availableLessons = visibleLessons;
+          if (visibleLessons.isNotEmpty) {
+            _aiSelectedLessonId = visibleLessons.first.id;
+          }
         });
       }
     } catch (e) {
@@ -68,6 +83,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
   List<_QuestionState> _questions = [];
   bool _isVisible = true;
+  bool _submitted = false;
+  String? _aiPasteTextError;
 
   bool _isMembersOnly = false;
   bool _isGrammaticaQuiz = false;
@@ -165,7 +182,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 ),
                 const SizedBox(width: 16),
                 FilledButton.icon(
-                  onPressed: (_creatingOrUpdating || _title.text.trim().isEmpty) ? null : _saveQuiz,
+                  onPressed: _creatingOrUpdating ? null : _saveQuiz,
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF88B342),
                   ),
@@ -223,6 +240,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             controller: _title,
             label: 'Title *',
             icon: Icons.title_rounded,
+            errorText: (_submitted && _title.text.trim().isEmpty)
+                ? 'Title is required'
+                : null,
+            onChanged: (_) {
+              if (_submitted) setState(() {});
+            },
           ),
           const SizedBox(height: 16),
           _buildStyledTextField(
@@ -311,6 +334,11 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                           ),
                         ),
                         prefixIcon: const Icon(Icons.school_outlined, color: Color(0xFF88B342)),
+                        errorText: (_submitted &&
+                                (_requiredLessonId == null ||
+                                    _requiredLessonId!.isEmpty))
+                            ? 'Prerequisite lesson is required'
+                            : null,
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
@@ -370,7 +398,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       runSpacing: 12,
                       children: [
                         ChoiceChip(
-                          label: Text('Public', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                          label: Text('Basic', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                           avatar: const Icon(Icons.public, size: 18),
                           selected: _visibility == ContentVisibility.public,
                           selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
@@ -387,7 +415,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                           },
                         ),
                         ChoiceChip(
-                          label: Text('Members Only (Standard & Premium)', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                          label: Text('Premium', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                           avatar: const Icon(Icons.lock_outline_rounded, size: 18),
                           selected: _visibility == ContentVisibility.membersOnly,
                           selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
@@ -499,6 +527,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     int minLines = 1,
     int maxLines = 1,
     String? hint,
+    String? errorText,
+    ValueChanged<String>? onChanged,
   }) {
     final bool isRequired = label.trim().endsWith('*');
     final String cleanLabel = isRequired
@@ -509,6 +539,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       controller: controller,
       minLines: minLines,
       maxLines: maxLines,
+      onChanged: onChanged,
       style: GoogleFonts.inter(fontSize: 16),
       decoration: InputDecoration(
         labelText: isRequired ? null : label,
@@ -530,6 +561,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               )
             : null,
         hintText: hint,
+        errorText: errorText,
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
         prefixIcon: Icon(icon, color: const Color(0xFF88B342)),
         filled: true,
@@ -571,6 +603,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           ),
         ),
         labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
+        errorText: (_submitted && _maxAttemptsCtrl.text.trim().isEmpty)
+            ? 'Max attempts is required'
+            : null,
         filled: true,
         fillColor: Colors.grey.shade50,
         contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -618,6 +653,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                      _maxAttemptsCtrl.text = '1';
                   }
                 }
+                if (_submitted) setState(() {});
               },
             ),
           ),
@@ -708,7 +744,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           )
         else
           ...List.generate(_questions.length, (index) {
-            return _buildQuestionItem(_questions[index], index, _questions);
+            return _buildQuestionItem(_questions[index], index);
           }),
         if (_questions.isNotEmpty) ...[
           const SizedBox(height: 16),
@@ -737,17 +773,23 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   Widget _buildQuestionItem(
     _QuestionState q,
     int index,
-    List<_QuestionState> parentList, {
-    bool isNested = false,
-  }) {
+  ) {
+    final bool hasValidMcAnswer = q.type != 'multiple_choice' ||
+        (q.answerCtrl.text.trim().isNotEmpty &&
+            q.optionsCtrls.any(
+              (c) =>
+                  c.text.trim().isNotEmpty &&
+                  c.text.trim() == q.answerCtrl.text.trim(),
+            ));
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: isNested ? 0 : 1,
+      elevation: 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(
           color: Theme.of(context).colorScheme.outlineVariant,
-          width: isNested ? 1 : 0.5,
+          width: 0.5,
         ),
       ),
       child: Padding(
@@ -767,7 +809,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isNested ? 'Nested Question' : 'Question ${index + 1}',
+                  'Question ${index + 1}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
@@ -777,7 +819,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   onPressed: () {
                     setState(() {
                       q.dispose();
-                      parentList.removeAt(index);
+                      _questions.removeAt(index);
                     });
                   },
                 ),
@@ -787,14 +829,15 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             // Title / Question text
             TextField(
               controller: q.questionCtrl,
+              onChanged: (_) {
+                if (_submitted) setState(() {});
+              },
               decoration: InputDecoration(
                 label: Text.rich(
                   TextSpan(
-                    text: q.type == 'passage'
-                        ? 'Passage Content'
-                        : q.type == 'image'
-                            ? 'Image Question Title'
-                            : 'Question',
+                    text: q.type == 'image'
+                        ? 'Image Question Title'
+                        : 'Question',
                     children: const [
                       TextSpan(
                         text: ' *',
@@ -806,15 +849,16 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     ],
                   ),
                 ),
-                hintText: q.type == 'passage'
-                    ? 'Enter the text passage here...'
-                    : q.type == 'image'
-                        ? 'Enter the title for this image question...'
-                        : 'Enter your question...',
+                hintText: q.type == 'image'
+                    ? 'Enter the title for this image question...'
+                    : 'Enter your question...',
+                errorText: (_submitted && q.questionCtrl.text.trim().isEmpty)
+                    ? 'Question is required'
+                    : null,
                 border: const OutlineInputBorder(),
               ),
-              maxLines: q.type == 'passage' ? 8 : null,
-              minLines: q.type == 'passage' ? 3 : 1,
+              maxLines: null,
+              minLines: 1,
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
@@ -836,13 +880,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 ),
                 border: OutlineInputBorder(),
               ),
-              items: [
-                const DropdownMenuItem(value: 'text', child: Text('Identification')),
-                const DropdownMenuItem(value: 'multiple_choice', child: Text('Multiple Choice')),
-                const DropdownMenuItem(value: 'fill_in_the_blank', child: Text('Fill in the Blank')),
-                const DropdownMenuItem(value: 'pronunciation', child: Text('Pronunciation (Speech)')),
-                if (!isNested) const DropdownMenuItem(value: 'image', child: Text('Image Question')),
-                if (!isNested) const DropdownMenuItem(value: 'passage', child: Text('Passage')),
+              items: const [
+                DropdownMenuItem(value: 'text', child: Text('Identification')),
+                DropdownMenuItem(value: 'multiple_choice', child: Text('Multiple Choice')),
+                DropdownMenuItem(value: 'fill_in_the_blank', child: Text('Fill in the Blank')),
+                DropdownMenuItem(value: 'pronunciation', child: Text('Pronunciation (Speech)')),
+                DropdownMenuItem(value: 'image', child: Text('Image Question')),
               ],
               onChanged: (v) {
                 if (v != null) {
@@ -981,8 +1024,11 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               const SizedBox(height: 16),
               TextField(
                 controller: q.answerCtrl,
-                decoration: const InputDecoration(
-                  label: Text.rich(
+                onChanged: (_) {
+                  if (_submitted) setState(() {});
+                },
+                decoration: InputDecoration(
+                  label: const Text.rich(
                     TextSpan(
                       text: 'Correct Answer',
                       children: [
@@ -997,7 +1043,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     ),
                   ),
                   hintText: 'Enter the correct answer for this image question...',
-                  border: OutlineInputBorder(),
+                  errorText: (_submitted && q.answerCtrl.text.trim().isEmpty)
+                      ? 'Correct answer is required'
+                      : null,
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -1046,6 +1095,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                   ],
                                 ),
                               ),
+                              errorText: (_submitted &&
+                                      q.optionsCtrls[optIdx].text.trim().isEmpty)
+                                  ? 'Option ${optIdx + 1} is required'
+                                  : null,
                             ),
                             onChanged: (val) {
                               setState(() {});
@@ -1056,6 +1109,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                           icon: const Icon(Icons.remove_circle_outline),
                           onPressed: () {
                             setState(() {
+                              q.optionsCtrls[optIdx].dispose();
                               q.optionsCtrls.removeAt(optIdx);
                             });
                           },
@@ -1065,6 +1119,17 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   }),
                 ),
               ),
+              if (_submitted && !hasValidMcAnswer)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, left: 12),
+                  child: Text(
+                    'Please select a correct answer option',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
               TextButton.icon(
                 onPressed: () {
                   setState(() {
@@ -1080,8 +1145,11 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               const SizedBox(height: 16),
               TextField(
                 controller: q.answerCtrl,
-                decoration: const InputDecoration(
-                  label: Text.rich(
+                onChanged: (_) {
+                  if (_submitted) setState(() {});
+                },
+                decoration: InputDecoration(
+                  label: const Text.rich(
                     TextSpan(
                       text: 'Correct Answer',
                       children: [
@@ -1095,7 +1163,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       ],
                     ),
                   ),
-                  border: OutlineInputBorder(),
+                  errorText: (_submitted && q.answerCtrl.text.trim().isEmpty)
+                      ? 'Correct answer is required'
+                      : null,
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -1104,8 +1175,11 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               const SizedBox(height: 16),
               TextField(
                 controller: q.answerCtrl,
-                decoration: const InputDecoration(
-                  label: Text.rich(
+                onChanged: (_) {
+                  if (_submitted) setState(() {});
+                },
+                decoration: InputDecoration(
+                  label: const Text.rich(
                     TextSpan(
                       text: 'Correct Answers (comma-separated if multiple blanks)',
                       children: [
@@ -1120,7 +1194,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     ),
                   ),
                   hintText: 'e.g. was, reading, quietly',
-                  border: OutlineInputBorder(),
+                  errorText: (_submitted && q.answerCtrl.text.trim().isEmpty)
+                      ? 'Correct answers are required'
+                      : null,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 6),
@@ -1134,8 +1211,11 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               const SizedBox(height: 16),
               TextField(
                 controller: q.answerCtrl,
-                decoration: const InputDecoration(
-                  label: Text.rich(
+                onChanged: (_) {
+                  if (_submitted) setState(() {});
+                },
+                decoration: InputDecoration(
+                  label: const Text.rich(
                     TextSpan(
                       text: 'Target Word to Pronounce',
                       children: [
@@ -1150,7 +1230,10 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     ),
                   ),
                   hintText: 'e.g. grammar',
-                  border: OutlineInputBorder(),
+                  errorText: (_submitted && q.answerCtrl.text.trim().isEmpty)
+                      ? 'Target word is required'
+                      : null,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 6),
@@ -1158,58 +1241,6 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 'Tip: For pronunciation, formulate the question as a fill-in-the-blank (e.g. "I love studying English [grammar].") and write the missing word above. The learner will pronounce that word instead of typing it.',
                 style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
               ),
-            ],
-            // --- PASSAGE ---
-            if (q.type == 'passage') ...[
-              const SizedBox(height: 16),
-              const Divider(),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Questions for this Passage (${q.nestedQuestions.length})',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          q.nestedQuestions.add(_QuestionState());
-                        });
-                      },
-                      icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Add'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF88B342),
-                        side: const BorderSide(color: Color(0xFF88B342)),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              ...List.generate(q.nestedQuestions.length, (nIdx) {
-                return _buildQuestionItem(
-                  q.nestedQuestions[nIdx],
-                  nIdx,
-                  q.nestedQuestions,
-                  isNested: true,
-                );
-              }),
-              if (q.nestedQuestions.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'No nested questions yet. Click "Add" above.',
-                      style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
-                    ),
-                  ),
-                ),
             ],
           ],
         ),
@@ -1268,7 +1299,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Synthesize multi-source documents into quizzes or reading assessments, or import drafts here to review and publish.',
+                  'Synthesize multi-source documents into quizzes or assessments, or import drafts here to review and publish.',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: Colors.grey.shade700,
@@ -1353,23 +1384,6 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                         _aiQuestionTypes.add('fill_in_the_blank');
                       } else {
                         _aiQuestionTypes.remove('fill_in_the_blank');
-                      }
-                    });
-                  },
-                  activeColor: const Color(0xFF88B342),
-                  contentPadding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-                CheckboxListTile(
-                  title: Text('Passage / Reading', style: GoogleFonts.inter(fontSize: 13)),
-                  value: _aiQuestionTypes.contains('passage'),
-                  onChanged: (val) {
-                    setState(() {
-                      if (val == true) {
-                        _aiQuestionTypes.add('passage');
-                      } else {
-                        _aiQuestionTypes.remove('passage');
                       }
                     });
                   },
@@ -1513,10 +1527,29 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 TextField(
                   controller: _aiPasteTextCtrl,
                   maxLines: 4,
+                  onChanged: (val) {
+                    if (_aiPasteTextError != null && val.trim().isNotEmpty) {
+                      setState(() => _aiPasteTextError = null);
+                    }
+                  },
                   style: GoogleFonts.inter(fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: 'Paste raw text here *...',
-                    hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade400),
+                    label: Text.rich(
+                      TextSpan(
+                        text: 'Paste raw text here',
+                        style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+                        children: const [
+                          TextSpan(
+                            text: ' *',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    errorText: _aiPasteTextError,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -1627,7 +1660,22 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   /// AI-powered question generation — replaces old PDF-only flow.
   Future<void> _generateQuestionsWithAi() async {
     if (_isGeneratingFromPdf) return;
-    setState(() => _isGeneratingFromPdf = true);
+    if (_aiSourceMode == 'text' && _aiPasteTextCtrl.text.trim().isEmpty) {
+      setState(() {
+        _aiPasteTextError = 'Raw text is required';
+      });
+      return;
+    }
+    if (_aiQuestionTypes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one question type.')),
+      );
+      return;
+    }
+    setState(() {
+      _isGeneratingFromPdf = true;
+      _aiPasteTextError = null;
+    });
 
     try {
       String extractedText = '';
@@ -1653,9 +1701,6 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
         extractedText = await _aiLogicService.extractTextFromPdf(bytes);
       } else if (_aiSourceMode == 'text') {
         extractedText = _aiPasteTextCtrl.text.trim();
-        if (extractedText.isEmpty) {
-          throw Exception('Please paste some text first.');
-        }
       } else if (_aiSourceMode == 'lesson') {
         if (_aiSelectedLessonId == null) {
           throw Exception('Please select a lesson first.');
@@ -1681,6 +1726,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       );
 
       // Map AI response to native _QuestionState objects
+      final convertedQuestions = aiResponse.toQuizQuestions();
       setState(() {
         if (aiResponse.title != null && aiResponse.title!.isNotEmpty) {
           _title.text = aiResponse.title!;
@@ -1695,22 +1741,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           _questions.clear();
         }
 
-        for (final q in aiResponse.questions) {
-          final questionText = q.content
-              .where((b) => b.type == ContentBlockType.text)
-              .map((b) => b.data.toString())
-              .join('\n');
-
-          _questions.add(_QuestionState(
-            questionCtrl: TextEditingController(text: questionText),
-            answerCtrl: TextEditingController(text: q.correctAnswer),
-            type: q.questionType.toJsonString(),
-            optionsCtrls: q.options
-                .map((opt) => TextEditingController(text: opt))
-                .toList(),
-            hintCtrl: q.hint != null ? TextEditingController(text: q.hint) : null,
-            explanationCtrl: q.explanation != null ? TextEditingController(text: q.explanation) : null,
-          ));
+        for (final cq in convertedQuestions) {
+          _questions.add(_loadQuestionState(cq));
         }
 
         _isGeneratingFromPdf = false;
@@ -1751,6 +1783,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _requiresLessonCompleted = false;
     _requiredLessonId = null;
     _requiredLessonTitle = null;
+    _submitted = false;
+    _aiPasteTextError = null;
     setState(() {});
   }
 
@@ -1811,9 +1845,6 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             );
           }
         }
-      }
-      if (q.nestedQuestions.isNotEmpty) {
-        await _uploadAllQuestionImages(q.nestedQuestions, quizId);
       }
     }
   }
@@ -1962,7 +1993,47 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     );
   }
 
+  bool _hasValidationErrors() {
+    if (_title.text.trim().isEmpty) return true;
+    if (_maxAttemptsCtrl.text.trim().isEmpty) return true;
+    if (_requiresLessonCompleted &&
+        (_requiredLessonId == null || _requiredLessonId!.isEmpty)) {
+      return true;
+    }
+    for (final q in _questions) {
+      if (q.questionCtrl.text.trim().isEmpty) return true;
+      if (q.type == 'multiple_choice') {
+        if (q.optionsCtrls.isEmpty) return true;
+        if (q.optionsCtrls.any((c) => c.text.trim().isEmpty)) return true;
+        final ans = q.answerCtrl.text.trim();
+        if (ans.isEmpty ||
+            !q.optionsCtrls.any((c) => c.text.trim() == ans)) {
+          return true;
+        }
+      } else {
+        if (q.answerCtrl.text.trim().isEmpty) return true;
+      }
+    }
+    return false;
+  }
+
   Future<String?> _saveQuiz() async {
+    setState(() => _submitted = true);
+    if (_hasValidationErrors()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all required fields marked with *.'),
+        ),
+      );
+      return null;
+    }
+    if (_questions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add at least one question.')),
+      );
+      return null;
+    }
+
     setState(() => _creatingOrUpdating = true);
     try {
       String? attachmentUrl;
@@ -2107,11 +2178,16 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           _maxAttemptsCtrl.text = quiz.maxAttempts.toString();
           _isVisible = quiz.isVisible;
           _isMembersOnly = quiz.isMembersOnly;
+          _visibility = quiz.isMembersOnly
+              ? ContentVisibility.membersOnly
+              : ContentVisibility.public;
           _isGrammaticaQuiz = quiz.isGrammaticaQuiz;
           _visibleTo = quiz.visibleTo;
           _requiresLessonCompleted = quiz.requiresLessonCompleted;
           _requiredLessonId = quiz.requiredLessonId;
           _requiredLessonTitle = quiz.requiredLessonTitle;
+          _submitted = false;
+          _aiPasteTextError = null;
           for (final q in _questions) {
             q.dispose();
           }
@@ -2155,12 +2231,6 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               .where((t) => t.isNotEmpty)
               .toList()
           : null,
-      nestedQuestions: q.type == 'passage'
-          ? q.nestedQuestions
-              .map((nq) => _mapToQuizQuestion(nq))
-              .where((nq) => nq.question.isNotEmpty)
-              .toList()
-          : null,
       hint: q.hintCtrl?.text.trim().isNotEmpty == true ? q.hintCtrl!.text.trim() : null,
       explanation: q.explanationCtrl?.text.trim().isNotEmpty == true ? q.explanationCtrl!.text.trim() : null,
       imageUrl: q.imageUrl,
@@ -2171,21 +2241,19 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   }
 
   _QuestionState _loadQuestionState(QuizQuestion q) {
+    final safeType = q.type == 'passage' ? 'multiple_choice' : q.type;
     String answerText = q.answer;
-    if (q.type == 'fill_in_the_blank' && (q.blankAnswers?.isNotEmpty ?? false)) {
+    if (safeType == 'fill_in_the_blank' && (q.blankAnswers?.isNotEmpty ?? false)) {
       answerText = q.blankAnswers!.join(', ');
-    } else if (q.type == 'pronunciation' && q.targetWord != null) {
+    } else if (safeType == 'pronunciation' && q.targetWord != null && q.targetWord!.isNotEmpty) {
       answerText = q.targetWord!;
     }
     return _QuestionState(
       questionCtrl: TextEditingController(text: q.question),
       answerCtrl: TextEditingController(text: answerText),
-      type: q.type,
+      type: safeType,
       optionsCtrls: (q.options ?? [])
           .map((opt) => TextEditingController(text: opt))
-          .toList(),
-      nestedQuestions: (q.nestedQuestions ?? [])
-          .map((nq) => _loadQuestionState(nq))
           .toList(),
       hintCtrl: q.hint != null ? TextEditingController(text: q.hint) : null,
       explanationCtrl: q.explanation != null ? TextEditingController(text: q.explanation) : null,
@@ -2200,7 +2268,6 @@ class _QuestionState {
   final TextEditingController answerCtrl;
   String type;
   List<TextEditingController> optionsCtrls;
-  List<_QuestionState> nestedQuestions;
   TextEditingController? hintCtrl;
   TextEditingController? explanationCtrl;
   String? imageUrl;
@@ -2213,15 +2280,13 @@ class _QuestionState {
     TextEditingController? answerCtrl,
     this.type = 'text',
     List<TextEditingController>? optionsCtrls,
-    List<_QuestionState>? nestedQuestions,
     this.hintCtrl,
     this.explanationCtrl,
     this.imageUrl,
     this.imageDescription,
   })  : questionCtrl = questionCtrl ?? TextEditingController(),
         answerCtrl = answerCtrl ?? TextEditingController(),
-        optionsCtrls = optionsCtrls ?? [],
-        nestedQuestions = nestedQuestions ?? [];
+        optionsCtrls = optionsCtrls ?? [];
 
   void dispose() {
     questionCtrl.dispose();
@@ -2230,9 +2295,6 @@ class _QuestionState {
     explanationCtrl?.dispose();
     for (var ctrl in optionsCtrls) {
       ctrl.dispose();
-    }
-    for (var q in nestedQuestions) {
-      q.dispose();
     }
   }
 }

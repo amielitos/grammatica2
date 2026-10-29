@@ -363,16 +363,25 @@ class _NotebookListPageState extends State<NotebookListPage> {
     final titleController = TextEditingController();
     final descController = TextEditingController();
     String? duplicateWarning;
+    String? requiredError;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           void checkDuplicate(String value) async {
-            final exists = await NotebookService.instance.hasNotebookTitle(value.trim());
+            final trimmed = value.trim();
+            if (trimmed.isNotEmpty && requiredError != null) {
+              setDialogState(() => requiredError = null);
+            }
+            if (trimmed.isEmpty) {
+              setDialogState(() => duplicateWarning = null);
+              return;
+            }
+            final exists = await NotebookService.instance.hasNotebookTitle(trimmed);
             setDialogState(() {
               duplicateWarning = exists
-                  ? 'A notebook with the name "${value.trim()}" already exists. Please choose a unique name.'
+                  ? 'A notebook with the name "$trimmed" already exists. Please choose a unique name.'
                   : null;
             });
           }
@@ -420,7 +429,8 @@ class _NotebookListPageState extends State<NotebookListPage> {
                       ),
                       hintText: 'e.g., Biology 101 - Cell Respiration',
                       border: const OutlineInputBorder(),
-                      errorText: duplicateWarning != null ? 'Duplicate name detected' : null,
+                      errorText: requiredError ??
+                          (duplicateWarning != null ? 'Duplicate name detected' : null),
                     ),
                   ),
                   if (duplicateWarning != null) ...[
@@ -473,7 +483,12 @@ class _NotebookListPageState extends State<NotebookListPage> {
                     ? null
                     : () async {
                         final title = titleController.text.trim();
-                        if (title.isEmpty) return;
+                        if (title.isEmpty) {
+                          setDialogState(() {
+                            requiredError = 'Notebook title is required';
+                          });
+                          return;
+                        }
 
                         final isDup = await NotebookService.instance.hasNotebookTitle(title);
                         if (isDup) {
@@ -526,19 +541,28 @@ class _NotebookListPageState extends State<NotebookListPage> {
     final titleController = TextEditingController(text: notebook.title);
     final descController = TextEditingController(text: notebook.description);
     String? duplicateWarning;
+    String? requiredError;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           void checkDuplicate(String value) async {
+            final trimmed = value.trim();
+            if (trimmed.isNotEmpty && requiredError != null) {
+              setDialogState(() => requiredError = null);
+            }
+            if (trimmed.isEmpty) {
+              setDialogState(() => duplicateWarning = null);
+              return;
+            }
             final exists = await NotebookService.instance.hasNotebookTitle(
-              value.trim(),
+              trimmed,
               excludeNotebookId: notebook.id,
             );
             setDialogState(() {
               duplicateWarning = exists
-                  ? 'A notebook with the name "${value.trim()}" already exists. Please choose a unique name.'
+                  ? 'A notebook with the name "$trimmed" already exists. Please choose a unique name.'
                   : null;
             });
           }
@@ -571,7 +595,8 @@ class _NotebookListPageState extends State<NotebookListPage> {
                         ),
                       ),
                       border: const OutlineInputBorder(),
-                      errorText: duplicateWarning != null ? 'Duplicate name detected' : null,
+                      errorText: requiredError ??
+                          (duplicateWarning != null ? 'Duplicate name detected' : null),
                     ),
                   ),
                   if (duplicateWarning != null) ...[
@@ -623,7 +648,12 @@ class _NotebookListPageState extends State<NotebookListPage> {
                     ? null
                     : () async {
                         final title = titleController.text.trim();
-                        if (title.isEmpty) return;
+                        if (title.isEmpty) {
+                          setDialogState(() {
+                            requiredError = 'Notebook title is required';
+                          });
+                          return;
+                        }
 
                         final isDup = await NotebookService.instance.hasNotebookTitle(
                           title,

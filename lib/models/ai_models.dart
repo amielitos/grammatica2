@@ -200,8 +200,7 @@ enum QuizQuestionType {
   shortAnswer,
   fillInTheBlank,
   pronunciation,
-  matching,
-  passage;
+  matching;
 
   factory QuizQuestionType.fromString(String value) {
     switch (value) {
@@ -217,8 +216,6 @@ enum QuizQuestionType {
         return QuizQuestionType.pronunciation;
       case 'matching':
         return QuizQuestionType.matching;
-      case 'passage':
-        return QuizQuestionType.passage;
       default:
         return QuizQuestionType.multipleChoice;
     }
@@ -238,8 +235,6 @@ enum QuizQuestionType {
         return 'pronunciation';
       case QuizQuestionType.matching:
         return 'matching';
-      case QuizQuestionType.passage:
-        return 'passage';
     }
   }
 }
@@ -318,7 +313,6 @@ class AIQuizQuestion {
 class AIQuizResponse {
   final String? title;
   final String? description;
-  final String? passage;
   final List<AIQuizQuestion> questions;
   final int? durationMinutes;
   final bool isAssessment;
@@ -326,26 +320,33 @@ class AIQuizResponse {
   const AIQuizResponse({
     this.title,
     this.description,
-    this.passage,
     required this.questions,
     this.durationMinutes,
     this.isAssessment = false,
   });
 
   factory AIQuizResponse.fromJson(Map<String, dynamic> json) {
-    final qs = (json['questions'] as List<dynamic>?)
-            ?.map((q) => AIQuizQuestion.fromJson(Map<String, dynamic>.from(q)))
-            .toList() ??
-        [];
-    final passageStr = (json['passage'] ??
-            json['readingPassage'] ??
-            json['reading_passage'] ??
-            json['passageText'] ??
-            json['context']) as String?;
+    final rawList = (json['questions'] as List<dynamic>?) ?? const [];
+    final qs = <AIQuizQuestion>[];
+    for (final raw in rawList) {
+      final map = Map<String, dynamic>.from(raw as Map);
+      if ((map['questionType'] as String?) == 'passage') {
+        final nested = map['nestedQuestions'] as List<dynamic>?;
+        if (nested != null) {
+          for (final n in nested) {
+            final nMap = Map<String, dynamic>.from(n as Map);
+            if ((nMap['questionType'] as String?) != 'passage') {
+              qs.add(AIQuizQuestion.fromJson(nMap));
+            }
+          }
+        }
+        continue;
+      }
+      qs.add(AIQuizQuestion.fromJson(map));
+    }
     return AIQuizResponse(
       title: json['title'] as String?,
       description: json['description'] as String?,
-      passage: passageStr,
       questions: qs,
       durationMinutes: json['durationMinutes'] as int?,
       isAssessment: json['isAssessment'] as bool? ?? false,
@@ -355,7 +356,6 @@ class AIQuizResponse {
   Map<String, dynamic> toJson() => {
         if (title != null) 'title': title,
         if (description != null) 'description': description,
-        if (passage != null) 'passage': passage,
         'questions': questions.map((q) => q.toJson()).toList(),
         if (durationMinutes != null) 'durationMinutes': durationMinutes,
         'isAssessment': isAssessment,
@@ -391,42 +391,9 @@ class AIQuizResponse {
     return AIQuizResponse.fromJson(output.data);
   }
 
-  /// Maps AI quiz questions into native DatabaseService QuizQuestion objects.
-  /// Automatically nests comprehension questions following a reading passage under
-  /// that passage's [nestedQuestions] so they appear co-located during quiz execution.
+  /// Maps AI quiz questions into flat native DatabaseService QuizQuestion objects.
   List<QuizQuestion> toQuizQuestions() {
     final List<QuizQuestion> result = [];
-    QuizQuestion? currentPassage;
-    final List<QuizQuestion> currentNested = [];
-
-    // If a top-level passage is present and no passage question is in the questions list,
-    // initialize currentPassage with it.
-    final bool hasExplicitPassageQuestion = questions.any(
-      (q) => q.questionType == QuizQuestionType.passage,
-    );
-    if (!hasExplicitPassageQuestion && passage != null && passage!.trim().isNotEmpty) {
-      currentPassage = QuizQuestion(
-        question: passage!.trim(),
-        answer: '',
-        type: 'passage',
-      );
-    }
-
-    void flushPassage() {
-      if (currentPassage != null) {
-        result.add(QuizQuestion(
-          question: currentPassage!.question,
-          answer: currentPassage!.answer,
-          type: 'passage',
-          options: currentPassage!.options,
-          nestedQuestions: currentNested.isNotEmpty ? List.from(currentNested) : null,
-          hint: currentPassage!.hint,
-          explanation: currentPassage!.explanation,
-        ));
-        currentPassage = null;
-        currentNested.clear();
-      }
-    }
 
     for (final q in questions) {
       final qText = q.content
@@ -440,8 +407,10 @@ class AIQuizResponse {
       String effectiveType = q.questionType.toJsonString();
       List<String>? blankAnswers = q.blankAnswers;
       String? targetWord = q.targetWord;
+      String effectiveAnswer = q.correctAnswer;
 
-      if (q.questionType == QuizQuestionType.multipleChoice || q.questionType == QuizQuestionType.trueFalse) {
+      if (q.questionType == QuizQuestionType.multipleChoice ||
+          q.questionType == QuizQuestionType.trueFalse) {
         effectiveType = 'multiple_choice';
         if (effectiveOptions == null || effectiveOptions.isEmpty) {
           final ans = q.correctAnswer.trim();
@@ -452,7 +421,7 @@ class AIQuizResponse {
               ans,
               'Option B',
               'Option C',
-              'Option D'
+              'Option D',
             ];
           } else {
             effectiveOptions = ['Option A', 'Option B', 'Option C', 'Option D'];
@@ -467,8 +436,17 @@ class AIQuizResponse {
           if (matches.isNotEmpty) {
             blankAnswers = matches.map((m) => m.group(1)!.trim()).toList();
           } else if (q.correctAnswer.isNotEmpty) {
-            blankAnswers = q.correctAnswer.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+            blankAnswers = q.correctAnswer
+                .split(',')
+                .map((s) => s.trim())
+                .where((s) => s.isNotEmpty)
+                .toList();
           }
+        }
+        if (effectiveAnswer.trim().isEmpty &&
+            blankAnswers != null &&
+            blankAnswers.isNotEmpty) {
+          effectiveAnswer = blankAnswers.join(', ');
         }
       } else if (q.questionType == QuizQuestionType.pronunciation) {
         effectiveType = 'pronunciation';
@@ -482,31 +460,24 @@ class AIQuizResponse {
             targetWord = q.correctAnswer.trim();
           }
         }
-      }
-
-      final converted = QuizQuestion(
-        question: cleanText,
-        answer: q.correctAnswer,
-        type: effectiveType,
-        options: effectiveOptions,
-        hint: q.hint,
-        explanation: q.explanation,
-        blankAnswers: blankAnswers,
-        targetWord: targetWord,
-      );
-
-      if (q.questionType == QuizQuestionType.passage) {
-        flushPassage();
-        currentPassage = converted;
-      } else {
-        if (currentPassage != null) {
-          currentNested.add(converted);
-        } else {
-          result.add(converted);
+        if (effectiveAnswer.trim().isEmpty && targetWord.isNotEmpty) {
+          effectiveAnswer = targetWord;
         }
       }
+
+      result.add(
+        QuizQuestion(
+          question: cleanText,
+          answer: effectiveAnswer,
+          type: effectiveType,
+          options: effectiveOptions,
+          hint: q.hint,
+          explanation: q.explanation,
+          blankAnswers: blankAnswers,
+          targetWord: targetWord,
+        ),
+      );
     }
-    flushPassage();
 
     return result;
   }

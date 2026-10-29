@@ -525,11 +525,11 @@ class _LoginPageState extends State<LoginPage> {
                               }
                             },
                             validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your email';
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Email is required';
                               }
                               if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                  .hasMatch(value)) {
+                                  .hasMatch(value.trim())) {
                                 return 'Please enter a valid email';
                               }
                               return null;

@@ -100,7 +100,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       borderRadius: BorderRadius.circular(8),
                       hoverColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.05),
                       mouseCursor: SystemMouseCursors.click,
-                      onTap: () {
+                      onTap: () async {
                         if (PracticeTab.isGenerating.value) {
                           CenterNoticeDialog.show(
                             context,
@@ -109,6 +109,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           );
                           return;
                         }
+                        if (!await PracticeTab.canLeavePracticeSession()) return;
+                        if (!context.mounted) return;
                         AdminDashboard.resetToDashboard();
                         HomePage.resetToDashboard();
                         if (onLogoTap != null) {
@@ -139,7 +141,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         offset: const Offset(0, 45),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         color: isDark ? const Color(0xFF333333) : Colors.white,
-                        onSelected: (value) {
+                        onSelected: (value) async {
+                          if (PracticeTab.isGenerating.value) {
+                            CenterNoticeDialog.show(
+                              context,
+                              title: 'Generation in Progress',
+                              message: 'Please wait until the AI finishes generating before leaving this screen.',
+                            );
+                            return;
+                          }
+                          if (!await PracticeTab.canLeavePracticeSession()) return;
+                          if (!context.mounted) return;
                           if (value == 'profile') {
                             onProfileTap?.call();
                           } else if (value == 'settings') {

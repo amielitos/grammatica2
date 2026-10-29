@@ -975,7 +975,7 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                             ),
                           ),
                         Text(
-                          '${quiz.questions.length} questions • ${quiz.isAssessment ? "Reading Assessment" : "Practice Quiz"}',
+                          '${quiz.questions.length} questions • ${quiz.isAssessment ? "Formal Assessment" : "Practice Quiz"}',
                           style: TextStyle(
                             fontSize: 13,
                             color: isDark ? Colors.white60 : AppColors.textSecondary,
@@ -1054,32 +1054,67 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  ...q.options.map(
-                    (opt) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6.0),
-                      child: Row(
-                        children: [
-                          Icon(
-                            opt == q.correctAnswer
-                                ? Icons.check_circle_rounded
-                                : Icons.radio_button_unchecked_rounded,
-                            size: 16,
-                            color: opt == q.correctAnswer ? Colors.green : Colors.grey,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              opt,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDark ? Colors.white70 : AppColors.textPrimary,
-                              ),
+                  if (q.questionType == QuizQuestionType.fillInTheBlank)
+                    Row(
+                      children: [
+                        const Icon(Icons.space_bar_rounded, size: 16, color: Colors.green),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Fill in the Blanks • Answers: ${(q.blankAnswers != null && q.blankAnswers!.isNotEmpty) ? q.blankAnswers!.join(', ') : q.correctAnswer}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white70 : AppColors.textPrimary,
                             ),
                           ),
-                        ],
+                        ),
+                      ],
+                    )
+                  else if (q.questionType == QuizQuestionType.pronunciation)
+                    Row(
+                      children: [
+                        const Icon(Icons.mic_rounded, size: 16, color: Colors.green),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Pronunciation • Target Word: ${(q.targetWord != null && q.targetWord!.isNotEmpty) ? q.targetWord! : q.correctAnswer}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white70 : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    ...q.options.map(
+                      (opt) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6.0),
+                        child: Row(
+                          children: [
+                            Icon(
+                              opt == q.correctAnswer
+                                  ? Icons.check_circle_rounded
+                                  : Icons.radio_button_unchecked_rounded,
+                              size: 16,
+                              color: opt == q.correctAnswer ? Colors.green : Colors.grey,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                opt,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white70 : AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             );
@@ -1298,12 +1333,24 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
   void _showRenameDialog(BuildContext context, Notebook notebook) {
     final controller = TextEditingController(text: notebook.title);
     String? duplicateWarning;
+    String? emptyError;
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           void checkDuplicate(String value) async {
+            if (value.trim().isNotEmpty && emptyError != null) {
+              setDialogState(() {
+                emptyError = null;
+              });
+            }
+            if (value.trim().isEmpty) {
+              setDialogState(() {
+                duplicateWarning = null;
+              });
+              return;
+            }
             final exists = await NotebookService.instance.hasNotebookTitle(
               value.trim(),
               excludeNotebookId: notebook.id,
@@ -1342,7 +1389,8 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                       ),
                     ),
                     border: const OutlineInputBorder(),
-                    errorText: duplicateWarning != null ? 'Duplicate name detected' : null,
+                    errorText: emptyError ??
+                        (duplicateWarning != null ? 'Duplicate name detected' : null),
                   ),
                 ),
                 if (duplicateWarning != null) ...[
@@ -1381,7 +1429,12 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                     ? null
                     : () async {
                         final title = controller.text.trim();
-                        if (title.isEmpty) return;
+                        if (title.isEmpty) {
+                          setDialogState(() {
+                            emptyError = 'Title is required';
+                          });
+                          return;
+                        }
 
                         final isDup = await NotebookService.instance.hasNotebookTitle(
                           title,

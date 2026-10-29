@@ -95,6 +95,9 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     _answerController.dispose();
     _focusNode.dispose();
     PracticeTab.isGenerating.value = false;
+    if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
+      PracticeTab.confirmExitActiveSession = null;
+    }
     super.dispose();
   }
 
@@ -213,6 +216,7 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       _userAnswers = [];
       _showPreview = false;
     });
+    PracticeTab.confirmExitActiveSession = _confirmQuitSession;
 
     await _speakWord();
     _startTimer();
@@ -282,6 +286,9 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
       _focusNode.requestFocus();
     } else {
       _timer?.cancel();
+      if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
+        PracticeTab.confirmExitActiveSession = null;
+      }
       setState(() {
         _isGameOver = true;
       });
@@ -309,7 +316,11 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return PopScope(
-      canPop: !_isLoading,
+      canPop: !_isLoading && (_selectedDifficulty == null || _isGameOver),
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop || _isLoading) return;
+        await _confirmQuitSession();
+      },
       child: Stack(
         children: [
           Scaffold(
@@ -330,12 +341,16 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                     foregroundColor: AppColors.textSecondary,
                     alignment: Alignment.centerLeft,
                   ),
-                  onPressed: _isLoading ? null : () {
+                  onPressed: _isLoading ? null : () async {
                     if (_selectedDifficulty == null) {
                       widget.onBack();
-                    } else {
-                      _timer?.cancel();
+                    } else if (_isGameOver) {
+                      if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
+                        PracticeTab.confirmExitActiveSession = null;
+                      }
                       setState(() => _selectedDifficulty = null);
+                    } else {
+                      await _confirmQuitSession();
                     }
                   },
                 ),
@@ -347,11 +362,19 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                     if (snapshot.data == UserRole.admin || snapshot.data == UserRole.superadmin) {
                       return IconButton(
                         icon: const Icon(Icons.settings_rounded, color: AppColors.textPrimary),
-                        onPressed: _isLoading ? null : () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const AdminSpellingWordsTab(),
-                          ),
-                        ),
+                        onPressed: _isLoading ? null : () async {
+                          if (_selectedDifficulty != null && !_isGameOver) {
+                            final shouldQuit = await _confirmQuitSession();
+                            if (!shouldQuit) return;
+                          }
+                          if (context.mounted) {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const AdminSpellingWordsTab(),
+                              ),
+                            );
+                          }
+                        },
                       );
                     }
                     return const SizedBox.shrink();
@@ -977,7 +1000,14 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     );
   }
 
-  Future<void> _confirmQuitSession() async {
+  Future<bool> _confirmQuitSession() async {
+    if (_selectedDifficulty == null || _isGameOver) {
+      if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
+        PracticeTab.confirmExitActiveSession = null;
+      }
+      return true;
+    }
+    if (!mounted) return true;
     final shouldQuit = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -1028,8 +1058,20 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
     );
     if (shouldQuit == true) {
       _timer?.cancel();
-      setState(() => _selectedDifficulty = null);
+      _flutterTts.stop();
+      _audioPlayer.stop();
+      if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
+        PracticeTab.confirmExitActiveSession = null;
+      }
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _selectedDifficulty = null;
+        });
+      }
+      return true;
     }
+    return false;
   }
 
   Widget _buildGameOver() {

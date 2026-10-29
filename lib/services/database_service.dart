@@ -276,9 +276,8 @@ class LinkedContentBundle {
 class QuizQuestion {
   final String question;
   final String answer;
-  final String type; // 'text', 'multiple_choice', 'passage', 'image', 'fill_in_the_blank', 'pronunciation'
+  final String type; // 'text', 'multiple_choice', 'image', 'fill_in_the_blank', 'pronunciation'
   final List<String>? options;
-  final List<QuizQuestion>? nestedQuestions;
   final String? hint;
   final String? explanation;
   final String? imageUrl;
@@ -291,7 +290,6 @@ class QuizQuestion {
     required this.answer,
     this.type = 'text',
     this.options,
-    this.nestedQuestions,
     this.hint,
     this.explanation,
     this.imageUrl,
@@ -307,11 +305,6 @@ class QuizQuestion {
       type: (map['type'] ?? 'text').toString(),
       options: map['options'] != null
           ? List<String>.from(map['options'])
-          : null,
-      nestedQuestions: map['nestedQuestions'] != null
-          ? (map['nestedQuestions'] as List)
-              .map((q) => QuizQuestion.fromMap(Map<String, dynamic>.from(q)))
-              .toList()
           : null,
       hint: map['hint'] as String?,
       explanation: map['explanation'] as String?,
@@ -330,7 +323,6 @@ class QuizQuestion {
       'answer': answer,
       'type': type,
       'options': options,
-      'nestedQuestions': nestedQuestions?.map((q) => q.toMap()).toList(),
       if (hint != null) 'hint': hint,
       if (explanation != null) 'explanation': explanation,
       if (imageUrl != null) 'imageUrl': imageUrl,
@@ -345,7 +337,6 @@ class Quiz {
   final String id;
   final String title;
   final String description;
-  final String? passage;
   final List<QuizQuestion> questions;
   final int duration; // in minutes
   final int maxAttempts;
@@ -376,7 +367,6 @@ class Quiz {
     required this.id,
     required this.title,
     required this.description,
-    this.passage,
     required this.questions,
     this.duration = 0,
     this.maxAttempts = 1,
@@ -404,14 +394,28 @@ class Quiz {
   factory Quiz.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
     final questionsData = (d['questions'] as List?) ?? [];
+    final flatQuestions = <QuizQuestion>[];
+    for (final raw in questionsData) {
+      final map = Map<String, dynamic>.from(raw as Map);
+      if ((map['type'] ?? '').toString() == 'passage') {
+        final nested = map['nestedQuestions'] as List?;
+        if (nested != null) {
+          for (final n in nested) {
+            final nMap = Map<String, dynamic>.from(n as Map);
+            if ((nMap['type'] ?? '').toString() != 'passage') {
+              flatQuestions.add(QuizQuestion.fromMap(nMap));
+            }
+          }
+        }
+        continue;
+      }
+      flatQuestions.add(QuizQuestion.fromMap(map));
+    }
     return Quiz(
       id: doc.id,
       title: (d['title'] ?? '').toString(),
       description: (d['description'] ?? '').toString(),
-      passage: d['passage'] as String?,
-      questions: questionsData
-          .map((q) => QuizQuestion.fromMap(Map<String, dynamic>.from(q)))
-          .toList(),
+      questions: flatQuestions,
       duration: (d['duration'] as num?)?.toInt() ?? 0,
       maxAttempts: (d['maxAttempts'] as num?)?.toInt() ?? 1,
       createdAt: d['createdAt'] as Timestamp?,
@@ -1460,8 +1464,9 @@ class DatabaseService {
       lessonTitle: title,
     ).catchError((e) => debugPrint('Error notifying validators of new lesson: $e'));
 
-    // Notify subscribers in real-time when a members-only lesson is created
-    if (user != null && isMembersOnly) {
+    // Notify subscribers in real-time ONLY when an already-approved members-only lesson is created.
+    // Pending lessons notify subscribers after validator approval.
+    if (user != null && isMembersOnly && status == 'approved') {
       NotificationService.instance.notifySubscribersOfLesson(
         educatorUid: user.uid,
         lessonTitle: title,
@@ -1782,10 +1787,24 @@ class DatabaseService {
   }
 
   Future<List<Lesson>> fetchLessons() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final uid = user?.uid;
+    final role = uid != null
+        ? await RoleService.instance.getRole(uid)
+        : UserRole.learner;
     final snapshot = await _lessons
         .orderBy('createdAt', descending: false)
         .get();
-    return snapshot.docs.map(Lesson.fromDoc).where((l) => !l.isArchived).toList();
+    return snapshot.docs
+        .map(Lesson.fromDoc)
+        .where(
+          (l) =>
+              !l.isArchived &&
+              (l.validationStatus == 'approved' ||
+                  (uid != null && l.createdByUid == uid) ||
+                  role == UserRole.validator),
+        )
+        .toList();
   }
 
   Stream<List<Lesson>> streamLessons({
@@ -1798,33 +1817,30 @@ class DatabaseService {
     return _lessons.orderBy('createdAt', descending: false).snapshots().map((
       snapshot,
     ) {
-      final lessons = snapshot.docs.map(Lesson.fromDoc).where((l) => !l.isArchived).toList();
+      final lessons = snapshot.docs
+          .map(Lesson.fromDoc)
+          .where((l) => !l.isArchived)
+          .toList();
 
-      // Admins and Superadmins see all items
-      if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
-        return lessons;
-      }
+      return lessons.where((l) {
+        final isAuthor = userId != null && l.createdByUid == userId;
+        final isValidator = userRole == UserRole.validator;
 
-      // Educators see their own content + public content from admins
-      if (userRole == UserRole.educator && userId != null) {
-        return lessons.where((l) {
-          // Own content
-          if (l.createdByUid == userId) return true;
-          // Approved content only
-          if (l.validationStatus == 'awaiting_approval') return false;
+        // Pending / unapproved lessons are strictly visible ONLY to the author and validators.
+        if (l.validationStatus != 'approved') {
+          return isAuthor || isValidator;
+        }
 
-          return (l.isVisible || (l.visibleTo.contains(userId)));
-        }).toList();
-      }
-
-      if (approvedOnly) {
-        return lessons.where((l) {
-          // Other users must respect isVisible flag or be in visibleTo list
-          return (l.validationStatus != 'awaiting_approval') &&
-              (l.isVisible || (userId != null && l.visibleTo.contains(userId)));
-        }).toList();
-      }
-      return lessons;
+        // Approved lessons:
+        if (isAuthor) return true;
+        if (!approvedOnly &&
+            (isValidator ||
+                userRole == UserRole.admin ||
+                userRole == UserRole.superadmin)) {
+          return true;
+        }
+        return l.isVisible || (userId != null && l.visibleTo.contains(userId));
+      }).toList();
     });
   }
 
@@ -1835,7 +1851,11 @@ class DatabaseService {
         .collection('subscriptions')
         .doc(educatorUid)
         .get();
-    return doc.exists && doc.data()?['status'] == 'active';
+    if (!doc.exists) return false;
+    final data = doc.data();
+    if (data?['status'] != 'active') return false;
+    final tier = (data?['tier'] ?? '').toString().toLowerCase();
+    return tier == 'premium' || tier == 'standard';
   }
 
   Stream<List<Lesson>> streamAwaitingApprovalLessons() {
@@ -2032,7 +2052,7 @@ class DatabaseService {
     List<String> visibleTo = const [],
     bool isMembersOnly = false,
     bool isGrammaticaContent = false,
-    String validationStatus = 'approved',
+    String validationStatus = 'awaiting_approval',
     String? notebookId,
     String? outputId,
     String? lessonId,
@@ -2102,54 +2122,50 @@ class DatabaseService {
         items = items.where((item) => item.type == type).toList();
       }
 
-      // Admins and Superadmins see all items
-      if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
-        return items;
-      }
+      return items.where((item) {
+        final isAuthor = userId != null && item.createdByUid == userId;
+        final isValidator = userRole == UserRole.validator;
 
-      // Educators see their own content + approved public / Grammatica content
-      if (userRole == UserRole.educator && userId != null) {
-        return items.where((item) {
-          if (item.createdByUid == userId) return true;
-          if (item.validationStatus == 'awaiting_approval') return false;
-          return item.isGrammaticaContent || item.isVisible || item.visibleTo.contains(userId);
-        }).toList();
-      }
+        // Pending / unapproved items are visible ONLY to the author and validators.
+        if (item.validationStatus != 'approved') {
+          return isAuthor || isValidator;
+        }
 
-      if (approvedOnly) {
-        return items.where((item) {
-          if (item.validationStatus == 'awaiting_approval') return false;
-          // Grammatica official content
-          if (item.isGrammaticaContent && item.isVisible) return true;
-          // Own content
-          if (userId != null && item.createdByUid == userId) return true;
-          // Explicit audience constraint: if visibleTo is set, user MUST be in it
-          if (item.visibleTo.isNotEmpty) {
-            return userId != null && item.visibleTo.contains(userId);
-          }
-          // Public or Members-only item (members-only is visible in list, guarded at consumption)
-          return item.isVisible;
-        }).toList();
-      }
-
-      return items;
+        if (isAuthor) return true;
+        if (!approvedOnly &&
+            (isValidator ||
+                userRole == UserRole.admin ||
+                userRole == UserRole.superadmin)) {
+          return true;
+        }
+        if (item.isGrammaticaContent && item.isVisible) return true;
+        if (item.visibleTo.isNotEmpty) {
+          return userId != null && item.visibleTo.contains(userId);
+        }
+        return item.isVisible;
+      }).toList();
     });
   }
 
   static final Map<String, LinkedContentBundle> _bundleCache = {};
 
+  String _bundleCacheKey(String rawKey) {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? 'anon';
+    return '${uid}_$rawKey';
+  }
+
   /// Synchronously retrieve cached bundle if already loaded.
   LinkedContentBundle? getCachedBundle(String? key) {
     if (key == null || key.isEmpty) return null;
-    return _bundleCache[key];
+    return _bundleCache[_bundleCacheKey(key)];
   }
 
   void _cacheBundle(LinkedContentBundle b, {String? nbId, String? lessonId, String? quizId}) {
-    if (nbId != null && nbId.isNotEmpty) _bundleCache[nbId] = b;
-    if (lessonId != null && lessonId.isNotEmpty) _bundleCache[lessonId] = b;
-    if (quizId != null && quizId.isNotEmpty) _bundleCache[quizId] = b;
+    if (nbId != null && nbId.isNotEmpty) _bundleCache[_bundleCacheKey(nbId)] = b;
+    if (lessonId != null && lessonId.isNotEmpty) _bundleCache[_bundleCacheKey(lessonId)] = b;
+    if (quizId != null && quizId.isNotEmpty) _bundleCache[_bundleCacheKey(quizId)] = b;
     for (final item in b.publishedItems) {
-      if (item.id.isNotEmpty) _bundleCache[item.id] = b;
+      if (item.id.isNotEmpty) _bundleCache[_bundleCacheKey(item.id)] = b;
     }
   }
 
@@ -2171,8 +2187,9 @@ class DatabaseService {
 
     // Check fast memory cache first for immediate rendering
     final primaryKey = nbId ?? lesson?.id ?? quiz?.id ?? '';
-    if (primaryKey.isNotEmpty && _bundleCache.containsKey(primaryKey)) {
-      final cached = _bundleCache[primaryKey]!;
+    final scopedKey = _bundleCacheKey(primaryKey);
+    if (primaryKey.isNotEmpty && _bundleCache.containsKey(scopedKey)) {
+      final cached = _bundleCache[scopedKey]!;
       _resolveLinkedContentBundle(
         notebookId: nbId,
         currentLesson: lesson,
@@ -2399,6 +2416,35 @@ class DatabaseService {
       items.add(currentPublishedItem);
     }
 
+    // Enforce pending / unapproved visibility: only the author and validators may see unapproved items.
+    final curUid = FirebaseAuth.instance.currentUser?.uid;
+    final curRole = curUid != null
+        ? await RoleService.instance.getRole(curUid)
+        : UserRole.learner;
+    final isValidator = curRole == UserRole.validator;
+
+    if (lesson != null) {
+      final canSeeLesson = !lesson.isArchived &&
+          (lesson.validationStatus == 'approved' ||
+              (curUid != null && lesson.createdByUid == curUid) ||
+              isValidator);
+      if (!canSeeLesson) lesson = null;
+    }
+
+    if (quiz != null) {
+      final canSeeQuiz = !quiz.isArchived &&
+          (quiz.validationStatus == 'approved' ||
+              (curUid != null && quiz.createdByUid == curUid) ||
+              isValidator);
+      if (!canSeeQuiz) quiz = null;
+    }
+
+    items = items.where((item) {
+      return item.validationStatus == 'approved' ||
+          (curUid != null && item.createdByUid == curUid) ||
+          isValidator;
+    }).toList();
+
     return LinkedContentBundle(
       notebookId: nbId,
       lesson: lesson,
@@ -2442,7 +2488,19 @@ class DatabaseService {
         .limit(1)
         .get();
     if (snap.docs.isEmpty) return null;
-    return Lesson.fromDoc(snap.docs.first);
+    final lesson = Lesson.fromDoc(snap.docs.first);
+    if (lesson.isArchived) return null;
+    if (lesson.validationStatus != 'approved') {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final role = uid != null
+          ? await RoleService.instance.getRole(uid)
+          : UserRole.learner;
+      if ((uid == null || lesson.createdByUid != uid) &&
+          role != UserRole.validator) {
+        return null;
+      }
+    }
+    return lesson;
   }
 
   Future<String> createQuiz({
@@ -2560,10 +2618,6 @@ class DatabaseService {
         if (imgUrl != null && imgUrl.contains('firebasestorage.googleapis.com')) {
           targetSet.add(imgUrl);
         }
-        final nested = q['nestedQuestions'] as List?;
-        if (nested != null) {
-          _extractQuizImageUrls(nested, targetSet);
-        }
       }
     }
   }
@@ -2631,31 +2685,23 @@ class DatabaseService {
         quizzes = quizzes.where((q) => q.isAssessment == isAssessment).toList();
       }
 
-      // Admins and Superadmins see all items
-      if (userRole == UserRole.admin || userRole == UserRole.superadmin) {
-        return quizzes;
-      }
+      return quizzes.where((q) {
+        final isAuthor = userId != null && q.createdByUid == userId;
+        final isValidator = userRole == UserRole.validator;
 
-      // Educators see their own content + public content from admins
-      if (userRole == UserRole.educator && userId != null) {
-        return quizzes.where((q) {
-          // Own content
-          if (q.createdByUid == userId) return true;
-          // Approved content only
-          if (q.validationStatus == 'awaiting_approval') return false;
+        if (q.validationStatus != 'approved') {
+          return isAuthor || isValidator;
+        }
 
-          return (q.isVisible || (q.visibleTo.contains(userId)));
-        }).toList();
-      }
-
-      if (approvedOnly) {
-        return quizzes.where((q) {
-          // Other users must respect isVisible flag or be in visibleTo list
-          return (q.validationStatus != 'awaiting_approval') &&
-              (q.isVisible || (userId != null && q.visibleTo.contains(userId)));
-        }).toList();
-      }
-      return quizzes;
+        if (isAuthor) return true;
+        if (!approvedOnly &&
+            (isValidator ||
+                userRole == UserRole.admin ||
+                userRole == UserRole.superadmin)) {
+          return true;
+        }
+        return q.isVisible || (userId != null && q.visibleTo.contains(userId));
+      }).toList();
     });
   }
 
@@ -3121,7 +3167,10 @@ class DatabaseService {
         .where('validationStatus', isEqualTo: 'approved')
         .snapshots()
         .map((snapshot) {
-          final lessons = snapshot.docs.map(Lesson.fromDoc).toList();
+          final lessons = snapshot.docs
+              .map(Lesson.fromDoc)
+              .where((l) => !l.isArchived)
+              .toList();
           if (publicOnly) {
             return lessons.where((l) => !l.isMembersOnly).toList();
           }
@@ -3139,7 +3188,10 @@ class DatabaseService {
         .where('validationStatus', isEqualTo: 'approved')
         .snapshots()
         .map((snapshot) {
-          final quizzes = snapshot.docs.map(Quiz.fromDoc).toList();
+          final quizzes = snapshot.docs
+              .map(Quiz.fromDoc)
+              .where((q) => !q.isArchived)
+              .toList();
           if (publicOnly) {
             return quizzes.where((q) => !q.isMembersOnly).toList();
           }
@@ -3149,13 +3201,11 @@ class DatabaseService {
 
   Future<void> updateSubscriptionPricing(
     String uid, {
-    required int standard,
     required int premium,
   }) async {
     await _firestore.collection('users').doc(uid).update({
-      'subscription_pricing': {'standard': standard, 'premium': premium},
-      // Keep legacy for compatibility if needed, but we'll prefer the map
-      'subscription_fee': standard,
+      'subscription_pricing': {'premium': premium},
+      'subscription_fee': premium,
     });
   }
 
@@ -3453,21 +3503,18 @@ class DatabaseService {
         .snapshots()
         .map((snapshot) {
           int basic = 0;
-          int standard = 0;
           int premium = 0;
 
           for (var doc in snapshot.docs) {
             final tier = doc.data()['tier'] as String?;
-            if (tier == 'Premium') {
+            if (tier == 'Premium' || tier == 'Standard') {
               premium++;
-            } else if (tier == 'Standard') {
-              standard++;
             } else {
               basic++;
             }
           }
 
-          return {'Basic': basic, 'Standard': standard, 'Premium': premium};
+          return {'Basic': basic, 'Premium': premium};
         });
   }
 
@@ -3639,7 +3686,13 @@ class DatabaseService {
         .collection('subscriptions')
         .doc(educatorUid)
         .snapshots()
-        .map((doc) => doc.exists && doc.data()?['status'] == 'active');
+        .map((doc) {
+          if (!doc.exists) return false;
+          final data = doc.data();
+          if (data?['status'] != 'active') return false;
+          final tier = (data?['tier'] ?? '').toString().toLowerCase();
+          return tier == 'premium' || tier == 'standard';
+        });
   }
 
   Stream<Set<String>> streamActiveSubscribedEducatorIds(String learnerUid) {
@@ -3936,32 +3989,24 @@ class DatabaseService {
     await batch.commit();
   }
 
-  /// Migrates all lessons created by administrators/superadmins or specifically "Admin Espena"
-  /// to be under the Grammatica Official folder (isGrammaticaLesson: true, validationStatus: 'approved', isVisible: true).
+  /// Marks already-approved lessons created by actual ADMIN/SUPERADMIN accounts
+  /// under the Grammatica Official folder without auto-approving pending lessons.
   Future<int> migrateAdminLessonsToGrammaticaOfficial() async {
     try {
-      // 1. Find all admin/superadmin UIDs from users collection
+      // 1. Find actual admin/superadmin UIDs from users collection
       final usersSnap = await _firestore.collection('users').get();
       final adminUids = <String>{};
-      final adminEmails = <String>{};
 
       for (final doc in usersSnap.docs) {
         final data = doc.data();
         final role = (data['role'] ?? '').toString().toUpperCase();
-        final username = (data['username'] ?? '').toString().toLowerCase();
-        final email = (data['email'] ?? '').toString().toLowerCase();
 
-        if (role == 'ADMIN' ||
-            role == 'SUPERADMIN' ||
-            username.contains('admin') ||
-            username.contains('espena') ||
-            email.contains('admin')) {
+        if (role == 'ADMIN' || role == 'SUPERADMIN') {
           adminUids.add(doc.id);
-          if (email.isNotEmpty) adminEmails.add(email);
         }
       }
 
-      // 2. Fetch all lessons and check which need updating
+      // 2. Fetch all lessons and check which approved admin lessons need tagging
       final lessonsSnap = await _lessons.get();
       final batch = _firestore.batch();
       int migratedCount = 0;
@@ -3969,18 +4014,14 @@ class DatabaseService {
       for (final doc in lessonsSnap.docs) {
         final data = doc.data();
         final creatorUid = (data['createdByUid'] ?? '').toString();
-        final creatorEmail = (data['createdByEmail'] ?? '').toString().toLowerCase();
         final isGrammatica = data['isGrammaticaLesson'] == true;
+        final status = (data['validationStatus'] ?? 'approved').toString();
 
-        final isCreatedByAdmin = adminUids.contains(creatorUid) ||
-            adminEmails.contains(creatorEmail) ||
-            creatorEmail.contains('admin');
-
-        if (isCreatedByAdmin && !isGrammatica) {
+        if (adminUids.contains(creatorUid) &&
+            !isGrammatica &&
+            status == 'approved') {
           batch.update(doc.reference, {
             'isGrammaticaLesson': true,
-            'validationStatus': 'approved',
-            'isVisible': true,
           });
           migratedCount++;
         }

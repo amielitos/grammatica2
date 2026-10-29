@@ -106,7 +106,12 @@ class _LessonsListTabState extends State<LessonsListTab> {
               return const Center(child: CircularProgressIndicator());
             }
 
-            var lessons = snapshot.data!.toList();
+            var lessons = snapshot.data!.where((l) {
+              if (l.validationStatus == 'approved') return true;
+              final isAuthor = user != null && l.createdByUid == user.uid;
+              final isValidator = role == UserRole.validator;
+              return isAuthor || isValidator;
+            }).toList();
 
             // Admin / Superadmin only see official Grammatica lessons
             if (role == UserRole.admin || role == UserRole.superadmin) {
@@ -125,6 +130,9 @@ class _LessonsListTabState extends State<LessonsListTab> {
             if (_searchQuery.isNotEmpty) {
               final q = _searchQuery.toLowerCase();
               lessons = lessons.where((l) {
+                if (role == UserRole.educator) {
+                  return l.title.toLowerCase().contains(q);
+                }
                 return l.title.toLowerCase().contains(q) ||
                     (l.createdByEmail ?? '').toLowerCase().contains(q);
               }).toList();
@@ -296,7 +304,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                     onChanged: (v) => setState(() => _searchQuery = v),
                                     style: GoogleFonts.inter(fontSize: 14),
                                     decoration: InputDecoration(
-                                      hintText: 'Search by title or author…',
+                                      hintText: 'Search by title…',
                                       hintStyle: GoogleFonts.inter(
                                         color: AppColors.textSecondary,
                                         fontSize: 14,
@@ -1010,9 +1018,10 @@ class _LessonsListTabState extends State<LessonsListTab> {
     final user = AuthService.instance.currentUser;
     if (user == null) return;
 
-    // Preference: Playlists can only include lessons authored by the creator (or official Grammatica lessons)
+    // Preference: Playlists can only include approved lessons authored by the creator (or official Grammatica lessons)
     final allowedLessons = allLessons.where((l) =>
-      l.createdByUid == user.uid || l.isGrammaticaLesson == true
+      (l.createdByUid == user.uid || l.isGrammaticaLesson == true) &&
+      l.validationStatus == 'approved'
     ).toList();
 
     final titleCtrl = TextEditingController(text: existing?.title ?? '');

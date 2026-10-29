@@ -104,24 +104,42 @@ class UniversalDrawer extends StatelessWidget {
 
       return AdminSidebar(
         selectedIndex: currentIndex ?? -1,
-        onItemSelected: (i) {
+        onItemSelected: (i) async {
+          final navigator = Navigator.of(context);
           if (PracticeTab.isGenerating.value) {
             CenterNoticeDialog.show(
-              context,
+              navigator.context,
               title: 'Generation in Progress',
               message: 'Please wait until the AI finishes generating before switching tabs.',
             );
             return;
           }
+          if (i != currentIndex) {
+            if (!await PracticeTab.canLeavePracticeSession()) return;
+          }
           if (onTap != null) {
             onTap!(i);
-          } else {
-            AdminDashboard.navigateToTab(context, i);
+          } else if (navigator.mounted) {
+            AdminDashboard.navigateToTab(navigator.context, i);
           }
         },
         userName: username,
         items: items,
-        onSignOut: () => AuthService.instance.confirmAndSignOut(context),
+        onSignOut: () async {
+          final navigator = Navigator.of(context);
+          if (PracticeTab.isGenerating.value) {
+            CenterNoticeDialog.show(
+              navigator.context,
+              title: 'Generation in Progress',
+              message: 'Please wait until the AI finishes generating before signing out.',
+            );
+            return;
+          }
+          if (!await PracticeTab.canLeavePracticeSession()) return;
+          if (navigator.mounted) {
+            AuthService.instance.confirmAndSignOut(navigator.context);
+          }
+        },
       );
     } else {
       // Logic from HomePage
@@ -138,24 +156,42 @@ class UniversalDrawer extends StatelessWidget {
 
       return Sidebar(
         currentIndex: currentIndex ?? -1,
-        onTap: (i) {
+        onTap: (i) async {
+          final navigator = Navigator.of(context);
           if (PracticeTab.isGenerating.value) {
             CenterNoticeDialog.show(
-              context,
+              navigator.context,
               title: 'Generation in Progress',
               message: 'Please wait until the AI finishes generating before switching tabs.',
             );
             return;
           }
+          if (i != currentIndex) {
+            if (!await PracticeTab.canLeavePracticeSession()) return;
+          }
           if (onTap != null) {
             onTap!(i);
-          } else {
-            HomePage.navigateToTab(context, i);
+          } else if (navigator.mounted) {
+            HomePage.navigateToTab(navigator.context, i);
           }
         },
         items: items,
         isDrawer: true,
-        onSignOut: () => AuthService.instance.confirmAndSignOut(context),
+        onSignOut: () async {
+          final navigator = Navigator.of(context);
+          if (PracticeTab.isGenerating.value) {
+            CenterNoticeDialog.show(
+              navigator.context,
+              title: 'Generation in Progress',
+              message: 'Please wait until the AI finishes generating before signing out.',
+            );
+            return;
+          }
+          if (!await PracticeTab.canLeavePracticeSession()) return;
+          if (navigator.mounted) {
+            AuthService.instance.confirmAndSignOut(navigator.context);
+          }
+        },
       );
     }
   }

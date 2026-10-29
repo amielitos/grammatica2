@@ -358,6 +358,7 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
   bool _isUploading = false;
   Timer? _recordingTimer;
   int _recordingDuration = 0;
+  String? _wordError;
 
   @override
   void initState() {
@@ -510,7 +511,10 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
   }
 
   Future<void> _saveWord() async {
-    if (_wordController.text.isEmpty) return;
+    if (_wordController.text.trim().isEmpty) {
+      setState(() => _wordError = 'Word is required');
+      return;
+    }
 
     setState(() => _isUploading = true);
     try {
@@ -582,8 +586,27 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
             const SizedBox(height: 20),
             TextField(
               controller: _wordController,
+              onChanged: (val) {
+                if (_wordError != null && val.trim().isNotEmpty) {
+                  setState(() => _wordError = null);
+                }
+              },
               decoration: InputDecoration(
-                labelText: 'Word *',
+                label: const Text.rich(
+                  TextSpan(
+                    text: 'Word',
+                    children: [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                errorText: _wordError,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -595,7 +618,20 @@ class _AddWordBottomSheetState extends State<_AddWordBottomSheet> {
             DropdownButtonFormField<SpellingDifficulty>(
               initialValue: _difficulty,
               decoration: InputDecoration(
-                labelText: 'Difficulty *',
+                label: const Text.rich(
+                  TextSpan(
+                    text: 'Difficulty',
+                    children: [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

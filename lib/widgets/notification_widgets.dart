@@ -9,6 +9,7 @@ import '../services/notification_service.dart';
 import '../services/agora_service.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import '../services/role_service.dart';
 import '../pages/conference_page.dart';
 import '../pages/educator_profile_page.dart';
 import '../pages/lesson_page.dart';
@@ -410,6 +411,19 @@ Future<void> openLessonFromNotification(BuildContext context, NotificationModel 
   }
 
   final nav = Navigator.of(context, rootNavigator: true);
+  final currentUid = AuthService.maybeLiveUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+  final currentRole = currentUid != null
+      ? await RoleService.instance.getRole(currentUid)
+      : UserRole.learner;
+
+  bool canViewLesson(Lesson l) {
+    if (l.isArchived) return false;
+    if (l.validationStatus == 'approved') return true;
+    final isAuthor = currentUid != null && l.createdByUid == currentUid;
+    final isValidator = currentRole == UserRole.validator;
+    return isAuthor || isValidator;
+  }
+
   Lesson? resolvedLesson;
 
   // 1. Try finding by lessonId
@@ -417,7 +431,10 @@ Future<void> openLessonFromNotification(BuildContext context, NotificationModel 
     try {
       final doc = await FirebaseFirestore.instance.collection('lessons').doc(n.lessonId).get();
       if (doc.exists && doc.data() != null) {
-        resolvedLesson = Lesson.fromDoc(doc);
+        final cand = Lesson.fromDoc(doc);
+        if (canViewLesson(cand)) {
+          resolvedLesson = cand;
+        }
       }
     } catch (_) {}
   }
@@ -428,10 +445,14 @@ Future<void> openLessonFromNotification(BuildContext context, NotificationModel 
       final snap = await FirebaseFirestore.instance
           .collection('lessons')
           .where('title', isEqualTo: lessonTitle)
-          .limit(1)
+          .limit(5)
           .get();
-      if (snap.docs.isNotEmpty) {
-        resolvedLesson = Lesson.fromDoc(snap.docs.first);
+      for (final doc in snap.docs) {
+        final cand = Lesson.fromDoc(doc);
+        if (canViewLesson(cand)) {
+          resolvedLesson = cand;
+          break;
+        }
       }
     } catch (_) {}
   }
@@ -446,6 +467,7 @@ Future<void> openLessonFromNotification(BuildContext context, NotificationModel 
           .get();
       for (final doc in snap.docs) {
         final cand = Lesson.fromDoc(doc);
+        if (!canViewLesson(cand)) continue;
         if (cand.title.toLowerCase().trim() == lessonTitle.toLowerCase().trim() ||
             cand.title.toLowerCase().contains(lessonTitle.toLowerCase()) ||
             lessonTitle.toLowerCase().contains(cand.title.toLowerCase())) {
@@ -463,6 +485,7 @@ Future<void> openLessonFromNotification(BuildContext context, NotificationModel 
       final target = lessonTitle.toLowerCase().trim();
       for (final doc in snap.docs) {
         final cand = Lesson.fromDoc(doc);
+        if (!canViewLesson(cand)) continue;
         final candTitle = cand.title.toLowerCase().trim();
         if (candTitle == target || candTitle.contains(target) || target.contains(candTitle)) {
           resolvedLesson = cand;

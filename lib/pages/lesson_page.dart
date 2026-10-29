@@ -9,6 +9,7 @@ import '../widgets/interactive_markdown.dart';
 import '../widgets/notification_widgets.dart';
 import '../services/auth_service.dart';
 import '../services/navigation_service.dart';
+import '../services/role_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import '../widgets/linked_companion_toolbar.dart';
@@ -40,8 +41,30 @@ class _LessonPageState extends State<LessonPage> {
   late Lesson _lesson;
   bool get _previewMode => widget.previewMode;
   Map<String, dynamic>? _userData;
+  UserRole? _userRole;
+  bool _roleLoaded = false;
   bool _showTimelineTab = false;
   List<Lesson> _curriculumLessons = [];
+
+  bool get _canAccessLesson {
+    if (_lesson.isArchived) return false;
+    if (_lesson.validationStatus == 'approved') return true;
+    if (_lesson.createdByUid != null &&
+        _lesson.createdByUid == _effectiveUser.uid) {
+      return true;
+    }
+    return _userRole == UserRole.validator;
+  }
+
+  bool get _needsRoleCheckBeforeRender {
+    if (_lesson.isArchived) return false;
+    if (_lesson.validationStatus == 'approved') return false;
+    if (_lesson.createdByUid != null &&
+        _lesson.createdByUid == _effectiveUser.uid) {
+      return false;
+    }
+    return !_roleLoaded;
+  }
 
   bool get _isEducator {
     final role = _userData?['role']?.toString().toUpperCase();
@@ -68,9 +91,7 @@ class _LessonPageState extends State<LessonPage> {
     super.initState();
     _lesson = widget.lesson;
     _curriculumLessons = [_lesson];
-    _fetchUserData();
-    _initProgress();
-    _listenCurriculumLessons();
+    _fetchUserDataAndInit();
     _scrollController.addListener(_onScroll);
     _bundleFuture = DatabaseService.instance.getLinkedContentBundle(
       notebookId: _lesson.notebookId,
@@ -79,7 +100,10 @@ class _LessonPageState extends State<LessonPage> {
   }
 
   void _listenCurriculumLessons() {
-    _curriculumSub = DatabaseService.instance.streamLessons().listen((all) {
+    _curriculumSub?.cancel();
+    _curriculumSub = DatabaseService.instance
+        .streamLessons(userRole: _userRole, userId: _effectiveUser.uid)
+        .listen((all) {
       if (!mounted) return;
       if (widget.playlist != null && widget.playlist!.lessonIds.isNotEmpty) {
         final pl = all.where((l) => widget.playlist!.lessonIds.contains(l.id)).toList();
@@ -188,9 +212,21 @@ class _LessonPageState extends State<LessonPage> {
     super.dispose();
   }
 
-  Future<void> _fetchUserData() async {
-    final data = await DatabaseService.instance.getUserData(_effectiveUser.uid);
-    if (mounted) setState(() => _userData = data);
+  Future<void> _fetchUserDataAndInit() async {
+    final results = await Future.wait([
+      DatabaseService.instance.getUserData(_effectiveUser.uid),
+      RoleService.instance.getRole(_effectiveUser.uid),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _userData = results[0] as Map<String, dynamic>?;
+      _userRole = results[1] as UserRole;
+      _roleLoaded = true;
+    });
+    if (_canAccessLesson) {
+      _initProgress();
+      _listenCurriculumLessons();
+    }
   }
 
   String _fmt(Timestamp ts) {
@@ -248,7 +284,52 @@ class _LessonPageState extends State<LessonPage> {
         userData: _userData ?? {},
       ),
 
-      body: Column(
+      body: _needsRoleCheckBeforeRender
+          ? const Center(child: CircularProgressIndicator())
+          : !_canAccessLesson
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.lock_clock_rounded,
+                          size: 56,
+                          color: Color(0xFFE8A838),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Lesson Unavailable',
+                          style: GoogleFonts.outfit(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'This lesson is awaiting validator approval and is currently only visible to its author and validators.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        FilledButton.icon(
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          label: const Text('Go Back'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Column(
         children: [
           if (widget.previewMode || _lesson.validationStatus == 'awaiting_approval')
             Container(
@@ -827,8 +908,18 @@ class _LessonPageState extends State<LessonPage> {
                   onPressed: () async {
                     final prevId = playlist.lessonIds[currentIndex - 1];
                     final prevLesson = await DatabaseService.instance.getLesson(prevId);
-                    if (prevLesson != null && context.mounted) {
+                    if (!context.mounted) return;
+                    final canOpen = prevLesson != null &&
+                        !prevLesson.isArchived &&
+                        (prevLesson.validationStatus == 'approved' ||
+                            prevLesson.createdByUid == _effectiveUser.uid ||
+                            _userRole == UserRole.validator);
+                    if (canOpen) {
                       NavigationService.instance.goToLesson(context, prevLesson, replace: true, playlist: playlist);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('That lesson is awaiting approval and is not yet available.')),
+                      );
                     }
                   },
                   icon: const Icon(Icons.skip_previous_rounded),
@@ -840,8 +931,18 @@ class _LessonPageState extends State<LessonPage> {
                   onPressed: () async {
                     final nextId = playlist.lessonIds[currentIndex + 1];
                     final nextLesson = await DatabaseService.instance.getLesson(nextId);
-                    if (nextLesson != null && context.mounted) {
+                    if (!context.mounted) return;
+                    final canOpen = nextLesson != null &&
+                        !nextLesson.isArchived &&
+                        (nextLesson.validationStatus == 'approved' ||
+                            nextLesson.createdByUid == _effectiveUser.uid ||
+                            _userRole == UserRole.validator);
+                    if (canOpen) {
                       NavigationService.instance.goToLesson(context, nextLesson, replace: true, playlist: playlist);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('That lesson is awaiting approval and is not yet available.')),
+                      );
                     }
                   },
                   icon: const Icon(Icons.skip_next_rounded),

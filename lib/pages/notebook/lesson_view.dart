@@ -44,6 +44,7 @@ class _LessonViewState extends State<LessonView> {
   final Set<int> _uploadingBlockIndices = {};
   bool _isEditingInline = false;
   bool _hasUnsavedEdits = false;
+  String? _titleError;
 
   @override
   void initState() {
@@ -111,6 +112,9 @@ class _LessonViewState extends State<LessonView> {
   void _onTitleChanged() {
     setState(() {
       _hasUnsavedEdits = true;
+      if (_titleError != null && _titleCtrl.text.trim().isNotEmpty) {
+        _titleError = null;
+      }
     });
     widget.onTitleChanged?.call(_titleCtrl.text.trim());
   }
@@ -229,6 +233,11 @@ class _LessonViewState extends State<LessonView> {
   }
 
   Future<void> _saveInlineEdits() async {
+    if (_titleCtrl.text.trim().isEmpty) {
+      setState(() => _titleError = 'Lesson title is required');
+      return;
+    }
+
     final updatedBlocks = <ContentBlock>[];
     for (int i = 0; i < _blockCtrls.length; i++) {
       final originalBlock = i < _lesson.content.length ? _lesson.content[i] : null;
@@ -468,8 +477,8 @@ class _LessonViewState extends State<LessonView> {
                     fontWeight: FontWeight.bold,
                     color: isDark ? Colors.white : AppColors.textPrimary,
                   ),
-                  decoration: const InputDecoration(
-                    label: Text.rich(
+                  decoration: InputDecoration(
+                    label: const Text.rich(
                       TextSpan(
                         text: 'Lesson Title',
                         children: [
@@ -483,7 +492,8 @@ class _LessonViewState extends State<LessonView> {
                         ],
                       ),
                     ),
-                    border: OutlineInputBorder(),
+                    errorText: _titleError,
+                    border: const OutlineInputBorder(),
                   ),
                 )
               : Text(
