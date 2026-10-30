@@ -7,7 +7,6 @@ import '../../services/database_service.dart';
 import '../../services/navigation_service.dart';
 import '../../services/role_service.dart';
 import '../../widgets/design_ornaments.dart';
-import '../../widgets/feedback_dialog.dart';
 
 class EducatorDashboardTab extends StatelessWidget {
   final Map<String, dynamic> userData;
@@ -44,10 +43,6 @@ class EducatorDashboardTab extends StatelessWidget {
 
                 // 2. Live Stats Overview (4 cards in responsive grid matching Learner Dashboard)
                 _StatsOverview(uid: uid, isDark: isDark),
-                const SizedBox(height: 16),
-
-                // 2b. Educator Feedback Banner (Sent to grammatica.support@gmail.com)
-                _buildFeedbackBanner(context, isDark: isDark),
                 const SizedBox(height: 24),
 
                 // 3. Quick Actions
@@ -112,87 +107,6 @@ class EducatorDashboardTab extends StatelessWidget {
     );
   }
 
-  Widget _buildFeedbackBanner(BuildContext context, {required bool isDark}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF81B655).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.rate_review_rounded,
-              color: Color(0xFF81B655),
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Have feedback or suggestions?',
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Share your ideas, report issues, or rate your educator experience.',
-                  style: GoogleFonts.inter(
-                    fontSize: 11.5,
-                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.send_rounded, size: 14),
-            label: Text(
-              'Give Feedback',
-              style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-            onPressed: () => FeedbackDialog.show(
-              context,
-              user: AuthService.instance.currentUser,
-              userData: userData,
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF81B655),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildHeroHeader(
     BuildContext context, {
     required String username,
@@ -246,40 +160,6 @@ class EducatorDashboardTab extends StatelessWidget {
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () => FeedbackDialog.show(
-                        context,
-                        user: AuthService.instance.currentUser,
-                        userData: userData,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.35),
-                            width: 1,
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.rate_review_rounded, color: Colors.white, size: 12),
-                            SizedBox(width: 4),
-                            Text(
-                              'Feedback',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ],

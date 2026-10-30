@@ -4,6 +4,16 @@ import '../models/notebook_models.dart';
 import '../models/published_content_item.dart';
 import '../services/navigation_service.dart';
 import '../services/database_service.dart';
+import '../services/notebook_service.dart';
+
+String _resolveLessonFileLabel(Lesson l) {
+  final att = (l.attachmentName ?? '').trim();
+  if (att.isNotEmpty) return att;
+  final nbSource = NotebookService.instance.getPrimarySourceName(l.notebookId);
+  if (nbSource != null && nbSource.isNotEmpty) return nbSource;
+  if (l.title.trim().isNotEmpty) return l.title.trim();
+  return 'Lesson Material';
+}
 
 /// Data structure representing a section item within an STI eLMS module
 class STIModuleSection {
@@ -83,13 +93,14 @@ class _STIModuleCardState extends State<STIModuleCard> {
     final guideItems = widget.companionItems.where((i) => i.type == NotebookOutputType.studyGuide).toList();
 
     final hasOtherPackages = hasQuiz || presItems.isNotEmpty || fcItems.isNotEmpty || mmItems.isNotEmpty || guideItems.isNotEmpty;
+    final fileLabel = _resolveLessonFileLabel(l);
 
     if (!hasOtherPackages) {
       return [
         STIModuleSection(
           id: 'lesson_${l.id}',
-          title: 'View Lesson',
-          typeLabel: 'Lesson',
+          title: fileLabel,
+          typeLabel: fileLabel,
           icon: Icons.menu_book_rounded,
           isSubmitted: isDone,
           status: isDone ? 'completed' : (isPart ? 'partial' : 'available'),
@@ -101,12 +112,12 @@ class _STIModuleCardState extends State<STIModuleCard> {
     final List<STIModuleSection> sections = [];
     int itemNumber = 1;
 
-    // 1. Handout (Reading Material)
+    // 1. Uploaded File / Reading Material
     sections.add(
       STIModuleSection(
         id: 'handout_${l.id}',
-        title: '${itemNumber.toString().padLeft(2, '0')} Handout: ${l.title}',
-        typeLabel: 'Handout',
+        title: '${itemNumber.toString().padLeft(2, '0')} $fileLabel',
+        typeLabel: fileLabel,
         icon: Icons.description_outlined,
         isSubmitted: isDone,
         status: isDone ? 'completed' : (isPart ? 'partial' : 'available'),
@@ -832,12 +843,13 @@ class _STIModulesTimelineDrawerState extends State<STIModulesTimelineDrawer> {
                     builder: (builderContext) {
                       final hasQuiz = lesson.quizId != null && lesson.quizId!.isNotEmpty;
                       final notebookId = lesson.notebookId;
+                      final fileLabel = _resolveLessonFileLabel(lesson);
 
                       if (!hasQuiz && (notebookId == null || notebookId.isEmpty)) {
                         return _buildSubItem(
                           icon: Icons.menu_book_rounded,
                           iconColor: const Color(0xFF0284C7),
-                          label: 'View Lesson',
+                          label: fileLabel,
                           isDark: isDark,
                           onTap: () => widget.onSelectLesson(lesson),
                         );
@@ -873,7 +885,7 @@ class _STIModulesTimelineDrawerState extends State<STIModulesTimelineDrawer> {
                             return _buildSubItem(
                               icon: Icons.menu_book_rounded,
                               iconColor: const Color(0xFF0284C7),
-                              label: 'View Lesson',
+                              label: fileLabel,
                               isDark: isDark,
                               onTap: () => widget.onSelectLesson(lesson),
                             );
@@ -886,7 +898,7 @@ class _STIModulesTimelineDrawerState extends State<STIModulesTimelineDrawer> {
                               _buildSubItem(
                                 icon: Icons.check_rounded,
                                 iconColor: const Color(0xFF0284C7),
-                                label: '${subNum.toString().padLeft(2, '0')} Handout',
+                                label: '${subNum.toString().padLeft(2, '0')} $fileLabel',
                                 isDark: isDark,
                                 onTap: () => widget.onSelectLesson(lesson),
                               ),

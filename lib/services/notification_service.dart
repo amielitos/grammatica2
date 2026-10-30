@@ -205,6 +205,14 @@ class NotificationService {
     required String title,
     required String message,
   }) async {
+    // Badges and achievements are strictly for learners
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final role = (userDoc.data()?['role'] as String?)?.toLowerCase();
+      if (role != null && role != 'learner') {
+        return;
+      }
+    } catch (_) {}
     await sendNotification(
       uid: uid,
       title: title,

@@ -233,7 +233,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                                   children: [
                                     _buildFilterChip(
                                       id: 'enrolled',
-                                      label: 'My Subscribed Educators',
+                                      label: 'My Educators',
                                       count: enrolledEducators.length,
                                       icon: Icons.bookmark_added_rounded,
                                       isDark: isDark,
@@ -278,7 +278,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                                     _buildEmptyState(
                                       isDark: isDark,
                                       icon: Icons.school_outlined,
-                                      title: 'Not subscribed to any educators yet',
+                                      title: 'Not enrolled with any educators yet',
                                       subtitle: 'Explore active educators below to unlock exclusive lessons and mentorship.',
                                       actionButton: ElevatedButton.icon(
                                         onPressed: () => setState(() => _activeTab = 'discover'),
@@ -293,7 +293,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                                     )
                                   else ...[
                                     _buildSectionHeader(
-                                      title: 'My Subscribed Educators',
+                                      title: 'My Educators',
                                       count: enrolledEducators.length,
                                       icon: Icons.bookmark_added_rounded,
                                       iconColor: const Color(0xFF81B655),
@@ -309,7 +309,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                                     _buildEmptyState(
                                       isDark: isDark,
                                       title: 'You are enrolled with all matching educators!',
-                                      subtitle: 'Check the Subscribed Educators tab to manage your enrollments.',
+                                      subtitle: 'Check the My Educators tab to manage your enrollments.',
                                     )
                                   else ...[
                                     _buildSectionHeader(
@@ -327,7 +327,7 @@ class _BrowseEducatorsTabState extends State<BrowseEducatorsTab> {
                                 else ...[
                                   if (enrolledEducators.isNotEmpty) ...[
                                     _buildSectionHeader(
-                                      title: 'My Subscribed Educators',
+                                      title: 'My Educators',
                                       count: enrolledEducators.length,
                                       icon: Icons.bookmark_added_rounded,
                                       iconColor: const Color(0xFF81B655),

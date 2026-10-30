@@ -1201,6 +1201,24 @@ class DatabaseService {
         }).toList());
   }
 
+  Stream<int> streamCompletedMentorshipSessionsCount(String studentId) {
+    return _firestore
+        .collection('mentorship_sessions')
+        .where('studentId', isEqualTo: studentId)
+        .snapshots()
+        .map((snapshot) {
+      int completedCount = 0;
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final status = (data['status'] ?? '').toString().toLowerCase();
+        if (status == 'completed' || data['completed'] == true || data['completedAt'] != null) {
+          completedCount++;
+        }
+      }
+      return completedCount;
+    });
+  }
+
   Stream<List<Map<String, dynamic>>> streamStudentMentorshipSessions(String studentId) {
     return _firestore.collection('mentorship_sessions')
         .where('studentId', isEqualTo: studentId)
@@ -3339,6 +3357,14 @@ class DatabaseService {
     String uid,
     String achievementId,
   ) async {
+    // Only learners receive achievements
+    try {
+      final userSnap = await _firestore.collection('users').doc(uid).get();
+      final role = (userSnap.data()?['role'] as String?)?.toLowerCase();
+      if (role != null && role != 'learner') {
+        return false;
+      }
+    } catch (_) {}
     final docRef = _firestore
         .collection('users')
         .doc(uid)
@@ -3816,6 +3842,28 @@ class DatabaseService {
           final tier = (data?['tier'] ?? '').toString().toLowerCase();
           return tier == 'premium' || tier == 'standard';
         });
+  }
+
+  Stream<int> streamFollowedEducatorsCount(String learnerUid) {
+    return _firestore
+        .collection('users')
+        .doc(learnerUid)
+        .collection('subscriptions')
+        .snapshots()
+        .map((snapshot) {
+      final uniqueEducators = <String>{};
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final status = (data['status'] ?? '').toString().toLowerCase();
+        if (status == 'active') {
+          final eduId = (data['educatorUid'] ?? data['educatorId'] ?? doc.id).toString().trim();
+          if (eduId.isNotEmpty) {
+            uniqueEducators.add(eduId);
+          }
+        }
+      }
+      return uniqueEducators.length;
+    });
   }
 
   Stream<Set<String>> streamActiveSubscribedEducatorIds(String learnerUid) {

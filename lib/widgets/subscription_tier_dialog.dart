@@ -22,10 +22,6 @@ class SubscriptionTierDialog extends StatelessWidget {
     final isMobile = screenWidth < 700;
 
     final normalizedCurrent = currentTier?.trim().toLowerCase();
-    final bool showBasic =
-        normalizedCurrent != 'basic' &&
-        normalizedCurrent != 'standard' &&
-        normalizedCurrent != 'premium';
     final bool showPremium = normalizedCurrent != 'premium';
 
     return Dialog(
@@ -84,37 +80,6 @@ class SubscriptionTierDialog extends StatelessWidget {
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     children: [
-                      if (showBasic) ...[
-                        // Basic Tier Card
-                        _buildTierCard(
-                          context,
-                          isDark: isDark,
-                          tier: 'Basic',
-                          price: 'Free',
-                          badgeText: 'Free for 30 days',
-                          badgeColor: isDark
-                              ? Colors.white12
-                              : Colors.grey.shade200,
-                          badgeTextColor: isDark
-                              ? Colors.white70
-                              : Colors.grey.shade800,
-                          subtitle:
-                              "For learners who want to explore an educator's lessons.",
-                          inclusions: const [
-                            'Access to public lessons uploaded by the educator',
-                            'Access to publicly available learning materials',
-                            'View basic lesson information',
-                            'Free trial for 30 days',
-                            'Cancel anytime',
-                            'No access to exclusive private lessons',
-                            'No personal mentorship from the educator',
-                          ],
-                          buttonColor: const Color(0xFFF9D866),
-                          buttonTextColor: const Color(0xFF4A4A4A),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
                       if (showPremium) ...[
                         // Premium Tier Card
                         _buildTierCard(
@@ -130,8 +95,7 @@ class SubscriptionTierDialog extends StatelessWidget {
                           subtitle:
                               'For learners who want exclusive lessons and direct guidance.',
                           inclusions: const [
-                            'Everything available in Basic',
-                            'Access to private and exclusive educator lessons',
+                            'Access to public and private exclusive educator lessons',
                             'Access to educator-only learning materials marked for enrolled learners',
                             'Personal mentorship with the educator',
                             'Opportunity to ask questions and receive guidance',
@@ -144,11 +108,11 @@ class SubscriptionTierDialog extends StatelessWidget {
                         ),
                       ],
 
-                      if (!showBasic && !showPremium)
+                      if (!showPremium)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 32),
                           child: Text(
-                            'You are already enrolled in the highest tier (Premium).',
+                            'You are already enrolled in the Premium plan.',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.outfit(
                               fontSize: 16,

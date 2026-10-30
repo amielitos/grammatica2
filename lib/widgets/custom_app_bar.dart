@@ -4,8 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_colors.dart';
 import 'notification_widgets.dart';
-import 'feedback_dialog.dart';
-import '../services/role_service.dart';
 import '../pages/settings_page.dart';
 import '../pages/home_page.dart';
 import '../pages/admin_dashboard.dart';
@@ -251,25 +249,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       userId: user.uid,
                       onTap: onNotificationTap,
                     ),
-                    if ((userData?['role']?.toString().toUpperCase() != 'SUPERADMIN') &&
-                        !RoleService.isDefaultAdmin(userData, user.uid)) ...[
-                      const SizedBox(width: 4),
-                      Tooltip(
-                        message: 'Give Feedback',
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.rate_review_outlined,
-                            size: 20,
-                            color: isDark ? Colors.white70 : Colors.black87,
-                          ),
-                          onPressed: () => FeedbackDialog.show(
-                            context,
-                            user: user,
-                            userData: userData,
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),

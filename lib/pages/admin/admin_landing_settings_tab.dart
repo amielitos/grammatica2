@@ -221,20 +221,26 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
   }
 
   Future<bool?> _showConfirmDialog(String title, String message) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(title,
-            style: GoogleFonts.outfit(fontWeight: FontWeight.w800)),
+            style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : Colors.black87)),
         content: Text(message,
             style: GoogleFonts.inter(
-                color: Colors.grey.shade600, height: 1.5)),
+                color: isDark ? Colors.white70 : Colors.grey.shade600, height: 1.5)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text('Cancel',
+                style: GoogleFonts.inter(
+                    color: isDark ? Colors.white70 : Colors.grey.shade700)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -254,6 +260,7 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(28),
       child: Column(
@@ -281,14 +288,14 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
                       style: GoogleFonts.outfit(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87,
                         letterSpacing: -0.5,
                       ),
                     ),
                     Text(
                       'Manage hero background images for visitors (max $_kMaxImages)',
                       style: GoogleFonts.inter(
-                          fontSize: 13, color: Colors.grey.shade500),
+                          fontSize: 13, color: isDark ? Colors.white60 : Colors.grey.shade500),
                     ),
                   ],
                 ),
@@ -312,11 +319,11 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
             padding: const EdgeInsets.symmetric(
                 horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+              color: const Color(0xFF3B82F6).withValues(alpha: isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                   color:
-                      const Color(0xFF3B82F6).withValues(alpha: 0.2)),
+                      const Color(0xFF3B82F6).withValues(alpha: isDark ? 0.35 : 0.2)),
             ),
             child: Row(
               children: [
@@ -328,7 +335,7 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
                     'Add up to $_kMaxImages images for the hero slideshow. Each image cycles every 6 seconds. If no custom images are set, the default built-in images are used.',
                     style: GoogleFonts.inter(
                       fontSize: 13,
-                      color: const Color(0xFF1E40AF),
+                      color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF1E40AF),
                       height: 1.5,
                     ),
                   ),
@@ -339,7 +346,7 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
           const SizedBox(height: 20),
 
           // ── Counter Bar ───────────────────────────────────────────────
-          _buildCounterBar(),
+          _buildCounterBar(isDark),
           const SizedBox(height: 24),
 
           if (_isLoading)
@@ -358,6 +365,7 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
                 Icons.cloud_done_rounded,
                 const Color(0xFF81B655),
                 '${_savedUrls.length} uploaded',
+                isDark,
               ),
               const SizedBox(height: 14),
               _buildSavedGrid(),
@@ -371,6 +379,7 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
                 Icons.pending_rounded,
                 const Color(0xFFF59E0B),
                 '${_pendingSlots.length} selected, not yet saved',
+                isDark,
               ),
               const SizedBox(height: 14),
               _buildPendingGrid(),
@@ -383,26 +392,26 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
                 padding: const EdgeInsets.symmetric(vertical: 48),
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.image_search_rounded,
-                        size: 48, color: Colors.grey.shade300),
+                        size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
                     const SizedBox(height: 12),
                     Text('No custom images yet',
                         style: GoogleFonts.outfit(
-                            color: Colors.grey.shade500,
+                            color: isDark ? Colors.white70 : Colors.grey.shade500,
                             fontWeight: FontWeight.w700,
                             fontSize: 16)),
                     const SizedBox(height: 6),
                     Text(
                         'The landing page is using default built-in images.',
                         style: GoogleFonts.inter(
-                            color: Colors.grey.shade400, fontSize: 13)),
+                            color: isDark ? Colors.white38 : Colors.grey.shade400, fontSize: 13)),
                   ],
                 ),
               ),
@@ -418,11 +427,11 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
                       : (_canAddMore ? _pickAndAddImage : _showMaxReached),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: _canAddMore
-                        ? const Color(0xFF334155)
+                        ? (isDark ? Colors.white70 : const Color(0xFF334155))
                         : Colors.orange,
                     side: BorderSide(
                       color: _canAddMore
-                          ? const Color(0xFFE2E8F0)
+                          ? (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0))
                           : Colors.orange.withValues(alpha: 0.4),
                     ),
                     shape: RoundedRectangleBorder(
@@ -482,13 +491,13 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
     );
   }
 
-  Widget _buildCounterBar() {
+  Widget _buildCounterBar(bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
@@ -497,7 +506,7 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
             style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
-                color: Colors.black87),
+                color: isDark ? Colors.white : Colors.black87),
           ),
           const Spacer(),
           Text(
@@ -518,7 +527,7 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
               child: LinearProgressIndicator(
                 value: _totalCount / _kMaxImages,
                 minHeight: 8,
-                backgroundColor: Colors.grey.shade200,
+                backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   _totalCount >= _kMaxImages
                       ? Colors.orange
@@ -533,7 +542,7 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
   }
 
   Widget _buildSectionLabel(
-      String title, IconData icon, Color color, String sub) {
+      String title, IconData icon, Color color, String sub, bool isDark) {
     return Row(
       children: [
         Icon(icon, color: color, size: 16),
@@ -542,11 +551,11 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
             style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
-                color: Colors.black87)),
+                color: isDark ? Colors.white : Colors.black87)),
         const SizedBox(width: 8),
         Text('· $sub',
             style: GoogleFonts.inter(
-                fontSize: 12, color: Colors.grey.shade500)),
+                fontSize: 12, color: isDark ? Colors.white60 : Colors.grey.shade500)),
       ],
     );
   }
@@ -568,7 +577,7 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
           childAspectRatio: 4 / 3,
         ),
         itemCount: _savedUrls.length,
-        itemBuilder: (ctx, i) => _buildSavedCard(i),
+        itemBuilder: (ctx, i) => _buildSavedCard(ctx, i),
       );
     });
   }
@@ -590,14 +599,15 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
           childAspectRatio: 4 / 3,
         ),
         itemCount: _pendingSlots.length,
-        itemBuilder: (ctx, i) => _buildPendingCard(i),
+        itemBuilder: (ctx, i) => _buildPendingCard(ctx, i),
       );
     });
   }
 
-  Widget _buildSavedCard(int index) {
+  Widget _buildSavedCard(BuildContext context, int index) {
     final url = _savedUrls[index];
     return _buildImageCard(
+      context: context,
       imageWidget: Image.network(
         url,
         fit: BoxFit.cover,
@@ -614,10 +624,11 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
     );
   }
 
-  Widget _buildPendingCard(int index) {
+  Widget _buildPendingCard(BuildContext context, int index) {
     final pending = _pendingSlots[index];
     final isUploading = _uploadingIndices.contains(index);
     return _buildImageCard(
+      context: context,
       imageWidget: Stack(
         fit: StackFit.expand,
         children: [
@@ -639,19 +650,23 @@ class _AdminLandingSettingsTabState extends State<AdminLandingSettingsTab> {
   }
 
   Widget _buildImageCard({
+    required BuildContext context,
     required Widget imageWidget,
     required String indexLabel,
     required String statusLabel,
     required Color statusColor,
     VoidCallback? onRemove,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),

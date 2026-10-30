@@ -174,7 +174,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
 
                   // Header Title
                   Text(
-                    'Manage Subscription',
+                    'My Learning Hub',
                     style: GoogleFonts.outfit(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
@@ -184,7 +184,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'View your active educator subscriptions, manage pricing tiers, and track history.',
+                    'View your currently enrolled educators, payment receipts, enrollment history, and mentorship sessions.',
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       color: subtitleColor,
@@ -409,7 +409,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
           children: [
             _buildHeaderBox(
               Icons.stars_rounded,
-              'Active Subscriptions',
+              'Currently Enrolled',
               const Color(0xFF81B655),
               textColor,
               isDark,
@@ -417,7 +417,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             const SizedBox(height: 16),
             if (active.isEmpty)
               _buildEmptyCard(
-                'No active subscriptions.',
+                'No active enrollments.',
                 isDark,
                 cardBg,
                 borderColor,
@@ -437,7 +437,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               ),
 
             const SizedBox(height: 36),
-            _buildMentorshipSection(
+            _buildPaymentsHistorySection(
               isDark,
               cardBg,
               borderColor,
@@ -448,7 +448,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             const SizedBox(height: 36),
             _buildHeaderBox(
               Icons.history_rounded,
-              'Subscription History',
+              'Enrollment History',
               Colors.amber,
               textColor,
               isDark,
@@ -456,7 +456,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             const SizedBox(height: 16),
             if (history.isEmpty)
               _buildEmptyCard(
-                'No subscription history.',
+                'No enrollment history.',
                 isDark,
                 cardBg,
                 borderColor,
@@ -476,7 +476,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               ),
 
             const SizedBox(height: 36),
-            _buildPaymentsHistorySection(
+            _buildMentorshipSection(
               isDark,
               cardBg,
               borderColor,
@@ -538,7 +538,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
           children: [
             _buildHeaderBox(
               Icons.video_call_rounded,
-              'Mentorship Sessions & Meetings ($totalSessions)',
+              'Mentorship Sessions ($totalSessions)',
               const Color(0xFF3B82F6),
               textColor,
               isDark,
@@ -606,7 +606,16 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
         ? '${DateFormat('h:mm a').format(startTime)} - ${DateFormat('h:mm a').format(endTime)}'
         : '';
 
-    final isPast = (endTime ?? startTime)?.isBefore(DateTime.now()) ?? false;
+    final now = DateTime.now();
+    final statusStr = (session['status'] ?? 'scheduled').toString().toLowerCase();
+    final isDone = statusStr == 'completed';
+    final isPastDay = startTime != null &&
+        DateTime(now.year, now.month, now.day)
+            .isAfter(DateTime(startTime.year, startTime.month, startTime.day));
+    final isPast = isDone || isPastDay || ((endTime ?? startTime)?.isBefore(now) ?? false);
+    final bool canJoinNow = !isPast &&
+        startTime != null &&
+        !now.isBefore(startTime.subtract(const Duration(minutes: 10)));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -659,7 +668,32 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                   ],
                 ),
               ),
-              _buildConferenceBadge(),
+              if (isPast)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF81B655).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF81B655).withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF81B655)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Done',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF81B655),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                _buildConferenceBadge(),
             ],
           ),
           const SizedBox(height: 14),
@@ -687,9 +721,14 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               width: double.infinity,
               height: 44,
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.video_call_rounded, size: 18),
+                icon: Icon(
+                  canJoinNow ? Icons.video_call_rounded : Icons.schedule_rounded,
+                  size: 18,
+                ),
                 label: Text(
-                  'Join',
+                  canJoinNow
+                      ? 'Join'
+                      : 'Join (Available 10 mins before session)',
                   style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w800,
                     fontSize: 14,
@@ -698,34 +737,41 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF81B655),
                   foregroundColor: Colors.white,
+                  disabledBackgroundColor: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0),
+                  disabledForegroundColor: isDark
+                      ? Colors.white54
+                      : const Color(0xFF64748B),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () {
-                  // Determine the channel to use
-                  final channel = agoraChannel.isNotEmpty
-                      ? agoraChannel
-                      : AgoraService.instance.channelFromSessionId(
-                          sessionId.isNotEmpty ? sessionId : 'session',
+                onPressed: canJoinNow
+                    ? () {
+                        final channel = agoraChannel.isNotEmpty
+                            ? agoraChannel
+                            : AgoraService.instance.channelFromSessionId(
+                                sessionId.isNotEmpty ? sessionId : 'session',
+                              );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ConferencePage(
+                              channelName: channel,
+                              sessionId: sessionId,
+                              sessionTitle: title,
+                              otherParticipantName: isCurrentUserEducator
+                                  ? (session['studentName'] as String? ?? 'Student')
+                                  : 'Educator',
+                              isHost: isCurrentUserEducator,
+                              currentUser: widget.user,
+                            ),
+                          ),
                         );
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ConferencePage(
-                        channelName: channel,
-                        sessionId: sessionId,
-                        sessionTitle: title,
-                        otherParticipantName: isCurrentUserEducator
-                            ? (session['studentName'] as String? ?? 'Student')
-                            : 'Educator',
-                        isHost: isCurrentUserEducator,
-                        currentUser: widget.user,
-                      ),
-                    ),
-                  );
-                },
+                      }
+                    : null,
               ),
             ),
           ],
@@ -912,41 +958,6 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             ),
           ),
           if (isActive) ...[
-            if (lowerTier == 'premium') ...[
-              ElevatedButton.icon(
-                icon: const Icon(Icons.video_call_rounded, size: 16),
-                label: Text(
-                  'Schedule Meeting',
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF81B655),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => LearnerMentorshipBookingModal(
-                      user: widget.user,
-                      initialEducatorUid: eduUid,
-                      initialEducatorName: username,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-            ],
             OutlinedButton.icon(
               icon: const Icon(Icons.cancel_outlined, size: 16),
               label: Text(
@@ -1067,7 +1078,11 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        final payments = snapshot.data ?? [];
+        final allPayments = snapshot.data ?? [];
+        final payments = allPayments.where((p) {
+          final tier = (p['tier'] as String? ?? '').toLowerCase();
+          return tier != 'standard';
+        }).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

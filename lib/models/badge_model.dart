@@ -86,6 +86,7 @@ class UserBadgeStats {
   final int flashcardsReviewed;
   final int spellingCorrect;
   final int currentStreak;
+  final int longestStreak;
   final String? lastActiveDate;
 
   const UserBadgeStats({
@@ -94,10 +95,18 @@ class UserBadgeStats {
     this.flashcardsReviewed = 0,
     this.spellingCorrect = 0,
     this.currentStreak = 0,
+    this.longestStreak = 0,
     this.lastActiveDate,
   });
 
   factory UserBadgeStats.fromMap(Map<String, dynamic> data) {
+    final current = (data['currentStreak'] as num?)?.toInt() ??
+        (data['current_streak'] as num?)?.toInt() ??
+        (data['studyStreakDays'] as num?)?.toInt() ??
+        0;
+    final longest = (data['longestStreak'] as num?)?.toInt() ??
+        (data['longest_streak'] as num?)?.toInt() ??
+        current;
     return UserBadgeStats(
       lessonsCompleted: (data['lessons_completed'] as num?)?.toInt() ??
           (data['totalLessonsCompleted'] as num?)?.toInt() ??
@@ -107,11 +116,10 @@ class UserBadgeStats {
           (data['flashcardsReviewed'] as num?)?.toInt() ??
           0,
       spellingCorrect: (data['spelling_correct'] as num?)?.toInt() ?? 0,
-      currentStreak: (data['current_streak'] as num?)?.toInt() ??
-          (data['studyStreakDays'] as num?)?.toInt() ??
-          0,
-      lastActiveDate: (data['last_active_date'] as String?) ??
-          (data['lastActiveDate'] as String?),
+      currentStreak: current,
+      longestStreak: longest < current ? current : longest,
+      lastActiveDate: (data['lastActiveDate'] as String?) ??
+          (data['last_active_date'] as String?),
     );
   }
 
@@ -138,13 +146,16 @@ class UserBadgeStats {
       'perfect_quizzes': perfectQuizzes,
       'flashcards_reviewed': flashcardsReviewed,
       'spelling_correct': spellingCorrect,
+      'currentStreak': currentStreak,
+      'longestStreak': longestStreak,
+      'lastActiveDate': lastActiveDate,
       'current_streak': currentStreak,
+      'longest_streak': longestStreak,
       'last_active_date': lastActiveDate,
       // Compatibility fields for existing dashboard
       'totalLessonsCompleted': lessonsCompleted,
       'flashcardsReviewed': flashcardsReviewed,
       'studyStreakDays': currentStreak,
-      'lastActiveDate': lastActiveDate,
     };
   }
 }

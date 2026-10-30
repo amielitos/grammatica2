@@ -134,7 +134,7 @@ class EmailSenderService {
             </td>
           </tr>
 
-          <!-- Bottom Footer Bar -->
+          <!-- Bottom Footer Bar --> 
           <tr>
             <td style="background-color: #F8FAFC; padding: 24px 32px; text-align: center; border-top: 1px solid #F1F5F9;">
               <p style="color: #64748B; font-size: 13px; font-weight: 600; margin: 0 0 6px 0;">Grammatica Language Learning Platform</p>
@@ -786,7 +786,7 @@ class EmailSenderService {
                     'body': body,
                   }),
                 )
-                .timeout(const Duration(seconds: 3));
+                .timeout(const Duration(seconds: 10));
 
             if (response.statusCode == 200) {
               debugPrint('✅ Python backend sent email to $toEmail');

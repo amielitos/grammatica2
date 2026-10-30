@@ -894,7 +894,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
               children: [
                 Center(
                   child: SingleChildScrollView(
-                    physics: _completedLocal ? const NeverScrollableScrollPhysics() : null,
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: EdgeInsets.all(constraints.maxWidth < 600 ? 12 : 32),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2473,7 +2473,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 680),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: BorderRadius.circular(28),
@@ -2491,35 +2491,6 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Glowing Trophy Icon
-              Container(
-                width: 104,
-                height: 104,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFDE68A), Color(0xFFF59E0B), Color(0xFFD97706)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
-                      blurRadius: 28,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.emoji_events_rounded,
-                    size: 56,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
               // Title
               Text(
                 'Quiz Complete!',
@@ -2549,7 +2520,7 @@ class _QuizDetailPageState extends State<QuizDetailPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
               // Stat Cards Row
               Wrap(

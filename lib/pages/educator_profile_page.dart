@@ -300,7 +300,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                                                     _buildStatItem('Enrolled', '${counts['Premium'] ?? 0}', Icons.people_rounded, const Color(0xFF81B655), isDark, textColor, subtitleColor),
                                                     _buildVerticalDivider(borderColor),
                                                     _buildStatItem(
-                                                      'Playlists',
+                                                      'Collections',
                                                       '$pCount',
                                                       Icons.playlist_play_rounded,
                                                       const Color(0xFF10B981),
@@ -649,7 +649,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                 onPressed: () => setState(() => _selectedTab = 1),
                 icon: const Icon(Icons.playlist_play_rounded, size: 18, color: Color(0xFF81B655)),
                 label: Text(
-                  'Playlists',
+                  'Learning Collections',
                   style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -821,7 +821,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
           child: Row(
             children: [
               buildTabPill('Lessons', Icons.auto_stories_rounded, 0, lessonsCount),
-              buildTabPill('Playlists', Icons.playlist_play_rounded, 1, playlistsCount),
+              buildTabPill('Collections', Icons.playlist_play_rounded, 1, playlistsCount),
               buildTabPill('Reviews', Icons.star_rounded, 2, reviewCount),
             ],
           ),
@@ -1210,7 +1210,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
               ),
               const SizedBox(height: 16),
               Text(
-                'No playlists published yet',
+                'No learning collections published yet',
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -1219,7 +1219,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
               ),
               const SizedBox(height: 6),
               Text(
-                'This educator has not created sequential lesson playlists yet.',
+                'This educator has not created sequential learning collections yet.',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   color: subtitleColor,

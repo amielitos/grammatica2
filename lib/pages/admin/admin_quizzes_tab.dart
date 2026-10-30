@@ -175,8 +175,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 OutlinedButton(
                   onPressed: resetForm,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.black87,
-                    side: BorderSide(color: Colors.grey.shade400),
+                    foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : Colors.black87,
+                    side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.white24 : Colors.grey.shade400),
                   ),
                   child: const Text('Cancel'),
                 ),
@@ -214,10 +214,11 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
 
   Widget _buildInputFields() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF333333) : Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -226,14 +227,14 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Basic Details',
-            style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A)),
+            style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF2A2A2A)),
           ),
           const SizedBox(height: 24),
           _buildStyledTextField(
@@ -270,9 +271,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,12 +285,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF2A2A2A),
+                      color: isDark ? Colors.white : const Color(0xFF2A2A2A),
                     ),
                   ),
                   subtitle: Text(
                     'Learners must finish a specific lesson first before this quiz unlocks.',
-                    style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+                    style: GoogleFonts.inter(fontSize: 13, color: isDark ? Colors.white60 : Colors.grey.shade600),
                   ),
                   value: _requiresLessonCompleted,
                   activeThumbColor: const Color(0xFF88B342),
@@ -318,11 +319,14 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       initialValue: _availableLessons.any((l) => l.id == _requiredLessonId)
                           ? _requiredLessonId
                           : _availableLessons.first.id,
+                      dropdownColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                      style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
                       decoration: InputDecoration(
-                        label: const Text.rich(
+                        label: Text.rich(
                           TextSpan(
                             text: 'Select Prerequisite Lesson',
-                            children: [
+                            style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700),
+                            children: const [
                               TextSpan(
                                 text: ' *',
                                 style: TextStyle(
@@ -340,14 +344,14 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                             ? 'Prerequisite lesson is required'
                             : null,
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
+                          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
+                          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -360,7 +364,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                           child: Text(
                             lesson.title,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(fontSize: 14),
+                            style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
                           ),
                         );
                       }).toList(),
@@ -390,7 +394,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   children: [
                     Text(
                       'Visibility Options',
-                      style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A)),
+                      style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF2A2A2A)),
                     ),
                     const SizedBox(height: 16),
                     Wrap(
@@ -402,8 +406,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                           avatar: const Icon(Icons.public, size: 18),
                           selected: _visibility == ContentVisibility.public,
                           selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
+                          backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
                           checkmarkColor: const Color(0xFF88B342),
-                          labelStyle: TextStyle(color: _visibility == ContentVisibility.public ? const Color(0xFF88B342) : Colors.black87),
+                          labelStyle: TextStyle(color: _visibility == ContentVisibility.public ? const Color(0xFF88B342) : (isDark ? Colors.white : Colors.black87)),
                           onSelected: (val) {
                             if (val) {
                               setState(() {
@@ -419,8 +424,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                           avatar: const Icon(Icons.lock_outline_rounded, size: 18),
                           selected: _visibility == ContentVisibility.membersOnly,
                           selectedColor: const Color(0xFF88B342).withValues(alpha: 0.2),
+                          backgroundColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
                           checkmarkColor: const Color(0xFF88B342),
-                          labelStyle: TextStyle(color: _visibility == ContentVisibility.membersOnly ? const Color(0xFF88B342) : Colors.black87),
+                          labelStyle: TextStyle(color: _visibility == ContentVisibility.membersOnly ? const Color(0xFF88B342) : (isDark ? Colors.white : Colors.black87)),
                           onSelected: (val) {
                             if (val) {
                               setState(() {
@@ -444,6 +450,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   }
 
   Widget _buildDurationDropdown() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final options = {
       '00:05:00': '5 Minutes',
       '00:10:00': '10 Minutes',
@@ -470,12 +477,13 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
     return DropdownButtonFormField<String>(
       initialValue: currentVal,
-      style: GoogleFonts.inter(fontSize: 16, color: Colors.black87),
+      dropdownColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+      style: GoogleFonts.inter(fontSize: 16, color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(
         label: Text.rich(
           TextSpan(
             text: 'Duration',
-            style: GoogleFonts.inter(color: Colors.grey.shade600),
+            style: GoogleFonts.inter(color: isDark ? Colors.white60 : Colors.grey.shade600),
             children: const [
               TextSpan(
                 text: ' *',
@@ -487,17 +495,17 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             ],
           ),
         ),
-        labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
+        labelStyle: GoogleFonts.inter(color: isDark ? Colors.white60 : Colors.grey.shade600),
         prefixIcon: const Icon(Icons.timer_outlined, color: Color(0xFF88B342)),
         filled: true,
-        fillColor: Colors.grey.shade50,
+        fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -507,7 +515,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       items: options.entries.map((e) {
         return DropdownMenuItem(
           value: e.key,
-          child: Text(e.value),
+          child: Text(e.value, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
         );
       }).toList(),
       onChanged: (val) {
@@ -530,6 +538,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     String? errorText,
     ValueChanged<String>? onChanged,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final bool isRequired = label.trim().endsWith('*');
     final String cleanLabel = isRequired
         ? label.replaceAll(RegExp(r'\s*\*'), '').trim()
@@ -540,14 +549,14 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
       minLines: minLines,
       maxLines: maxLines,
       onChanged: onChanged,
-      style: GoogleFonts.inter(fontSize: 16),
+      style: GoogleFonts.inter(fontSize: 16, color: isDark ? Colors.white : Colors.black87),
       decoration: InputDecoration(
         labelText: isRequired ? null : label,
         label: isRequired
             ? Text.rich(
                 TextSpan(
                   text: cleanLabel,
-                  style: GoogleFonts.inter(color: Colors.grey.shade600),
+                  style: GoogleFonts.inter(color: isDark ? Colors.white60 : Colors.grey.shade600),
                   children: const [
                     TextSpan(
                       text: ' *',
@@ -562,17 +571,17 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             : null,
         hintText: hint,
         errorText: errorText,
-        labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
+        labelStyle: GoogleFonts.inter(color: isDark ? Colors.white60 : Colors.grey.shade600),
         prefixIcon: Icon(icon, color: const Color(0xFF88B342)),
         filled: true,
-        fillColor: Colors.grey.shade50,
+        fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -583,6 +592,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   }
 
   Widget _buildMaxAttemptsCounter() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     int currentVal = int.tryParse(_maxAttemptsCtrl.text) ?? 1;
 
     return InputDecorator(
@@ -590,7 +600,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
         label: Text.rich(
           TextSpan(
             text: 'Max Attempts',
-            style: GoogleFonts.inter(color: Colors.grey.shade600),
+            style: GoogleFonts.inter(color: isDark ? Colors.white60 : Colors.grey.shade600),
             children: const [
               TextSpan(
                 text: ' *',
@@ -602,20 +612,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             ],
           ),
         ),
-        labelStyle: GoogleFonts.inter(color: Colors.grey.shade600),
+        labelStyle: GoogleFonts.inter(color: isDark ? Colors.white60 : Colors.grey.shade600),
         errorText: (_submitted && _maxAttemptsCtrl.text.trim().isEmpty)
             ? 'Max attempts is required'
             : null,
         filled: true,
-        fillColor: Colors.grey.shade50,
+        fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
         contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey.shade300),
         ),
       ),
       child: Row(
@@ -676,6 +686,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
   }
 
   Widget _buildQuestionsSection() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -684,7 +695,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           children: [
             Text(
               'Questions (${_questions.length})',
-              style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A)),
+              style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF2A2A2A)),
             ),
             Row(
               children: [
@@ -721,9 +732,9 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
             ),
             child: Column(
               children: [
@@ -731,12 +742,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 const SizedBox(height: 12),
                 Text(
                   'No questions yet.',
-                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: const Color(0xFF2A2A2A)),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? Colors.white : const Color(0xFF2A2A2A)),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Use "AI Generation Config" to generate questions automatically, or click "Add Question" to create manually.',
-                  style: GoogleFonts.inter(color: Colors.grey.shade600, fontSize: 13),
+                  style: GoogleFonts.inter(color: isDark ? Colors.white60 : Colors.grey.shade600, fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -774,6 +785,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
     _QuestionState q,
     int index,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final bool hasValidMcAnswer = q.type != 'multiple_choice' ||
         (q.answerCtrl.text.trim().isNotEmpty &&
             q.optionsCtrls.any(
@@ -783,12 +795,13 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             ));
 
     return Card(
+      color: isDark ? const Color(0xFF333333) : Colors.white,
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(
-          color: Theme.of(context).colorScheme.outlineVariant,
+          color: isDark ? Colors.white12 : Theme.of(context).colorScheme.outlineVariant,
           width: 0.5,
         ),
       ),
@@ -920,7 +933,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       Expanded(
                         child: Text(
                           'AI Recommendation: ${q.imageDescription}',
-                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black87),
                         ),
                       ),
                     ],
@@ -936,12 +949,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   width: double.infinity,
                   constraints: const BoxConstraints(minHeight: 160, maxHeight: 280),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: isDark ? const Color(0xFF252525) : Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: (q.pendingImageBytes != null || q.imageUrl != null)
                           ? const Color(0xFF88B342)
-                          : Colors.grey.shade400,
+                          : (isDark ? Colors.white24 : Colors.grey.shade400),
                       width: 2,
                     ),
                   ),
@@ -1006,7 +1019,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                               style: GoogleFonts.outfit(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: const Color(0xFF2A2A2A),
+                                color: isDark ? Colors.white : const Color(0xFF2A2A2A),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -1014,7 +1027,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                               'or click to browse from device',
                               style: GoogleFonts.inter(
                                 fontSize: 12,
-                                color: Colors.grey.shade600,
+                                color: isDark ? Colors.white54 : Colors.grey.shade600,
                               ),
                             ),
                           ],
@@ -1203,7 +1216,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               const SizedBox(height: 6),
               Text(
                 'Tip: You can specify blanks in the question using brackets, e.g. "She [was] [reading] a book [quietly].". Words inside brackets will become blank fields for learners.',
-                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey.shade600, fontStyle: FontStyle.italic),
               ),
             ],
             // --- PRONUNCIATION ---
@@ -1239,7 +1252,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
               const SizedBox(height: 6),
               Text(
                 'Tip: For pronunciation, formulate the question as a fill-in-the-blank (e.g. "I love studying English [grammar].") and write the missing word above. The learner will pronounce that word instead of typing it.',
-                style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey.shade600, fontStyle: FontStyle.italic),
               ),
             ],
           ],
@@ -1252,12 +1265,13 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
 
   /// AI Config panel — replaces old PDF attachment panel.
   Widget _buildAiConfigPanel() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: isDark ? const Color(0xFF333333) : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1267,7 +1281,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
             style: GoogleFonts.outfit(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF2A2A2A),
+              color: isDark ? Colors.white : const Color(0xFF2A2A2A),
             ),
           ),
           const SizedBox(height: 14),
@@ -1292,7 +1306,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        color: const Color(0xFF2A2A2A),
+                        color: isDark ? Colors.white : const Color(0xFF2A2A2A),
                       ),
                     ),
                   ],
@@ -1302,7 +1316,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   'Synthesize multi-source documents into quizzes or assessments, or import drafts here to review and publish.',
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: Colors.grey.shade700,
+                    color: isDark ? Colors.white70 : Colors.grey.shade700,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1332,8 +1346,8 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       icon: const Icon(Icons.open_in_new_rounded, size: 16),
                       label: const Text('Open Notebook Studio'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF2A2A2A),
-                        side: BorderSide(color: Colors.grey.shade400),
+                        foregroundColor: isDark ? Colors.white : const Color(0xFF2A2A2A),
+                        side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade400),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold),
@@ -1348,18 +1362,18 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           const Divider(),
           const SizedBox(height: 12),
 
-          Text('Single Source Generator', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A))),
+          Text('Single Source Generator', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF2A2A2A))),
           const SizedBox(height: 10),
 
           // Question Types Checkboxes
-          Text('Question Types', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          Text('Question Types', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.grey.shade700)),
           const SizedBox(height: 8),
           Material(
             color: Colors.transparent,
             child: Column(
               children: [
                 CheckboxListTile(
-                  title: Text('Multiple Choice', style: GoogleFonts.inter(fontSize: 13)),
+                  title: Text('Multiple Choice', style: GoogleFonts.inter(fontSize: 13, color: isDark ? Colors.white : Colors.black87)),
                   value: _aiQuestionTypes.contains('multiple_choice'),
                   onChanged: (val) {
                     setState(() {
@@ -1376,7 +1390,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   controlAffinity: ListTileControlAffinity.leading,
                 ),
                 CheckboxListTile(
-                  title: Text('Fill in the Blanks / Textfield', style: GoogleFonts.inter(fontSize: 13)),
+                  title: Text('Fill in the Blanks / Textfield', style: GoogleFonts.inter(fontSize: 13, color: isDark ? Colors.white : Colors.black87)),
                   value: _aiQuestionTypes.contains('fill_in_the_blank'),
                   onChanged: (val) {
                     setState(() {
@@ -1393,7 +1407,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                   controlAffinity: ListTileControlAffinity.leading,
                 ),
                 CheckboxListTile(
-                  title: Text('Pronunciation (Speech)', style: GoogleFonts.inter(fontSize: 13)),
+                  title: Text('Pronunciation (Speech)', style: GoogleFonts.inter(fontSize: 13, color: isDark ? Colors.white : Colors.black87)),
                   value: _aiQuestionTypes.contains('pronunciation'),
                   onChanged: (val) {
                     setState(() {
@@ -1415,7 +1429,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           const SizedBox(height: 16),
 
           // Difficulty
-          Text('Difficulty', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          Text('Difficulty', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.grey.shade700)),
           const SizedBox(height: 8),
           SegmentedButton<String>(
             segments: const [
@@ -1430,7 +1444,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           const SizedBox(height: 16),
 
           // Number of questions
-          Text('Number of Questions', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          Text('Number of Questions', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.grey.shade700)),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -1454,7 +1468,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           Material(
             color: Colors.transparent,
             child: SwitchListTile(
-              title: Text('Include Hints', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+              title: Text('Include Hints', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87)),
               value: _aiIncludeHints,
               onChanged: (val) => setState(() => _aiIncludeHints = val),
               activeThumbColor: const Color(0xFF88B342),
@@ -1464,19 +1478,19 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           const SizedBox(height: 8),
 
           // Custom instructions
-          Text('Custom Instructions (Optional)', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+          Text('Custom Instructions (Optional)', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.grey.shade700)),
           const SizedBox(height: 8),
           TextField(
             controller: _aiCustomInstructionsCtrl,
             maxLines: 3,
-            style: GoogleFonts.inter(fontSize: 14),
+            style: GoogleFonts.inter(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
             decoration: InputDecoration(
               hintText: 'e.g. "Generate matching questions"',
-              hintStyle: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade400),
+              hintStyle: GoogleFonts.inter(fontSize: 13, color: isDark ? Colors.white38 : Colors.grey.shade400),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade300),
+                borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -1489,7 +1503,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
           const SizedBox(height: 16),
 
           // Source Material Selection
-          Text('Generate from Source', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF2A2A2A))),
+          Text('Generate from Source', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF2A2A2A))),
           const SizedBox(height: 12),
           SegmentedButton<String>(
             segments: const [
@@ -1532,12 +1546,12 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                       setState(() => _aiPasteTextError = null);
                     }
                   },
-                  style: GoogleFonts.inter(fontSize: 13),
+                  style: GoogleFonts.inter(fontSize: 13, color: isDark ? Colors.white : Colors.black87),
                   decoration: InputDecoration(
                     label: Text.rich(
                       TextSpan(
                         text: 'Paste raw text here',
-                        style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+                        style: GoogleFonts.inter(fontSize: 13, color: isDark ? Colors.white60 : Colors.grey.shade600),
                         children: const [
                           TextSpan(
                             text: ' *',
@@ -1553,7 +1567,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
+                      borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -1584,18 +1598,20 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: isDark ? Colors.white24 : Colors.grey.shade300),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       isExpanded: true,
+                      dropdownColor: isDark ? const Color(0xFF2A2A2A) : Colors.white,
                       value: _aiSelectedLessonId,
-                      hint: const Text('Select a lesson'),
+                      hint: Text('Select a lesson', style: TextStyle(color: isDark ? Colors.white60 : Colors.black54)),
                       items: _availableLessons.map((l) {
                         return DropdownMenuItem(
                           value: l.id,
-                          child: Text(l.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          child: Text(l.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
                         );
                       }).toList(),
                       onChanged: (val) {
@@ -1950,9 +1966,15 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                   margin: const EdgeInsets.only(bottom: 8),
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                   decoration: BoxDecoration(
-                                    color: isAns ? const Color(0xFF88B342).withValues(alpha: 0.1) : Colors.white,
+                                    color: isAns
+                                        ? const Color(0xFF88B342).withValues(alpha: 0.1)
+                                        : (isDark ? const Color(0xFF1E1E1E) : Colors.white),
                                     borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: isAns ? const Color(0xFF88B342) : Colors.grey.shade300),
+                                    border: Border.all(
+                                      color: isAns
+                                          ? const Color(0xFF88B342)
+                                          : (isDark ? Colors.white24 : Colors.grey.shade300),
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
@@ -1965,7 +1987,11 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                                       Expanded(
                                         child: Text(
                                           optCtrl.text.isEmpty ? 'Option' : optCtrl.text,
-                                          style: GoogleFonts.inter(fontSize: 14, fontWeight: isAns ? FontWeight.bold : FontWeight.normal),
+                                          style: GoogleFonts.inter(
+                                            fontSize: 14,
+                                            fontWeight: isAns ? FontWeight.bold : FontWeight.normal,
+                                            color: isDark ? Colors.white : Colors.black87,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -1977,7 +2003,7 @@ class AdminQuizzesTabState extends State<AdminQuizzesTab> {
                               const SizedBox(height: 12),
                               Text(
                                 'Correct Answer: ${q.answerCtrl.text.isEmpty ? "(Not set)" : q.answerCtrl.text}',
-                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.grey.shade700),
                               ),
                             ],
                           ],

@@ -28,11 +28,8 @@ import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import '../models/playlist.dart';
 import '../widgets/playlist_card.dart';
-import '../models/badge_model.dart';
 import '../services/badge_service.dart';
 import '../models/published_content_item.dart';
-import '../models/notebook_models.dart';
-import '../widgets/feedback_dialog.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -264,7 +261,8 @@ class _LessonsList extends StatefulWidget {
   State<_LessonsList> createState() => _LessonsListState();
 }
 
-class _LessonsListState extends State<_LessonsList> {
+class _LessonsListState extends State<_LessonsList>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounceTimer;
   Map<String, dynamic>? _activeFolder;
@@ -273,6 +271,31 @@ class _LessonsListState extends State<_LessonsList> {
   late Stream<Map<String, Map<String, dynamic>>> _progressStream;
   late final Stream<List<Lesson>> _lessonsStream;
   late final Stream<List<PublishedContentItem>> _publishedStream;
+
+  // Persistent per-user KPI cache so values do not reset to 0 or flash while navigating tabs
+  static String? _cachedUid;
+  static int? _cachedBadgesEarned;
+  static int? _cachedMentorshipSessions;
+  static int? _cachedEducatorsFollowed;
+  static int? _cachedDailyStreak;
+
+  int? _badgesEarned;
+  int? _mentorshipSessions;
+  int? _educatorsFollowed;
+  int? _dailyStreak;
+
+  bool _badgesError = false;
+  bool _mentorshipError = false;
+  bool _followedError = false;
+  bool _streakError = false;
+
+  StreamSubscription<int>? _badgesSub;
+  StreamSubscription<int>? _mentorshipSub;
+  StreamSubscription<int>? _followedSub;
+  StreamSubscription<int>? _streakSub;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -287,6 +310,106 @@ class _LessonsListState extends State<_LessonsList> {
       userId: widget.user.uid,
     );
     HomePage.dashboardResetSignal.addListener(_onDashboardReset);
+    _initKpiStreams();
+  }
+
+  void _initKpiStreams() {
+    final uid = widget.user.uid;
+    if (_cachedUid == uid) {
+      _badgesEarned = _cachedBadgesEarned;
+      _mentorshipSessions = _cachedMentorshipSessions;
+      _educatorsFollowed = _cachedEducatorsFollowed;
+      _dailyStreak = _cachedDailyStreak;
+    } else {
+      _cachedUid = uid;
+      _cachedBadgesEarned = null;
+      _cachedMentorshipSessions = null;
+      _cachedEducatorsFollowed = null;
+      _cachedDailyStreak = null;
+    }
+
+    // Record daily activity once per day (Philippine time UTC+8) via atomic transaction
+    BadgeService.instance.checkDailyActivity(uid);
+
+    _badgesSub?.cancel();
+    _badgesSub = BadgeService.instance.streamEarnedBadgesCount(uid).listen(
+      (int val) {
+        _cachedBadgesEarned = val;
+        if (mounted) {
+          setState(() {
+            _badgesEarned = val;
+            _badgesError = false;
+          });
+        }
+      },
+      onError: (Object e) {
+        debugPrint('KPI Badges Earned stream error: $e');
+        if (mounted) {
+          setState(() => _badgesError = true);
+        }
+      },
+    );
+
+    _mentorshipSub?.cancel();
+    _mentorshipSub = DatabaseService.instance
+        .streamCompletedMentorshipSessionsCount(uid)
+        .listen(
+      (int val) {
+        _cachedMentorshipSessions = val;
+        if (mounted) {
+          setState(() {
+            _mentorshipSessions = val;
+            _mentorshipError = false;
+          });
+        }
+      },
+      onError: (Object e) {
+        debugPrint('KPI Mentorship Sessions stream error: $e');
+        if (mounted) {
+          setState(() => _mentorshipError = true);
+        }
+      },
+    );
+
+    _followedSub?.cancel();
+    _followedSub = DatabaseService.instance
+        .streamFollowedEducatorsCount(uid)
+        .listen(
+      (int val) {
+        _cachedEducatorsFollowed = val;
+        if (mounted) {
+          setState(() {
+            _educatorsFollowed = val;
+            _followedError = false;
+          });
+        }
+      },
+      onError: (Object e) {
+        debugPrint('KPI Educators Followed stream error: $e');
+        if (mounted) {
+          setState(() => _followedError = true);
+        }
+      },
+    );
+
+    _streakSub?.cancel();
+    _streakSub = BadgeService.instance.streamDailyStreak(uid).listen(
+      (streak) {
+        _cachedDailyStreak = streak;
+        if (mounted) {
+          setState(() {
+            _dailyStreak = streak;
+            _streakError = false;
+          });
+        }
+      },
+      onError: (Object e) {
+        debugPrint('KPI Daily Streak stream error: $e');
+        if (mounted) {
+          setState(() => _streakError = true);
+        }
+      },
+    );
   }
 
   void _onDashboardReset() {
@@ -299,6 +422,10 @@ class _LessonsListState extends State<_LessonsList> {
   @override
   void dispose() {
     HomePage.dashboardResetSignal.removeListener(_onDashboardReset);
+    _badgesSub?.cancel();
+    _mentorshipSub?.cancel();
+    _followedSub?.cancel();
+    _streakSub?.cancel();
     _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -306,6 +433,7 @@ class _LessonsListState extends State<_LessonsList> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return StreamBuilder<List<Lesson>>(
       stream: _lessonsStream,
       builder: (context, snapshot) {
@@ -447,23 +575,17 @@ class _LessonsListState extends State<_LessonsList> {
                       _buildHeroHeader(context, username: username),
                       const SizedBox(height: 16),
 
-                      // Real-time Reactive Stats Overview (Option B Local-First + Aggregated Sync)
+                      // Real-time Reactive Stats Overview
                       _buildLiveStatsOverview(
                         context,
                         isDark: isDark,
-                        allLessons: lessons,
-                        publishedItems: publishedItems,
                       ),
                       const SizedBox(height: 16),
 
                       // 2. Upcoming Mentorship Session Banner
                       _buildUpcomingSessionBanner(context),
 
-                      // 3. User Feedback Banner (Sent to grammatica.support@gmail.com)
-                      _buildFeedbackBanner(context, isDark: isDark),
-                      const SizedBox(height: 16),
-
-                      // 4. Search Bar & Filter Chips
+                      // 3. Search Bar & Filter Chips
                       _buildSearchBarAndFilters(context),
                       const SizedBox(height: 20),
 
@@ -766,12 +888,11 @@ class _LessonsListState extends State<_LessonsList> {
                           const SizedBox(height: 24),
                         ],
 
-                        // Enrolled Educators Easy Access (hidden in Official and Playlists tab)
+                        // Enrolled Educators (My Educators) & Recent Lessons (placed below Curated Playlists)
                         if (_selectedFilter != 'Grammatica' && _selectedFilter != 'Playlists') ...[
                           _buildSubscribedEducatorsSection(context, isDark),
-
-                          // Recent Lessons from Enrolled Educators
                           _buildSubscribedEducatorLessonsSection(context, lessons, progressMap, isDark),
+                          const SizedBox(height: 24),
                         ],
                       ],
 
@@ -977,10 +1098,9 @@ class _LessonsListState extends State<_LessonsList> {
                         ],
                       ),
                     ),
-                    StreamBuilder<UserBadgeStats>(
-                      stream: BadgeService.instance.streamUserStats(widget.user.uid),
-                      builder: (context, snap) {
-                        final streak = snap.data?.currentStreak ?? 0;
+                    Builder(
+                      builder: (context) {
+                        final streak = _dailyStreak ?? 0;
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
@@ -1009,40 +1129,6 @@ class _LessonsListState extends State<_LessonsList> {
                           ),
                         );
                       },
-                    ),
-                    InkWell(
-                      onTap: () => FeedbackDialog.show(
-                        context,
-                        user: widget.user,
-                        userData: widget.userData,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.35),
-                            width: 1,
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.rate_review_rounded, color: Colors.white, size: 12),
-                            SizedBox(width: 4),
-                            Text(
-                              'Feedback',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                   ],
                 ),
@@ -1089,244 +1175,152 @@ class _LessonsListState extends State<_LessonsList> {
   Widget _buildLiveStatsOverview(
     BuildContext context, {
     required bool isDark,
-    required List<Lesson> allLessons,
-    required List<PublishedContentItem> publishedItems,
   }) {
-    return StreamBuilder<Map<String, dynamic>>(
-      stream: DatabaseService.instance.userStatsSummaryStream(widget.user.uid),
-      builder: (context, statsSnap) {
-        final stats = statsSnap.data ?? {};
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 650;
 
-        return StreamBuilder<Map<String, Map<String, dynamic>>>(
-          stream: DatabaseService.instance.progressStream(widget.user),
-          builder: (context, progressSnap) {
-            final liveProgressMap = progressSnap.data ?? {};
+        Widget buildStatItem({
+          required IconData icon,
+          required Color color,
+          required String label,
+          required String? value,
+          required bool hasError,
+        }) {
+          final isLoading = value == null && !hasError;
+          final displayValue = hasError ? '--' : (value ?? '');
 
-            return StreamBuilder<Map<String, Map<String, dynamic>>>(
-              stream: DatabaseService.instance.quizProgressStream(widget.user),
-              builder: (context, quizSnap) {
-                final quizMap = quizSnap.data ?? {};
-
-                // Compute fully completed lessons (Requirement: all components completed)
-                int liveCompletedLessons = 0;
-                for (final l in allLessons) {
-                  // 1. Handout / Lesson reading
-                  final handoutDone = liveProgressMap[l.id]?['completed'] == true;
-                  if (!handoutDone) continue;
-
-                  final companions = publishedItems.where((p) =>
-                      p.lessonId == l.id ||
-                      (l.notebookId != null && p.notebookId == l.notebookId)).toList();
-
-                  // 2. Slides
-                  final presItems = companions.where((p) => p.type == NotebookOutputType.presentation).toList();
-                  bool slidesDone = true;
-                  if (presItems.isNotEmpty) {
-                    slidesDone = presItems.every((p) =>
-                        liveProgressMap[p.id]?['completed'] == true ||
-                        liveProgressMap['${l.id}_slides']?['completed'] == true);
-                  }
-                  if (!slidesDone) continue;
-
-                  // 3. Flashcards
-                  final fcItems = companions.where((p) => p.type == NotebookOutputType.flashcards).toList();
-                  bool fcDone = true;
-                  if (fcItems.isNotEmpty) {
-                    fcDone = fcItems.every((p) =>
-                        liveProgressMap[p.id]?['completed'] == true ||
-                        liveProgressMap['${l.id}_flashcards']?['completed'] == true);
-                  }
-                  if (!fcDone) continue;
-
-                  // 4. Quiz
-                  final quizItems = companions.where((p) => p.type == NotebookOutputType.quiz).toList();
-                  final qId = (l.quizId != null && l.quizId!.isNotEmpty)
-                      ? l.quizId
-                      : (quizItems.isNotEmpty ? quizItems.first.id : null);
-                  bool quizDone = true;
-                  if (qId != null) {
-                    final qp = quizMap[qId];
-                    quizDone = qp != null && (qp['completed'] == true || qp['passed'] == true);
-                  }
-                  if (!quizDone) continue;
-
-                  liveCompletedLessons++;
-                }
-
-                final summaryLessons = (stats['totalLessonsCompleted'] as num?)?.toInt() ?? 0;
-                final int lessons = liveCompletedLessons > summaryLessons ? liveCompletedLessons : summaryLessons;
-                int liveQuizzesTaken = 0;
-                double liveScoreSum = 0;
-                int liveScoredCount = 0;
-
-                for (final qp in quizMap.values) {
-                  final attempts = (qp['attemptsUsed'] as num?)?.toInt() ?? 0;
-                  final completed = qp['completed'] == true || qp['passed'] == true;
-                  if (attempts > 0 || completed) {
-                    liveQuizzesTaken += (attempts > 0 ? attempts : 1);
-                    final score = (qp['score'] as num?)?.toDouble();
-                    final total = (qp['totalQuestions'] as num?)?.toDouble();
-                    if (score != null && total != null && total > 0) {
-                      liveScoreSum += (score / total * 100);
-                      liveScoredCount++;
-                    }
-                  }
-                }
-
-                final summaryQuizzes = (stats['totalQuizzesTaken'] as num?)?.toInt() ?? 0;
-                final int quizzes = liveQuizzesTaken > summaryQuizzes ? liveQuizzesTaken : summaryQuizzes;
-                final double avgScore = liveScoredCount > 0
-                    ? (liveScoreSum / liveScoredCount)
-                    : ((stats['averageQuizScore'] as num?)?.toDouble() ?? 0.0);
-
-                final fcMastered = (stats['flashcardsMastered'] as num?)?.toInt() ?? 0;
-                final streak = (stats['studyStreakDays'] as num?)?.toInt() ?? (lessons > 0 ? 1 : 0);
-
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-            final isNarrow = constraints.maxWidth < 650;
-
-            Widget buildStatItem({
-              required IconData icon,
-              required Color color,
-              required String label,
-              required String value,
-              String? subValue,
-            }) {
-              return Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isNarrow ? 10 : 16,
-                  vertical: isNarrow ? 10 : 14,
+          return Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: isNarrow ? 10 : 16,
+              vertical: isNarrow ? 10 : 14,
+            ),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(isNarrow ? 7 : 10),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(icon, color: color, size: isNarrow ? 17 : 20),
-                    ),
-                    SizedBox(width: isNarrow ? 8 : 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            value,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
-                              fontSize: isNarrow ? 15 : 18,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            label,
-                            style: GoogleFonts.inter(
-                              fontSize: isNarrow ? 10 : 11,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white60 : Colors.black54,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (subValue != null) ...[
-                            const SizedBox(height: 1),
-                            Text(
-                              subValue,
-                              style: GoogleFonts.inter(
-                                fontSize: 9.5,
-                                color: color,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            final items = [
-              buildStatItem(
-                icon: Icons.menu_book_rounded,
-                color: const Color(0xFF10B981),
-                label: 'Lessons Done',
-                value: '$lessons',
-              ),
-              buildStatItem(
-                icon: Icons.quiz_rounded,
-                color: const Color(0xFF3B82F6),
-                label: 'Quizzes Taken',
-                value: '$quizzes',
-                subValue: quizzes > 0 ? '${avgScore.toStringAsFixed(0)}% avg' : null,
-              ),
-              buildStatItem(
-                icon: Icons.style_rounded,
-                color: const Color(0xFF8B5CF6),
-                label: 'Cards Mastered',
-                value: '$fcMastered',
-              ),
-              buildStatItem(
-                icon: Icons.local_fire_department_rounded,
-                color: const Color(0xFFF59E0B),
-                label: 'Daily Streak',
-                value: '$streak ${streak == 1 ? 'day' : 'days'}',
-              ),
-            ];
-
-            if (isNarrow) {
-              return GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 2.15,
-                children: items,
-              );
-            }
-
-            return Row(
-              children: [
-                Expanded(child: items[0]),
-                const SizedBox(width: 12),
-                Expanded(child: items[1]),
-                const SizedBox(width: 12),
-                Expanded(child: items[2]),
-                const SizedBox(width: 12),
-                Expanded(child: items[3]),
               ],
-            );
-          },
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(isNarrow ? 7 : 10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: isNarrow ? 17 : 20),
+                ),
+                SizedBox(width: isNarrow ? 8 : 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isLoading)
+                        Container(
+                          width: isNarrow ? 36 : 48,
+                          height: isNarrow ? 18 : 22,
+                          margin: const EdgeInsets.symmetric(vertical: 1),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.10)
+                                : Colors.black.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        )
+                      else
+                        Text(
+                          displayValue,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.outfit(
+                            fontSize: isNarrow ? 15 : 18,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      const SizedBox(height: 2),
+                      Text(
+                        label,
+                        style: GoogleFonts.inter(
+                          fontSize: isNarrow ? 10 : 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white60 : Colors.black54,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final items = [
+          buildStatItem(
+            icon: Icons.military_tech_rounded,
+            color: const Color(0xFF10B981),
+            label: 'Badges Earned',
+            value: _badgesEarned != null ? '$_badgesEarned' : null,
+            hasError: _badgesError,
+          ),
+          buildStatItem(
+            icon: Icons.video_camera_front_rounded,
+            color: const Color(0xFF3B82F6),
+            label: 'Mentorship Sessions',
+            value: _mentorshipSessions != null ? '$_mentorshipSessions' : null,
+            hasError: _mentorshipError,
+          ),
+          buildStatItem(
+            icon: Icons.people_alt_rounded,
+            color: const Color(0xFF8B5CF6),
+            label: 'Educators Followed',
+            value: _educatorsFollowed != null ? '$_educatorsFollowed' : null,
+            hasError: _followedError,
+          ),
+          buildStatItem(
+            icon: Icons.local_fire_department_rounded,
+            color: const Color(0xFFF59E0B),
+            label: 'Daily Streak',
+            value: _dailyStreak != null ? '$_dailyStreak days' : null,
+            hasError: _streakError,
+          ),
+        ];
+
+        if (isNarrow) {
+          return GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 2.15,
+            children: items,
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: items[0]),
+            const SizedBox(width: 12),
+            Expanded(child: items[1]),
+            const SizedBox(width: 12),
+            Expanded(child: items[2]),
+            const SizedBox(width: 12),
+            Expanded(child: items[3]),
+          ],
         );
-      },
-    );
-  },
-);
       },
     );
   }
@@ -1655,7 +1649,7 @@ class _LessonsListState extends State<_LessonsList> {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  'Subscribed Educators',
+                  'My Educators',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -2072,87 +2066,6 @@ class _LessonsListState extends State<_LessonsList> {
     );
   }
 
-  Widget _buildFeedbackBanner(BuildContext context, {required bool isDark}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF81B655).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.rate_review_rounded,
-              color: Color(0xFF81B655),
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Have feedback or suggestions?',
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Share your ideas, report issues, or rate your experience with us.',
-                  style: GoogleFonts.inter(
-                    fontSize: 11.5,
-                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.send_rounded, size: 14),
-            label: Text(
-              'Give Feedback',
-              style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-            onPressed: () => FeedbackDialog.show(
-              context,
-              user: widget.user,
-              userData: widget.userData,
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF81B655),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildUpcomingSessionBanner(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return StreamBuilder<List<Map<String, dynamic>>>(
@@ -2323,42 +2236,72 @@ class _LessonsListState extends State<_LessonsList> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 40,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.video_call_rounded, size: 16),
-                      label: const Text('Join',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w800, fontSize: 13)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF81B655),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: () {
-                        final channel = agoraChannel.isNotEmpty
-                            ? agoraChannel
-                            : AgoraService.instance.channelFromSessionId(
-                                sessionId.isNotEmpty ? sessionId : 'session',
-                              );
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ConferencePage(
-                              channelName: channel,
-                              sessionId: sessionId,
-                              sessionTitle: title,
-                              otherParticipantName: 'Educator',
-                              isHost: false,
-                              currentUser: widget.user,
+                  Builder(
+                    builder: (context) {
+                      final canJoinNow = !now.isBefore(
+                        startTime.subtract(const Duration(minutes: 10)),
+                      );
+                      return SizedBox(
+                        width: double.infinity,
+                        height: 40,
+                        child: ElevatedButton.icon(
+                          icon: Icon(
+                            canJoinNow
+                                ? Icons.video_call_rounded
+                                : Icons.schedule_rounded,
+                            size: 16,
+                          ),
+                          label: Text(
+                            canJoinNow
+                                ? 'Join'
+                                : 'Join (Available 10 mins before session)',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
                             ),
                           ),
-                        );
-                      },
-                    ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF81B655),
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFCBD5E1),
+                            disabledForegroundColor: isDark
+                                ? Colors.white54
+                                : const Color(0xFF64748B),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: canJoinNow
+                              ? () {
+                                  final channel = agoraChannel.isNotEmpty
+                                      ? agoraChannel
+                                      : AgoraService.instance
+                                          .channelFromSessionId(
+                                          sessionId.isNotEmpty
+                                              ? sessionId
+                                              : 'session',
+                                        );
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ConferencePage(
+                                        channelName: channel,
+                                        sessionId: sessionId,
+                                        sessionTitle: title,
+                                        otherParticipantName: 'Educator',
+                                        isHost: false,
+                                        currentUser: widget.user,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              : null,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

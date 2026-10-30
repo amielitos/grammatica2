@@ -27,7 +27,8 @@ class _LandingPageState extends State<LandingPage>
   List<String> _bgImages = [];
   int _currentBgIndex = 0;
   Timer? _bgTimer;
-  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _landingSettingsSub;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _landingSettingsSub;
 
   @override
   void initState() {
@@ -66,34 +67,37 @@ class _LandingPageState extends State<LandingPage>
         .collection('settings')
         .doc('landing_page')
         .snapshots()
-        .listen((doc) {
-      if (!mounted) return;
-      if (doc.exists) {
-        final data = doc.data() ?? {};
-        final raw = data['hero_images'];
-        if (raw is List && raw.isNotEmpty) {
-          final customUrls = List<String>.from(raw.whereType<String>())
-              .where((url) => url.trim().isNotEmpty)
-              .toList();
-          if (customUrls.isNotEmpty) {
-            setState(() {
-              _bgImages = customUrls;
-              if (_currentBgIndex >= _bgImages.length) {
-                _currentBgIndex = 0;
+        .listen(
+          (doc) {
+            if (!mounted) return;
+            if (doc.exists) {
+              final data = doc.data() ?? {};
+              final raw = data['hero_images'];
+              if (raw is List && raw.isNotEmpty) {
+                final customUrls = List<String>.from(
+                  raw.whereType<String>(),
+                ).where((url) => url.trim().isNotEmpty).toList();
+                if (customUrls.isNotEmpty) {
+                  setState(() {
+                    _bgImages = customUrls;
+                    if (_currentBgIndex >= _bgImages.length) {
+                      _currentBgIndex = 0;
+                    }
+                  });
+                  return;
+                }
               }
+            }
+            // Fallback if no custom admin images configured
+            setState(() {
+              _bgImages = [];
+              _currentBgIndex = 0;
             });
-            return;
-          }
-        }
-      }
-      // Fallback if no custom admin images configured
-      setState(() {
-        _bgImages = [];
-        _currentBgIndex = 0;
-      });
-    }, onError: (err) {
-      debugPrint('Error listening to landing settings: $err');
-    });
+          },
+          onError: (err) {
+            debugPrint('Error listening to landing settings: $err');
+          },
+        );
 
     _scrollController.addListener(() {
       final offset = _scrollController.offset;
@@ -344,15 +348,11 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-
-
   // ─── HERO ─────────────────────────────────────────────────────────────────
 
   Widget _buildHeroImage(int index) {
     if (_bgImages.isEmpty) {
-      return Container(
-        color: const Color(0xFF0F172A),
-      );
+      return Container(color: const Color(0xFF0F172A));
     }
     final safeIndex = index % _bgImages.length;
     final imagePath = _bgImages[safeIndex];
@@ -367,15 +367,12 @@ class _LandingPageState extends State<LandingPage>
         alignment: const Alignment(0, 0.35),
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (context, error, stackTrace) => Container(
-          color: const Color(0xFF0F172A),
-        ),
+        errorBuilder: (context, error, stackTrace) =>
+            Container(color: const Color(0xFF0F172A)),
       );
     }
 
-    return Container(
-      color: const Color(0xFF0F172A),
-    );
+    return Container(color: const Color(0xFF0F172A));
   }
 
   Widget _buildHeroSection(bool isDesktop) {
@@ -481,8 +478,10 @@ class _LandingPageState extends State<LandingPage>
                                 MouseRegion(
                                   cursor: SystemMouseCursors.click,
                                   child: ElevatedButton(
-                                    onPressed: () =>
-                                        Navigator.pushNamed(context, '/register'),
+                                    onPressed: () => Navigator.pushNamed(
+                                      context,
+                                      '/register',
+                                    ),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF81B655),
                                       foregroundColor: Colors.white,
@@ -512,7 +511,9 @@ class _LandingPageState extends State<LandingPage>
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.white,
                                       side: BorderSide(
-                                        color: Colors.white.withValues(alpha: 0.6),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.6,
+                                        ),
                                         width: 1.5,
                                       ),
                                       padding: EdgeInsets.symmetric(
@@ -547,7 +548,6 @@ class _LandingPageState extends State<LandingPage>
       ),
     );
   }
-
 
   // ─── BANNER STRIP (STI "enrollment" style) ─────────────────────────────────
 
@@ -1258,8 +1258,12 @@ class _LandingPageState extends State<LandingPage>
                         alignment: WrapAlignment.center,
                         children: [
                           OutlinedButton.icon(
-                            onPressed: () => _showAboutGrammaticaDialog(context),
-                            icon: const Icon(Icons.info_outline_rounded, size: 18),
+                            onPressed: () =>
+                                _showAboutGrammaticaDialog(context),
+                            icon: const Icon(
+                              Icons.info_outline_rounded,
+                              size: 18,
+                            ),
                             label: const Text('Read Full Overview'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF81B655),
@@ -1275,7 +1279,10 @@ class _LandingPageState extends State<LandingPage>
                           ),
                           ElevatedButton.icon(
                             onPressed: () => _showAboutUsDialog(context),
-                            icon: const Icon(Icons.people_outline_rounded, size: 18),
+                            icon: const Icon(
+                              Icons.people_outline_rounded,
+                              size: 18,
+                            ),
                             label: const Text('About Us'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF81B655),
@@ -1570,8 +1577,14 @@ class _LandingPageState extends State<LandingPage>
                         children: [
                           _buildFooterHeading('About'),
                           const SizedBox(height: 16),
-                          _buildFooterLink('About Grammatica', () => _showAboutGrammaticaDialog(context)),
-                          _buildFooterLink('About Us', () => _showAboutUsDialog(context)),
+                          _buildFooterLink(
+                            'About Grammatica',
+                            () => _showAboutGrammaticaDialog(context),
+                          ),
+                          _buildFooterLink(
+                            'About Us',
+                            () => _showAboutUsDialog(context),
+                          ),
                         ],
                       ),
                     ),
@@ -1584,6 +1597,17 @@ class _LandingPageState extends State<LandingPage>
                           _buildFooterHeading('Support & FAQ'),
                           const SizedBox(height: 16),
                           _buildFooterLink('FAQ', () => _scrollToKey(_faqKey)),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: SelectableText(
+                              'grammatica.support@gmail.com',
+                              style: GoogleFonts.inter(
+                                color: Colors.white.withValues(alpha: 0.65),
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1595,8 +1619,14 @@ class _LandingPageState extends State<LandingPage>
                         children: [
                           _buildFooterHeading('Legal'),
                           const SizedBox(height: 16),
-                          _buildFooterLink('Privacy Policy', () => _showPrivacyPolicyDialog(context)),
-                          _buildFooterLink('Terms and Condition', () => _showTermsDialog(context)),
+                          _buildFooterLink(
+                            'Privacy Policy',
+                            () => _showPrivacyPolicyDialog(context),
+                          ),
+                          _buildFooterLink(
+                            'Terms and Condition',
+                            () => _showTermsDialog(context),
+                          ),
                         ],
                       ),
                     ),
@@ -1648,12 +1678,32 @@ class _LandingPageState extends State<LandingPage>
                       spacing: 16,
                       runSpacing: 10,
                       children: [
-                        _buildFooterLink('About Grammatica', () => _showAboutGrammaticaDialog(context)),
-                        _buildFooterLink('About Us', () => _showAboutUsDialog(context)),
+                        _buildFooterLink(
+                          'About Grammatica',
+                          () => _showAboutGrammaticaDialog(context),
+                        ),
+                        _buildFooterLink(
+                          'About Us',
+                          () => _showAboutUsDialog(context),
+                        ),
                         _buildFooterLink('FAQ', () => _scrollToKey(_faqKey)),
-                        _buildFooterLink('Privacy Policy', () => _showPrivacyPolicyDialog(context)),
-                        _buildFooterLink('Terms and Condition', () => _showTermsDialog(context)),
+                        _buildFooterLink(
+                          'Privacy Policy',
+                          () => _showPrivacyPolicyDialog(context),
+                        ),
+                        _buildFooterLink(
+                          'Terms and Condition',
+                          () => _showTermsDialog(context),
+                        ),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    SelectableText(
+                      'Support: grammatica.support@gmail.com',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: 13.5,
+                      ),
                     ),
                   ],
                 ),
@@ -1691,7 +1741,9 @@ class _LandingPageState extends State<LandingPage>
                       ),
                       Text(
                         '  •  ',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
                       ),
                       InkWell(
                         onTap: () => _showTermsDialog(context),
@@ -1705,7 +1757,9 @@ class _LandingPageState extends State<LandingPage>
                       ),
                       Text(
                         '  •  ',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
                       ),
                       InkWell(
                         onTap: () => _scrollToKey(_faqKey),
@@ -1787,10 +1841,16 @@ class _LandingPageState extends State<LandingPage>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                          color: const Color(
+                            0xFF81B655,
+                          ).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(icon, color: const Color(0xFF81B655), size: 24),
+                        child: Icon(
+                          icon,
+                          color: const Color(0xFF81B655),
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -1882,10 +1942,18 @@ class _LandingPageState extends State<LandingPage>
           ),
         ),
         const SizedBox(height: 8),
-        _buildBulletPoint('To provide an effective and improved learning method application to strengthen individuals’ grammar efficiency that help them to reduce grammatical errors in writing and communication.'),
-        _buildBulletPoint('To develop and implement engaging features within the application that enhance users’ comprehension, retention, and understanding of grammar rules.'),
-        _buildBulletPoint('To provide an innovative and engaging learning technology alternative to traditional learning methods.'),
-        _buildBulletPoint('To develop exercises that ensure understanding and proper application rather than rote memorization.'),
+        _buildBulletPoint(
+          'To provide an effective and improved learning method application to strengthen individuals’ grammar efficiency that help them to reduce grammatical errors in writing and communication.',
+        ),
+        _buildBulletPoint(
+          'To develop and implement engaging features within the application that enhance users’ comprehension, retention, and understanding of grammar rules.',
+        ),
+        _buildBulletPoint(
+          'To provide an innovative and engaging learning technology alternative to traditional learning methods.',
+        ),
+        _buildBulletPoint(
+          'To develop exercises that ensure understanding and proper application rather than rote memorization.',
+        ),
       ],
     );
   }
@@ -2014,73 +2082,147 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
+  Widget _buildLegalSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14, bottom: 6),
+      child: Text(
+        title,
+        style: GoogleFonts.outfit(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFF0F172A),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegalBody(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.inter(
+        fontSize: 14,
+        height: 1.6,
+        color: const Color(0xFF334155),
+      ),
+    );
+  }
+
   void _showPrivacyPolicyDialog(BuildContext context) {
     _showInfoModal(
       context: context,
-      title: 'Privacy Policy',
+      title: 'GRAMMATICA — PRIVACY POLICY',
       icon: Icons.privacy_tip_outlined,
       children: [
         Text(
-          'Last Updated: 2026',
+          'Effective Date: October 31, 2026',
           style: GoogleFonts.inter(
             fontSize: 12.5,
             color: const Color(0xFF64748B),
-            fontStyle: FontStyle.italic,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 14),
-        Text(
-          '1. Information We Collect',
-          style: GoogleFonts.outfit(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
-          ),
+        _buildLegalSectionTitle('1. Introduction'),
+        _buildLegalBody(
+          'Grammatica values the privacy of its users. This Privacy Policy explains how personal information is collected, used, stored, and protected when using the platform.',
+        ),
+        _buildLegalSectionTitle('2. Information We Collect'),
+        _buildLegalBody('Grammatica may collect the following information:'),
+        const SizedBox(height: 6),
+        _buildBulletPoint(
+          'Personal details, including name, email address, phone number, and date of birth.',
+        ),
+        _buildBulletPoint('Account and profile information.'),
+        _buildBulletPoint('Educator and Validator application documents.'),
+        _buildBulletPoint(
+          'Learning activities, assessment results, and progress records.',
+        ),
+        _buildBulletPoint('Enrollment details and mentorship schedules.'),
+        _buildBulletPoint(
+          'Technical information related to account and application usage.',
+        ),
+        _buildLegalSectionTitle('3. Use of Personal Information'),
+        _buildLegalBody('Collected information may be used to:'),
+        const SizedBox(height: 6),
+        _buildBulletPoint('Create and manage user accounts.'),
+        _buildBulletPoint('Verify user identities and applications.'),
+        _buildBulletPoint('Monitor learning progress and achievements.'),
+        _buildBulletPoint(
+          'Manage Educator enrollment and mentorship sessions.',
+        ),
+        _buildBulletPoint('Provide AI-assisted learning features.'),
+        _buildBulletPoint(
+          'Maintain application security and improve services.',
+        ),
+        _buildLegalSectionTitle('4. Information Access and Sharing'),
+        _buildLegalBody(
+          'Personal information may be accessed by authorized users according to their roles:',
         ),
         const SizedBox(height: 6),
-        Text(
-          'We collect information you provide directly to us when creating an account, such as your name, email address, user role, and study progress data (quiz results, completed lessons, and notebook activity).',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            height: 1.6,
-            color: const Color(0xFF334155),
-          ),
+        _buildBulletPoint(
+          'Educators: Access relevant information about their enrolled Learners.',
         ),
-        const SizedBox(height: 14),
-        Text(
-          '2. How We Use Your Information',
-          style: GoogleFonts.outfit(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
-          ),
+        _buildBulletPoint(
+          'Validators: Review Educator applications and submitted educational materials.',
+        ),
+        _buildBulletPoint(
+          'Super-Admins: Manage accounts, applications, and platform activities.',
+        ),
+        const SizedBox(height: 4),
+        _buildLegalBody(
+          'Information may also be processed by third-party providers necessary for Grammatica\'s services.',
+        ),
+        _buildLegalSectionTitle('5. Third-Party Services'),
+        _buildLegalBody(
+          'Grammatica uses Google Sign-In for authentication and Google Gemini for AI-assisted features. Google Meet, Zoom, and Microsoft Teams may be used for mentorship sessions. These providers have their own privacy policies and data-handling practices.',
+        ),
+        _buildLegalSectionTitle('6. AI-Assisted Processing'),
+        _buildLegalBody(
+          'Information and documents submitted through AI Notebook may be processed by Google Gemini to generate lessons, quizzes, and other educational materials. Users should avoid uploading unnecessary personal or confidential information.',
+        ),
+        _buildLegalSectionTitle('7. Speech and Pronunciation Data'),
+        _buildLegalBody(
+          'Grammatica uses Vosk and Web Speech APIs for English speech recognition and pronunciation activities. Audio processing depends on the technology and features used.',
+        ),
+        _buildLegalSectionTitle('8. Data Storage and Security'),
+        _buildLegalBody(
+          'Grammatica applies reasonable security measures to protect personal information against unauthorized access, disclosure, alteration, or loss.',
+        ),
+        _buildLegalSectionTitle('9. Data Retention'),
+        _buildLegalBody(
+          'Personal information is retained only as long as necessary for educational, operational, and legal purposes. Records may be deleted or anonymized when no longer needed, subject to applicable requirements.',
+        ),
+        _buildLegalSectionTitle('10. User Privacy Rights'),
+        _buildLegalBody(
+          'Under the Philippine Data Privacy Act of 2012, users may exercise their applicable rights, including:',
         ),
         const SizedBox(height: 6),
-        Text(
-          'Your data is used exclusively to facilitate your learning journey, track your grammar proficiency progress, enable community interactions, and optimize educational resources.',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            height: 1.6,
-            color: const Color(0xFF334155),
-          ),
+        _buildBulletPoint('Accessing their personal information.'),
+        _buildBulletPoint('Correcting inaccurate details.'),
+        _buildBulletPoint(
+          'Requesting deletion or blocking when legally permitted.',
         ),
-        const SizedBox(height: 14),
-        Text(
-          '3. Data Protection and Security',
-          style: GoogleFonts.outfit(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
-          ),
+        _buildBulletPoint('Objecting to certain data processing activities.'),
+        _buildBulletPoint(
+          'Requesting a copy of their information when applicable.',
         ),
-        const SizedBox(height: 6),
-        Text(
-          'We implement industry-standard encryption, strict access controls, and secure database practices to ensure that your personal information is safeguarded at all times.',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            height: 1.6,
-            color: const Color(0xFF334155),
-          ),
+        _buildBulletPoint(
+          'Filing a complaint with the National Privacy Commission.',
+        ),
+        _buildLegalSectionTitle('11. Account Deactivation and Deletion'),
+        _buildLegalBody(
+          'Eligible users may deactivate or request deletion of their accounts through available account settings. Certain records may be retained when required by law or for legitimate purposes.',
+        ),
+        _buildLegalSectionTitle('12. Privacy of Minors'),
+        _buildLegalBody(
+          'Grammatica recognizes that some users may be below 18 years old. Parental or legal guardian consent will be obtained when required by applicable laws.',
+        ),
+        _buildLegalSectionTitle('13. Changes to This Policy'),
+        _buildLegalBody(
+          'Grammatica may revise this Privacy Policy when its services or data-handling practices change. Updated versions will be made available through the platform.',
+        ),
+        _buildLegalSectionTitle('14. Contact Information'),
+        _buildLegalBody(
+          'For privacy-related questions, requests, or concerns, users may contact:\n\nGrammatica Privacy Support\nEmail: grammatica.support@gmail.com',
         ),
       ],
     );
@@ -2089,70 +2231,95 @@ class _LandingPageState extends State<LandingPage>
   void _showTermsDialog(BuildContext context) {
     _showInfoModal(
       context: context,
-      title: 'Terms and Condition',
+      title: 'GRAMMATICA — TERMS AND CONDITIONS',
       icon: Icons.gavel_rounded,
       children: [
         Text(
-          'Last Updated: 2026',
+          'Effective Date: October 31, 2026',
           style: GoogleFonts.inter(
             fontSize: 12.5,
             color: const Color(0xFF64748B),
-            fontStyle: FontStyle.italic,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 14),
-        Text(
-          '1. Acceptance of Terms',
-          style: GoogleFonts.outfit(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
-          ),
+        _buildLegalSectionTitle('1. Introduction'),
+        _buildLegalBody(
+          'Grammatica is an AI-assisted English learning application that provides interactive lessons, educational activities, assessments, and learning support. By using the platform, users agree to these Terms and Conditions.',
         ),
+        _buildLegalSectionTitle('2. User Roles'),
+        _buildLegalBody('Grammatica supports four user roles:'),
         const SizedBox(height: 6),
-        Text(
-          'By using Grammatica, you agree to these Terms and Conditions and applicable laws. If you do not agree with any part, please do not use the service.',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            height: 1.6,
-            color: const Color(0xFF334155),
-          ),
+        _buildBulletPoint(
+          'Learners: Access lessons, complete activities, track progress, enroll in Educators, and apply for the Educator role.',
         ),
-        const SizedBox(height: 14),
-        Text(
-          '2. Educational Purpose and Content',
-          style: GoogleFonts.outfit(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
-          ),
+        _buildBulletPoint(
+          'Educators: Create lessons, quizzes, and learning materials, manage enrolled learners, and conduct mentorship sessions.',
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Grammatica and its educators provide educational lessons, quizzes, and learning materials. Content is intended for educational purposes and should not be redistributed without permission.',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            height: 1.6,
-            color: const Color(0xFF334155),
-          ),
+        _buildBulletPoint(
+          'Validators: Review educational content and applications, then approve or reject submissions.',
         ),
-        const SizedBox(height: 14),
-        Text(
-          '3. User Conduct',
-          style: GoogleFonts.outfit(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
-          ),
+        _buildBulletPoint(
+          'Super-Admins: Manage accounts, official lessons, applications, platform content, and system settings.',
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Users agree to engage respectfully within community hubs, conferences, and collaborative sessions. Harassment, unauthorized access, or abusive behavior will result in account termination.',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            height: 1.6,
-            color: const Color(0xFF334155),
-          ),
+        _buildLegalSectionTitle('3. Accounts and Security'),
+        _buildLegalBody(
+          'Users must provide accurate registration details and protect their login credentials. Unauthorized account access and misuse of another user\'s information are prohibited.',
+        ),
+        _buildLegalSectionTitle('4. Educator Applications'),
+        _buildLegalBody(
+          'Applicants must submit the required credentials for review. Approval depends on the platform\'s validation process and does not guarantee acceptance.',
+        ),
+        _buildLegalSectionTitle('5. Enrollment and Access'),
+        _buildLegalBody(
+          'Learners may browse Educators and enroll to access eligible courses, custom lessons, members-only content, and mentorship sessions. Removing an enrollment may affect access to restricted materials.',
+        ),
+        _buildLegalSectionTitle('6. Educational Content'),
+        _buildLegalBody(
+          'Users must submit appropriate educational materials and respect intellectual property rights. Grammatica may reject or archive content that violates platform guidelines. Archived lessons may be permanently deleted after 30 days if not restored.',
+        ),
+        _buildLegalSectionTitle('7. Artificial Intelligence'),
+        _buildLegalBody(
+          'Grammatica uses Google Gemini cloud services to assist in generating lessons, quizzes, and other educational materials. AI-generated content may contain errors and should be reviewed before educational use.',
+        ),
+        _buildLegalSectionTitle('8. Practice and Assessments'),
+        _buildLegalBody(
+          'Grammatica offers grammar, spelling, pronunciation, and English assessment activities. Speech recognition and pronunciation analysis are limited to English. Results do not guarantee specific learning outcomes.',
+        ),
+        _buildLegalSectionTitle('9. Mentorship Sessions'),
+        _buildLegalBody(
+          'Learners may schedule one-on-one sessions with Educators through supported conferencing services, including Google Meet, Zoom, and Microsoft Teams. Users must follow agreed schedules and respect other participants.',
+        ),
+        _buildLegalSectionTitle('10. User Conduct'),
+        _buildLegalBody(
+          'Users must not engage in harassment, upload harmful content, manipulate learning results, bypass security controls, or use Grammatica for unlawful activities. Violations may result in account restrictions or suspension.',
+        ),
+        _buildLegalSectionTitle('11. Intellectual Property'),
+        _buildLegalBody(
+          'Grammatica\'s software, branding, and original materials are protected by applicable laws. Users must not reproduce or distribute protected content without authorization.',
+        ),
+        _buildLegalSectionTitle('12. Account Deactivation and Deletion'),
+        _buildLegalBody(
+          'Eligible Learners, Educators, and Validators may deactivate or delete their accounts through available settings. Super-Admin accounts cannot be deleted through standard profile settings. Certain records may be retained when required by law.',
+        ),
+        _buildLegalSectionTitle('13. Service Limitations'),
+        _buildLegalBody(
+          'Grammatica depends on internet connectivity and external services for certain features. AI generation uses cloud-based models, while institutional multi-tenant administration, LMS LTI 1.3, and SCORM compliance are not supported.',
+        ),
+        _buildLegalSectionTitle('14. Limitation of Liability'),
+        _buildLegalBody(
+          'Grammatica does not guarantee uninterrupted service, error-free AI-generated content, or specific educational results. Nothing in these terms excludes liability that cannot legally be excluded.',
+        ),
+        _buildLegalSectionTitle('15. Changes to Terms'),
+        _buildLegalBody(
+          'Grammatica may update these terms as its features and services change. Revised terms will include an updated effective date.',
+        ),
+        _buildLegalSectionTitle('16. Governing Law'),
+        _buildLegalBody(
+          'These terms are governed by applicable laws of the Republic of the Philippines.',
+        ),
+        _buildLegalSectionTitle('17. Contact Information'),
+        _buildLegalBody(
+          'For questions or concerns, contact Grammatica through its official support channel.\n\nEmail: grammatica.support@gmail.com',
         ),
       ],
     );
@@ -2166,7 +2333,11 @@ class _LandingPageState extends State<LandingPage>
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 5, right: 8),
-            child: Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF81B655)),
+            child: Icon(
+              Icons.check_circle_rounded,
+              size: 16,
+              color: Color(0xFF81B655),
+            ),
           ),
           Expanded(
             child: Text(
@@ -2190,10 +2361,7 @@ class _LandingFaqAccordion extends StatefulWidget {
   final String question;
   final String answer;
 
-  const _LandingFaqAccordion({
-    required this.question,
-    required this.answer,
-  });
+  const _LandingFaqAccordion({required this.question, required this.answer});
 
   @override
   State<_LandingFaqAccordion> createState() => _LandingFaqAccordionState();
@@ -2209,7 +2377,9 @@ class _LandingFaqAccordionState extends State<_LandingFaqAccordion> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _isExpanded ? const Color(0xFF81B655) : const Color(0xFFE2E8F0),
+          color: _isExpanded
+              ? const Color(0xFF81B655)
+              : const Color(0xFFE2E8F0),
           width: _isExpanded ? 1.5 : 1.0,
         ),
         boxShadow: [
@@ -2240,8 +2410,12 @@ class _LandingFaqAccordionState extends State<_LandingFaqAccordion> {
             ),
           ),
           trailing: Icon(
-            _isExpanded ? Icons.remove_circle_outline_rounded : Icons.add_circle_outline_rounded,
-            color: _isExpanded ? const Color(0xFF81B655) : const Color(0xFF94A3B8),
+            _isExpanded
+                ? Icons.remove_circle_outline_rounded
+                : Icons.add_circle_outline_rounded,
+            color: _isExpanded
+                ? const Color(0xFF81B655)
+                : const Color(0xFF94A3B8),
           ),
           children: [
             Padding(

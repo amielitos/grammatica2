@@ -212,6 +212,7 @@ class NotebookService {
     _localOutputs[id] = [];
 
     await _saveToLocalSession();
+    _syncNotebookToFirestore(id);
     _emitNotebookUpdate(id);
     return notebook;
   }
@@ -222,6 +223,7 @@ class NotebookService {
     final updated = notebook.copyWith(updatedAt: DateTime.now());
     _localNotebooks[notebook.id] = updated;
     await _saveToLocalSession();
+    _syncNotebookToFirestore(notebook.id);
     _emitNotebookUpdate(notebook.id);
   }
 
@@ -233,7 +235,212 @@ class NotebookService {
     _localOutputs.remove(notebookId);
 
     await _saveToLocalSession();
+    try {
+      await FirebaseFirestore.instance
+          .collection('notebooks')
+          .doc(notebookId)
+          .delete();
+    } catch (_) {}
     _emitNotebookUpdate(notebookId);
+  }
+
+  /// Returns the primary uploaded source file name for a given [notebookId] if available.
+  String? getPrimarySourceName(String? notebookId) {
+    if (notebookId == null || notebookId.isEmpty) return null;
+    final sources = _localSources[notebookId];
+    if (sources == null || sources.isEmpty) return null;
+    for (final s in sources) {
+      final metaFile = (s.metadata['filename'] as String?)?.trim() ??
+          (s.metadata['fileName'] as String?)?.trim() ??
+          '';
+      if (metaFile.isNotEmpty) return metaFile;
+      if (s.title.trim().isNotEmpty) return s.title.trim();
+    }
+    return null;
+  }
+
+  Future<void> _syncNotebookToFirestore(String notebookId) async {
+    final nb = _localNotebooks[notebookId];
+    if (nb == null) return;
+    try {
+      final nbRef =
+          FirebaseFirestore.instance.collection('notebooks').doc(notebookId);
+      await nbRef.set({
+        ...nb.toJsonMap(),
+        'sourcesSnapshot':
+            (_localSources[notebookId] ?? []).map((s) => s.toJsonMap()).toList(),
+        'outputsSnapshot':
+            (_localOutputs[notebookId] ?? []).map((o) => o.toJsonMap()).toList(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error syncing notebook $notebookId to Firestore: $e');
+    }
+  }
+
+  final Set<String> _hydratedUsers = {};
+
+  /// Ensures all notebooks (including already-published ones) for [userId] are
+  /// hydrated from Firestore so published AI notebooks remain visible in AI Notebooks.
+  Future<void> _hydratePublishedAndCloudNotebooks(String userId) async {
+    if (userId.isEmpty || _hydratedUsers.contains(userId)) return;
+    _hydratedUsers.add(userId);
+    await _loadFromLocalSession();
+    bool changed = false;
+
+    try {
+      // 1. Load saved notebooks from Firestore `notebooks` collection
+      final nbSnap = await FirebaseFirestore.instance
+          .collection('notebooks')
+          .where('createdBy', isEqualTo: userId)
+          .get();
+      for (final doc in nbSnap.docs) {
+        final data = doc.data();
+        final nbId = doc.id;
+        if (!_localNotebooks.containsKey(nbId)) {
+          _localNotebooks[nbId] = Notebook.fromMap(nbId, data);
+          final rawSources = data['sourcesSnapshot'] as List<dynamic>?;
+          if (rawSources != null) {
+            _localSources[nbId] = rawSources
+                .map((s) => NotebookSource.fromMap(
+                      (s as Map)['id'] as String? ?? '',
+                      Map<String, dynamic>.from(s),
+                    ))
+                .toList();
+          }
+          final rawOutputs = data['outputsSnapshot'] as List<dynamic>?;
+          if (rawOutputs != null) {
+            _localOutputs[nbId] = rawOutputs
+                .map((o) => NotebookOutput.fromMap(
+                      (o as Map)['id'] as String? ?? '',
+                      Map<String, dynamic>.from(o),
+                    ))
+                .toList();
+          }
+          changed = true;
+        }
+      }
+
+      // 2. Reconstruct any published notebooks from `lessons` and `published_content`
+      //    so previously published AI notebooks stay in the AI Notebooks section.
+      final lessonsSnap = await FirebaseFirestore.instance
+          .collection('lessons')
+          .where('createdByUid', isEqualTo: userId)
+          .get();
+      final pubSnap = await FirebaseFirestore.instance
+          .collection('published_content')
+          .where('createdByUid', isEqualTo: userId)
+          .get();
+
+      for (final lDoc in lessonsSnap.docs) {
+        final lData = lDoc.data();
+        if (lData['isArchived'] == true) continue;
+        final nbId = (lData['notebookId'] as String?)?.trim() ?? '';
+        if (nbId.isEmpty) continue;
+
+        final createdAt = (lData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        final lessonTitle = (lData['title'] as String?)?.trim() ?? 'Published Notebook';
+        final lessonPrompt = (lData['prompt'] as String?) ?? '';
+        final attName = (lData['attachmentName'] as String?)?.trim() ?? '';
+
+        final existingOutputs = List<NotebookOutput>.from(_localOutputs[nbId] ?? []);
+        final lessonOutId = 'out_lesson_${lDoc.id}';
+        final hasLessonOut = existingOutputs.any(
+          (o) => o.type == NotebookOutputType.lesson || o.publishedId == lDoc.id,
+        );
+        if (!hasLessonOut) {
+          existingOutputs.add(
+            NotebookOutput(
+              id: lessonOutId,
+              notebookId: nbId,
+              type: NotebookOutputType.lesson,
+              title: lessonTitle,
+              data: {
+                'title': lessonTitle,
+                'prompt': lessonPrompt,
+                'markdown': lessonPrompt,
+              },
+              sourceIds: const [],
+              generatedAt: createdAt,
+              publishedId: lDoc.id,
+              publishedCollection: 'lessons',
+            ),
+          );
+          changed = true;
+        }
+
+        // Also attach companion published_content items for this notebookId
+        final companions = pubSnap.docs.where(
+          (p) => (p.data()['notebookId'] as String?)?.trim() == nbId,
+        );
+        for (final cDoc in companions) {
+          final cData = cDoc.data();
+          final typeStr = (cData['type'] as String?) ?? '';
+          final outType = NotebookOutputType.fromString(typeStr);
+          final alreadyHas = existingOutputs.any(
+            (o) => o.publishedId == cDoc.id || o.type == outType,
+          );
+          if (!alreadyHas) {
+            existingOutputs.add(
+              NotebookOutput(
+                id: (cData['outputId'] as String?)?.isNotEmpty == true
+                    ? cData['outputId'] as String
+                    : 'out_${cDoc.id}',
+                notebookId: nbId,
+                type: outType,
+                title: (cData['title'] as String?) ?? outType.displayName,
+                data: Map<String, dynamic>.from(cData['data'] as Map? ?? {}),
+                sourceIds: const [],
+                generatedAt: (cData['createdAt'] as Timestamp?)?.toDate() ?? createdAt,
+                publishedId: cDoc.id,
+                publishedCollection: 'published_content',
+              ),
+            );
+            changed = true;
+          }
+        }
+
+        _localOutputs[nbId] = existingOutputs;
+
+        final existingSources = List<NotebookSource>.from(_localSources[nbId] ?? []);
+        if (existingSources.isEmpty && attName.isNotEmpty) {
+          existingSources.add(
+            NotebookSource(
+              id: 'src_${lDoc.id}',
+              notebookId: nbId,
+              type: SourceType.pdf,
+              title: attName,
+              rawContent: lessonPrompt,
+              createdAt: createdAt,
+              processingStatus: SourceProcessingStatus.ready,
+            ),
+          );
+          _localSources[nbId] = existingSources;
+          changed = true;
+        }
+
+        if (!_localNotebooks.containsKey(nbId)) {
+          _localNotebooks[nbId] = Notebook(
+            id: nbId,
+            title: lessonTitle,
+            description: 'Published curriculum notebook',
+            createdBy: userId,
+            createdAt: createdAt,
+            updatedAt: createdAt,
+            sourceIds: existingSources.map((s) => s.id).toList(),
+            outputIds: existingOutputs.map((o) => o.id).toList(),
+            tags: const ['Published'],
+          );
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        await _saveToLocalSession();
+        _emitAllUpdates();
+      }
+    } catch (e) {
+      debugPrint('Error hydrating published notebooks: $e');
+    }
   }
 
   /// Fetches a notebook by ID synchronously if loaded, or async.
@@ -283,9 +490,11 @@ class NotebookService {
     return _notebookControllers[notebookId]!.stream;
   }
 
-  /// Streams all notebooks for the user from local session.
+  /// Streams all notebooks for the user from local session (hydrated with published notebooks).
   Stream<List<Notebook>> listUserNotebooks(String userId) {
-    _loadFromLocalSession();
+    _loadFromLocalSession().then((_) {
+      _hydratePublishedAndCloudNotebooks(userId);
+    });
     // Seed current value
     Timer.run(() {
       final list = _localNotebooks.values
@@ -348,6 +557,7 @@ class NotebookService {
     }
 
     await _saveToLocalSession();
+    _syncNotebookToFirestore(notebookId);
     _emitSourcesUpdate(notebookId);
   }
 
@@ -360,6 +570,7 @@ class NotebookService {
       list[idx] = source;
       _localSources[notebookId] = list;
       await _saveToLocalSession();
+      _syncNotebookToFirestore(notebookId);
       _emitSourcesUpdate(notebookId);
     }
   }
@@ -382,6 +593,7 @@ class NotebookService {
     }
 
     await _saveToLocalSession();
+    _syncNotebookToFirestore(notebookId);
     _emitSourcesUpdate(notebookId);
   }
 
@@ -433,6 +645,7 @@ class NotebookService {
     }
 
     await _saveToLocalSession();
+    _syncNotebookToFirestore(notebookId);
     _emitOutputsUpdate(notebookId);
   }
 
@@ -445,6 +658,7 @@ class NotebookService {
       list[idx] = output;
       _localOutputs[notebookId] = list;
       await _saveToLocalSession();
+      _syncNotebookToFirestore(notebookId);
       _emitOutputsUpdate(notebookId);
     }
   }
@@ -467,6 +681,7 @@ class NotebookService {
     }
 
     await _saveToLocalSession();
+    _syncNotebookToFirestore(notebookId);
     _emitOutputsUpdate(notebookId);
   }
 
@@ -515,6 +730,14 @@ class NotebookService {
         : UserRole.learner;
     final isGrammaticaLesson =
         role == UserRole.admin || role == UserRole.superadmin;
+
+    final nbSources = _localSources[notebookId] ?? [];
+    final String? uploadedSourceName = getPrimarySourceName(notebookId);
+    final String? uploadedSourceUrl = nbSources
+        .map((s) => s.storageUrl ?? s.originalUrl)
+        .whereType<String>()
+        .where((u) => u.trim().isNotEmpty)
+        .firstOrNull;
 
     String lessonId;
     String? resolvedExistingId = existingOutput.publishedId;
@@ -577,6 +800,8 @@ class NotebookService {
         title: title.trim(),
         prompt: prompt.trim(),
         answer: '',
+        attachmentName: uploadedSourceName,
+        attachmentUrl: uploadedSourceUrl,
         isVisible: isVisible,
         visibleTo: visibleTo,
         isMembersOnly: isMembersOnly,
@@ -591,6 +816,8 @@ class NotebookService {
         title: title.trim(),
         prompt: prompt.trim(),
         answer: '',
+        attachmentName: uploadedSourceName,
+        attachmentUrl: uploadedSourceUrl,
         isVisible: isVisible,
         visibleTo: visibleTo,
         isMembersOnly: isMembersOnly,

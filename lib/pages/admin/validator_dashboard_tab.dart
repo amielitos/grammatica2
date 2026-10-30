@@ -9,7 +9,6 @@ import '../../widgets/application_preview_widgets.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../services/auth_service.dart';
-import '../../widgets/feedback_dialog.dart';
 
 // ─────────────────────────────────────────────
 //  Status label helpers
@@ -292,40 +291,6 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
                                         ],
                                       ),
                                     ),
-                                    InkWell(
-                                      onTap: () => FeedbackDialog.show(
-                                        context,
-                                        user: user,
-                                        userData: data,
-                                      ),
-                                      borderRadius: BorderRadius.circular(20),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.18),
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(
-                                            color: Colors.white.withValues(alpha: 0.35),
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: const Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.rate_review_rounded, color: Colors.white, size: 12),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              'Feedback',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 12),
@@ -366,10 +331,6 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-
-                    // ── Validator Feedback Banner (Sent to grammatica.support@gmail.com) ──
-                    _buildFeedbackBanner(context, user: user, userData: data, isDark: isDark),
                     const SizedBox(height: 20),
 
                     if (isUnderReview) ...[
@@ -616,92 +577,6 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildFeedbackBanner(
-    BuildContext context, {
-    required User user,
-    required Map<String, dynamic> userData,
-    required bool isDark,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF81B655).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.rate_review_rounded,
-              color: Color(0xFF81B655),
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Have feedback or suggestions?',
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Share your ideas, report issues, or rate your validator experience.',
-                  style: GoogleFonts.inter(
-                    fontSize: 11.5,
-                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.send_rounded, size: 14),
-            label: Text(
-              'Give Feedback',
-              style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-            onPressed: () => FeedbackDialog.show(
-              context,
-              user: user,
-              userData: userData,
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF81B655),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1275,7 +1150,7 @@ class _StatsGrid extends StatelessWidget {
                         onTap: () => onViewApproved?.call(1),
                       ),
                       _StatCard(
-                        label: 'Rejected Content',
+                        label: 'Declined Submissions',
                         value: rejectedLessonsCount + rejectedAppsCount,
                         icon: Icons.block_rounded,
                         color: _kRejected,
@@ -1285,16 +1160,14 @@ class _StatsGrid extends StatelessWidget {
 
                     return LayoutBuilder(
                       builder: (context, constraints) {
-                        final isNarrow = constraints.maxWidth < 600;
+                        final isNarrow = constraints.maxWidth < 640;
                         if (isNarrow) {
-                          return GridView.count(
-                            crossAxisCount: 2,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            mainAxisSpacing: 10,
-                            crossAxisSpacing: 10,
-                            childAspectRatio: 2.15,
-                            children: items,
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: items.map((w) => Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: w,
+                            )).toList(),
                           );
                         }
 
@@ -1344,16 +1217,15 @@ class _StatCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      height: 85,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1365,7 +1237,7 @@ class _StatCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
                 Container(
@@ -1374,9 +1246,9 @@ class _StatCard extends StatelessWidget {
                     color: color.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: color, size: 20),
+                  child: Icon(icon, color: color, size: 22),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1387,18 +1259,18 @@ class _StatCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : Colors.black87,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         label,
                         style: GoogleFonts.inter(
-                          fontSize: 11,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white60 : Colors.black54,
+                          color: isDark ? Colors.white60 : const Color(0xFF64748B),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1408,8 +1280,8 @@ class _StatCard extends StatelessWidget {
                 ),
                 Icon(
                   Icons.arrow_forward_ios_rounded,
-                  size: 12,
-                  color: isDark ? Colors.white24 : Colors.black26,
+                  size: 13,
+                  color: isDark ? Colors.white30 : Colors.black26,
                 ),
               ],
             ),
@@ -1421,7 +1293,7 @@ class _StatCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-//  Credential thumbnail row
+//  Credentials thumbnail & review widget
 // ─────────────────────────────────────────────
 class _CredentialThumbnailRow extends StatelessWidget {
   final EducatorApplication app;
@@ -1787,8 +1659,6 @@ class _CredentialThumbnailRow extends StatelessWidget {
     );
   }
 }
-
-
 
 // ─────────────────────────────────────────────
 //  Status badge

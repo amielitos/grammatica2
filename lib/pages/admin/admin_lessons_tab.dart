@@ -119,10 +119,12 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
 
   ContentVisibility _visibility = ContentVisibility.public;
   int _tabIndex = 0;
+  int _generatorMode = 0; // 0: AI Prompt, 1: PDF Document, 2: AI Notebook Studio
 
   List<Lesson> _creatorLessons = [];
   String? _existingLessonIdForSameCreator;
   String? _titleError;
+  String? _promptError;
 
   @override
   void initState() {
@@ -271,24 +273,18 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                   Center(
                     child: Container(
                       height: 52,
-                      width: isEducator ? 340 : 500,
+                      width: isEducator ? 360 : 540,
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 15,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
+                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
                       ),
                       child: Row(
                         children: [
-                          _buildTabBtn('Lessons', 0),
-                          _buildTabBtn('Quizzes', 1),
-                          if (!isEducator) _buildTabBtn('Assessments', 2),
+                          _buildTabBtn('Lessons', Icons.auto_stories_rounded, 0),
+                          _buildTabBtn('Quizzes', Icons.quiz_rounded, 1),
+                          if (!isEducator) _buildTabBtn('Assessments', Icons.assignment_rounded, 2),
                         ],
                       ),
                     ),
@@ -343,8 +339,9 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
     );
   }
 
-  Widget _buildTabBtn(String label, int index) {
+  Widget _buildTabBtn(String label, IconData icon, int index) {
     final selected = _tabIndex == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _tabIndex = index),
@@ -353,15 +350,35 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           decoration: BoxDecoration(
             color: selected ? AppColors.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    )
+                  ]
+                : null,
           ),
           alignment: Alignment.center,
-          child: Text(
-            label,
-            style: GoogleFonts.inter(
-              color: selected ? Colors.white : AppColors.textSecondary,
-              fontWeight: selected ? FontWeight.bold : FontWeight.w600,
-              fontSize: 14,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: selected ? Colors.white : (isDark ? Colors.white70 : AppColors.textSecondary),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  color: selected ? Colors.white : (isDark ? Colors.white70 : AppColors.textSecondary),
+                  fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -442,142 +459,290 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Widget _buildLessonLeftCol(UserRole? role, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF333333) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Lesson Details',
-            style: GoogleFonts.outfit(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : const Color(0xFF2A2A2A),
-            ),
-          ),
-          const SizedBox(height: 24),
-          _buildStyledTextField(
-            controller: _title,
-            label: 'Lesson Title *',
-            hint: 'e.g. Introduction to Nouns',
-            icon: Icons.menu_book_rounded,
-            isDark: isDark,
-            errorText: _titleError,
-          ),
-          if (_existingLessonIdForSameCreator != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Card 1: Lesson Details ──
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF333333) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
-              child: Row(
+            ],
+            border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF6366F1)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Existing lesson with this title found in your account. Saving will Update your existing lesson.',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF6366F1),
-                      ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
                     ),
+                    child: const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Lesson Details',
+                        style: GoogleFonts.outfit(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF2A2A2A),
+                        ),
+                      ),
+                      Text(
+                        'Title, cover image, and student visibility',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ),
-          ],
-          const SizedBox(height: 24),
-          _buildTitlePageImagePicker(isDark),
-          const SizedBox(height: 24),
-          _buildVisibilitySettings(role, isDark),
-          const SizedBox(height: 32),
-          
-          // AI Generation Config
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'AI Generation Config',
-                  style: GoogleFonts.outfit(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : const Color(0xFF2A2A2A),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // AI Notebook Studio Bridge
+              const SizedBox(height: 20),
+              _buildStyledTextField(
+                controller: _title,
+                label: 'Lesson Title *',
+                hint: 'e.g. Master English Tenses in Order',
+                icon: Icons.menu_book_rounded,
+                isDark: isDark,
+                errorText: _titleError,
+              ),
+              if (_existingLessonIdForSameCreator != null) ...[
+                const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.auto_awesome_rounded, color: AppColors.primary, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'AI Notebook Studio',
-                            style: GoogleFonts.inter(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: isDark ? Colors.white : AppColors.textPrimary,
-                            ),
+                      const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFF6366F1)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Existing lesson with this title found in your account. Saving will Update your existing lesson.',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF6366F1),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Synthesize multiple PDFs and sources in your local notebook, or import generated lesson drafts directly here.',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: isDark ? Colors.white70 : AppColors.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              _buildTitlePageImagePicker(isDark),
+              const SizedBox(height: 20),
+              _buildVisibilitySettings(role, isDark),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // ── Card 2: Content Generation Studio ──
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF333333) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF88B342).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF88B342), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Content Generator',
+                        style: GoogleFonts.outfit(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF2A2A2A),
+                        ),
+                      ),
+                      Text(
+                        'Generate lesson content with AI or import documents',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+
+              // Segmented generator mode switcher
+              Container(
+                height: 44,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF262626) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    _buildGenModeBtn('AI Prompt', Icons.text_fields_rounded, 0, isDark),
+                    _buildGenModeBtn('PDF Document', Icons.picture_as_pdf_rounded, 1, isDark),
+                    _buildGenModeBtn('AI Notebook', Icons.menu_book_rounded, 2, isDark),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Generator Mode 0: AI Prompt
+              if (_generatorMode == 0) ...[
+                _buildStyledTextField(
+                  controller: _prompt,
+                  label: 'Lesson Topic / Prompt *',
+                  hint: 'Describe the topic, grammar rules, examples, and exercises to generate...',
+                  icon: Icons.lightbulb_rounded,
+                  maxLines: 3,
+                  isDark: isDark,
+                  errorText: _promptError,
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: (_isGeneratingFromPrompt || _isGeneratingFromPdf) ? null : _generateFromTextPrompt,
+                    icon: _isGeneratingFromPrompt
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.auto_awesome_rounded, size: 18),
+                    label: Text(
+                      _isGeneratingFromPrompt ? 'Generating Content...' : 'Generate from Prompt',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF88B342),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ]
+
+              // Generator Mode 1: PDF Document
+              else if (_generatorMode == 1) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF262626) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.picture_as_pdf_rounded, size: 40, color: Colors.red.shade400),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Upload a PDF Course Document',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : AppColors.textPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'AI will extract and format the text into interactive lesson blocks.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: (_isGeneratingFromPrompt || _isGeneratingFromPdf) ? null : _generateFromPdf,
+                        icon: _isGeneratingFromPdf
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.upload_file_rounded, size: 18),
+                        label: Text(_isGeneratingFromPdf ? 'Extracting & Generating...' : 'Select PDF & Generate'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ]
+
+              // Generator Mode 2: AI Notebook Studio
+              else ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF262626) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.library_books_rounded, size: 40, color: Color(0xFF6366F1)),
+                      const SizedBox(height: 8),
+                      Text(
+                        'AI Notebook Studio',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : AppColors.textPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Synthesize multiple PDFs and references in your studio, then import here.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 16),
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: 10,
+                        runSpacing: 10,
+                        alignment: WrapAlignment.center,
                         children: [
                           FilledButton.icon(
                             onPressed: _openNotebookSelectorForLesson,
                             icon: const Icon(Icons.download_rounded, size: 16),
-                            label: const Text('Import from AI Notebook'),
+                            label: const Text('Import from Notebook'),
                             style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              backgroundColor: const Color(0xFF6366F1),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                           ),
                           OutlinedButton.icon(
@@ -588,13 +753,12 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                               );
                             },
                             icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                            label: const Text('Open Notebook Studio'),
+                            label: const Text('Open Studio'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: isDark ? Colors.white : const Color(0xFF2A2A2A),
                               side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade400),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
@@ -602,56 +766,46 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
-                const Divider(),
-                const SizedBox(height: 12),
-
-                Text('Quick Single-Source Generator', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : const Color(0xFF2A2A2A))),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: (_isGeneratingFromPrompt || _isGeneratingFromPdf || _prompt.text.trim().isEmpty) ? null : _generateFromTextPrompt,
-                      icon: _isGeneratingFromPrompt 
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.auto_awesome_rounded),
-                      label: Text(_isGeneratingFromPrompt ? 'Generating...' : 'Generate from Prompt'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF88B342),
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: (_isGeneratingFromPrompt || _isGeneratingFromPdf) ? null : _generateFromPdf,
-                      icon: _isGeneratingFromPdf 
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
-                          : const Icon(Icons.picture_as_pdf_rounded),
-                      label: Text(_isGeneratingFromPdf ? 'Generating...' : 'Select PDF & Generate'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: isDark ? Colors.white : const Color(0xFF2A2A2A),
-                        side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade400),
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ],
-                ),
               ],
-            ),
+            ],
           ),
-          const SizedBox(height: 24),
-          _buildStyledTextField(
-            controller: _prompt,
-            label: 'Put Your Prompt Here',
-            hint: 'Put Your Prompt Here',
-            icon: Icons.lightbulb_rounded,
-            maxLines: 2,
-            isDark: isDark,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGenModeBtn(String label, IconData icon, int mode, bool isDark) {
+    final isSelected = _generatorMode == mode;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _generatorMode = mode),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
           ),
-        ],
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: isSelected ? Colors.white : (isDark ? Colors.white60 : AppColors.textSecondary),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? Colors.white : (isDark ? Colors.white70 : AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -677,6 +831,9 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
       onChanged: (_) => setState(() {
         if (controller == _title && _titleError != null) {
           _titleError = null;
+        }
+        if (controller == _prompt && _promptError != null) {
+          _promptError = null;
         }
       }),
       decoration: InputDecoration(
@@ -1515,11 +1672,13 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
 
     final promptText = _prompt.text.trim();
     if (promptText.isEmpty) {
+      setState(() => _promptError = 'Please enter a lesson topic or prompt');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a lesson topic or prompt first in the "Put Your Prompt Here" field.')),
+        const SnackBar(content: Text('Please enter a lesson topic or prompt first.')),
       );
       return;
     }
+    setState(() => _promptError = null);
 
     setState(() => _isGeneratingFromPrompt = true);
 
@@ -1713,6 +1872,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
       );
 
       final targetLessonId = _selectedLessonId ?? _existingLessonIdForSameCreator;
+      final bool isEditingExisting = targetLessonId != null;
 
       if (targetLessonId == null) {
         await DatabaseService.instance.createLesson(
@@ -1738,6 +1898,7 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
           isGrammaticaLesson: lessonData.isGrammaticaLesson,
           quizId: lessonData.quizId,
           imageUrl: lessonData.imageUrl,
+          isUpdate: isEditingExisting,
         );
       }
       await _fetchCreatorLessons();

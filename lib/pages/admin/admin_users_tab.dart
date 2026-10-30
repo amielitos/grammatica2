@@ -71,24 +71,64 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
         return StreamBuilder<List<Map<String, dynamic>>>(
           stream: _usersStream,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
             var allUsers = snapshot.data!;
             var users = List<Map<String, dynamic>>.from(allUsers);
 
             // Calculate Counts
-            final adminCount = allUsers.where((u) => (u['role'] ?? '').toString().toUpperCase() == 'ADMIN').length;
-            final validatorCount = allUsers.where((u) => (u['role'] ?? '').toString().toUpperCase() == 'VALIDATOR').length;
-            final educatorCount = allUsers.where((u) => (u['role'] ?? '').toString().toUpperCase() == 'EDUCATOR').length;
-            final learnerCount = allUsers.where((u) => (u['role'] ?? '').toString().toUpperCase() == 'LEARNER').length;
-            final archivedCount = allUsers.where((u) => (u['isArchived'] == true) || (u['status'] ?? '').toString().toUpperCase() == 'ARCHIVED').length;
+            final adminCount = allUsers
+                .where(
+                  (u) => (u['role'] ?? '').toString().toUpperCase() == 'ADMIN',
+                )
+                .length;
+            final validatorCount = allUsers
+                .where(
+                  (u) =>
+                      (u['role'] ?? '').toString().toUpperCase() == 'VALIDATOR',
+                )
+                .length;
+            final educatorCount = allUsers
+                .where(
+                  (u) =>
+                      (u['role'] ?? '').toString().toUpperCase() == 'EDUCATOR',
+                )
+                .length;
+            final learnerCount = allUsers
+                .where(
+                  (u) =>
+                      (u['role'] ?? '').toString().toUpperCase() == 'LEARNER',
+                )
+                .length;
+            final archivedCount = allUsers
+                .where(
+                  (u) =>
+                      (u['isArchived'] == true) ||
+                      (u['status'] ?? '').toString().toUpperCase() ==
+                          'ARCHIVED',
+                )
+                .length;
 
             // Filter by role or archive if selected
             if (_selectedRoleFilter == 'ARCHIVED') {
-              users = users.where((u) => (u['isArchived'] == true) || (u['status'] ?? '').toString().toUpperCase() == 'ARCHIVED').toList();
+              users = users
+                  .where(
+                    (u) =>
+                        (u['isArchived'] == true) ||
+                        (u['status'] ?? '').toString().toUpperCase() ==
+                            'ARCHIVED',
+                  )
+                  .toList();
             } else if (_selectedRoleFilter != 'ALL') {
-              users = users.where((u) => (u['role'] ?? '').toString().toUpperCase() == _selectedRoleFilter).toList();
+              users = users
+                  .where(
+                    (u) =>
+                        (u['role'] ?? '').toString().toUpperCase() ==
+                        _selectedRoleFilter,
+                  )
+                  .toList();
             }
 
             if (_searchQuery.isNotEmpty) {
@@ -108,9 +148,13 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   (b['username'] ?? '').toString().toLowerCase(),
                 );
               } else if (_selectedFilter == 'Role') {
-                cmp = (a['role'] ?? '').toString().compareTo((b['role'] ?? '').toString());
+                cmp = (a['role'] ?? '').toString().compareTo(
+                  (b['role'] ?? '').toString(),
+                );
               } else if (_selectedFilter == 'Status') {
-                cmp = (a['status'] ?? '').toString().compareTo((b['status'] ?? '').toString());
+                cmp = (a['status'] ?? '').toString().compareTo(
+                  (b['status'] ?? '').toString(),
+                );
               } else if (_selectedFilter == 'Create Date') {
                 final tsA = a['createdAt'] as Timestamp?;
                 final tsB = b['createdAt'] as Timestamp?;
@@ -140,11 +184,34 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             if (_currentPage < 1) {
               _currentPage = 1;
             }
-            final startIndex = totalUsers == 0 ? 0 : (_currentPage - 1) * _pageSize;
-            final endIndex = (startIndex + _pageSize > totalUsers) ? totalUsers : (startIndex + _pageSize);
-            final paginatedUsers = users.skip(startIndex).take(_pageSize).toList();
+            final startIndex = totalUsers == 0
+                ? 0
+                : (_currentPage - 1) * _pageSize;
+            final endIndex = (startIndex + _pageSize > totalUsers)
+                ? totalUsers
+                : (startIndex + _pageSize);
+            final paginatedUsers = users
+                .skip(startIndex)
+                .take(_pageSize)
+                .toList();
 
             final isMobile = constraints.maxWidth < 600;
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+            final tableHeaderBg = isDark
+                ? const Color(0xFF0F172A)
+                : const Color(0xFFF8FAFC);
+            final borderColor = isDark
+                ? const Color(0xFF334155)
+                : const Color(0xFFE2E8F0);
+            final dividerColor = isDark
+                ? const Color(0xFF334155)
+                : const Color(0xFFF1F5F9);
+            final textPrimary = isDark ? Colors.white : Colors.black87;
+            final textSecondary = isDark
+                ? Colors.white70
+                : Colors.grey.shade600;
+            final textMuted = isDark ? Colors.white38 : Colors.grey.shade400;
 
             return SingleChildScrollView(
               key: const PageStorageKey('admin_users_scroll_view'),
@@ -159,11 +226,16 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                          color: const Color(
+                            0xFF81B655,
+                          ).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.people_rounded,
-                            color: Color(0xFF81B655), size: 22),
+                        child: const Icon(
+                          Icons.people_rounded,
+                          color: Color(0xFF81B655),
+                          size: 22,
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -175,7 +247,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                               style: GoogleFonts.outfit(
                                 fontSize: isMobile ? 18 : 22,
                                 fontWeight: FontWeight.w800,
-                                color: Colors.black87,
+                                color: textPrimary,
                                 letterSpacing: -0.5,
                               ),
                             ),
@@ -183,22 +255,28 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                               'Manage roles and account status for all users',
                               style: GoogleFonts.inter(
                                 fontSize: 12,
-                                color: Colors.grey.shade500,
+                                color: textSecondary,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      if (widget.role == UserRole.superadmin || widget.role == UserRole.admin) ...[
+                      if (widget.role == UserRole.superadmin ||
+                          widget.role == UserRole.admin) ...[
                         const SizedBox(width: 12),
                         OutlinedButton.icon(
                           onPressed: () async {
-                            await BadgeService.instance.seedBadgesIfEmpty(force: true);
+                            await BadgeService.instance.seedBadgesIfEmpty(
+                              force: true,
+                            );
                             if (context.mounted) {
                               _showSeedBadgesListDialog();
                             }
                           },
-                          icon: const Icon(Icons.military_tech_rounded, size: 18),
+                          icon: const Icon(
+                            Icons.military_tech_rounded,
+                            size: 18,
+                          ),
                           label: Text(
                             'Seed Badges',
                             style: GoogleFonts.outfit(
@@ -207,8 +285,17 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                             ),
                           ),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            foregroundColor: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
+                            side: BorderSide(color: borderColor),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ],
@@ -227,8 +314,13 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF8B5CF6),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             elevation: 0,
                           ),
                         ),
@@ -247,27 +339,102 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       crossAxisSpacing: 10,
                       childAspectRatio: 1.6,
                       children: [
-                        _buildStatCard(label: 'Admins', count: adminCount, icon: Icons.shield_rounded, color: const Color(0xFF8B5CF6), roleKey: 'ADMIN', expanded: false),
-                        _buildStatCard(label: 'Validators', count: validatorCount, icon: Icons.verified_rounded, color: const Color(0xFF3B82F6), roleKey: 'VALIDATOR', expanded: false),
-                        _buildStatCard(label: 'Educators', count: educatorCount, icon: Icons.school_rounded, color: const Color(0xFF81B655), roleKey: 'EDUCATOR', expanded: false),
-                        _buildStatCard(label: 'Learners', count: learnerCount, icon: Icons.person_rounded, color: const Color(0xFFF59E0B), roleKey: 'LEARNER', expanded: false),
+                        _buildStatCard(
+                          label: 'Admins',
+                          count: adminCount,
+                          icon: Icons.shield_rounded,
+                          color: const Color(0xFF8B5CF6),
+                          roleKey: 'ADMIN',
+                          isDark: isDark,
+                          expanded: false,
+                        ),
+                        _buildStatCard(
+                          label: 'Validators',
+                          count: validatorCount,
+                          icon: Icons.verified_rounded,
+                          color: const Color(0xFF3B82F6),
+                          roleKey: 'VALIDATOR',
+                          isDark: isDark,
+                          expanded: false,
+                        ),
+                        _buildStatCard(
+                          label: 'Educators',
+                          count: educatorCount,
+                          icon: Icons.school_rounded,
+                          color: const Color(0xFF81B655),
+                          roleKey: 'EDUCATOR',
+                          isDark: isDark,
+                          expanded: false,
+                        ),
+                        _buildStatCard(
+                          label: 'Learners',
+                          count: learnerCount,
+                          icon: Icons.person_rounded,
+                          color: const Color(0xFFF59E0B),
+                          roleKey: 'LEARNER',
+                          isDark: isDark,
+                          expanded: false,
+                        ),
                         if (archivedCount > 0)
-                          _buildStatCard(label: 'Archived', count: archivedCount, icon: Icons.archive_outlined, color: const Color(0xFF64748B), roleKey: 'ARCHIVED', expanded: false),
+                          _buildStatCard(
+                            label: 'Archived',
+                            count: archivedCount,
+                            icon: Icons.archive_outlined,
+                            color: const Color(0xFF64748B),
+                            roleKey: 'ARCHIVED',
+                            isDark: isDark,
+                            expanded: false,
+                          ),
                       ],
                     )
                   else
                     Row(
                       children: [
-                        _buildStatCard(label: 'Admins', count: adminCount, icon: Icons.shield_rounded, color: const Color(0xFF8B5CF6), roleKey: 'ADMIN'),
+                        _buildStatCard(
+                          label: 'Admins',
+                          count: adminCount,
+                          icon: Icons.shield_rounded,
+                          color: const Color(0xFF8B5CF6),
+                          roleKey: 'ADMIN',
+                          isDark: isDark,
+                        ),
                         const SizedBox(width: 16),
-                        _buildStatCard(label: 'Validators', count: validatorCount, icon: Icons.verified_rounded, color: const Color(0xFF3B82F6), roleKey: 'VALIDATOR'),
+                        _buildStatCard(
+                          label: 'Validators',
+                          count: validatorCount,
+                          icon: Icons.verified_rounded,
+                          color: const Color(0xFF3B82F6),
+                          roleKey: 'VALIDATOR',
+                          isDark: isDark,
+                        ),
                         const SizedBox(width: 16),
-                        _buildStatCard(label: 'Educators', count: educatorCount, icon: Icons.school_rounded, color: const Color(0xFF81B655), roleKey: 'EDUCATOR'),
+                        _buildStatCard(
+                          label: 'Educators',
+                          count: educatorCount,
+                          icon: Icons.school_rounded,
+                          color: const Color(0xFF81B655),
+                          roleKey: 'EDUCATOR',
+                          isDark: isDark,
+                        ),
                         const SizedBox(width: 16),
-                        _buildStatCard(label: 'Learners', count: learnerCount, icon: Icons.person_rounded, color: const Color(0xFFF59E0B), roleKey: 'LEARNER'),
+                        _buildStatCard(
+                          label: 'Learners',
+                          count: learnerCount,
+                          icon: Icons.person_rounded,
+                          color: const Color(0xFFF59E0B),
+                          roleKey: 'LEARNER',
+                          isDark: isDark,
+                        ),
                         if (archivedCount > 0) ...[
                           const SizedBox(width: 16),
-                          _buildStatCard(label: 'Archived', count: archivedCount, icon: Icons.archive_outlined, color: const Color(0xFF64748B), roleKey: 'ARCHIVED'),
+                          _buildStatCard(
+                            label: 'Archived',
+                            count: archivedCount,
+                            icon: Icons.archive_outlined,
+                            color: const Color(0xFF64748B),
+                            roleKey: 'ARCHIVED',
+                            isDark: isDark,
+                          ),
                         ],
                       ],
                     ),
@@ -278,18 +445,54 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _buildRoleChip('ALL', 'All Users', allUsers.length, const Color(0xFF64748B)),
+                        _buildRoleChip(
+                          'ALL',
+                          'All Users',
+                          allUsers.length,
+                          const Color(0xFF64748B),
+                          isDark,
+                        ),
                         const SizedBox(width: 8),
-                        _buildRoleChip('ADMIN', 'Admins', adminCount, const Color(0xFF8B5CF6)),
+                        _buildRoleChip(
+                          'ADMIN',
+                          'Admins',
+                          adminCount,
+                          const Color(0xFF8B5CF6),
+                          isDark,
+                        ),
                         const SizedBox(width: 8),
-                        _buildRoleChip('VALIDATOR', 'Validators', validatorCount, const Color(0xFF3B82F6)),
+                        _buildRoleChip(
+                          'VALIDATOR',
+                          'Validators',
+                          validatorCount,
+                          const Color(0xFF3B82F6),
+                          isDark,
+                        ),
                         const SizedBox(width: 8),
-                        _buildRoleChip('EDUCATOR', 'Educators', educatorCount, const Color(0xFF81B655)),
+                        _buildRoleChip(
+                          'EDUCATOR',
+                          'Educators',
+                          educatorCount,
+                          const Color(0xFF81B655),
+                          isDark,
+                        ),
                         const SizedBox(width: 8),
-                        _buildRoleChip('LEARNER', 'Learners', learnerCount, const Color(0xFFF59E0B)),
+                        _buildRoleChip(
+                          'LEARNER',
+                          'Learners',
+                          learnerCount,
+                          const Color(0xFFF59E0B),
+                          isDark,
+                        ),
                         if (archivedCount > 0) ...[
                           const SizedBox(width: 8),
-                          _buildRoleChip('ARCHIVED', 'Archived', archivedCount, const Color(0xFF64748B)),
+                          _buildRoleChip(
+                            'ARCHIVED',
+                            'Archived',
+                            archivedCount,
+                            const Color(0xFF64748B),
+                            isDark,
+                          ),
                         ],
                       ],
                     ),
@@ -303,12 +506,14 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         child: Container(
                           height: 52,
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: cardBg,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            border: Border.all(color: borderColor),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
+                                color: Colors.black.withValues(
+                                  alpha: isDark ? 0.2 : 0.04,
+                                ),
                                 blurRadius: 10,
                                 offset: const Offset(0, 3),
                               ),
@@ -317,8 +522,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
                             children: [
-                              const Icon(Icons.search_rounded,
-                                  color: Color(0xFF81B655), size: 20),
+                              const Icon(
+                                Icons.search_rounded,
+                                color: Color(0xFF81B655),
+                                size: 20,
+                              ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: TextField(
@@ -326,10 +534,16 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                     _searchQuery = v;
                                     _currentPage = 1;
                                   }),
-                                  style: GoogleFonts.inter(fontSize: 14, color: Colors.black87),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: textPrimary,
+                                  ),
                                   decoration: InputDecoration(
                                     hintText: 'Search users by name or email…',
-                                    hintStyle: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 14),
+                                    hintStyle: GoogleFonts.inter(
+                                      color: textMuted,
+                                      fontSize: 14,
+                                    ),
                                     border: InputBorder.none,
                                   ),
                                 ),
@@ -340,17 +554,21 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       ),
                       const SizedBox(width: 12),
                       MaterialButton(
-                        onPressed: _showFilterDialog,
-                        color: Colors.white,
+                        onPressed: () => _showFilterDialog(isDark),
+                        color: cardBg,
                         elevation: 0,
                         height: 52,
                         minWidth: 52,
                         padding: const EdgeInsets.all(0),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
-                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          side: BorderSide(color: borderColor),
                         ),
-                        child: const Icon(Icons.tune_rounded, color: Colors.grey, size: 20),
+                        child: Icon(
+                          Icons.tune_rounded,
+                          color: textSecondary,
+                          size: 20,
+                        ),
                       ),
                     ],
                   ),
@@ -359,7 +577,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     padding: const EdgeInsets.only(left: 4),
                     child: Text(
                       'Sorted by: $_selectedFilter',
-                      style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade400),
+                      style: GoogleFonts.inter(fontSize: 12, color: textMuted),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -371,9 +589,19 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         padding: const EdgeInsets.all(48),
                         child: Column(
                           children: [
-                            Icon(Icons.person_search_rounded, size: 40, color: Colors.grey.shade300),
+                            Icon(
+                              Icons.person_search_rounded,
+                              size: 40,
+                              color: textMuted,
+                            ),
                             const SizedBox(height: 12),
-                            Text('No users found', style: GoogleFonts.inter(color: Colors.grey.shade400, fontSize: 14)),
+                            Text(
+                              'No users found',
+                              style: GoogleFonts.inter(
+                                color: textMuted,
+                                fontSize: 14,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -386,8 +614,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: paginatedUsers.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) => _buildUserCard(paginatedUsers[index]),
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) =>
+                              _buildUserCard(paginatedUsers[index], isDark),
                         ),
                         _buildPaginationBar(
                           totalUsers: totalUsers,
@@ -395,6 +625,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           startIndex: startIndex,
                           endIndex: endIndex,
                           isMobile: true,
+                          isDark: isDark,
                         ),
                       ],
                     )
@@ -405,12 +636,14 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         Container(
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: cardBg,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            border: Border.all(color: borderColor),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
+                                color: Colors.black.withValues(
+                                  alpha: isDark ? 0.2 : 0.04,
+                                ),
                                 blurRadius: 20,
                                 offset: const Offset(0, 6),
                               ),
@@ -419,34 +652,48 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           child: Column(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFF8FAFC),
-                                  borderRadius: BorderRadius.only(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 16,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tableHeaderBg,
+                                  borderRadius: const BorderRadius.only(
                                     topLeft: Radius.circular(20),
                                     topRight: Radius.circular(20),
                                   ),
                                 ),
                                 child: Row(
                                   children: [
-                                    _tableH('Username', 3),
-                                    _tableH('Email', 4),
-                                    _tableH('Role', 2),
-                                    _tableH('Status', 2),
-                                    _tableH('Educ. Dates', 2),
-                                    _tableH('Action', 4, center: true),
+                                    _tableH('Username', 3, isDark: isDark),
+                                    _tableH('Email', 4, isDark: isDark),
+                                    _tableH('Role', 2, isDark: isDark),
+                                    _tableH('Status', 2, isDark: isDark),
+                                    _tableH('Educ. Dates', 2, isDark: isDark),
+                                    _tableH(
+                                      'Action',
+                                      4,
+                                      center: true,
+                                      isDark: isDark,
+                                    ),
                                   ],
                                 ),
                               ),
-                              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                              Divider(height: 1, color: borderColor),
                               ListView.separated(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: paginatedUsers.length,
-                                separatorBuilder: (context, index) => const Divider(
-                                  height: 1, color: Color(0xFFF1F5F9), indent: 24, endIndent: 24,
+                                separatorBuilder: (context, index) => Divider(
+                                  height: 1,
+                                  color: dividerColor,
+                                  indent: 24,
+                                  endIndent: 24,
                                 ),
-                                itemBuilder: (context, index) => _buildUserRow(paginatedUsers[index]),
+                                itemBuilder: (context, index) => _buildUserRow(
+                                  paginatedUsers[index],
+                                  isDark,
+                                ),
                               ),
                               const SizedBox(height: 8),
                             ],
@@ -458,21 +705,28 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           startIndex: startIndex,
                           endIndex: endIndex,
                           isMobile: false,
+                          isDark: isDark,
                         ),
                       ],
                     ),
                 ],
               ),
             );
-
           },
         );
       },
     );
   }
 
-  Widget _buildRoleChip(String roleKey, String label, int count, Color color) {
+  Widget _buildRoleChip(
+    String roleKey,
+    String label,
+    int count,
+    Color color,
+    bool isDark,
+  ) {
     final isSelected = _selectedRoleFilter == roleKey;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
     return InkWell(
       onTap: () => setState(() {
         _selectedRoleFilter = roleKey;
@@ -483,10 +737,14 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? color : color.withValues(alpha: 0.08),
+          color: isSelected
+              ? color
+              : color.withValues(alpha: isDark ? 0.18 : 0.08),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? color : color.withValues(alpha: 0.2),
+            color: isSelected
+                ? color
+                : color.withValues(alpha: isDark ? 0.35 : 0.2),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -498,14 +756,16 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               style: GoogleFonts.outfit(
                 fontSize: 13,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                color: isSelected ? Colors.white : Colors.black87,
+                color: isSelected ? Colors.white : textPrimary,
               ),
             ),
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white.withValues(alpha: 0.25) : color.withValues(alpha: 0.15),
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.25)
+                    : color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -529,9 +789,12 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     required IconData icon,
     required Color color,
     required String roleKey,
+    required bool isDark,
     bool expanded = true,
   }) {
     final isSelected = _selectedRoleFilter == roleKey;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
     final cardWidget = InkWell(
       onTap: () => setState(() {
         _selectedRoleFilter = isSelected ? 'ALL' : roleKey;
@@ -542,15 +805,23 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 18),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.05) : Colors.white,
+          color: isSelected
+              ? color.withValues(alpha: isDark ? 0.2 : 0.05)
+              : cardBg,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: isSelected ? color : color.withValues(alpha: 0.18),
+            color: isSelected
+                ? color
+                : (isDark
+                      ? const Color(0xFF334155)
+                      : color.withValues(alpha: 0.18)),
             width: isSelected ? 2.5 : 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: isSelected ? 0.16 : 0.08),
+              color: color.withValues(
+                alpha: isSelected ? 0.16 : (isDark ? 0.2 : 0.08),
+              ),
               blurRadius: 16,
               offset: const Offset(0, 5),
             ),
@@ -572,7 +843,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 ),
                 if (isSelected)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: color,
                       borderRadius: BorderRadius.circular(8),
@@ -594,7 +868,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               style: GoogleFonts.outfit(
                 fontSize: 30,
                 fontWeight: FontWeight.w900,
-                color: Colors.black87,
+                color: textPrimary,
                 height: 1,
               ),
             ),
@@ -604,7 +878,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                color: Colors.grey.shade500,
+                color: isDark ? Colors.white60 : Colors.grey.shade500,
               ),
             ),
           ],
@@ -615,9 +889,12 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     return expanded ? Expanded(child: cardWidget) : cardWidget;
   }
 
-  void _showFilterDialog() {
+  void _showFilterDialog(bool isDark) {
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textPrimary = isDark ? Colors.white : Colors.black87;
     showModalBottomSheet(
       context: context,
+      backgroundColor: cardBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -630,7 +907,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: isDark ? const Color(0xFF334155) : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -641,7 +918,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 style: GoogleFonts.outfit(
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
-                  color: Colors.black87,
+                  color: textPrimary,
                 ),
               ),
             ),
@@ -653,14 +930,18 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? const Color(0xFF81B655).withValues(alpha: 0.12)
-                        : Colors.grey.shade100,
+                        : (isDark
+                              ? const Color(0xFF334155)
+                              : Colors.grey.shade100),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     isSelected
                         ? Icons.radio_button_checked_rounded
                         : Icons.radio_button_off_rounded,
-                    color: isSelected ? const Color(0xFF81B655) : Colors.grey,
+                    color: isSelected
+                        ? const Color(0xFF81B655)
+                        : (isDark ? Colors.white38 : Colors.grey),
                     size: 18,
                   ),
                 ),
@@ -668,7 +949,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   option,
                   style: GoogleFonts.outfit(
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? const Color(0xFF81B655) : Colors.black87,
+                    color: isSelected ? const Color(0xFF81B655) : textPrimary,
                   ),
                 ),
                 onTap: () {
@@ -693,19 +974,28 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     required int startIndex,
     required int endIndex,
     required bool isMobile,
+    required bool isDark,
   }) {
     if (totalUsers == 0) return const SizedBox.shrink();
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final borderColor = isDark
+        ? const Color(0xFF334155)
+        : const Color(0xFFE2E8F0);
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade600;
 
     return Container(
       margin: const EdgeInsets.only(top: 20),
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 22, vertical: 14),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 14 : 22,
+        vertical: 14,
+      ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -718,9 +1008,12 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF81B655).withValues(alpha: 0.1),
+                        color: const Color(0xFF81B655).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -738,7 +1031,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
+                        color: textSecondary,
                       ),
                     ),
                   ],
@@ -751,11 +1044,15 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       icon: Icons.chevron_left_rounded,
                       label: 'Prev',
                       enabled: _currentPage > 1,
+                      isDark: isDark,
                       onTap: () => setState(() => _currentPage--),
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF81B655).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
@@ -774,6 +1071,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       icon: Icons.chevron_right_rounded,
                       label: 'Next',
                       enabled: _currentPage < totalPages,
+                      isDark: isDark,
                       onTap: () => setState(() => _currentPage++),
                     ),
                   ],
@@ -786,9 +1084,12 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF81B655).withValues(alpha: 0.1),
+                        color: const Color(0xFF81B655).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -806,7 +1107,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
+                        color: textSecondary,
                       ),
                     ),
                   ],
@@ -817,15 +1118,17 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       icon: Icons.chevron_left_rounded,
                       label: 'Previous',
                       enabled: _currentPage > 1,
+                      isDark: isDark,
                       onTap: () => setState(() => _currentPage--),
                     ),
                     const SizedBox(width: 6),
-                    ..._buildPageNumbers(totalPages),
+                    ..._buildPageNumbers(totalPages, isDark),
                     const SizedBox(width: 6),
                     _pageNavBtn(
                       icon: Icons.chevron_right_rounded,
                       label: 'Next',
                       enabled: _currentPage < totalPages,
+                      isDark: isDark,
                       onTap: () => setState(() => _currentPage++),
                     ),
                   ],
@@ -839,8 +1142,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     required IconData icon,
     required String label,
     required bool enabled,
+    required bool isDark,
     required VoidCallback onTap,
   }) {
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textMuted = isDark ? Colors.white24 : Colors.grey.shade300;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -850,17 +1156,21 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: enabled ? Colors.grey.shade100 : Colors.grey.shade50,
+            color: enabled
+                ? (isDark ? const Color(0xFF334155) : Colors.grey.shade100)
+                : (isDark ? const Color(0xFF1E293B) : Colors.grey.shade50),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: enabled ? const Color(0xFFCBD5E1) : Colors.grey.shade200,
+              color: enabled
+                  ? (isDark ? const Color(0xFF475569) : const Color(0xFFCBD5E1))
+                  : (isDark ? const Color(0xFF334155) : Colors.grey.shade200),
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (label == 'Previous' || label == 'Prev') ...[
-                Icon(icon, size: 16, color: enabled ? Colors.black87 : Colors.grey.shade300),
+                Icon(icon, size: 16, color: enabled ? textPrimary : textMuted),
                 const SizedBox(width: 4),
               ],
               Text(
@@ -868,12 +1178,12 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: enabled ? Colors.black87 : Colors.grey.shade300,
+                  color: enabled ? textPrimary : textMuted,
                 ),
               ),
               if (label == 'Next') ...[
                 const SizedBox(width: 4),
-                Icon(icon, size: 16, color: enabled ? Colors.black87 : Colors.grey.shade300),
+                Icon(icon, size: 16, color: enabled ? textPrimary : textMuted),
               ],
             ],
           ),
@@ -882,7 +1192,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     );
   }
 
-  List<Widget> _buildPageNumbers(int totalPages) {
+  List<Widget> _buildPageNumbers(int totalPages, bool isDark) {
     if (totalPages <= 1) return [];
 
     final List<Widget> pages = [];
@@ -890,34 +1200,54 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final int end = (_currentPage + 2).clamp(1, totalPages);
 
     if (start > 1) {
-      pages.add(_pageNumberBtn(1));
+      pages.add(_pageNumberBtn(1, isDark));
       if (start > 2) {
-        pages.add(Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text('…', style: GoogleFonts.inter(color: Colors.grey)),
-        ));
+        pages.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              '…',
+              style: GoogleFonts.inter(
+                color: isDark ? Colors.white38 : Colors.grey,
+              ),
+            ),
+          ),
+        );
       }
     }
 
     for (int p = start; p <= end; p++) {
-      pages.add(_pageNumberBtn(p));
+      pages.add(_pageNumberBtn(p, isDark));
     }
 
     if (end < totalPages) {
       if (end < totalPages - 1) {
-        pages.add(Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text('…', style: GoogleFonts.inter(color: Colors.grey)),
-        ));
+        pages.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              '…',
+              style: GoogleFonts.inter(
+                color: isDark ? Colors.white38 : Colors.grey,
+              ),
+            ),
+          ),
+        );
       }
-      pages.add(_pageNumberBtn(totalPages));
+      pages.add(_pageNumberBtn(totalPages, isDark));
     }
 
     return pages;
   }
 
-  Widget _pageNumberBtn(int page) {
+  Widget _pageNumberBtn(int page, bool isDark) {
     final isSelected = page == _currentPage;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final borderColor = isDark
+        ? const Color(0xFF334155)
+        : const Color(0xFFE2E8F0);
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: InkWell(
@@ -928,10 +1258,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           height: 36,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF81B655) : Colors.white,
+            color: isSelected ? const Color(0xFF81B655) : cardBg,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? const Color(0xFF81B655) : const Color(0xFFE2E8F0),
+              color: isSelected ? const Color(0xFF81B655) : borderColor,
             ),
             boxShadow: isSelected
                 ? [
@@ -948,7 +1278,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             style: GoogleFonts.inter(
               fontSize: 13,
               fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-              color: isSelected ? Colors.white : Colors.black87,
+              color: isSelected ? Colors.white : textPrimary,
             ),
           ),
         ),
@@ -956,7 +1286,12 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     );
   }
 
-  Widget _tableH(String label, int flex, {bool center = false}) {
+  Widget _tableH(
+    String label,
+    int flex, {
+    bool center = false,
+    bool isDark = false,
+  }) {
     return Expanded(
       flex: flex,
       child: Text(
@@ -965,31 +1300,45 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
         style: GoogleFonts.outfit(
           fontWeight: FontWeight.w700,
           fontSize: 12,
-          color: Colors.grey.shade500,
+          color: isDark ? Colors.white60 : Colors.grey.shade500,
           letterSpacing: 0.4,
         ),
       ),
     );
   }
 
-  Widget _buildUserRow(Map<String, dynamic> u) {
+  Widget _buildUserRow(Map<String, dynamic> u, bool isDark) {
     final email = (u['email'] ?? 'N/A') as String;
     final role = (u['role'] ?? 'N/A') as String;
     final uid = (u['uid'] ?? 'N/A') as String;
     final username = (u['username'] ?? 'N/A') as String;
     final status = (u['status'] ?? 'N/A') as String;
-    final isArchived = (u['isArchived'] == true) || (status.toUpperCase() == 'ARCHIVED');
+    final isArchived =
+        (u['isArchived'] == true) || (status.toUpperCase() == 'ARCHIVED');
 
-    final educStart = u['educatorStartDate'] != null ? _formatTs(u['educatorStartDate']) : 'N/A';
-    final educEnd = u['educatorEndDate'] != null ? _formatTs(u['educatorEndDate']) : 'Present';
+    final educStart = u['educatorStartDate'] != null
+        ? _formatTs(u['educatorStartDate'])
+        : 'N/A';
+    final educEnd = u['educatorEndDate'] != null
+        ? _formatTs(u['educatorEndDate'])
+        : 'Present';
     final educDates = role == 'EDUCATOR' ? '$educStart\n$educEnd' : '—';
 
     final lockedUntilTs = u['locked_until'] as Timestamp?;
-    final isLocked = lockedUntilTs != null && lockedUntilTs.toDate().isAfter(DateTime.now());
+    final isLocked =
+        lockedUntilTs != null && lockedUntilTs.toDate().isAfter(DateTime.now());
 
     final isActive = status.toLowerCase() == 'active';
     final isDefaultAdmin = RoleService.isDefaultAdmin(u, uid);
     final roleColor = _roleColor(isDefaultAdmin ? 'SUPERADMIN' : role);
+
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade600;
+    final textMuted = isDark ? Colors.white54 : Colors.grey.shade500;
+    final iconBtnDisabledBg = isDark
+        ? const Color(0xFF1E293B)
+        : Colors.grey.shade100;
+    final iconBtnDisabledColor = isDark ? Colors.white24 : Colors.grey.shade400;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -1024,7 +1373,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     style: GoogleFonts.outfit(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: Colors.black87,
+                      color: textPrimary,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1038,7 +1387,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             flex: 4,
             child: Text(
               email,
-              style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade600),
+              style: GoogleFonts.inter(fontSize: 12, color: textSecondary),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -1050,9 +1399,14 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: (isDefaultAdmin ? const Color(0xFFEF4444) : roleColor).withValues(alpha: 0.10),
+                    color:
+                        (isDefaultAdmin ? const Color(0xFFEF4444) : roleColor)
+                            .withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -1060,7 +1414,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     style: GoogleFonts.outfit(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isDefaultAdmin ? const Color(0xFFEF4444) : roleColor,
+                      color: isDefaultAdmin
+                          ? const Color(0xFFEF4444)
+                          : roleColor,
                     ),
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
@@ -1069,7 +1425,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 if (isDefaultAdmin) ...[
                   const SizedBox(height: 3),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1.5,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEF4444).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
@@ -1094,24 +1453,42 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             flex: 2,
             child: isLocked
                 ? Tooltip(
-                    message: 'Account locked due to 3 failed attempts (until ${_formatTs(lockedUntilTs)})',
+                    message:
+                        'Account locked due to 3 failed attempts (until ${_formatTs(lockedUntilTs)})',
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
+                        color: isDark
+                            ? Colors.red.shade900.withValues(alpha: 0.3)
+                            : Colors.red.shade50,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.red.shade700
+                              : Colors.red.shade200,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.lock_rounded, size: 11, color: Colors.red.shade700),
+                          Icon(
+                            Icons.lock_rounded,
+                            size: 11,
+                            color: isDark
+                                ? Colors.red.shade300
+                                : Colors.red.shade700,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'LOCKED',
                             style: GoogleFonts.inter(
                               fontSize: 10,
-                              color: Colors.red.shade700,
+                              color: isDark
+                                  ? Colors.red.shade300
+                                  : Colors.red.shade700,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -1120,57 +1497,78 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     ),
                   )
                 : status.toLowerCase().contains('in review')
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.amber.shade300),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.hourglass_top_rounded, size: 11, color: Colors.amber.shade800),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                status.toUpperCase(),
-                                style: GoogleFonts.inter(
-                                  fontSize: 9.5,
-                                  color: Colors.amber.shade900,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : Row(
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: isArchived
-                                  ? Colors.grey.shade500
-                                  : (isActive ? const Color(0xFF81B655) : Colors.orange),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            isArchived ? 'ARCHIVED' : status.toUpperCase(),
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: isArchived
-                                  ? Colors.grey.shade600
-                                  : (isActive ? const Color(0xFF81B655) : Colors.orange),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                ? Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.amber.shade900.withValues(alpha: 0.3)
+                          : Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.amber.shade700
+                            : Colors.amber.shade300,
                       ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.hourglass_top_rounded,
+                          size: 11,
+                          color: isDark
+                              ? Colors.amber.shade300
+                              : Colors.amber.shade800,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            status.toUpperCase(),
+                            style: GoogleFonts.inter(
+                              fontSize: 9.5,
+                              color: isDark
+                                  ? Colors.amber.shade200
+                                  : Colors.amber.shade900,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: isArchived
+                              ? (isDark ? Colors.white38 : Colors.grey.shade500)
+                              : (isActive
+                                    ? const Color(0xFF81B655)
+                                    : Colors.orange),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isArchived ? 'ARCHIVED' : status.toUpperCase(),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: isArchived
+                              ? (isDark ? Colors.white60 : Colors.grey.shade600)
+                              : (isActive
+                                    ? const Color(0xFF81B655)
+                                    : Colors.orange),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
 
           // ── Educ Dates ────────────────────────────────────────────
@@ -1178,7 +1576,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             flex: 2,
             child: Text(
               educDates,
-              style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500, height: 1.5),
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: textMuted,
+                height: 1.5,
+              ),
             ),
           ),
 
@@ -1191,23 +1593,36 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 if (!isSuperAdmin) {
                   return Center(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: isDark
+                            ? const Color(0xFF1E293B)
+                            : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : Colors.grey.shade300,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.visibility_outlined, size: 13, color: Colors.grey.shade600),
+                          Icon(
+                            Icons.visibility_outlined,
+                            size: 13,
+                            color: textMuted,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'VIEW ONLY',
                             style: GoogleFonts.outfit(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: Colors.grey.shade600,
+                              color: textMuted,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -1217,10 +1632,13 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   );
                 }
 
-                final currentUid = widget.currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+                final currentUid =
+                    widget.currentUser?.uid ??
+                    FirebaseAuth.instance.currentUser?.uid;
                 final isSelf = currentUid == uid;
                 final canModifyThisUser = isSuperAdmin && !isDefaultAdmin;
-                final canRemoveThisUser = isSuperAdmin && !isDefaultAdmin && !isSelf;
+                final canRemoveThisUser =
+                    isSuperAdmin && !isDefaultAdmin && !isSelf;
                 final isDeactivated = status.toUpperCase() == 'DEACTIVATED';
 
                 return Row(
@@ -1232,16 +1650,23 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           ? 'Default Super Admin cannot be modified'
                           : 'Change Role',
                       child: IconButton(
-                        icon: const Icon(Icons.manage_accounts_rounded, size: 18),
-                        color: canModifyThisUser ? const Color(0xFF4B49AC) : Colors.grey.shade400,
+                        icon: const Icon(
+                          Icons.manage_accounts_rounded,
+                          size: 18,
+                        ),
+                        color: canModifyThisUser
+                            ? const Color(0xFF4B49AC)
+                            : iconBtnDisabledColor,
                         style: IconButton.styleFrom(
                           backgroundColor: canModifyThisUser
                               ? const Color(0xFF4B49AC).withValues(alpha: 0.10)
-                              : Colors.grey.shade100,
+                              : iconBtnDisabledBg,
                           padding: const EdgeInsets.all(8),
                           minimumSize: const Size(32, 32),
                         ),
-                        onPressed: canModifyThisUser ? () => _showChangeRoleDialog(uid, username, role) : null,
+                        onPressed: canModifyThisUser
+                            ? () => _showChangeRoleDialog(uid, username, role)
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -1251,14 +1676,20 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       Tooltip(
                         message: 'Activate User',
                         child: IconButton(
-                          icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                          icon: const Icon(
+                            Icons.check_circle_outline_rounded,
+                            size: 18,
+                          ),
                           color: const Color(0xFF81B655),
                           style: IconButton.styleFrom(
-                            backgroundColor: const Color(0xFF81B655).withValues(alpha: 0.10),
+                            backgroundColor: const Color(
+                              0xFF81B655,
+                            ).withValues(alpha: 0.10),
                             padding: const EdgeInsets.all(8),
                             minimumSize: const Size(32, 32),
                           ),
-                          onPressed: () => _showActivateConfirmation(uid, username, email),
+                          onPressed: () =>
+                              _showActivateConfirmation(uid, username, email),
                         ),
                       )
                     else
@@ -1266,20 +1697,28 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         message: isDefaultAdmin
                             ? 'Default Super Admin cannot be deactivated'
                             : (isSelf
-                                ? 'You cannot deactivate your own account'
-                                : 'Deactivate User'),
+                                  ? 'You cannot deactivate your own account'
+                                  : 'Deactivate User'),
                         child: IconButton(
                           icon: const Icon(Icons.block_rounded, size: 18),
-                          color: canRemoveThisUser ? Colors.orange.shade700 : Colors.grey.shade400,
+                          color: canRemoveThisUser
+                              ? Colors.orange.shade700
+                              : iconBtnDisabledColor,
                           style: IconButton.styleFrom(
                             backgroundColor: canRemoveThisUser
-                                ? Colors.orange.shade50
-                                : Colors.grey.shade100,
+                                ? (isDark
+                                      ? Colors.orange.withValues(alpha: 0.15)
+                                      : Colors.orange.shade50)
+                                : iconBtnDisabledBg,
                             padding: const EdgeInsets.all(8),
                             minimumSize: const Size(32, 32),
                           ),
                           onPressed: canRemoveThisUser
-                              ? () => _showDeactivateConfirmation(uid, username, email)
+                              ? () => _showDeactivateConfirmation(
+                                  uid,
+                                  username,
+                                  email,
+                                )
                               : null,
                         ),
                       ),
@@ -1291,16 +1730,25 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         message: 'Unarchive User (Restore Account)',
                         child: IconButton(
                           icon: const Icon(Icons.unarchive_outlined, size: 18),
-                          color: canRemoveThisUser ? const Color(0xFF10B981) : Colors.grey.shade400,
+                          color: canRemoveThisUser
+                              ? const Color(0xFF10B981)
+                              : iconBtnDisabledColor,
                           style: IconButton.styleFrom(
                             backgroundColor: canRemoveThisUser
-                                ? const Color(0xFF10B981).withValues(alpha: 0.12)
-                                : Colors.grey.shade100,
+                                ? const Color(
+                                    0xFF10B981,
+                                  ).withValues(alpha: 0.12)
+                                : iconBtnDisabledBg,
                             padding: const EdgeInsets.all(8),
                             minimumSize: const Size(32, 32),
                           ),
                           onPressed: canRemoveThisUser
-                              ? () => _showUnarchiveConfirmation(uid, username, email, role)
+                              ? () => _showUnarchiveConfirmation(
+                                  uid,
+                                  username,
+                                  email,
+                                  role,
+                                )
                               : null,
                         ),
                       )
@@ -1309,20 +1757,33 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         message: isDefaultAdmin
                             ? 'Default Super Admin cannot be archived'
                             : (isSelf
-                                ? 'You cannot archive your own account'
-                                : 'Archive User'),
+                                  ? 'You cannot archive your own account'
+                                  : 'Archive User'),
                         child: IconButton(
                           icon: const Icon(Icons.archive_outlined, size: 18),
-                          color: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade400,
+                          color: canRemoveThisUser
+                              ? const Color(0xFFEF4444)
+                              : iconBtnDisabledColor,
                           style: IconButton.styleFrom(
                             backgroundColor: canRemoveThisUser
-                                ? const Color(0xFFEF4444).withValues(alpha: 0.10)
-                                : Colors.grey.shade100,
+                                ? (isDark
+                                      ? const Color(
+                                          0xFFEF4444,
+                                        ).withValues(alpha: 0.15)
+                                      : const Color(
+                                          0xFFEF4444,
+                                        ).withValues(alpha: 0.10))
+                                : iconBtnDisabledBg,
                             padding: const EdgeInsets.all(8),
                             minimumSize: const Size(32, 32),
                           ),
                           onPressed: canRemoveThisUser
-                              ? () => _showRemoveUserConfirmation(uid, username, email, role)
+                              ? () => _showRemoveUserConfirmation(
+                                  uid,
+                                  username,
+                                  email,
+                                  role,
+                                )
                               : null,
                         ),
                       ),
@@ -1345,16 +1806,43 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: canModifyThisUser ? Colors.red.shade50 : Colors.grey.shade100,
-                            foregroundColor: canModifyThisUser ? Colors.red.shade700 : Colors.grey.shade400,
+                            backgroundColor: canModifyThisUser
+                                ? (isDark
+                                      ? Colors.red.shade900.withValues(
+                                          alpha: 0.3,
+                                        )
+                                      : Colors.red.shade50)
+                                : iconBtnDisabledBg,
+                            foregroundColor: canModifyThisUser
+                                ? (isDark
+                                      ? Colors.red.shade300
+                                      : Colors.red.shade700)
+                                : iconBtnDisabledColor,
                             elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                            side: BorderSide(
-                              color: canModifyThisUser ? Colors.red.shade300 : Colors.grey.shade300,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
                             ),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            side: BorderSide(
+                              color: canModifyThisUser
+                                  ? (isDark
+                                        ? Colors.red.shade700
+                                        : Colors.red.shade300)
+                                  : (isDark
+                                        ? const Color(0xFF334155)
+                                        : Colors.grey.shade300),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
-                          onPressed: canModifyThisUser ? () => _showUnlockConfirmation(uid, username, email) : null,
+                          onPressed: canModifyThisUser
+                              ? () => _showUnlockConfirmation(
+                                  uid,
+                                  username,
+                                  email,
+                                )
+                              : null,
                         ),
                       ),
                     ],
@@ -1369,30 +1857,45 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   }
 
   // ── Mobile card view of a single user ─────────────────────────────────────
-  Widget _buildUserCard(Map<String, dynamic> u) {
+  Widget _buildUserCard(Map<String, dynamic> u, bool isDark) {
     final email = (u['email'] ?? 'N/A') as String;
     final role = (u['role'] ?? 'N/A') as String;
     final uid = (u['uid'] ?? 'N/A') as String;
     final username = (u['username'] ?? 'N/A') as String;
     final status = (u['status'] ?? 'N/A') as String;
-    final isArchived = (u['isArchived'] == true) || (status.toUpperCase() == 'ARCHIVED');
+    final isArchived =
+        (u['isArchived'] == true) || (status.toUpperCase() == 'ARCHIVED');
 
     final lockedUntilTs = u['locked_until'] as Timestamp?;
-    final isLocked = lockedUntilTs != null && lockedUntilTs.toDate().isAfter(DateTime.now());
+    final isLocked =
+        lockedUntilTs != null && lockedUntilTs.toDate().isAfter(DateTime.now());
     final isActive = status.toLowerCase() == 'active';
     final isDefaultAdmin = RoleService.isDefaultAdmin(u, uid);
     final roleColor = _roleColor(isDefaultAdmin ? 'SUPERADMIN' : role);
 
-    final educStart = u['educatorStartDate'] != null ? _formatTs(u['educatorStartDate']) : null;
+    final educStart = u['educatorStartDate'] != null
+        ? _formatTs(u['educatorStartDate'])
+        : null;
+
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final borderColor = isDark
+        ? const Color(0xFF334155)
+        : const Color(0xFFE2E8F0);
+    final textPrimary = isDark ? Colors.white : Colors.black87;
+    final textSecondary = isDark ? Colors.white70 : Colors.grey.shade500;
+    final btnDisabledColor = isDark ? Colors.white24 : Colors.grey.shade400;
+    final btnDisabledBorder = isDark
+        ? const Color(0xFF334155)
+        : Colors.grey.shade300;
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1415,7 +1918,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   child: u['photoUrl'] == null
                       ? Text(
                           username.isNotEmpty ? username[0].toUpperCase() : '?',
-                          style: TextStyle(color: roleColor, fontWeight: FontWeight.w700, fontSize: 14),
+                          style: TextStyle(
+                            color: roleColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
                         )
                       : null,
                 ),
@@ -1426,12 +1933,19 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     children: [
                       Text(
                         username,
-                        style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.black87),
+                        style: GoogleFonts.outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: textPrimary,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         email,
-                        style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: textSecondary,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -1442,22 +1956,40 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: (isDefaultAdmin ? const Color(0xFFEF4444) : roleColor).withValues(alpha: 0.10),
+                        color:
+                            (isDefaultAdmin
+                                    ? const Color(0xFFEF4444)
+                                    : roleColor)
+                                .withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         isDefaultAdmin ? 'SUPERADMIN' : role,
-                        style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700, color: isDefaultAdmin ? const Color(0xFFEF4444) : roleColor),
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isDefaultAdmin
+                              ? const Color(0xFFEF4444)
+                              : roleColor,
+                        ),
                       ),
                     ),
                     if (isDefaultAdmin) ...[
                       const SizedBox(height: 3),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1.5,
+                        ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                          color: const Color(
+                            0xFFEF4444,
+                          ).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -1482,27 +2014,55 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             Row(
               children: [
                 if (isLocked) ...[
-                  Icon(Icons.lock_rounded, size: 13, color: Colors.red.shade700),
+                  Icon(
+                    Icons.lock_rounded,
+                    size: 13,
+                    color: isDark ? Colors.red.shade300 : Colors.red.shade700,
+                  ),
                   const SizedBox(width: 4),
-                  Text('LOCKED', style: GoogleFonts.inter(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.w700)),
+                  Text(
+                    'LOCKED',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: isDark ? Colors.red.shade300 : Colors.red.shade700,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ] else if (status.toLowerCase().contains('in review')) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
+                      color: isDark
+                          ? Colors.amber.shade900.withValues(alpha: 0.3)
+                          : Colors.amber.shade50,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.amber.shade300),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.amber.shade700
+                            : Colors.amber.shade300,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.hourglass_top_rounded, size: 11, color: Colors.amber.shade800),
+                        Icon(
+                          Icons.hourglass_top_rounded,
+                          size: 11,
+                          color: isDark
+                              ? Colors.amber.shade300
+                              : Colors.amber.shade800,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           status.toUpperCase(),
                           style: GoogleFonts.inter(
                             fontSize: 10,
-                            color: Colors.amber.shade900,
+                            color: isDark
+                                ? Colors.amber.shade200
+                                : Colors.amber.shade900,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -1515,8 +2075,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     height: 7,
                     decoration: BoxDecoration(
                       color: isArchived
-                          ? Colors.grey.shade500
-                          : (isActive ? const Color(0xFF81B655) : Colors.orange),
+                          ? (isDark ? Colors.white38 : Colors.grey.shade500)
+                          : (isActive
+                                ? const Color(0xFF81B655)
+                                : Colors.orange),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -1526,22 +2088,30 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: isArchived
-                          ? Colors.grey.shade600
-                          : (isActive ? const Color(0xFF81B655) : Colors.orange),
+                          ? (isDark ? Colors.white60 : Colors.grey.shade600)
+                          : (isActive
+                                ? const Color(0xFF81B655)
+                                : Colors.orange),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
                 if (educStart != null) ...[
                   const SizedBox(width: 12),
-                  Icon(Icons.school_rounded, size: 13, color: Colors.grey.shade400),
+                  Icon(Icons.school_rounded, size: 13, color: textSecondary),
                   const SizedBox(width: 4),
-                  Text('Since $educStart', style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500)),
+                  Text(
+                    'Since $educStart',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: textSecondary,
+                    ),
+                  ),
                 ],
               ],
             ),
 
-            const Divider(height: 20),
+            Divider(height: 20, color: borderColor),
 
             // Action buttons
             Builder(
@@ -1549,23 +2119,32 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 final isSuperAdmin = widget.role == UserRole.superadmin;
                 if (!isSuperAdmin) {
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: isDark
+                          ? const Color(0xFF0F172A)
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: borderColor),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.visibility_rounded, size: 14, color: Colors.grey.shade600),
+                        Icon(
+                          Icons.visibility_rounded,
+                          size: 14,
+                          color: textSecondary,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           'VIEW ONLY (ADMIN)',
                           style: GoogleFonts.outfit(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: Colors.grey.shade600,
+                            color: textSecondary,
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -1574,10 +2153,13 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   );
                 }
 
-                final currentUid = widget.currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+                final currentUid =
+                    widget.currentUser?.uid ??
+                    FirebaseAuth.instance.currentUser?.uid;
                 final isSelf = currentUid == uid;
                 final canModifyThisUser = isSuperAdmin && !isDefaultAdmin;
-                final canRemoveThisUser = isSuperAdmin && !isDefaultAdmin && !isSelf;
+                final canRemoveThisUser =
+                    isSuperAdmin && !isDefaultAdmin && !isSelf;
                 final isDeactivated = status.toUpperCase() == 'DEACTIVATED';
 
                 return Wrap(
@@ -1590,49 +2172,102 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           ? 'Default Super Admin cannot be modified'
                           : 'Change Role',
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.manage_accounts_rounded, size: 15),
+                        icon: const Icon(
+                          Icons.manage_accounts_rounded,
+                          size: 15,
+                        ),
                         label: const Text('Change Role'),
-                        onPressed: canModifyThisUser ? () => _showChangeRoleDialog(uid, username, role) : null,
+                        onPressed: canModifyThisUser
+                            ? () => _showChangeRoleDialog(uid, username, role)
+                            : null,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: canModifyThisUser ? const Color(0xFF4B49AC) : Colors.grey.shade400,
-                          side: BorderSide(color: canModifyThisUser ? const Color(0xFF4B49AC) : Colors.grey.shade300),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          foregroundColor: canModifyThisUser
+                              ? const Color(0xFF4B49AC)
+                              : btnDisabledColor,
+                          side: BorderSide(
+                            color: canModifyThisUser
+                                ? const Color(0xFF4B49AC)
+                                : btnDisabledBorder,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          textStyle: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       ),
                     ),
                     // Deactivate / Activate (Super Admin only)
                     if (isDeactivated)
                       OutlinedButton.icon(
-                        icon: const Icon(Icons.check_circle_outline_rounded, size: 15),
+                        icon: const Icon(
+                          Icons.check_circle_outline_rounded,
+                          size: 15,
+                        ),
                         label: const Text('Activate'),
-                        onPressed: () => _showActivateConfirmation(uid, username, email),
+                        onPressed: () =>
+                            _showActivateConfirmation(uid, username, email),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF81B655),
                           side: const BorderSide(color: Color(0xFF81B655)),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          textStyle: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       )
                     else
                       Tooltip(
                         message: isDefaultAdmin
                             ? 'Default Super Admin cannot be deactivated'
-                            : (isSelf ? 'You cannot deactivate your own account' : 'Deactivate User'),
+                            : (isSelf
+                                  ? 'You cannot deactivate your own account'
+                                  : 'Deactivate User'),
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.block_rounded, size: 15),
                           label: const Text('Deactivate'),
                           onPressed: canRemoveThisUser
-                              ? () => _showDeactivateConfirmation(uid, username, email)
+                              ? () => _showDeactivateConfirmation(
+                                  uid,
+                                  username,
+                                  email,
+                                )
                               : null,
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: canRemoveThisUser ? Colors.orange.shade700 : Colors.grey.shade400,
-                            side: BorderSide(color: canRemoveThisUser ? Colors.orange.shade300 : Colors.grey.shade300),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            foregroundColor: canRemoveThisUser
+                                ? Colors.orange.shade700
+                                : btnDisabledColor,
+                            side: BorderSide(
+                              color: canRemoveThisUser
+                                  ? (isDark
+                                        ? Colors.orange.shade600
+                                        : Colors.orange.shade300)
+                                  : btnDisabledBorder,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            textStyle: GoogleFonts.outfit(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
@@ -1642,33 +2277,73 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         icon: const Icon(Icons.unarchive_outlined, size: 15),
                         label: const Text('Unarchive User'),
                         onPressed: canRemoveThisUser
-                            ? () => _showUnarchiveConfirmation(uid, username, email, role)
+                            ? () => _showUnarchiveConfirmation(
+                                uid,
+                                username,
+                                email,
+                                role,
+                              )
                             : null,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: canRemoveThisUser ? const Color(0xFF10B981) : Colors.grey.shade400,
-                          side: BorderSide(color: canRemoveThisUser ? const Color(0xFF10B981) : Colors.grey.shade300),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          foregroundColor: canRemoveThisUser
+                              ? const Color(0xFF10B981)
+                              : btnDisabledColor,
+                          side: BorderSide(
+                            color: canRemoveThisUser
+                                ? const Color(0xFF10B981)
+                                : btnDisabledBorder,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          textStyle: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       )
                     else
                       Tooltip(
                         message: isDefaultAdmin
                             ? 'Default Super Admin cannot be archived'
-                            : (isSelf ? 'You cannot archive your own account' : 'Archive User'),
+                            : (isSelf
+                                  ? 'You cannot archive your own account'
+                                  : 'Archive User'),
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.archive_outlined, size: 15),
                           label: const Text('Archive User'),
                           onPressed: canRemoveThisUser
-                              ? () => _showRemoveUserConfirmation(uid, username, email, role)
+                              ? () => _showRemoveUserConfirmation(
+                                  uid,
+                                  username,
+                                  email,
+                                  role,
+                                )
                               : null,
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade400,
-                            side: BorderSide(color: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade300),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            foregroundColor: canRemoveThisUser
+                                ? const Color(0xFFEF4444)
+                                : btnDisabledColor,
+                            side: BorderSide(
+                              color: canRemoveThisUser
+                                  ? const Color(0xFFEF4444)
+                                  : btnDisabledBorder,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            textStyle: GoogleFonts.outfit(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
@@ -1681,13 +2356,37 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.lock_open_rounded, size: 15),
                           label: const Text('Unlock'),
-                          onPressed: canModifyThisUser ? () => _showUnlockConfirmation(uid, username, email) : null,
+                          onPressed: canModifyThisUser
+                              ? () => _showUnlockConfirmation(
+                                  uid,
+                                  username,
+                                  email,
+                                )
+                              : null,
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: canModifyThisUser ? Colors.red.shade700 : Colors.grey.shade400,
-                            side: BorderSide(color: canModifyThisUser ? Colors.red.shade300 : Colors.grey.shade300),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            foregroundColor: canModifyThisUser
+                                ? (isDark
+                                      ? Colors.red.shade300
+                                      : Colors.red.shade700)
+                                : btnDisabledColor,
+                            side: BorderSide(
+                              color: canModifyThisUser
+                                  ? (isDark
+                                        ? Colors.red.shade700
+                                        : Colors.red.shade300)
+                                  : btnDisabledBorder,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            textStyle: GoogleFonts.outfit(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
@@ -1716,7 +2415,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     }
   }
 
-  void _showChangeRoleDialog(String uid, String username, String currentRoleStr) {
+  void _showChangeRoleDialog(
+    String uid,
+    String username,
+    String currentRoleStr,
+  ) {
     if (widget.role != UserRole.superadmin) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1760,11 +2463,15 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       },
     ];
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Container(
             width: 420,
             padding: const EdgeInsets.all(28),
@@ -1780,7 +2487,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         color: const Color(0xFF4B49AC).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.manage_accounts_rounded, color: Color(0xFF4B49AC), size: 22),
+                      child: const Icon(
+                        Icons.manage_accounts_rounded,
+                        color: Color(0xFF4B49AC),
+                        size: 22,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1789,11 +2500,20 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         children: [
                           Text(
                             'Change User Role',
-                            style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 18, color: Colors.black87),
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
                           ),
                           Text(
                             'Select new role for $username',
-                            style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: isDark
+                                  ? Colors.white60
+                                  : Colors.grey.shade500,
+                            ),
                           ),
                         ],
                       ),
@@ -1811,12 +2531,23 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       onTap: () => setDialogState(() => selectedRole = key),
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
-                          color: isSelected ? color.withValues(alpha: 0.08) : Colors.grey.shade50,
+                          color: isSelected
+                              ? color.withValues(alpha: isDark ? 0.2 : 0.08)
+                              : (isDark
+                                    ? const Color(0xFF0F172A)
+                                    : Colors.grey.shade50),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isSelected ? color : Colors.grey.shade200,
+                            color: isSelected
+                                ? color
+                                : (isDark
+                                      ? const Color(0xFF334155)
+                                      : Colors.grey.shade200),
                             width: isSelected ? 2 : 1,
                           ),
                         ),
@@ -1830,11 +2561,22 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                 children: [
                                   Text(
                                     r['label'] as String,
-                                    style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.black87),
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      color: isDark
+                                          ? Colors.white
+                                          : Colors.black87,
+                                    ),
                                   ),
                                   Text(
                                     r['desc'] as String,
-                                    style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: isDark
+                                          ? Colors.white60
+                                          : Colors.grey.shade500,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1846,7 +2588,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                 shape: BoxShape.circle,
                                 color: isSelected ? color : Colors.transparent,
                                 border: Border.all(
-                                  color: isSelected ? color : Colors.grey.shade400,
+                                  color: isSelected
+                                      ? color
+                                      : (isDark
+                                            ? Colors.white24
+                                            : Colors.grey.shade400),
                                   width: isSelected ? 6 : 2,
                                 ),
                               ),
@@ -1864,12 +2610,25 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.black54,
-                          side: const BorderSide(color: Color(0xFFE2E8F0)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          foregroundColor: isDark
+                              ? Colors.white70
+                              : Colors.black54,
+                          side: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1881,7 +2640,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                             Navigator.pop(context);
                             messenger.showSnackBar(
                               SnackBar(
-                                content: Text('$username already has the $selectedRole role.'),
+                                content: Text(
+                                  '$username already has the $selectedRole role.',
+                                ),
                                 backgroundColor: Colors.grey.shade700,
                               ),
                             );
@@ -1891,82 +2652,140 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           // Confirmation dialog before changing role
                           final confirmed = await showDialog<bool>(
                             context: context,
-                            builder: (confirmCtx) => Dialog(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                              child: Container(
-                                width: 420,
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF4B49AC).withValues(alpha: 0.12),
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: const Icon(Icons.manage_accounts_rounded, color: Color(0xFF4B49AC), size: 22),
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Text(
-                                            'Confirm Role Change',
-                                            style: GoogleFonts.outfit(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 18,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'Are you sure you want to change $username\'s role from $currentRoleStr to $selectedRole?\n\nThis user will receive an in-app notification and their platform permissions will update immediately.',
-                                      style: GoogleFonts.inter(
-                                        color: Colors.grey.shade700,
-                                        fontSize: 13.5,
-                                        height: 1.5,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 24),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: OutlinedButton(
-                                            onPressed: () => Navigator.pop(confirmCtx, false),
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor: Colors.black54,
-                                              side: const BorderSide(color: Color(0xFFE2E8F0)),
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                              padding: const EdgeInsets.symmetric(vertical: 12),
-                                            ),
-                                            child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: ElevatedButton(
-                                            onPressed: () => Navigator.pop(confirmCtx, true),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: const Color(0xFF4B49AC),
-                                              foregroundColor: Colors.white,
-                                              elevation: 0,
-                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                              padding: const EdgeInsets.symmetric(vertical: 12),
-                                            ),
-                                            child: Text('Confirm', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                            builder: (confirmCtx) {
+                              final isConfirmDark =
+                                  Theme.of(confirmCtx).brightness ==
+                                  Brightness.dark;
+                              return Dialog(
+                                backgroundColor: isConfirmDark
+                                    ? const Color(0xFF1E293B)
+                                    : Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                              ),
-                            ),
+                                child: Container(
+                                  width: 420,
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: const Color(
+                                                0xFF4B49AC,
+                                              ).withValues(alpha: 0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: const Icon(
+                                              Icons.manage_accounts_rounded,
+                                              color: Color(0xFF4B49AC),
+                                              size: 22,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 14),
+                                          Expanded(
+                                            child: Text(
+                                              'Confirm Role Change',
+                                              style: GoogleFonts.outfit(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 18,
+                                                color: isConfirmDark
+                                                    ? Colors.white
+                                                    : Colors.black87,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'Are you sure you want to change $username\'s role from $currentRoleStr to $selectedRole?\n\nThis user will receive an in-app notification and their platform permissions will update immediately.',
+                                        style: GoogleFonts.inter(
+                                          color: isConfirmDark
+                                              ? Colors.white70
+                                              : Colors.grey.shade700,
+                                          fontSize: 13.5,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 24),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: OutlinedButton(
+                                              onPressed: () => Navigator.pop(
+                                                confirmCtx,
+                                                false,
+                                              ),
+                                              style: OutlinedButton.styleFrom(
+                                                foregroundColor: isConfirmDark
+                                                    ? Colors.white70
+                                                    : Colors.black54,
+                                                side: BorderSide(
+                                                  color: isConfirmDark
+                                                      ? const Color(0xFF334155)
+                                                      : const Color(0xFFE2E8F0),
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 12,
+                                                    ),
+                                              ),
+                                              child: Text(
+                                                'Cancel',
+                                                style: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: ElevatedButton(
+                                              onPressed: () => Navigator.pop(
+                                                confirmCtx,
+                                                true,
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: const Color(
+                                                  0xFF4B49AC,
+                                                ),
+                                                foregroundColor: Colors.white,
+                                                elevation: 0,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 12,
+                                                    ),
+                                              ),
+                                              child: Text(
+                                                'Confirm',
+                                                style: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           );
 
                           if (confirmed != true) return;
@@ -1975,25 +2794,34 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           Navigator.pop(context);
                           try {
                             final newRole = roleFromString(selectedRole);
-                            await RoleService.instance.setUserRole(uid: uid, role: newRole);
+                            await RoleService.instance.setUserRole(
+                              uid: uid,
+                              role: newRole,
+                            );
 
                             // Send notification to the user
                             await NotificationService.instance.sendNotification(
                               uid: uid,
                               title: 'Role Updated',
-                              message: 'Your account role has been updated from $currentRoleStr to $selectedRole by an administrator.',
+                              message:
+                                  'Your account role has been updated from $currentRoleStr to $selectedRole by an administrator.',
                               type: NotificationType.general,
                             );
 
                             messenger.showSnackBar(
                               SnackBar(
-                                content: Text('$username\'s role updated to $selectedRole ✓'),
+                                content: Text(
+                                  '$username\'s role updated to $selectedRole ✓',
+                                ),
                                 backgroundColor: const Color(0xFF81B655),
                               ),
                             );
                           } catch (e) {
                             messenger.showSnackBar(
-                              SnackBar(content: Text('Error updating role: $e'), backgroundColor: Colors.red),
+                              SnackBar(
+                                content: Text('Error updating role: $e'),
+                                backgroundColor: Colors.red,
+                              ),
                             );
                           }
                         },
@@ -2001,10 +2829,17 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           backgroundColor: const Color(0xFF4B49AC),
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: Text('Save Role', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                        child: Text(
+                          'Save Role',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -2017,8 +2852,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     );
   }
 
-  void _showUnlockConfirmation(
-      String uid, String username, String email) {
+  void _showUnlockConfirmation(String uid, String username, String email) {
     if (RoleService.isDefaultAdmin(null, uid)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -2028,9 +2862,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       );
       return;
     }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (context) => Dialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
           width: 380,
@@ -2060,7 +2896,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w800,
                         fontSize: 17,
-                        color: Colors.black87,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
                   ),
@@ -2070,7 +2906,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               Text(
                 'Are you sure you want to unlock $username\'s account? This will immediately clear the temporary lockout and reset failed login attempts.',
                 style: GoogleFonts.inter(
-                  color: Colors.grey.shade600,
+                  color: isDark ? Colors.white70 : Colors.grey.shade600,
                   fontSize: 14,
                   height: 1.5,
                 ),
@@ -2082,14 +2918,23 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black54,
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        foregroundColor: isDark
+                            ? Colors.white70
+                            : Colors.black54,
+                        side: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0),
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -2097,7 +2942,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     child: ElevatedButton(
                       onPressed: () async {
                         Navigator.pop(context);
-                        await AuthService.instance.unlockAccount(email, uid: uid);
+                        await AuthService.instance.unlockAccount(
+                          email,
+                          uid: uid,
+                        );
                         if (mounted) {
                           AuthService.showSnackBar(
                             'Account for $username has been unlocked.',
@@ -2137,7 +2985,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       builder: (ctx) => PopScope(
         canPop: false,
         child: Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
             child: Row(
@@ -2179,7 +3029,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       return;
     }
 
-    final currentUid = widget.currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+    final currentUid =
+        widget.currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
     if (currentUid == uid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -2203,127 +3054,169 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          width: 440,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Dialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            width: 440,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.block_rounded,
+                        color: Colors.orange,
+                        size: 24,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.block_rounded,
-                      color: Colors.orange,
-                      size: 24,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Deactivate User',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            'Account Suspension',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: isDark
+                                  ? Colors.orange.shade300
+                                  : Colors.orange.shade800,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.orange.shade900.withValues(alpha: 0.3)
+                        : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark
+                          ? Colors.orange.shade700
+                          : Colors.orange.shade200,
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Deactivate User',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            color: Colors.black87,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        color: isDark
+                            ? Colors.orange.shade300
+                            : Colors.orange.shade800,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'The user will be immediately signed out and blocked from logging in until reactivated by a Super Admin.',
+                          style: GoogleFonts.inter(
+                            color: isDark
+                                ? Colors.orange.shade200
+                                : Colors.orange.shade900,
+                            fontSize: 12,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        Text(
-                          'Account Suspension',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.orange.shade800,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Are you sure you want to deactivate $username ($email)?',
+                  style: GoogleFonts.inter(
+                    color: isDark ? Colors.white70 : Colors.black87,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark
+                              ? Colors.white70
+                              : Colors.black54,
+                          side: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.info_outline_rounded, color: Colors.orange.shade800, size: 20),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'The user will be immediately signed out and blocked from logging in until reactivated by a Super Admin.',
-                        style: GoogleFonts.inter(
-                          color: Colors.orange.shade900,
-                          fontSize: 12,
-                          height: 1.4,
-                          fontWeight: FontWeight.w500,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade700,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Deactivate',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Are you sure you want to deactivate $username ($email)?',
-                style: GoogleFonts.inter(
-                  color: Colors.black87,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w500,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black54,
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange.shade700,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text('Deactivate', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -2380,100 +3273,126 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          width: 440,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF81B655).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Dialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            width: 440,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.check_circle_outline_rounded,
+                        color: Color(0xFF81B655),
+                        size: 24,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.check_circle_outline_rounded,
-                      color: Color(0xFF81B655),
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Activate User',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            color: Colors.black87,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Activate User',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
                           ),
+                          Text(
+                            'Restore Account Access',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: const Color(0xFF81B655),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Are you sure you want to activate $username ($email)? The user will be able to log in and use their account immediately.',
+                  style: GoogleFonts.inter(
+                    color: isDark ? Colors.white70 : Colors.black87,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark
+                              ? Colors.white70
+                              : Colors.black54,
+                          side: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        Text(
-                          'Restore Account Access',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: const Color(0xFF81B655),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Are you sure you want to activate $username ($email)? The user will be able to log in and use their account immediately.',
-                style: GoogleFonts.inter(
-                  color: Colors.black87,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w500,
-                  height: 1.5,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF81B655),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Activate',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black54,
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF81B655),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text('Activate', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -2487,11 +3406,15 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
         'is_active': true,
       }, SetOptions(merge: true));
 
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'deactivated_at': FieldValue.delete(),
-        'locked_until': FieldValue.delete(),
-        'failed_login_attempts': 0,
-      }).catchError((_) {});
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update({
+            'deactivated_at': FieldValue.delete(),
+            'locked_until': FieldValue.delete(),
+            'failed_login_attempts': 0,
+          })
+          .catchError((_) {});
 
       if (mounted) {
         messenger.showSnackBar(
@@ -2533,7 +3456,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       return;
     }
 
-    final currentUid = widget.currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
+    final currentUid =
+        widget.currentUser?.uid ?? FirebaseAuth.instance.currentUser?.uid;
     if (currentUid == uid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -2547,127 +3471,167 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          width: 440,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Dialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            width: 440,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.archive_outlined,
+                        color: Color(0xFFEF4444),
+                        size: 24,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.archive_outlined,
-                      color: Color(0xFFEF4444),
-                      size: 24,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Archive User',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            'Account Archiving',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: isDark
+                                  ? Colors.red.shade300
+                                  : Colors.red.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.red.shade900.withValues(alpha: 0.3)
+                        : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? Colors.red.shade700 : Colors.red.shade200,
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Archive User',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            color: Colors.black87,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: isDark
+                            ? Colors.red.shade300
+                            : Colors.red.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Notice: This account will be moved to archive. The user will be barred from signing in, but their account records and registered email will remain preserved in the archive.',
+                          style: GoogleFonts.inter(
+                            color: isDark
+                                ? Colors.red.shade200
+                                : Colors.red.shade900,
+                            fontSize: 12,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        Text(
-                          'Account Archiving',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.red.shade700,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Are you sure you want to archive $username ($email) [Role: $role]?',
+                  style: GoogleFonts.inter(
+                    color: isDark ? Colors.white70 : Colors.black87,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark
+                              ? Colors.white70
+                              : Colors.black54,
+                          side: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red.shade200),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 20),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'Notice: This account will be moved to archive. The user will be barred from signing in, but their account records and registered email will remain preserved in the archive.',
-                        style: GoogleFonts.inter(
-                          color: Colors.red.shade900,
-                          fontSize: 12,
-                          height: 1.4,
-                          fontWeight: FontWeight.w500,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEF4444),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Archive User',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Are you sure you want to archive $username ($email) [Role: $role]?',
-                style: GoogleFonts.inter(
-                  color: Colors.black87,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w500,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black54,
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEF4444),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text('Archive User', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -2676,7 +3640,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     _showLoadingModal('Archiving user account...');
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await DatabaseService.instance.archiveUserAccount(uid, asSuperAdmin: true);
+      await DatabaseService.instance.archiveUserAccount(
+        uid,
+        asSuperAdmin: true,
+      );
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
@@ -2710,129 +3677,168 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 0,
-        backgroundColor: Colors.white,
-        child: Container(
-          width: 440,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          elevation: 0,
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          child: Container(
+            width: 440,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.unarchive_outlined,
+                        color: Color(0xFF10B981),
+                        size: 24,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.unarchive_outlined,
-                      color: Color(0xFF10B981),
-                      size: 24,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Unarchive User',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            'Account Restoration',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: isDark
+                                  ? const Color(0xFF34D399)
+                                  : const Color(0xFF10B981),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                        : const Color(0xFF10B981).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(
+                        0xFF10B981,
+                      ).withValues(alpha: isDark ? 0.4 : 0.3),
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Unarchive User',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            color: Colors.black87,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline_rounded,
+                        color: Color(0xFF10B981),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Restoring this account will reactivate the user\'s access to Grammatica, allowing them to sign in again with their registered credentials and continue their activities.',
+                          style: GoogleFonts.inter(
+                            color: isDark
+                                ? const Color(0xFFA7F3D0)
+                                : const Color(0xFF065F46),
+                            fontSize: 12,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        Text(
-                          'Account Restoration',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: const Color(0xFF10B981),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Are you sure you want to unarchive $username ($email) [Role: $role]?',
+                  style: GoogleFonts.inter(
+                    color: isDark ? Colors.white70 : Colors.black87,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark
+                              ? Colors.white70
+                              : Colors.black54,
+                          side: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF10B981), size: 20),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        'Restoring this account will reactivate the user\'s access to Grammatica, allowing them to sign in again with their registered credentials and continue their activities.',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF065F46),
-                          fontSize: 12,
-                          height: 1.4,
-                          fontWeight: FontWeight.w500,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          'Unarchive User',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Are you sure you want to unarchive $username ($email) [Role: $role]?',
-                style: GoogleFonts.inter(
-                  color: Colors.black87,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w500,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black54,
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text('Unarchive User', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -2841,7 +3847,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     _showLoadingModal('Restoring user account...');
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await DatabaseService.instance.unarchiveUserAccount(uid, asSuperAdmin: true);
+      await DatabaseService.instance.unarchiveUserAccount(
+        uid,
+        asSuperAdmin: true,
+      );
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
@@ -2886,7 +3895,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           child: Container(
             width: 440,
             padding: const EdgeInsets.all(28),
@@ -2901,10 +3912,16 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                          color: const Color(
+                            0xFF8B5CF6,
+                          ).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(Icons.person_add_rounded, color: Color(0xFF8B5CF6), size: 24),
+                        child: const Icon(
+                          Icons.person_add_rounded,
+                          color: Color(0xFF8B5CF6),
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -2921,7 +3938,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                             ),
                             Text(
                               'Create an administrator account with limited permissions',
-                              style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade500),
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
                             ),
                           ],
                         ),
@@ -2934,17 +3954,27 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     decoration: BoxDecoration(
                       color: const Color(0xFF8B5CF6).withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.2)),
+                      border: Border.all(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                      ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.info_outline_rounded, color: Color(0xFF8B5CF6), size: 18),
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          color: Color(0xFF8B5CF6),
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'A password reset confirmation link will be sent immediately to the admin\'s email address so they can set their password and sign in. (Only @yahoo.com, @gmail.com, and @hotmail.com domains are accepted).',
-                            style: GoogleFonts.inter(fontSize: 12, color: Colors.black87, height: 1.4),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.black87,
+                              height: 1.4,
+                            ),
                           ),
                         ),
                       ],
@@ -2989,19 +4019,29 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF8B5CF6),
+                          width: 1.5,
+                        ),
                       ),
                       filled: true,
                       fillColor: Colors.grey.shade50,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                     ),
                     validator: (val) {
                       final email = val?.trim() ?? '';
                       if (email.isEmpty) return 'Please enter an email address';
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+                      if (!RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      ).hasMatch(email)) {
                         return 'Please enter a valid email address';
                       }
-                      if (!EmailValidatorService.isAllowedSuperAdminEmail(email)) {
+                      if (!EmailValidatorService.isAllowedSuperAdminEmail(
+                        email,
+                      )) {
                         return 'Only @yahoo.com, @gmail.com, and @hotmail.com are allowed';
                       }
                       return null;
@@ -3011,7 +4051,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     const SizedBox(height: 12),
                     Text(
                       errorMessage!,
-                      style: GoogleFonts.inter(fontSize: 12, color: Colors.red.shade700, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -3019,14 +4063,23 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                          onPressed: isSubmitting
+                              ? null
+                              : () => Navigator.pop(context),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.grey.shade700,
                             side: const BorderSide(color: Color(0xFFE2E8F0)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                          child: Text(
+                            'Cancel',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -3044,37 +4097,50 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                   final email = emailCtrl.text.trim();
                                   try {
                                     final rand = Random.secure();
-                                    final tempPassword = 'Gramm_${100000 + rand.nextInt(900000)}!';
+                                    final tempPassword =
+                                        'Gramm_${100000 + rand.nextInt(900000)}!';
 
                                     // Create user via secondary FirebaseApp to preserve current superadmin session
-                                    final tempAppName = 'tempAdminReg_${DateTime.now().millisecondsSinceEpoch}';
-                                    final tempApp = await Firebase.initializeApp(
-                                      name: tempAppName,
-                                      options: Firebase.app().options,
+                                    final tempAppName =
+                                        'tempAdminReg_${DateTime.now().millisecondsSinceEpoch}';
+                                    final tempApp =
+                                        await Firebase.initializeApp(
+                                          name: tempAppName,
+                                          options: Firebase.app().options,
+                                        );
+                                    final tempAuth = FirebaseAuth.instanceFor(
+                                      app: tempApp,
                                     );
-                                    final tempAuth = FirebaseAuth.instanceFor(app: tempApp);
-                                    final cred = await tempAuth.createUserWithEmailAndPassword(
-                                      email: email,
-                                      password: tempPassword,
-                                    );
+                                    final cred = await tempAuth
+                                        .createUserWithEmailAndPassword(
+                                          email: email,
+                                          password: tempPassword,
+                                        );
                                     final newUid = cred.user!.uid;
                                     await tempApp.delete();
 
                                     // Save admin user record
-                                    await FirebaseFirestore.instance.collection('users').doc(newUid).set({
-                                      'uid': newUid,
-                                      'email': email.toLowerCase(),
-                                      'username': email.split('@').first,
-                                      'role': 'ADMIN',
-                                      'status': 'ACTIVE',
-                                      'createdAt': FieldValue.serverTimestamp(),
-                                    });
+                                    await FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(newUid)
+                                        .set({
+                                          'uid': newUid,
+                                          'email': email.toLowerCase(),
+                                          'username': email.split('@').first,
+                                          'role': 'ADMIN',
+                                          'status': 'ACTIVE',
+                                          'createdAt':
+                                              FieldValue.serverTimestamp(),
+                                        });
 
                                     // Immediately send password reset confirmation email
                                     try {
-                                      await AuthService.instance.sendPasswordResetEmail(email);
+                                      await AuthService.instance
+                                          .sendPasswordResetEmail(email);
                                     } catch (e) {
-                                      debugPrint('⚠️ sendPasswordResetEmail error: $e');
+                                      debugPrint(
+                                        '⚠️ sendPasswordResetEmail error: $e',
+                                      );
                                     }
 
                                     // Send invitation email with credentials and notification
@@ -3084,15 +4150,23 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                         temporaryPassword: tempPassword,
                                       );
                                     } catch (e) {
-                                      debugPrint('⚠️ sendAdminInvitationEmail error: $e');
+                                      debugPrint(
+                                        '⚠️ sendAdminInvitationEmail error: $e',
+                                      );
                                     }
 
                                     if (context.mounted) {
                                       Navigator.pop(context);
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
-                                          content: Text('Admin account created! Password reset confirmation sent immediately to $email.'),
-                                          backgroundColor: const Color(0xFF81B655),
+                                          content: Text(
+                                            'Admin account created! Password reset confirmation sent immediately to $email.',
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF81B655,
+                                          ),
                                           behavior: SnackBarBehavior.floating,
                                         ),
                                       );
@@ -3100,14 +4174,19 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                   } catch (e) {
                                     setDialogState(() {
                                       isSubmitting = false;
-                                      errorMessage = e.toString().replaceFirst(RegExp(r'^\[.*?\]\s*'), '');
+                                      errorMessage = e.toString().replaceFirst(
+                                        RegExp(r'^\[.*?\]\s*'),
+                                        '',
+                                      );
                                     });
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF8B5CF6),
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             elevation: 0,
                           ),
@@ -3115,9 +4194,17 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
                                 )
-                              : Text('Create & Email', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                              : Text(
+                                  'Create & Email',
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -3157,7 +4244,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.military_tech_rounded, color: Color(0xFFF59E0B), size: 28),
+                    child: const Icon(
+                      Icons.military_tech_rounded,
+                      color: Color(0xFFF59E0B),
+                      size: 28,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -3169,7 +4260,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           style: GoogleFonts.outfit(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -3177,7 +4270,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           'All badges are active in Firestore. Learners automatically unlock each badge by completing its criteria:',
                           style: GoogleFonts.inter(
                             fontSize: 13,
-                            color: isDark ? Colors.white60 : Colors.grey.shade600,
+                            color: isDark
+                                ? Colors.white60
+                                : Colors.grey.shade600,
                           ),
                         ),
                       ],
@@ -3185,7 +4280,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: Icon(Icons.close_rounded, color: isDark ? Colors.white54 : Colors.grey),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: isDark ? Colors.white54 : Colors.grey,
+                    ),
                   ),
                 ],
               ),
@@ -3194,15 +4292,24 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               // Success Banner
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: Color(0xFF10B981),
+                      size: 18,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -3224,7 +4331,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 child: StreamBuilder<List<BadgeModel>>(
                   stream: BadgeService.instance.streamBadges(),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                    if (snapshot.connectionState == ConnectionState.waiting &&
+                        !snapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());
                     }
                     final badges = snapshot.data ?? [];
@@ -3240,19 +4348,26 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     return ListView.separated(
                       shrinkWrap: true,
                       itemCount: badges.length,
-                      separatorBuilder: (_, index) => const SizedBox(height: 12),
+                      separatorBuilder: (_, index) =>
+                          const SizedBox(height: 12),
                       itemBuilder: (context, idx) {
                         final b = badges[idx];
                         final tierColor = _getBadgeTierColor(b.tier);
-                        final instructions = _getBadgeAchievementInstructions(b);
+                        final instructions = _getBadgeAchievementInstructions(
+                          b,
+                        );
 
                         return Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                            color: isDark
+                                ? const Color(0xFF0F172A)
+                                : const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                              color: isDark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFE2E8F0),
                             ),
                           ),
                           child: Row(
@@ -3266,14 +4381,24 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                 decoration: BoxDecoration(
                                   color: tierColor.withValues(alpha: 0.12),
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: tierColor.withValues(alpha: 0.4), width: 1.5),
+                                  border: Border.all(
+                                    color: tierColor.withValues(alpha: 0.4),
+                                    width: 1.5,
+                                  ),
                                 ),
                                 child: b.iconAsset.endsWith('.svg')
                                     ? SvgPicture.asset(
                                         b.iconAsset,
-                                        placeholderBuilder: (_) => Icon(Icons.military_tech_rounded, color: tierColor),
+                                        placeholderBuilder: (_) => Icon(
+                                          Icons.military_tech_rounded,
+                                          color: tierColor,
+                                        ),
                                       )
-                                    : Icon(Icons.military_tech_rounded, color: tierColor, size: 28),
+                                    : Icon(
+                                        Icons.military_tech_rounded,
+                                        color: tierColor,
+                                        size: 28,
+                                      ),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
@@ -3287,16 +4412,29 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                           style: GoogleFonts.outfit(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w700,
-                                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                            color: isDark
+                                                ? Colors.white
+                                                : const Color(0xFF0F172A),
                                           ),
                                         ),
                                         const SizedBox(width: 8),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
                                           decoration: BoxDecoration(
-                                            color: tierColor.withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: tierColor.withValues(alpha: 0.3)),
+                                            color: tierColor.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                            border: Border.all(
+                                              color: tierColor.withValues(
+                                                alpha: 0.3,
+                                              ),
+                                            ),
                                           ),
                                           child: Text(
                                             b.tier.toUpperCase(),
@@ -3309,17 +4447,28 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                         ),
                                         const SizedBox(width: 6),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2,
+                                          ),
                                           decoration: BoxDecoration(
-                                            color: isDark ? Colors.white12 : Colors.grey.shade200,
-                                            borderRadius: BorderRadius.circular(6),
+                                            color: isDark
+                                                ? Colors.white12
+                                                : Colors.grey.shade200,
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
                                           ),
                                           child: Text(
-                                            b.category.replaceAll('_', ' ').toUpperCase(),
+                                            b.category
+                                                .replaceAll('_', ' ')
+                                                .toUpperCase(),
                                             style: GoogleFonts.inter(
                                               fontSize: 10,
                                               fontWeight: FontWeight.w600,
-                                              color: isDark ? Colors.white70 : Colors.black87,
+                                              color: isDark
+                                                  ? Colors.white70
+                                                  : Colors.black87,
                                             ),
                                           ),
                                         ),
@@ -3330,32 +4479,57 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                       b.description,
                                       style: GoogleFonts.inter(
                                         fontSize: 13,
-                                        color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                        color: isDark
+                                            ? Colors.white70
+                                            : Colors.grey.shade700,
                                       ),
                                     ),
                                     const SizedBox(height: 8),
                                     // How to achieve box
                                     Container(
                                       width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF81B655).withValues(alpha: 0.08),
+                                        color: const Color(
+                                          0xFF81B655,
+                                        ).withValues(alpha: 0.08),
                                         borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: const Color(0xFF81B655).withValues(alpha: 0.2)),
+                                        border: Border.all(
+                                          color: const Color(
+                                            0xFF81B655,
+                                          ).withValues(alpha: 0.2),
+                                        ),
                                       ),
                                       child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          const Icon(Icons.emoji_events_rounded, color: Color(0xFF81B655), size: 16),
+                                          const Icon(
+                                            Icons.emoji_events_rounded,
+                                            color: Color(0xFF81B655),
+                                            size: 16,
+                                          ),
                                           const SizedBox(width: 6),
                                           Expanded(
                                             child: RichText(
                                               text: TextSpan(
-                                                style: GoogleFonts.inter(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87),
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  color: isDark
+                                                      ? Colors.white70
+                                                      : Colors.black87,
+                                                ),
                                                 children: [
                                                   const TextSpan(
                                                     text: 'How to achieve: ',
-                                                    style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF81B655)),
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFF81B655),
+                                                    ),
                                                   ),
                                                   TextSpan(text: instructions),
                                                 ],
@@ -3386,10 +4560,18 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF81B655),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
-                  child: Text('Done', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                  child: Text(
+                    'Done',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
             ],
@@ -3431,4 +4613,3 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     }
   }
 }
-

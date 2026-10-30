@@ -28,6 +28,9 @@ class LearnerBadgesCard extends StatelessWidget {
             child: CircularProgressIndicator(),
           ));
         }
+        if (badges.isEmpty) {
+          BadgeService.instance.seedBadgesIfEmpty();
+        }
 
         return StreamBuilder<Map<String, EarnedBadge>>(
           stream: BadgeService.instance.streamEarnedBadges(uid),
@@ -200,43 +203,55 @@ class LearnerBadgesCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Icon: Colorful SVG if earned, black or grey circle if locked
+            // Icon: Show badge SVG always; if locked, dim slightly and overlay lock icon
             Expanded(
               flex: 4,
               child: Center(
-                child: isEarned
-                    ? SvgPicture.asset(
-                        badge.iconAsset,
-                        width: 58,
-                        height: 58,
-                        fit: BoxFit.contain,
-                      )
-                    : Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFF334155),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isDark ? const Color(0xFF475569) : const Color(0xFF64748B),
-                            width: 2,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.18),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.lock_rounded,
-                            size: 22,
-                            color: Colors.white54,
-                          ),
+                child: SizedBox(
+                  width: 62,
+                  height: 62,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Opacity(
+                        opacity: isEarned ? 1.0 : 0.45,
+                        child: SvgPicture.asset(
+                          badge.iconAsset,
+                          width: 58,
+                          height: 58,
+                          fit: BoxFit.contain,
                         ),
                       ),
+                      if (!isEarned)
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.65),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.lock_rounded,
+                              size: 15,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
@@ -346,25 +361,40 @@ class LearnerBadgesCard extends StatelessWidget {
                       ]
                     : null,
               ),
-              child: isEarned
-                  ? SvgPicture.asset(badge.iconAsset)
-                  : Container(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Opacity(
+                    opacity: isEarned ? 1.0 : 0.45,
+                    child: SvgPicture.asset(
+                      badge.iconAsset,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  if (!isEarned)
+                    Container(
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFF334155),
+                        color: Colors.black.withValues(alpha: 0.68),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isDark ? const Color(0xFF475569) : const Color(0xFF64748B),
-                          width: 2.5,
+                          color: Colors.white.withValues(alpha: 0.75),
+                          width: 1.5,
                         ),
                       ),
                       child: const Center(
                         child: Icon(
                           Icons.lock_rounded,
-                          size: 36,
-                          color: Colors.white54,
+                          size: 20,
+                          color: Colors.white,
                         ),
                       ),
                     ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             Text(

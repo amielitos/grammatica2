@@ -57,17 +57,19 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
       return ['Validator Applications', 'Rejected Validator Applications'];
     }
     if (widget.role == UserRole.validator) {
-      return ['Lessons', 'Educator Applications', 'Rejected'];
+      return ['Lessons', 'Educator Applications', 'Declined Submissions'];
     }
-    return ['Lessons', 'Validator Applications', 'Educator Applications', 'Rejected'];
+    return ['Lessons', 'Validator Applications', 'Educator Applications', 'Declined Submissions'];
   }
 
   int _selectedTab = 0;
+  late final Stream<List<Lesson>> _awaitingLessonsStream;
 
   @override
   void initState() {
     super.initState();
     _selectedTab = widget.initialTabIndex.clamp(0, _tabLabels.length - 1);
+    _awaitingLessonsStream = DatabaseService.instance.streamAwaitingApprovalLessons();
   }
 
   IconData _getTabIcon(String label) {
@@ -79,6 +81,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
       case 'Educator Applications':
         return Icons.badge_rounded;
       case 'Rejected Validator Applications':
+      case 'Declined Submissions':
       case 'Rejected':
       default:
         return Icons.block_rounded;
@@ -194,7 +197,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                   icon: Icon(Icons.keyboard_arrow_down_rounded,
                       color: AppColors.primary),
                   items: List.generate(labels.length, (i) {
-                    final isRejected = labels[i].contains('Rejected');
+                    final isRejected = labels[i].contains('Rejected') || labels[i].contains('Declined');
                     return DropdownMenuItem(
                       value: i,
                       child: Row(
@@ -247,7 +250,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                   mainAxisSize: MainAxisSize.min,
                   children: List.generate(labels.length, (i) {
                     final isSelected = _selectedTab == i;
-                    final isRejected = labels[i].contains('Rejected');
+                    final isRejected = labels[i].contains('Rejected') || labels[i].contains('Declined');
                     final activeColor = isRejected ? const Color(0xFFE05050) : const Color(0xFF81B655);
                     final IconData tabIcon = _getTabIcon(labels[i]);
 
@@ -322,7 +325,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                   : widget.role == UserRole.validator
                       ? [
                           _ValidationList(
-                            stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
+                            stream: _awaitingLessonsStream,
                             collection: 'lessons',
                             formatDate: _formatTs,
                             role: widget.role,
@@ -340,7 +343,7 @@ class _AdminValidationTabState extends State<AdminValidationTab> with SingleTick
                         ]
                       : [
                           _ValidationList(
-                            stream: DatabaseService.instance.streamAwaitingApprovalLessons(),
+                            stream: _awaitingLessonsStream,
                             collection: 'lessons',
                             formatDate: _formatTs,
                             role: widget.role,
@@ -390,15 +393,32 @@ class _EducatorApplicationsList extends StatefulWidget {
 class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
   int _currentPage = 1;
   static const int _pageSize = 8;
+  late Stream<List<EducatorApplication>> _stream;
+
+  @override
+  void initState() {
+    super.initState();
+    _initStream();
+  }
+
+  @override
+  void didUpdateWidget(covariant _EducatorApplicationsList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.showRejected != widget.showRejected || oldWidget.type != widget.type) {
+      _initStream();
+    }
+  }
+
+  void _initStream() {
+    _stream = widget.showRejected
+        ? DatabaseService.instance.streamRejectedApplications()
+        : DatabaseService.instance.streamEducatorApplications(type: widget.type);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final stream = widget.showRejected
-        ? DatabaseService.instance.streamRejectedApplications()
-        : DatabaseService.instance.streamEducatorApplications(type: widget.type);
-
     return StreamBuilder<List<EducatorApplication>>(
-      stream: stream,
+      stream: _stream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
@@ -419,7 +439,7 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
             ),
           );
         }
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return Center(
             child: CircularProgressIndicator(
               color: Theme.of(context).colorScheme.primary,
@@ -895,7 +915,7 @@ class _ValidationListState extends State<_ValidationList> {
             ),
           );
         }
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return Center(
             child: CircularProgressIndicator(
               color: Theme.of(context).colorScheme.primary,
@@ -1165,45 +1185,6 @@ class _ValidationListState extends State<_ValidationList> {
         child: Stack(
           children: [
             Scaffold(
-              appBar: PreferredSize(
-                preferredSize: Size.fromHeight((item is Lesson && item.isUpdate) ? 44 : 38),
-                child: Container(
-                  color: (item is Lesson && item.isUpdate)
-                      ? const Color(0xFF6366F1)
-                      : const Color(0xFF1E293B),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  alignment: Alignment.center,
-                  child: SafeArea(
-                    bottom: false,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          (item is Lesson && item.isUpdate)
-                              ? Icons.info_outline_rounded
-                              : Icons.schedule_rounded,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            (item is Lesson && item.isUpdate)
-                                ? 'Creator wants to update already existing lesson • Submitted: ${item.createdAt != null ? widget.formatDate(item.createdAt!) : 'N/A'}'
-                                : 'Pending Approval • Submitted: ${item.createdAt != null ? widget.formatDate(item.createdAt!) : 'N/A'}',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
               body: collection == 'lessons'
                   ? LessonPage(
                       user: user,
@@ -1216,65 +1197,82 @@ class _ValidationListState extends State<_ValidationList> {
                       previewMode: true,
                     ),
               bottomNavigationBar: Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 decoration: BoxDecoration(
                   color: Theme.of(context).brightness == Brightness.dark
                       ? const Color(0xFF1E293B)
                       : Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, -4),
                     ),
                   ],
                 ),
-                child: widget.role == UserRole.superadmin
-                    ? SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close),
-                          label: const Text('Close Preview (View Only)'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                child: SafeArea(
+                  top: false,
+                  child: widget.role == UserRole.superadmin
+                      ? SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close_rounded, size: 20),
+                            label: Text(
+                              'Close Preview (View Only)',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
                           ),
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _reject(context, item);
+                                },
+                                icon: const Icon(Icons.close_rounded, size: 18),
+                                label: Text(
+                                  'Deny Content',
+                                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFFEF4444),
+                                  side: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _approve(context, item);
+                                },
+                                icon: const Icon(Icons.check_rounded, size: 18),
+                                label: Text(
+                                  'Approve Content',
+                                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+                                ),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  elevation: 0,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      )
-                    : Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _reject(context, item);
-                              },
-                              icon: const Icon(Icons.close),
-                              label: const Text('Deny Content'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: FilledButton.icon(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _approve(context, item);
-                              },
-                              icon: const Icon(Icons.check),
-                              label: const Text('Approve Content'),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                ),
               ),
             ),
           ],
@@ -1471,16 +1469,26 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
   int _appsPage = 1;
   static const int _appsPageSize = 6;
 
+  late final Stream<List<Lesson>> _rejectedLessonsStream;
+  late final Stream<List<EducatorApplication>> _rejectedAppsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _rejectedLessonsStream = DatabaseService.instance.streamRejectedLessons();
+    _rejectedAppsStream = DatabaseService.instance.streamRejectedApplications();
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Lesson>>(
-      stream: DatabaseService.instance.streamRejectedLessons(),
+      stream: _rejectedLessonsStream,
       builder: (ctx, lessonSnap) {
         return StreamBuilder<List<EducatorApplication>>(
-          stream: DatabaseService.instance.streamRejectedApplications(),
+          stream: _rejectedAppsStream,
           builder: (ctx, appSnap) {
-            if (lessonSnap.connectionState == ConnectionState.waiting ||
-                appSnap.connectionState == ConnectionState.waiting) {
+            if ((lessonSnap.connectionState == ConnectionState.waiting && !lessonSnap.hasData) ||
+                (appSnap.connectionState == ConnectionState.waiting && !appSnap.hasData)) {
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -1518,7 +1526,7 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      isAdmin ? 'No Rejected Validator Applications' : 'No Rejected Content',
+                      isAdmin ? 'No Rejected Validator Applications' : 'No Declined Submissions',
                       style: GoogleFonts.outfit(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
@@ -1558,7 +1566,7 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
                 if (lessons.isNotEmpty) ...[
                   ..._buildSection(
                     context,
-                    'Lessons',
+                    'Declined Lessons',
                     Icons.auto_stories_rounded,
                     pageLessons
                         .map(
@@ -1576,6 +1584,7 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
                           ),
                         )
                         .toList(),
+                    totalCount: totalLessons,
                   ),
                   if (totalLessons > _lessonsPageSize)
                     Padding(
@@ -1584,7 +1593,7 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
                         currentPage: _lessonsPage,
                         totalItems: totalLessons,
                         pageSize: _lessonsPageSize,
-                        itemName: 'rejected lessons',
+                        itemName: 'declined lessons',
                         onPageChanged: (p) => setState(() => _lessonsPage = p),
                       ),
                     ),
@@ -1595,8 +1604,8 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
                     isAdmin
                         ? 'Rejected Validator Applications'
                         : isValidator
-                            ? 'Rejected Educator Applications'
-                            : 'Applications',
+                            ? 'Declined Educator Applications'
+                            : 'Declined Applications',
                     Icons.person_off_rounded,
                     pageApps
                         .map(
@@ -1616,6 +1625,7 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
                           ),
                         )
                         .toList(),
+                    totalCount: totalApps,
                   ),
                   if (totalApps > _appsPageSize)
                     Padding(
@@ -1624,7 +1634,7 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
                         currentPage: _appsPage,
                         totalItems: totalApps,
                         pageSize: _appsPageSize,
-                        itemName: 'rejected applications',
+                        itemName: 'declined applications',
                         onPageChanged: (p) => setState(() => _appsPage = p),
                       ),
                     ),
@@ -1641,8 +1651,9 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
     BuildContext ctx,
     String title,
     IconData icon,
-    List<Widget> cards,
-  ) {
+    List<Widget> cards, {
+    int? totalCount,
+  }) {
     final isDark = Theme.of(ctx).brightness == Brightness.dark;
     return [
       Padding(
@@ -1674,7 +1685,7 @@ class _AllRejectedTabState extends State<_AllRejectedTab> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                '${cards.length}',
+                '${totalCount ?? cards.length}',
                 style: GoogleFonts.inter(
                   color: isDark ? const Color(0xFFFF8A80) : const Color(0xFFE05050),
                   fontSize: 11,
@@ -1804,7 +1815,7 @@ class _RejectedItem extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Rejected',
+                        'Declined',
                         style: GoogleFonts.inter(
                           color: isDark ? const Color(0xFFFF8A80) : const Color(0xFFE05050),
                           fontSize: 10,

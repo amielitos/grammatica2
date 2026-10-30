@@ -492,7 +492,7 @@ class _LoginPageState extends State<LoginPage> {
                                             fontSize: 12, color: Colors.grey.shade700),
                                       ),
                                       TextButton(
-                                        onPressed: _showForgotPasswordDialog,
+                                        onPressed: _isLoading ? null : _showForgotPasswordDialog,
                                         style: TextButton.styleFrom(
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 8, vertical: 2),
@@ -518,6 +518,7 @@ class _LoginPageState extends State<LoginPage> {
                           _buildTextField(
                             hintText: 'Email Address *',
                             controller: _emailController,
+                            enabled: !_isLoading,
                             prefixIcon: const Icon(Icons.email_outlined),
                             textInputAction: TextInputAction.next,
                             onFieldSubmitted: (_) {
@@ -540,6 +541,7 @@ class _LoginPageState extends State<LoginPage> {
                           _buildTextField(
                             hintText: 'Password *',
                             controller: _passwordController,
+                            enabled: !_isLoading,
                             obscureText: _obscurePassword,
                             prefixIcon: const Icon(Icons.lock_outline),
                             textInputAction: TextInputAction.done,
@@ -557,8 +559,10 @@ class _LoginPageState extends State<LoginPage> {
                                 size: 22,
                               ),
                               tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                              onPressed: () => setState(
-                                  () => _obscurePassword = !_obscurePassword),
+                              onPressed: _isLoading
+                                  ? null
+                                  : () => setState(
+                                      () => _obscurePassword = !_obscurePassword),
                             ),
                             validator: (value) => (value == null || value.isEmpty)
                                 ? 'Please enter your password'
@@ -568,7 +572,7 @@ class _LoginPageState extends State<LoginPage> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: _showForgotPasswordDialog,
+                              onPressed: _isLoading ? null : _showForgotPasswordDialog,
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 30),
@@ -645,22 +649,24 @@ class _LoginPageState extends State<LoginPage> {
                           const SizedBox(height: 24),
                           Center(
                             child: TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  PageRouteBuilder(
-                                    pageBuilder: (context, animation, secondaryAnimation) => const SignupPage(),
-                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                      // Pure fade transition
-                                      return FadeTransition(
-                                        opacity: animation,
-                                        child: child,
+                              onPressed: _isLoading
+                                  ? null
+                                  : () {
+                                      Navigator.push(
+                                        context,
+                                        PageRouteBuilder(
+                                          pageBuilder: (context, animation, secondaryAnimation) => const SignupPage(),
+                                          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                            // Pure fade transition
+                                            return FadeTransition(
+                                              opacity: animation,
+                                              child: child,
+                                            );
+                                          },
+                                          transitionDuration: const Duration(milliseconds: 400),
+                                        ),
                                       );
                                     },
-                                    transitionDuration: const Duration(milliseconds: 400),
-                                  ),
-                                );
-                              },
                               child: RichText(
                                 text: TextSpan(
                                   text: "Don't have an account? ",
@@ -721,6 +727,7 @@ class _LoginPageState extends State<LoginPage> {
     required Widget prefixIcon,
     Widget? suffixIcon,
     bool obscureText = false,
+    bool enabled = true,
     String? Function(String?)? validator,
     TextInputAction? textInputAction,
     ValueChanged<String>? onFieldSubmitted,
@@ -733,7 +740,9 @@ class _LoginPageState extends State<LoginPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF334155) : Colors.white,
+        color: !enabled
+            ? (isDark ? const Color(0xFF1E293B) : Colors.grey.shade100)
+            : (isDark ? const Color(0xFF334155) : Colors.white),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -750,6 +759,7 @@ class _LoginPageState extends State<LoginPage> {
       ),
       child: TextFormField(
         controller: controller,
+        enabled: enabled,
         obscureText: obscureText,
         textInputAction: textInputAction,
         onFieldSubmitted: onFieldSubmitted,

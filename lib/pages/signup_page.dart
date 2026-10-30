@@ -227,47 +227,148 @@ class _SignupPageState extends State<SignupPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Terms of Service",
+                                "GRAMMATICA — TERMS AND CONDITIONS",
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
                                   color: isDark ? Colors.white : Colors.black87,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 4),
                               Text(
-                                "Welcome to Grammatica. By using our services, you agree to these terms. Please read them carefully. We provide an educational platform for grammar learning. You are responsible for maintaining the confidentiality of your account...",
+                                "Effective Date: October 31, 2026",
                                 style: TextStyle(
-                                  color: isDark ? Colors.white70 : Colors.black87,
-                                  height: 1.4,
+                                  fontSize: 12.5,
+                                  fontStyle: FontStyle.italic,
+                                  color: isDark ? Colors.white60 : Colors.black54,
                                 ),
                               ),
+                              const SizedBox(height: 12),
+                              Text(
+                                "1. Introduction\n"
+                                "Grammatica is an AI-assisted English learning application that provides interactive lessons, educational activities, assessments, and learning support. By using the platform, users agree to these Terms and Conditions.\n\n"
+                                "2. User Roles\n"
+                                "Grammatica supports four user roles:\n"
+                                "• Learners: Access lessons, complete activities, track progress, enroll in Educators, and apply for the Educator role.\n"
+                                "• Educators: Create lessons, quizzes, and learning materials, manage enrolled learners, and conduct mentorship sessions.\n"
+                                "• Validators: Review educational content and applications, then approve or reject submissions.\n"
+                                "• Super-Admins: Manage accounts, official lessons, applications, platform content, and system settings.\n\n"
+                                "3. Accounts and Security\n"
+                                "Users must provide accurate registration details and protect their login credentials. Unauthorized account access and misuse of another user's information are prohibited.\n\n"
+                                "4. Educator Applications\n"
+                                "Applicants must submit the required credentials for review. Approval depends on the platform's validation process and does not guarantee acceptance.\n\n"
+                                "5. Enrollment and Access\n"
+                                "Learners may browse Educators and enroll to access eligible courses, custom lessons, members-only content, and mentorship sessions. Removing an enrollment may affect access to restricted materials.\n\n"
+                                "6. Educational Content\n"
+                                "Users must submit appropriate educational materials and respect intellectual property rights. Grammatica may reject or archive content that violates platform guidelines. Archived lessons may be permanently deleted after 30 days if not restored.\n\n"
+                                "7. Artificial Intelligence\n"
+                                "Grammatica uses Google Gemini cloud services to assist in generating lessons, quizzes, and other educational materials. AI-generated content may contain errors and should be reviewed before educational use.\n\n"
+                                "8. Practice and Assessments\n"
+                                "Grammatica offers grammar, spelling, pronunciation, and English assessment activities. Speech recognition and pronunciation analysis are limited to English. Results do not guarantee specific learning outcomes.\n\n"
+                                "9. Mentorship Sessions\n"
+                                "Learners may schedule one-on-one sessions with Educators through supported conferencing services, including Google Meet, Zoom, and Microsoft Teams. Users must follow agreed schedules and respect other participants.\n\n"
+                                "10. User Conduct\n"
+                                "Users must not engage in harassment, upload harmful content, manipulate learning results, bypass security controls, or use Grammatica for unlawful activities. Violations may result in account restrictions or suspension.\n\n"
+                                "11. Intellectual Property\n"
+                                "Grammatica's software, branding, and original materials are protected by applicable laws. Users must not reproduce or distribute protected content without authorization.\n\n"
+                                "12. Account Deactivation and Deletion\n"
+                                "Eligible Learners, Educators, and Validators may deactivate or delete their accounts through available settings. Super-Admin accounts cannot be deleted through standard profile settings. Certain records may be retained when required by law.\n\n"
+                                "13. Service Limitations\n"
+                                "Grammatica depends on internet connectivity and external services for certain features. AI generation uses cloud-based models, while institutional multi-tenant administration, LMS LTI 1.3, and SCORM compliance are not supported.\n\n"
+                                "14. Limitation of Liability\n"
+                                "Grammatica does not guarantee uninterrupted service, error-free AI-generated content, or specific educational results. Nothing in these terms excludes liability that cannot legally be excluded.\n\n"
+                                "15. Changes to Terms\n"
+                                "Grammatica may update these terms as its features and services change. Revised terms will include an updated effective date.\n\n"
+                                "16. Governing Law\n"
+                                "These terms are governed by applicable laws of the Republic of the Philippines.\n\n"
+                                "17. Contact Information\n"
+                                "For questions or concerns, contact Grammatica through its official support channel.\n"
+                                "Email: grammatica.support@gmail.com",
+                                style: TextStyle(
+                                  color: isDark ? Colors.white70 : Colors.black87,
+                                  height: 1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              const Divider(),
                               const SizedBox(height: 16),
                               Text(
-                                "Privacy Policy",
+                                "GRAMMATICA — PRIVACY POLICY",
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
                                   color: isDark ? Colors.white : Colors.black87,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 4),
                               Text(
-                                "We value your privacy. We collect information to provide better services to our users. This includes your name, email, and progress data. We do not sell your data to third parties...",
+                                "Effective Date: October 31, 2026",
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontStyle: FontStyle.italic,
+                                  color: isDark ? Colors.white60 : Colors.black54,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                "1. Introduction\n"
+                                "Grammatica values the privacy of its users. This Privacy Policy explains how personal information is collected, used, stored, and protected when using the platform.\n\n"
+                                "2. Information We Collect\n"
+                                "Grammatica may collect the following information:\n"
+                                "• Personal details, including name, email address, phone number, and date of birth.\n"
+                                "• Account and profile information.\n"
+                                "• Educator and Validator application documents.\n"
+                                "• Learning activities, assessment results, and progress records.\n"
+                                "• Enrollment details and mentorship schedules.\n"
+                                "• Technical information related to account and application usage.\n\n"
+                                "3. Use of Personal Information\n"
+                                "Collected information may be used to:\n"
+                                "• Create and manage user accounts.\n"
+                                "• Verify user identities and applications.\n"
+                                "• Monitor learning progress and achievements.\n"
+                                "• Manage Educator enrollment and mentorship sessions.\n"
+                                "• Provide AI-assisted learning features.\n"
+                                "• Maintain application security and improve services.\n\n"
+                                "4. Information Access and Sharing\n"
+                                "Personal information may be accessed by authorized users according to their roles:\n"
+                                "• Educators: Access relevant information about their enrolled Learners.\n"
+                                "• Validators: Review Educator applications and submitted educational materials.\n"
+                                "• Super-Admins: Manage accounts, applications, and platform activities.\n"
+                                "Information may also be processed by third-party providers necessary for Grammatica's services.\n\n"
+                                "5. Third-Party Services\n"
+                                "Grammatica uses Google Sign-In for authentication and Google Gemini for AI-assisted features. Google Meet, Zoom, and Microsoft Teams may be used for mentorship sessions. These providers have their own privacy policies and data-handling practices.\n\n"
+                                "6. AI-Assisted Processing\n"
+                                "Information and documents submitted through AI Notebook may be processed by Google Gemini to generate lessons, quizzes, and other educational materials. Users should avoid uploading unnecessary personal or confidential information.\n\n"
+                                "7. Speech and Pronunciation Data\n"
+                                "Grammatica uses Vosk and Web Speech APIs for English speech recognition and pronunciation activities. Audio processing depends on the technology and features used.\n\n"
+                                "8. Data Storage and Security\n"
+                                "Grammatica applies reasonable security measures to protect personal information against unauthorized access, disclosure, alteration, or loss.\n\n"
+                                "9. Data Retention\n"
+                                "Personal information is retained only as long as necessary for educational, operational, and legal purposes. Records may be deleted or anonymized when no longer needed, subject to applicable requirements.\n\n"
+                                "10. User Privacy Rights\n"
+                                "Under the Philippine Data Privacy Act of 2012, users may exercise their applicable rights, including:\n"
+                                "• Accessing their personal information.\n"
+                                "• Correcting inaccurate details.\n"
+                                "• Requesting deletion or blocking when legally permitted.\n"
+                                "• Objecting to certain data processing activities.\n"
+                                "• Requesting a copy of their information when applicable.\n"
+                                "• Filing a complaint with the National Privacy Commission.\n\n"
+                                "11. Account Deactivation and Deletion\n"
+                                "Eligible users may deactivate or request deletion of their accounts through available account settings. Certain records may be retained when required by law or for legitimate purposes.\n\n"
+                                "12. Privacy of Minors\n"
+                                "Grammatica recognizes that some users may be below 18 years old. Parental or legal guardian consent will be obtained when required by applicable laws.\n\n"
+                                "13. Changes to This Policy\n"
+                                "Grammatica may revise this Privacy Policy when its services or data-handling practices change. Updated versions will be made available through the platform.\n\n"
+                                "14. Contact Information\n"
+                                "For privacy-related questions, requests, or concerns, users may contact:\n"
+                                "Grammatica Privacy Support\n"
+                                "Email: grammatica.support@gmail.com",
                                 style: TextStyle(
                                   color: isDark ? Colors.white70 : Colors.black87,
-                                  height: 1.4,
+                                  height: 1.5,
                                 ),
                               ),
-                              SizedBox(
-                                height: 400,
-                                child: Center(
-                                  child: Text(
-                                    "Scroll down to accept terms...",
-                                    style: TextStyle(color: isDark ? Colors.white38 : Colors.grey),
-                                  ),
-                                ),
-                              ),
+                              const SizedBox(height: 20),
                               Text(
                                 "End of Document",
                                 style: TextStyle(
@@ -806,41 +907,43 @@ class _SignupPageState extends State<SignupPage> {
                 return null;
               },
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? Colors.amber.withValues(alpha: 0.1)
-                    : const Color(0xFFFFFBEB),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
+            if (_selectedRole != 'Validator') ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
                   color: isDark
-                      ? Colors.amber.withValues(alpha: 0.3)
-                      : Colors.amber.shade300,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.lock_outline_rounded,
-                    size: 14,
-                    color: isDark ? Colors.amber.shade300 : Colors.amber.shade800,
+                      ? Colors.amber.withValues(alpha: 0.1)
+                      : const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.amber.withValues(alpha: 0.3)
+                        : Colors.amber.shade300,
                   ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Date of birth can only be edited once after registration.',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.lock_outline_rounded,
+                      size: 14,
+                      color: isDark ? Colors.amber.shade300 : Colors.amber.shade800,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Date of birth can only be edited once after registration.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.amber.shade200 : Colors.amber.shade900,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

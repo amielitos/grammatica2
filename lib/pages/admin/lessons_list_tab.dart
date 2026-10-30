@@ -202,7 +202,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  _activeView == 0 ? 'Lessons' : 'Playlists',
+                                  _activeView == 0 ? 'Lessons' : 'Learning Collections',
                                   style: GoogleFonts.outfit(
                                     fontSize: 36,
                                     fontWeight: FontWeight.w900,
@@ -214,7 +214,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                 Text(
                                   _activeView == 0
                                       ? '${lessons.length} lesson${lessons.length == 1 ? '' : 's'} found'
-                                      : 'Ordered learning journeys curated for students',
+                                      : 'Ordered learning collections curated for students',
                                   style: GoogleFonts.inter(
                                     fontSize: 14,
                                     color: AppColors.textSecondary,
@@ -254,7 +254,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                       ),
                                       const SizedBox(width: 4),
                                       ChoiceChip(
-                                        label: const Text('Playlists'),
+                                        label: const Text('Learning Collections'),
                                         selected: _activeView == 1,
                                         onSelected: (val) {
                                           if (val) setState(() => _activeView = 1);
@@ -276,7 +276,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                   FilledButton.icon(
                                     onPressed: () => _showPlaylistDialog(context, lessons),
                                     icon: const Icon(Icons.playlist_add_rounded, size: 18),
-                                    label: const Text('New Playlist'),
+                                    label: const Text('New Learning Collection'),
                                     style: FilledButton.styleFrom(
                                       backgroundColor: AppColors.primary,
                                       foregroundColor: Colors.white,
@@ -764,7 +764,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        existing == null ? 'Cancel Playlist Creation?' : 'Discard Changes?',
+                        existing == null ? 'Cancel Learning Collection Creation?' : 'Discard Changes?',
                         style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -772,7 +772,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                 ),
                 content: Text(
                   existing == null
-                      ? 'Are you sure you want to cancel creating this playlist? Any entered information will be lost.'
+                      ? 'Are you sure you want to cancel creating this learning collection? Any entered information will be lost.'
                       : 'Are you sure you want to discard your changes? Any unsaved modifications will be lost.',
                   style: GoogleFonts.inter(fontSize: 14, height: 1.5),
                 ),
@@ -844,7 +844,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              existing == null ? 'Create Lesson Playlist' : 'Edit Playlist',
+                              existing == null ? 'Create Learning Collection' : 'Edit Learning Collection',
                               style: GoogleFonts.outfit(
                                 fontSize: isMobile ? 18 : 22,
                                 fontWeight: FontWeight.bold,
@@ -865,8 +865,22 @@ class _LessonsListTabState extends State<LessonsListTab> {
                       // ── Inputs ──
                       TextField(
                         controller: titleCtrl,
+                        onChanged: (_) => setDialogState(() {}),
                         decoration: InputDecoration(
-                          labelText: 'Playlist Title',
+                          label: const Text.rich(
+                            TextSpan(
+                              text: 'Collection Title',
+                              children: [
+                                TextSpan(
+                                  text: ' *',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                           hintText: 'e.g. Master English Tenses in Order',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -878,19 +892,25 @@ class _LessonsListTabState extends State<LessonsListTab> {
                         maxLines: 2,
                         decoration: InputDecoration(
                           labelText: 'Description (Optional)',
-                          hintText: 'Describe the sequence or goal of this playlist',
+                          hintText: 'Describe the sequence or goal of this learning collection',
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         ),
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Select & Arrange Lessons (${selectedLessonIds.length} selected)',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                        'Upload 2 or more lessons (${selectedLessonIds.length} selected)',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: selectedLessonIds.length < 2
+                              ? Colors.red.shade700
+                              : (isDark ? Colors.white : AppColors.textPrimary),
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Lessons will be viewed sequentially in this order by learners.',
+                        'Please upload 2 or more lessons. Lessons will be viewed sequentially in this order by learners.',
                         style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 12),
@@ -904,115 +924,199 @@ class _LessonsListTabState extends State<LessonsListTab> {
                             ),
                           ),
                         )
-                      else
-                        ...allowedLessons.map((lesson) {
-                          final isSelected = selectedLessonIds.contains(lesson.id);
-                          final orderIndex = selectedLessonIds.indexOf(lesson.id);
+                      else ...[
+                        // ── Selected Lessons in Sequential Order ──
+                        if (selectedLessonIds.isNotEmpty) ...[
+                          Row(
+                            children: [
+                              Text(
+                                'Collection Sequence',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: isDark ? Colors.white : AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${selectedLessonIds.length} added',
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ...selectedLessonIds.asMap().entries.map((entry) {
+                            final orderIndex = entry.key;
+                            final lessonId = entry.value;
+                            final matches = allowedLessons.where((l) => l.id == lessonId);
+                            final lesson = matches.isNotEmpty ? matches.first : null;
+                            if (lesson == null) return const SizedBox.shrink();
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppColors.primary.withValues(alpha: 0.08)
-                                  : (isDark ? const Color(0xFF2E2E2E) : const Color(0xFFF8FAFC)),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppColors.primary
-                                    : (isDark ? Colors.white12 : Colors.black12),
+                            return Container(
+                              key: ValueKey('selected_${lesson.id}_$orderIndex'),
+                              margin: const EdgeInsets.only(bottom: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.primary,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                                leading: CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: AppColors.primary,
+                                  child: Text(
+                                    '${orderIndex + 1}',
+                                    style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                title: Text(
+                                  lesson.title,
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: isDark ? Colors.white : AppColors.textPrimary,
+                                  ),
+                                ),
+                                subtitle: lesson.isGrammaticaLesson
+                                    ? Text(
+                                        'Official Grammatica',
+                                        style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                                      )
+                                    : AuthorName(
+                                        uid: lesson.createdByUid,
+                                        fallbackEmail: lesson.createdByEmail,
+                                        prefix: '',
+                                        style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                                      ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (orderIndex > 0)
+                                      IconButton(
+                                        icon: const Icon(Icons.arrow_upward_rounded, size: 20),
+                                        tooltip: 'Move up',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                        onPressed: () {
+                                          setDialogState(() {
+                                            final id = selectedLessonIds.removeAt(orderIndex);
+                                            selectedLessonIds.insert(orderIndex - 1, id);
+                                          });
+                                        },
+                                      ),
+                                    if (orderIndex < selectedLessonIds.length - 1)
+                                      IconButton(
+                                        icon: const Icon(Icons.arrow_downward_rounded, size: 20),
+                                        tooltip: 'Move down',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                        onPressed: () {
+                                          setDialogState(() {
+                                            final id = selectedLessonIds.removeAt(orderIndex);
+                                            selectedLessonIds.insert(orderIndex + 1, id);
+                                          });
+                                        },
+                                      ),
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_circle_outline_rounded, color: Colors.red, size: 20),
+                                      tooltip: 'Remove',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          selectedLessonIds.removeAt(orderIndex);
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // ── Available Lessons to Add ──
+                        ...(() {
+                          final unselectedLessons = allowedLessons
+                              .where((l) => !selectedLessonIds.contains(l.id))
+                              .toList();
+                          if (unselectedLessons.isEmpty) {
+                            return <Widget>[];
+                          }
+                          return <Widget>[
+                            Text(
+                              'Available Lessons to Add',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: isDark ? Colors.white70 : AppColors.textSecondary,
                               ),
                             ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                              onTap: isSelected
-                                  ? null
-                                  : () {
+                            const SizedBox(height: 8),
+                            ...unselectedLessons.map((lesson) {
+                              return Container(
+                                key: ValueKey('available_${lesson.id}'),
+                                margin: const EdgeInsets.only(bottom: 8),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF2E2E2E) : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isDark ? Colors.white12 : Colors.black12,
+                                  ),
+                                ),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                                  title: Text(
+                                    lesson.title,
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                      color: isDark ? Colors.white : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  subtitle: lesson.isGrammaticaLesson
+                                      ? Text(
+                                          'Official Grammatica',
+                                          style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                                        )
+                                      : AuthorName(
+                                          uid: lesson.createdByUid,
+                                          fallbackEmail: lesson.createdByEmail,
+                                          prefix: '',
+                                          style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                                        ),
+                                  trailing: OutlinedButton.icon(
+                                    icon: const Icon(Icons.add_rounded, size: 16),
+                                    label: const Text('Add'),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.primary,
+                                      side: const BorderSide(color: AppColors.primary),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    onPressed: () {
                                       setDialogState(() {
                                         selectedLessonIds.add(lesson.id);
                                       });
                                     },
-                              leading: isSelected
-                                  ? CircleAvatar(
-                                      radius: 13,
-                                      backgroundColor: AppColors.primary,
-                                      child: Text(
-                                        '${orderIndex + 1}',
-                                        style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
-                                      ),
-                                    )
-                                  : null,
-                              title: Text(
-                                lesson.title,
-                                style: GoogleFonts.inter(
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  fontSize: 14,
+                                  ),
                                 ),
-                              ),
-                              subtitle: lesson.isGrammaticaLesson
-                                  ? Text(
-                                      'Official Grammatica',
-                                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
-                                    )
-                                  : AuthorName(
-                                      uid: lesson.createdByUid,
-                                      fallbackEmail: lesson.createdByEmail,
-                                      prefix: '',
-                                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
-                                    ),
-                              trailing: isSelected
-                                  ? Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (orderIndex > 0)
-                                          IconButton(
-                                            icon: const Icon(Icons.arrow_upward_rounded, size: 18),
-                                            tooltip: 'Move up',
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                                            onPressed: () {
-                                              setDialogState(() {
-                                                final id = selectedLessonIds.removeAt(orderIndex);
-                                                selectedLessonIds.insert(orderIndex - 1, id);
-                                              });
-                                            },
-                                          ),
-                                        if (orderIndex < selectedLessonIds.length - 1)
-                                          IconButton(
-                                            icon: const Icon(Icons.arrow_downward_rounded, size: 18),
-                                            tooltip: 'Move down',
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                                            onPressed: () {
-                                              setDialogState(() {
-                                                final id = selectedLessonIds.removeAt(orderIndex);
-                                                selectedLessonIds.insert(orderIndex + 1, id);
-                                              });
-                                            },
-                                          ),
-                                        IconButton(
-                                          icon: const Icon(Icons.remove_circle_outline_rounded, color: Colors.red, size: 20),
-                                          tooltip: 'Remove',
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-                                          onPressed: () {
-                                            setDialogState(() {
-                                              selectedLessonIds.remove(lesson.id);
-                                            });
-                                          },
-                                        ),
-                                      ],
-                                    )
-                                  : TextButton(
-                                      onPressed: () {
-                                        setDialogState(() {
-                                          selectedLessonIds.add(lesson.id);
-                                        });
-                                      },
-                                      child: const Text('Add'),
-                                    ),
-                            ),
-                          );
-                        }),
+                              );
+                            }),
+                          ];
+                        })(),
+                      ],
                       const SizedBox(height: 18),
 
                       // ── Actions (Positioned directly beneath lessons list) ──
@@ -1025,7 +1129,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                           ),
                           const SizedBox(width: 12),
                           FilledButton(
-                            onPressed: selectedLessonIds.isEmpty || titleCtrl.text.trim().isEmpty
+                            onPressed: selectedLessonIds.length < 2 || titleCtrl.text.trim().isEmpty
                                 ? null
                                 : () async {
                                     final confirmed = await showDialog<bool>(
@@ -1046,7 +1150,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                             const SizedBox(width: 12),
                                             Expanded(
                                               child: Text(
-                                                existing == null ? 'Create Playlist?' : 'Save Changes?',
+                                                existing == null ? 'Create Learning Collection?' : 'Save Changes?',
                                                 style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
                                               ),
                                             ),
@@ -1099,7 +1203,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text(existing == null ? 'Playlist created!' : 'Playlist updated!'),
+                                            content: Text(existing == null ? 'Learning Collection created!' : 'Learning Collection updated!'),
                                             backgroundColor: AppColors.primary,
                                           ),
                                         );
@@ -1107,7 +1211,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                     } catch (e) {
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Error saving playlist: $e'), backgroundColor: Colors.red),
+                                          SnackBar(content: Text('Error saving learning collection: $e'), backgroundColor: Colors.red),
                                         );
                                       }
                                     }
@@ -1116,7 +1220,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                               backgroundColor: AppColors.primary,
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                             ),
-                            child: Text(existing == null ? 'Create Playlist' : 'Save Changes'),
+                            child: Text(existing == null ? 'Create Learning Collection' : 'Save Changes'),
                           ),
                         ],
                       ),
@@ -1157,15 +1261,15 @@ class _LessonsListTabState extends State<LessonsListTab> {
                 children: [
                   Icon(Icons.playlist_play_rounded, size: 72, color: AppColors.primary.withValues(alpha: 0.2)),
                   const SizedBox(height: 16),
-                  Text('No playlists created yet', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text('No learning collections created yet', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text('Organize your lessons into ordered playlist folders for sequential student learning.',
+                  Text('Organize your lessons into ordered learning collections for sequential student learning.',
                       textAlign: TextAlign.center, style: GoogleFonts.inter(color: AppColors.textSecondary)),
                   const SizedBox(height: 20),
                   FilledButton.icon(
                     onPressed: () => _showPlaylistDialog(context, allLessons),
                     icon: const Icon(Icons.add),
-                    label: const Text('Create First Playlist'),
+                    label: const Text('Create First Learning Collection'),
                     style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
                   ),
                 ],
@@ -1208,8 +1312,8 @@ class _LessonsListTabState extends State<LessonsListTab> {
                         final ok = await showDialog<bool>(
                           context: context,
                           builder: (ctx) => AlertDialog(
-                            title: const Text('Delete Playlist?'),
-                            content: Text('Are you sure you want to delete playlist "${p.title}"? Lessons inside the playlist will NOT be deleted.'),
+                            title: const Text('Delete Learning Collection?'),
+                            content: Text('Are you sure you want to delete learning collection "${p.title}"? Lessons inside the collection will NOT be deleted.'),
                             actions: [
                               TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                               ElevatedButton(
@@ -1223,13 +1327,13 @@ class _LessonsListTabState extends State<LessonsListTab> {
                         if (ok == true) {
                           await DatabaseService.instance.deletePlaylist(p.id);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Playlist deleted.')));
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Learning Collection deleted.')));
                           }
                         }
                       },
                       onTap: () async {
                         if (p.lessonIds.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This playlist has no lessons yet.')));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This learning collection has no lessons yet.')));
                           return;
                         }
                         final firstLessonId = p.lessonIds.first;
@@ -1239,7 +1343,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                             : await DatabaseService.instance.getLesson(firstLessonId);
                         if (lesson == null) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not load the first lesson in this playlist.')));
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not load the first lesson in this learning collection.')));
                           }
                           return;
                         }
@@ -1604,7 +1708,7 @@ class _PlaylistCard extends StatelessWidget {
                   if (canEdit) ...[
                     IconButton(
                       icon: const Icon(Icons.edit_rounded, size: 18),
-                      tooltip: 'Edit Playlist',
+                      tooltip: 'Edit Learning Collection',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       onPressed: onEdit,
@@ -1612,7 +1716,7 @@ class _PlaylistCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     IconButton(
                       icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
-                      tooltip: 'Delete Playlist',
+                      tooltip: 'Delete Learning Collection',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       onPressed: onDelete,
@@ -1634,7 +1738,7 @@ class _PlaylistCard extends StatelessWidget {
               const SizedBox(height: 4),
               Expanded(
                 child: Text(
-                  playlist.description.isNotEmpty ? playlist.description : 'Sequential learning playlist folder.',
+                  playlist.description.isNotEmpty ? playlist.description : 'Sequential learning collection.',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary, height: 1.4),

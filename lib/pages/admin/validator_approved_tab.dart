@@ -240,63 +240,70 @@ class _ApprovedLessonsListState extends State<_ApprovedLessonsList> {
       barrierDismissible: false,
       builder: (ctx) => Dialog.fullscreen(
         child: Scaffold(
-          appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(40),
-            child: Container(
-              color: const Color(0xFF16A34A),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              alignment: Alignment.center,
-              child: SafeArea(
-                bottom: false,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.verified_rounded, color: Colors.white, size: 16),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Approved Lesson • Approved on: $approvedAtStr',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
           body: LessonPage(
             user: user,
             lesson: lesson,
             previewMode: true,
           ),
           bottomNavigationBar: Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
               color: Theme.of(ctx).brightness == Brightness.dark
                   ? const Color(0xFF1E293B)
                   : Colors.white,
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(ctx).brightness == Brightness.dark
+                      ? Colors.white12
+                      : const Color(0xFFE2E8F0),
+                  width: 1,
+                ),
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
+                  color: Colors.black.withValues(alpha: Theme.of(ctx).brightness == Brightness.dark ? 0.3 : 0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, -4),
                 ),
               ],
             ),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.pop(ctx),
-                icon: const Icon(Icons.close),
-                label: const Text('Close Preview'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.verified_rounded, size: 16, color: Color(0xFF16A34A)),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Approved on $approvedAtStr',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(ctx).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF64748B),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  FilledButton.icon(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    label: Text('Close Preview', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF16A34A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

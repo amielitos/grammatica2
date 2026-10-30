@@ -73,6 +73,8 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
   String _calendarView = 'Week'; // 'Week' or 'Month'
   int _agendaPage = 1;
   static const int _agendaPageSize = 5;
+  String _memberSearchQuery = '';
+  String _memberSortOrder = 'newest'; // 'newest' or 'oldest'
   
   final List<Color> _sessionColors = [
     const Color(0xFF6366F1), // Indigo
@@ -264,7 +266,12 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                 final selectedDaySessions = sessions.where((s) {
                   final start = (s['startTime'] as Timestamp).toDate();
                   return start.day == _focusedDate.day && start.month == _focusedDate.month && start.year == _focusedDate.year;
-                }).toList();
+                }).toList()
+                  ..sort((a, b) {
+                    final ta = (a['startTime'] as Timestamp).toDate();
+                    final tb = (b['startTime'] as Timestamp).toDate();
+                    return ta.compareTo(tb);
+                  });
 
                 if (selectedDaySessions.isEmpty) {
                   return Center(
@@ -290,104 +297,159 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                     final start = (s['startTime'] as Timestamp).toDate();
                     final end = (s['endTime'] as Timestamp).toDate();
                     final timeStr = '${DateFormat('h:mm a').format(start)} - ${DateFormat('h:mm a').format(end)}';
-                    final isPast = end.isBefore(DateTime.now());
+                    final now = DateTime.now();
+                    final todayStart = DateTime(now.year, now.month, now.day);
+                    final sessionDay = DateTime(start.year, start.month, start.day);
+                    final isDoneOrPast = (s['status']?.toString().toLowerCase() == 'completed') ||
+                        end.isBefore(now) ||
+                        sessionDay.isBefore(todayStart);
+                    final canJoin = !isDoneOrPast && !now.isBefore(start.subtract(const Duration(minutes: 10)));
                     final agoraChannel = s['agoraChannel']?.toString() ?? '';
                     final sessionId = s['id']?.toString() ?? '';
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 80,
-                            decoration: const BoxDecoration(
-                              color: primaryPurple,
-                              borderRadius: BorderRadius.horizontal(left: Radius.circular(16)),
+                    return GestureDetector(
+                      onTap: () => _showSessionDetailsDialog(context, s, primaryPurple),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
-                          ),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        s['meetingTitle'] ?? s['studentName'] ?? 'Mentorship Session',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                      buildConferenceAppBadge('agora', compact: true),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    timeStr,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: isDark ? Colors.white70 : Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  if (!isPast) ...[
-                                    const SizedBox(height: 10),
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: ElevatedButton.icon(
-                                        onPressed: () {
-                                          final channel = agoraChannel.isNotEmpty
-                                              ? agoraChannel
-                                              : AgoraService.instance.channelFromSessionId(
-                                                  sessionId.isNotEmpty ? sessionId : 'session',
-                                                );
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => ConferencePage(
-                                                channelName: channel,
-                                                sessionId: sessionId,
-                                                sessionTitle: s['meetingTitle']?.toString() ?? 'Mentorship Session',
-                                                otherParticipantName: s['studentName']?.toString() ?? 'Student',
-                                                isHost: true,
-                                                currentUser: widget.user,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        icon: const Icon(Icons.video_call_rounded, size: 16),
-                                        label: const Text('Join'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF81B655),
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                          elevation: 0,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: isDoneOrPast ? const Color(0xFF16A34A) : primaryPurple,
+                                borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
                               ),
                             ),
-                          ),
-                        ],
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                (s['meetingTitle'] as String?)?.isNotEmpty == true
+                                                    ? s['meetingTitle']
+                                                    : 'Mentorship Session',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15,
+                                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Student: ${s['studentName'] ?? 'Student'}',
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(0xFF81B655),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (isDoneOrPast)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF16A34A).withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF16A34A)),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  'Done',
+                                                  style: TextStyle(
+                                                    color: Color(0xFF16A34A),
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          )
+                                        else
+                                          buildConferenceAppBadge('agora', compact: true),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      timeStr,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: isDark ? Colors.white70 : Colors.grey.shade600,
+                                      ),
+                                    ),
+                                    if (!isDoneOrPast) ...[
+                                      const SizedBox(height: 10),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: ElevatedButton.icon(
+                                          onPressed: canJoin
+                                              ? () {
+                                                  final channel = agoraChannel.isNotEmpty
+                                                      ? agoraChannel
+                                                      : AgoraService.instance.channelFromSessionId(
+                                                          sessionId.isNotEmpty ? sessionId : 'session',
+                                                        );
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (_) => ConferencePage(
+                                                        channelName: channel,
+                                                        sessionId: sessionId,
+                                                        sessionTitle: s['meetingTitle']?.toString() ?? 'Mentorship Session',
+                                                        otherParticipantName: s['studentName']?.toString() ?? 'Student',
+                                                        isHost: true,
+                                                        currentUser: widget.user,
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              : null,
+                                          icon: Icon(canJoin ? Icons.video_call_rounded : Icons.schedule_rounded, size: 16),
+                                          label: Text(canJoin ? 'Join' : 'Available 10m before'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFF81B655),
+                                            foregroundColor: Colors.white,
+                                            disabledBackgroundColor: isDark ? Colors.white10 : Colors.grey.shade200,
+                                            disabledForegroundColor: isDark ? Colors.white54 : Colors.grey.shade600,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                            elevation: 0,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -402,7 +464,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
 
   Widget _buildSidebar(bool isDark) {
     return Container(
-      width: 260,
+      width: 280,
       decoration: BoxDecoration(
         border: Border(right: BorderSide(color: isDark ? Colors.white10 : Colors.black12)),
       ),
@@ -410,16 +472,68 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Text(
-              'Active Members',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white70 : Colors.black54,
-              ),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Active Members',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _memberSortOrder = _memberSortOrder == 'newest' ? 'oldest' : 'newest';
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    child: Row(
+                      children: [
+                        Text(
+                          _memberSortOrder == 'newest' ? 'Newest' : 'Oldest',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF81B655)),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          _memberSortOrder == 'newest' ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                          size: 13,
+                          color: const Color(0xFF81B655),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            child: TextField(
+              style: const TextStyle(fontSize: 12),
+              decoration: InputDecoration(
+                hintText: 'Search members...',
+                hintStyle: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.grey),
+                prefixIcon: const Icon(Icons.search_rounded, size: 16),
+                suffixIcon: _memberSearchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 14),
+                        onPressed: () => setState(() => _memberSearchQuery = ''),
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                isDense: true,
+              ),
+              onChanged: (val) => setState(() => _memberSearchQuery = val.trim()),
+            ),
+          ),
+          const SizedBox(height: 4),
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: DatabaseService.instance.streamEducatorSubscribers(widget.user.uid),
@@ -427,35 +541,75 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                 final subs = (snapshot.data ?? []).where((s) => s['tier'] == 'Premium').toList();
                 if (subs.isEmpty) {
                   return const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Text('No premium members', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Text('No enrolled members', style: TextStyle(color: Colors.grey, fontSize: 13)),
                   );
                 }
+
+                // Sort by subscription date
+                subs.sort((a, b) {
+                  final da = (a['subscribedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                  final db = (b['subscribedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                  return _memberSortOrder == 'newest' ? db.compareTo(da) : da.compareTo(db);
+                });
+
                 return ListView.builder(
                   itemCount: subs.length,
+                  padding: const EdgeInsets.symmetric(vertical: 4),
                   itemBuilder: (context, index) {
                     final s = subs[index];
+                    final rawSub = s['subscribedAt'];
+                    DateTime? subDate;
+                    if (rawSub is Timestamp) {
+                      subDate = rawSub.toDate();
+                    } else if (rawSub is DateTime) {
+                      subDate = rawSub;
+                    }
+                    final dateStr = subDate != null
+                        ? DateFormat('MMM d, yyyy').format(subDate)
+                        : 'Enrolled';
+
                     return FutureBuilder<Map<String, dynamic>?>(
                       future: DatabaseService.instance.getUserDoc(s['uid']),
                       builder: (context, userSnap) {
                         final userData = userSnap.data;
-                        final name = userData?['username'] ?? userData?['email'] ?? 'Loading...';
+                        final name = userData?['username'] ?? userData?['displayName'] ?? userData?['email'] ?? 'Member';
+                        final email = userData?['email'] ?? '';
+
+                        if (_memberSearchQuery.isNotEmpty) {
+                          final query = _memberSearchQuery.toLowerCase();
+                          if (!name.toString().toLowerCase().contains(query) &&
+                              !email.toString().toLowerCase().contains(query)) {
+                            return const SizedBox.shrink();
+                          }
+                        }
+
                         return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                           leading: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: const Color(0xFF8CB31D).withValues(alpha: 0.2),
+                            radius: 16,
+                            backgroundColor: const Color(0xFF8CB31D).withValues(alpha: 0.18),
                             child: Text(
                               name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF8CB31D)),
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF8CB31D)),
                             ),
                           ),
                           title: Text(
-                            name,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                            name.toString(),
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            'Subscribed: $dateStr',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.white54 : Colors.grey.shade600,
+                            ),
                           ),
                           dense: true,
                         );
-                      }
+                      },
                     );
                   },
                 );
@@ -554,7 +708,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: active ? FontWeight.bold : FontWeight.normal,
-            color: active ? (isDark ? Colors.white : Colors.black87) : Colors.black45,
+            color: active ? (isDark ? Colors.white : Colors.black87) : (isDark ? Colors.white60 : Colors.black45),
           ),
         ),
       ),
@@ -573,7 +727,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(DateFormat('E').format(day)[0], style: const TextStyle(fontSize: 12, color: Colors.black45)),
+                Text(DateFormat('E').format(day)[0], style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black45)),
                 const SizedBox(height: 4),
                 Container(
                   width: 32,
@@ -625,7 +779,7 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         '$hourDisplay $period',
-                        style: const TextStyle(fontSize: 11, color: Colors.black45),
+                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black45),
                       ),
                     ),
                     ...List.generate(7, (i) => Expanded(
@@ -883,26 +1037,67 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: color.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      (s['status']?.toString().toUpperCase() ?? 'SCHEDULED'),
-                                      style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
-                                    ),
+                                  Builder(
+                                    builder: (context) {
+                                      final now = DateTime.now();
+                                      final todayStart = DateTime(now.year, now.month, now.day);
+                                      final sessionDay = DateTime(start.year, start.month, start.day);
+                                      final isDoneOrPast = (s['status']?.toString().toLowerCase() == 'completed') ||
+                                          end.isBefore(now) ||
+                                          sessionDay.isBefore(todayStart);
+                                      if (isDoneOrPast) {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF16A34A).withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF16A34A)),
+                                              SizedBox(width: 4),
+                                              Text(
+                                                'DONE',
+                                                style: TextStyle(color: Color(0xFF16A34A), fontSize: 10, fontWeight: FontWeight.bold),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: color.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          (s['status']?.toString().toUpperCase() ?? 'SCHEDULED'),
+                                          style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                s['studentName'] ?? 'Mentorship Session',
+                                (s['meetingTitle'] as String?)?.isNotEmpty == true
+                                    ? s['meetingTitle']
+                                    : 'Mentorship Session',
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Student: ${s['studentName'] ?? 'Student'}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF81B655),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -961,12 +1156,19 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
     final start = (s['startTime'] as Timestamp).toDate();
     final end = (s['endTime'] as Timestamp).toDate();
     final timeString = '${DateFormat('h:mm a').format(start)} - ${DateFormat('h:mm a').format(end)}';
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final sessionDay = DateTime(start.year, start.month, start.day);
+    final isDoneOrPast = (s['status']?.toString().toLowerCase() == 'completed') ||
+        end.isBefore(now) ||
+        sessionDay.isBefore(todayStart);
+    final effectiveColor = isDoneOrPast ? const Color(0xFF16A34A) : color;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        border: Border.all(color: color, width: 2),
+        color: effectiveColor.withValues(alpha: 0.1),
+        border: Border.all(color: effectiveColor, width: 2),
         borderRadius: BorderRadius.circular(4),
       ),
       child: ClipRect(
@@ -975,35 +1177,62 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                s['studentName'] ?? 'Mentorship',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          (s['meetingTitle'] as String?)?.isNotEmpty == true
+                              ? s['meetingTitle']
+                              : 'Mentorship',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: effectiveColor,
+                          ),
+                        ),
+                        if (s['studentName'] != null)
+                          Text(
+                            s['studentName'],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                              color: effectiveColor.withValues(alpha: 0.9),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (isDoneOrPast)
+                    const Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF16A34A)),
+                ],
               ),
               const SizedBox(height: 2),
               Text(
                 timeString,
                 style: TextStyle(
                   fontSize: 9,
-                  color: color.withValues(alpha: 0.8),
+                  color: effectiveColor.withValues(alpha: 0.8),
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              if (s['meetingLink'] != null && s['meetingLink'].toString().isNotEmpty)
+              if (!isDoneOrPast && s['meetingLink'] != null && s['meetingLink'].toString().isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4.0),
                   child: Row(
                     children: [
-                      Icon(Icons.video_call, size: 12, color: color),
+                      Icon(Icons.video_call, size: 12, color: effectiveColor),
                       const SizedBox(width: 4),
                       Text(
                         'Join Link',
-                        style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 9, color: effectiveColor, fontWeight: FontWeight.bold),
                       )
                     ],
                   ),
@@ -1022,16 +1251,46 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
     final timeString = '${DateFormat('h:mm a').format(start)} - ${DateFormat('h:mm a').format(end)}';
     final meetingTitle = s['meetingTitle']?.toString() ?? '';
     final conferenceApp = s['conferenceApp']?.toString() ?? 'agora';
-    final isPast = end.isBefore(DateTime.now());
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final sessionDay = DateTime(start.year, start.month, start.day);
+    final isDoneOrPast = (s['status']?.toString().toLowerCase() == 'completed') ||
+        end.isBefore(now) ||
+        sessionDay.isBefore(todayStart);
+    final canJoin = !isDoneOrPast && !now.isBefore(start.subtract(const Duration(minutes: 10)));
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.event_note, color: color),
+            Icon(
+              isDoneOrPast ? Icons.check_circle_rounded : Icons.event_note,
+              color: isDoneOrPast ? const Color(0xFF16A34A) : color,
+            ),
             const SizedBox(width: 8),
-            const Text('Session Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Expanded(
+              child: Text('Session Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            if (isDoneOrPast)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16A34A).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF16A34A)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Done',
+                      style: TextStyle(color: Color(0xFF16A34A), fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
         content: Column(
@@ -1062,42 +1321,59 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
             Text('$dateString\n$timeString', style: const TextStyle(fontSize: 14)),
             const SizedBox(height: 12),
             const Text('Status', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
-            Text((s['status']?.toString().toUpperCase() ?? 'SCHEDULED'), style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.bold)),
-            if (!isPast) ...[
+            Row(
+              children: [
+                if (isDoneOrPast) ...[
+                  const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF16A34A)),
+                  const SizedBox(width: 6),
+                ],
+                Text(
+                  isDoneOrPast ? 'COMPLETED' : (s['status']?.toString().toUpperCase() ?? 'SCHEDULED'),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDoneOrPast ? const Color(0xFF16A34A) : color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            if (!isDoneOrPast) ...[
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.video_call_rounded, size: 18),
-                  label: const Text('Join'),
+                  icon: Icon(canJoin ? Icons.video_call_rounded : Icons.schedule_rounded, size: 18),
+                  label: Text(canJoin ? 'Join' : 'Join (Available 10 mins before start)'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF81B655),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    final agoraChannel = s['agoraChannel']?.toString() ?? '';
-                    final sessionId = s['id']?.toString() ?? '';
-                    final channel = agoraChannel.isNotEmpty
-                        ? agoraChannel
-                        : AgoraService.instance.channelFromSessionId(
-                            sessionId.isNotEmpty ? sessionId : 'session',
+                  onPressed: canJoin
+                      ? () {
+                          Navigator.pop(context);
+                          final agoraChannel = s['agoraChannel']?.toString() ?? '';
+                          final sessionId = s['id']?.toString() ?? '';
+                          final channel = agoraChannel.isNotEmpty
+                              ? agoraChannel
+                              : AgoraService.instance.channelFromSessionId(
+                                  sessionId.isNotEmpty ? sessionId : 'session',
+                                );
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ConferencePage(
+                                channelName: channel,
+                                sessionId: sessionId,
+                                sessionTitle: meetingTitle.isNotEmpty ? meetingTitle : 'Mentorship Session',
+                                otherParticipantName: s['studentName']?.toString() ?? 'Student',
+                                isHost: true,
+                                currentUser: widget.user,
+                              ),
+                            ),
                           );
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ConferencePage(
-                          channelName: channel,
-                          sessionId: sessionId,
-                          sessionTitle: meetingTitle.isNotEmpty ? meetingTitle : 'Mentorship Session',
-                          otherParticipantName: s['studentName']?.toString() ?? 'Student',
-                          isHost: true,
-                          currentUser: widget.user,
-                        ),
-                      ),
-                    );
-                  },
+                        }
+                      : null,
                 ),
               ),
             ],
@@ -1108,26 +1384,26 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close', style: TextStyle(color: Colors.grey)),
           ),
-          // ── Edit Button ──
-          ElevatedButton.icon(
-            icon: const Icon(Icons.edit_rounded, size: 16),
-            label: const Text('Edit'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade50,
-              foregroundColor: Colors.blue.shade700,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          if (!isDoneOrPast) ...[
+            // ── Edit Button ──
+            ElevatedButton.icon(
+              icon: const Icon(Icons.edit_rounded, size: 16),
+              label: const Text('Edit'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade50,
+                foregroundColor: Colors.blue.shade700,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                Navigator.pop(context); // Close details dialog
+                showDialog(
+                  context: context,
+                  builder: (ctx) => MentorshipBookingModal(user: widget.user, initialSession: s),
+                );
+              },
             ),
-            onPressed: () {
-              Navigator.pop(context); // Close details dialog
-              showDialog(
-                context: context,
-                builder: (ctx) => MentorshipBookingModal(user: widget.user, initialSession: s),
-              );
-            },
-          ),
-          // ── Mark as Done (if not yet completed) ──
-          if (s['status']?.toString().toLowerCase() != 'completed')
+            // ── Mark as Done (if not yet completed) ──
             ElevatedButton.icon(
               icon: const Icon(Icons.check_circle_rounded, size: 16),
               label: const Text('Mark as Done'),
@@ -1172,61 +1448,62 @@ class _EducatorGroupsTabState extends State<EducatorGroupsTab> {
                 }
               },
             ),
-          // ── Delete Button with Confirmation ──
-          ElevatedButton.icon(
-            icon: const Icon(Icons.delete_outline_rounded, size: 16),
-            label: const Text('Delete'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade50,
-              foregroundColor: Colors.red.shade700,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Delete Session?'),
+            // ── Delete Button with Confirmation ──
+            ElevatedButton.icon(
+              icon: const Icon(Icons.delete_outline_rounded, size: 16),
+              label: const Text('Delete'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade50,
+                foregroundColor: Colors.red.shade700,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Delete Session?'),
+                      ],
+                    ),
+                    content: const Text('Are you sure you want to delete this mentorship session? This action cannot be undone.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Yes, Delete'),
+                      ),
                     ],
                   ),
-                  content: const Text('Are you sure you want to delete this mentorship session? This action cannot be undone.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Yes, Delete'),
-                    ),
-                  ],
-                ),
-              );
+                );
 
-              if (confirm == true && context.mounted) {
-                try {
-                  await DatabaseService.instance.deleteMentorshipSession(s['id']);
-                  if (context.mounted) {
-                    Navigator.pop(context); // Close details dialog
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Session deleted successfully'), backgroundColor: Colors.red),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error deleting session: $e'), backgroundColor: Colors.red),
-                    );
+                if (confirm == true && context.mounted) {
+                  try {
+                    await DatabaseService.instance.deleteMentorshipSession(s['id']);
+                    if (context.mounted) {
+                      Navigator.pop(context); // Close details dialog
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Session deleted successfully'), backgroundColor: Colors.red),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error deleting session: $e'), backgroundColor: Colors.red),
+                      );
+                    }
                   }
                 }
-              }
-            },
-          ),
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -1894,6 +2171,7 @@ class _EducatorSetAvailabilityDialogState extends State<EducatorSetAvailabilityD
   late TimeOfDay _startTime;
   bool _isSaving = false;
   bool _titleTouched = false;
+  String _slotFilter = 'Open'; // 'Open', 'Booked'
 
   @override
   void initState() {
@@ -2093,130 +2371,178 @@ class _EducatorSetAvailabilityDialogState extends State<EducatorSetAvailabilityD
 
               // Existing Availability Slots for this Educator
               const Text('Your Availability Slots', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               StreamBuilder<List<Map<String, dynamic>>>(
                 stream: DatabaseService.instance.streamEducatorAvailability(widget.user.uid),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                     return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
                   }
-                  final slots = snapshot.data ?? [];
-                  if (slots.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(
-                        child: Text('No availability slots added yet.', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                      ),
-                    );
-                  }
-
-                  slots.sort((a, b) {
+                  final allSlots = List<Map<String, dynamic>>.from(snapshot.data ?? []);
+                  allSlots.sort((a, b) {
                     final ta = (a['startTime'] as Timestamp?)?.toDate() ?? DateTime.now();
                     final tb = (b['startTime'] as Timestamp?)?.toDate() ?? DateTime.now();
                     return ta.compareTo(tb);
                   });
 
-                  return Column(
-                    children: slots.map((slot) {
-                      final slotId = slot['id']?.toString() ?? '';
-                      final start = (slot['startTime'] as Timestamp).toDate();
-                      final isBooked = slot['isBooked'] == true;
-                      final bookedByName = slot['bookedByName']?.toString();
-                      final title = slot['title']?.toString() ?? '1-on-1 Mentorship';
+                  final openCount = allSlots.where((s) => s['isBooked'] != true).length;
+                  final bookedCount = allSlots.where((s) => s['isBooked'] == true).length;
+                  final slots = allSlots.where((s) {
+                    if (_slotFilter == 'Open') return s['isBooked'] != true;
+                    if (_slotFilter == 'Booked') return s['isBooked'] == true;
+                    return true;
+                  }).toList();
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isBooked ? const Color(0xFF81B655).withValues(alpha: 0.4) : Colors.grey.shade300,
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: Text('Open ($openCount)'),
+                            selected: _slotFilter == 'Open',
+                            selectedColor: Colors.amber.withValues(alpha: 0.2),
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _slotFilter == 'Open'
+                                  ? Colors.amber.shade800
+                                  : (isDark ? Colors.white70 : Colors.black87),
+                            ),
+                            onSelected: (_) => setState(() => _slotFilter = 'Open'),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isBooked ? const Color(0xFF81B655).withValues(alpha: 0.15) : Colors.amber.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                isBooked ? 'BOOKED' : 'OPEN',
-                                style: TextStyle(
-                                  color: isBooked ? const Color(0xFF81B655) : Colors.amber.shade800,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                          ChoiceChip(
+                            label: Text('Booked ($bookedCount)'),
+                            selected: _slotFilter == 'Booked',
+                            selectedColor: const Color(0xFF81B655).withValues(alpha: 0.2),
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _slotFilter == 'Booked'
+                                  ? const Color(0xFF81B655)
+                                  : (isDark ? Colors.white70 : Colors.black87),
+                            ),
+                            onSelected: (_) => setState(() => _slotFilter = 'Booked'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (slots.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Center(
+                            child: Text(
+                              'No ${_slotFilter.toLowerCase()} availability slots found.',
+                              style: const TextStyle(color: Colors.grey, fontSize: 13),
+                            ),
+                          ),
+                        )
+                      else
+                        ...slots.map((slot) {
+                          final slotId = slot['id']?.toString() ?? '';
+                          final start = (slot['startTime'] as Timestamp).toDate();
+                          final isBooked = slot['isBooked'] == true;
+                          final bookedByName = slot['bookedByName']?.toString();
+                          final title = slot['title']?.toString() ?? '1-on-1 Mentorship';
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isBooked
+                                    ? const Color(0xFF81B655).withValues(alpha: 0.4)
+                                    : (isDark ? Colors.white12 : Colors.grey.shade300),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    DateFormat('EEE, MMM d, yyyy • h:mm a').format(start),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isBooked ? const Color(0xFF81B655).withValues(alpha: 0.15) : Colors.amber.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
-                                  Text(
-                                    isBooked ? 'Booked by: ${bookedByName ?? "Subscriber"}' : '$title • 1h 30m',
-                                    style: TextStyle(fontSize: 12, color: isBooked ? const Color(0xFF81B655) : Colors.grey),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (!isBooked)
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
-                                tooltip: 'Remove slot',
-                                onPressed: () async {
-                                  final messenger = ScaffoldMessenger.of(context);
-                                  final confirmed = await showDialog<bool>(
-                                    context: context,
-                                    builder: (ctx) => AlertDialog(
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                      title: const Row(
-                                        children: [
-                                          Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
-                                          SizedBox(width: 8),
-                                          Text('Delete Slot?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                        ],
-                                      ),
-                                      content: const Text(
-                                        'Are you sure you want to delete this available mentorship slot? This action cannot be undone.',
-                                        style: TextStyle(fontSize: 14),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(ctx, false),
-                                          child: const Text('Cancel'),
-                                        ),
-                                        ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.redAccent,
-                                            foregroundColor: Colors.white,
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                          ),
-                                          onPressed: () => Navigator.pop(ctx, true),
-                                          child: const Text('Delete'),
-                                        ),
-                                      ],
+                                  child: Text(
+                                    isBooked ? 'BOOKED' : 'OPEN',
+                                    style: TextStyle(
+                                      color: isBooked ? const Color(0xFF81B655) : Colors.amber.shade800,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                  );
-                                  if (confirmed == true) {
-                                    await DatabaseService.instance.deleteMentorshipAvailabilitySlot(slotId);
-                                    messenger.showSnackBar(
-                                      const SnackBar(content: Text('Availability slot deleted.')),
-                                    );
-                                  }
-                                },
-                              ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        DateFormat('EEE, MMM d, yyyy • h:mm a').format(start),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                      Text(
+                                        isBooked ? 'Booked by: ${bookedByName ?? "Subscriber"}' : '$title • 1h 30m',
+                                        style: TextStyle(fontSize: 12, color: isBooked ? const Color(0xFF81B655) : Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (!isBooked)
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                                    tooltip: 'Remove slot',
+                                    onPressed: () async {
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      final confirmed = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                          title: const Row(
+                                            children: [
+                                              Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+                                              SizedBox(width: 8),
+                                              Text('Delete Slot?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                            ],
+                                          ),
+                                          content: const Text(
+                                            'Are you sure you want to delete this available mentorship slot? This action cannot be undone.',
+                                            style: TextStyle(fontSize: 14),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.redAccent,
+                                                foregroundColor: Colors.white,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              ),
+                                              onPressed: () => Navigator.pop(ctx, true),
+                                              child: const Text('Delete'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirmed == true) {
+                                        await DatabaseService.instance.deleteMentorshipAvailabilitySlot(slotId);
+                                        messenger.showSnackBar(
+                                          const SnackBar(content: Text('Availability slot deleted.')),
+                                        );
+                                      }
+                                    },
+                                  ),
+                              ],
+                            ),
+                          );
+                        }),
+                    ],
                   );
                 },
               ),
@@ -2265,7 +2591,9 @@ class _EducatorSetAvailabilityDialogState extends State<EducatorSetAvailabilityD
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.pop(context);
+        messenger.showSnackBar(
           const SnackBar(
             content: Text('Availability slot added (1h 30m session)!'),
             backgroundColor: Color(0xFF81B655),

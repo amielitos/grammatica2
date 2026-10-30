@@ -57,25 +57,48 @@ class _TermsAndConditionsDialogState extends State<TermsAndConditionsDialog> {
       content: SingleChildScrollView(
         controller: _scrollController,
         child: const Text(
-          // --- EDIT TERMS AND CONDITIONS CONTENT HERE ---
-          // You can modify the text below to update your Terms and Conditions.
-          // Use \n for new lines.
-          'Welcome to Grammatica!\n\n'
-          '1. Acceptance of Terms\n'
-          'By creating an account, you agree to abide by these terms...\n\n' // <-- Edit this section
-          '2. Privacy Policy\n'
-          'Your data is handled according to our privacy policy...\n\n' // <-- Edit this section
-          '3. User Conduct\n'
-          'Users must not engage in any illegal activities...\n\n' // <-- Edit this section
-          '4. Intellectual Property\n'
-          'All content on Grammatica is protected by copyright...\n\n' // <-- Edit this section
-          '5. Termination\n'
-          'We reserve the right to terminate accounts for violations...\n\n' // <-- Edit this section
-          '6. Changes to Terms\n'
-          'We may update these terms from time to time...\n\n' // <-- Edit this section
-          'Thank you for using Grammatica!\n\n'
+          'GRAMMATICA — TERMS AND CONDITIONS\n'
+          'Effective Date: October 31, 2026\n\n'
+          '1. Introduction\n'
+          'Grammatica is an AI-assisted English learning application that provides interactive lessons, educational activities, assessments, and learning support. By using the platform, users agree to these Terms and Conditions.\n\n'
+          '2. User Roles\n'
+          'Grammatica supports four user roles:\n'
+          '• Learners: Access lessons, complete activities, track progress, enroll in Educators, and apply for the Educator role.\n'
+          '• Educators: Create lessons, quizzes, and learning materials, manage enrolled learners, and conduct mentorship sessions.\n'
+          '• Validators: Review educational content and applications, then approve or reject submissions.\n'
+          '• Super-Admins: Manage accounts, official lessons, applications, platform content, and system settings.\n\n'
+          '3. Accounts and Security\n'
+          'Users must provide accurate registration details and protect their login credentials. Unauthorized account access and misuse of another user\'s information are prohibited.\n\n'
+          '4. Educator Applications\n'
+          'Applicants must submit the required credentials for review. Approval depends on the platform\'s validation process and does not guarantee acceptance.\n\n'
+          '5. Enrollment and Access\n'
+          'Learners may browse Educators and enroll to access eligible courses, custom lessons, members-only content, and mentorship sessions. Removing an enrollment may affect access to restricted materials.\n\n'
+          '6. Educational Content\n'
+          'Users must submit appropriate educational materials and respect intellectual property rights. Grammatica may reject or archive content that violates platform guidelines. Archived lessons may be permanently deleted after 30 days if not restored.\n\n'
+          '7. Artificial Intelligence\n'
+          'Grammatica uses Google Gemini cloud services to assist in generating lessons, quizzes, and other educational materials. AI-generated content may contain errors and should be reviewed before educational use.\n\n'
+          '8. Practice and Assessments\n'
+          'Grammatica offers grammar, spelling, pronunciation, and English assessment activities. Speech recognition and pronunciation analysis are limited to English. Results do not guarantee specific learning outcomes.\n\n'
+          '9. Mentorship Sessions\n'
+          'Learners may schedule one-on-one sessions with Educators through supported conferencing services, including Google Meet, Zoom, and Microsoft Teams. Users must follow agreed schedules and respect other participants.\n\n'
+          '10. User Conduct\n'
+          'Users must not engage in harassment, upload harmful content, manipulate learning results, bypass security controls, or use Grammatica for unlawful activities. Violations may result in account restrictions or suspension.\n\n'
+          '11. Intellectual Property\n'
+          'Grammatica\'s software, branding, and original materials are protected by applicable laws. Users must not reproduce or distribute protected content without authorization.\n\n'
+          '12. Account Deactivation and Deletion\n'
+          'Eligible Learners, Educators, and Validators may deactivate or delete their accounts through available settings. Super-Admin accounts cannot be deleted through standard profile settings. Certain records may be retained when required by law.\n\n'
+          '13. Service Limitations\n'
+          'Grammatica depends on internet connectivity and external services for certain features. AI generation uses cloud-based models, while institutional multi-tenant administration, LMS LTI 1.3, and SCORM compliance are not supported.\n\n'
+          '14. Limitation of Liability\n'
+          'Grammatica does not guarantee uninterrupted service, error-free AI-generated content, or specific educational results. Nothing in these terms excludes liability that cannot legally be excluded.\n\n'
+          '15. Changes to Terms\n'
+          'Grammatica may update these terms as its features and services change. Revised terms will include an updated effective date.\n\n'
+          '16. Governing Law\n'
+          'These terms are governed by applicable laws of the Republic of the Philippines.\n\n'
+          '17. Contact Information\n'
+          'For questions or concerns, contact Grammatica through its official support channel.\n'
+          'Email: grammatica.support@gmail.com\n\n'
           '(Scroll to the bottom to accept)',
-          // --- END OF CONTENT ---
         ),
       ),
       actions: [
