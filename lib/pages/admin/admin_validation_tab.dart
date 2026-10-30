@@ -459,6 +459,7 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
           children: [
             Expanded(
               child: ListView.separated(
+                key: PageStorageKey('edu_app_list_${widget.type}_${widget.showRejected}'),
                 padding: const EdgeInsets.all(16),
                 itemCount: pageItems.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 12),
@@ -925,6 +926,7 @@ class _ValidationListState extends State<_ValidationList> {
           children: [
             Expanded(
               child: ListView.separated(
+                key: const PageStorageKey('lesson_validation_list'),
                 padding: const EdgeInsets.all(16),
                 itemCount: pageItems.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 12),

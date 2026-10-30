@@ -39,6 +39,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
     'Members Only Lessons',
     'Rejected Lessons',
   ];
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -54,6 +55,12 @@ class _LessonsListTabState extends State<LessonsListTab> {
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   String _formatTs(dynamic ts) {
@@ -174,6 +181,8 @@ class _LessonsListTabState extends State<LessonsListTab> {
             });
 
             return CustomScrollView(
+              key: const PageStorageKey('admin_lessons_list_scroll_view'),
+              controller: _scrollController,
               slivers: [
                 // ── Top Header ──
                 SliverToBoxAdapter(

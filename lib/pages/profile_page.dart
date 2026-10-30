@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'dart:ui' as ui;
@@ -64,6 +65,8 @@ class ProfilePageState extends State<ProfilePage> {
   // Local state for profile data
   bool _isEditing = false;
   bool _editSubmitted = false;
+  bool _hasEditedDob = false;
+  DateTime? _selectedNewDob;
   String _displayName = 'User';
   String _roleStr = 'LEARNER';
   String? _photoUrl;
@@ -151,6 +154,7 @@ class ProfilePageState extends State<ProfilePage> {
       final fetchedPhoto = (data?['photoUrl'] as String?);
       final fetchedBio = (data?['bio'] as String?)?.trim() ?? '';
       final fetchedDob = (data?['date_of_birth'] as Timestamp?);
+      final fetchedHasEditedDob = (data?['has_edited_dob'] as bool?) ?? false;
       final fetchedCreatedAt = (data?['createdAt'] as Timestamp?);
       final fetchedRole = (data?['role'] as String?) ?? 'LEARNER';
 
@@ -173,6 +177,8 @@ class ProfilePageState extends State<ProfilePage> {
           _middleNameCtrl.text = fetchedMiddleName;
           _lastNameCtrl.text = fetchedLastName;
           _dob = fetchedDob;
+          _hasEditedDob = fetchedHasEditedDob;
+          _selectedNewDob = fetchedDob?.toDate();
           _createdAt = fetchedCreatedAt;
           _roleStr = fetchedRole;
         });
@@ -772,37 +778,96 @@ class ProfilePageState extends State<ProfilePage> {
                 _buildEditLabel('Date of Birth'),
                 const SizedBox(width: 6),
                 Tooltip(
-                  message: 'Date of birth cannot be modified.',
-                  child: Icon(Icons.lock_outline_rounded, size: 14, color: isDark ? Colors.white38 : Colors.grey),
+                  message: _hasEditedDob
+                      ? 'Date of birth has already been updated once.'
+                      : 'Date of birth can only be edited once.',
+                  child: Icon(
+                    _hasEditedDob ? Icons.lock_outline_rounded : Icons.info_outline_rounded,
+                    size: 14,
+                    color: _hasEditedDob
+                        ? (isDark ? Colors.white38 : Colors.grey)
+                        : const Color(0xFF81B655),
+                  ),
                 ),
               ],
             ),
-            InputDecorator(
-              decoration: _customInputDecoration(hint: '').copyWith(
-                filled: true,
-                fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade100,
+            if (_hasEditedDob) ...[
+              InputDecorator(
+                decoration: _customInputDecoration(hint: '').copyWith(
+                  filled: true,
+                  fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade100,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _dob != null
+                          ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}'
+                          : 'Not specified',
+                      style: TextStyle(fontSize: 14, color: isDark ? Colors.white60 : Colors.black54),
+                    ),
+                    Icon(Icons.lock_rounded, size: 16, color: isDark ? Colors.white24 : Colors.grey.shade400),
+                  ],
+                ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _dob != null
-                        ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}'
-                        : 'Not specified',
-                    style: TextStyle(fontSize: 14, color: isDark ? Colors.white60 : Colors.black54),
+              const SizedBox(height: 6),
+              Text(
+                'Date of birth has already been updated once and cannot be modified again.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white38 : Colors.grey.shade600,
+                ),
+              ),
+            ] else ...[
+              InkWell(
+                onTap: () async {
+                  final current = _selectedNewDob ?? (_dob?.toDate()) ?? DateTime(2000, 1, 1);
+                  final initial = current.isAfter(DateTime(2014, 12, 31)) ? DateTime(2014, 12, 31) : current;
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: initial,
+                    firstDate: DateTime(1920, 1, 1),
+                    lastDate: DateTime(2014, 12, 31),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _selectedNewDob = picked;
+                    });
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: InputDecorator(
+                  decoration: _customInputDecoration(hint: '').copyWith(
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade50,
+                    suffixIcon: const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF81B655)),
                   ),
-                  Icon(Icons.lock_rounded, size: 16, color: isDark ? Colors.white24 : Colors.grey.shade400),
+                  child: Text(
+                    _selectedNewDob != null
+                        ? '${_selectedNewDob!.day}/${_selectedNewDob!.month}/${_selectedNewDob!.year}'
+                        : (_dob != null
+                            ? '${_dob!.toDate().day}/${_dob!.toDate().month}/${_dob!.toDate().year}'
+                            : 'Select your birthday (2014 or earlier)'),
+                    style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, size: 13, color: Colors.amber),
+                  SizedBox(width: 4),
+                  Text(
+                    'Date of birth can only be edited once. (Must be 2014 or earlier)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.amber,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Date of birth is set during registration and cannot be edited.',
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? Colors.white38 : Colors.grey.shade600,
-              ),
-            ),
+            ],
             
             const SizedBox(height: 48),
             _buildGreenButton('Save Changes', () async {
@@ -866,7 +931,7 @@ class ProfilePageState extends State<ProfilePage> {
                fullName += ' $last';
 
                try {
-                 await FirebaseFirestore.instance.collection('users').doc(widget.user.uid).set({
+                 final Map<String, dynamic> updateData = {
                    'first_name': first,
                    'middle_name': middle,
                    'last_name': last,
@@ -875,7 +940,25 @@ class ProfilePageState extends State<ProfilePage> {
                    'displayName': fullName,
                    'username': fullName,
                    'updatedAt': FieldValue.serverTimestamp(),
-                 }, SetOptions(merge: true));
+                 };
+
+                 final bool dobChanged = !_hasEditedDob &&
+                     _selectedNewDob != null &&
+                     (_dob == null ||
+                         _selectedNewDob!.year != _dob!.toDate().year ||
+                         _selectedNewDob!.month != _dob!.toDate().month ||
+                         _selectedNewDob!.day != _dob!.toDate().day);
+
+                 if (dobChanged) {
+                   updateData['date_of_birth'] = Timestamp.fromDate(_selectedNewDob!);
+                   updateData['has_edited_dob'] = true;
+                   updateData['dob_edited_at'] = FieldValue.serverTimestamp();
+                 }
+
+                 await FirebaseFirestore.instance.collection('users').doc(widget.user.uid).set(
+                   updateData,
+                   SetOptions(merge: true),
+                 );
 
                  await widget.user.updateDisplayName(fullName);
                  await widget.user.reload();
@@ -1576,8 +1659,8 @@ class ProfilePageState extends State<ProfilePage> {
       Navigator.of(context).popUntil((route) => route.isFirst);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Your account has been deleted permanently.'),
-          backgroundColor: Color(0xFF81B655),
+          content: Text('Your account has been permanently deleted.'),
+          backgroundColor: Color(0xFFDF3F32),
         ),
       );
     }
@@ -2344,19 +2427,67 @@ class _DeleteAccountDialog extends StatefulWidget {
 }
 
 class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
+  static const List<String> _confirmationWords = [
+    'PERMANENT',
+    'CONFIRM',
+    'RELEASE',
+    'GOODBYE',
+    'REMOVE',
+    'FORGET',
+    'TERMINATE',
+    'FAREWELL',
+    'COMPLETE',
+    'DISCARD',
+    'UNREGISTER',
+    'DELETE',
+  ];
+
+  late final String _targetWord;
+  final _wordCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _error;
   String? _passwordFieldError;
+  String? _wordFieldError;
+
+  @override
+  void initState() {
+    super.initState();
+    final rand = math.Random();
+    _targetWord = _confirmationWords[rand.nextInt(_confirmationWords.length)];
+  }
 
   @override
   void dispose() {
+    _wordCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
 
+  bool get _isWordMatching =>
+      _wordCtrl.text.trim().toUpperCase() == _targetWord.toUpperCase();
+
+  bool get _canSubmit {
+    if (_isLoading) return false;
+    if (!_isWordMatching) return false;
+    final isPasswordUser = widget.user.providerData.any(
+      (p) => p.providerId == EmailAuthProvider.PROVIDER_ID,
+    );
+    if (isPasswordUser && _passwordCtrl.text.trim().isEmpty) {
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _handleDelete() async {
+    if (!_isWordMatching) {
+      setState(() {
+        _wordFieldError = 'Please type "$_targetWord" exactly to confirm.';
+      });
+      return;
+    }
+
     final isGoogleUser = widget.user.providerData.any(
       (p) => p.providerId == GoogleAuthProvider.PROVIDER_ID,
     );
@@ -2368,6 +2499,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
       _isLoading = true;
       _error = null;
       _passwordFieldError = null;
+      _wordFieldError = null;
     });
 
     try {
@@ -2384,13 +2516,13 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
         await AuthService.instance.reauthenticateWithPassword(pwd);
       }
 
-      // 2. Perform account deletion
+      // 2. Perform permanent deletion
       try {
-        await AuthService.instance.deleteAccount();
+        await AuthService.instance.permanentlyDeleteAccount();
       } on FirebaseAuthException catch (e) {
         if (e.code == 'requires-recent-login' && isGoogleUser) {
           await AuthService.instance.reauthenticateWithGoogle();
-          await AuthService.instance.deleteAccount();
+          await AuthService.instance.permanentlyDeleteAccount();
         } else {
           rethrow;
         }
@@ -2436,12 +2568,12 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
               color: const Color(0xFFDF3F32).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDF3F32), size: 24),
+            child: const Icon(Icons.delete_forever_rounded, color: Color(0xFFDF3F32), size: 24),
           ),
           const SizedBox(width: 12),
           const Expanded(
             child: Text(
-              'Delete Account',
+              'Permanently Delete Account',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
           ),
@@ -2453,7 +2585,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Are you sure you want to delete your account? This action is permanent and cannot be undone.',
+              'This action will permanently remove your account, quiz records, learning statistics, and notes from Grammatica. This action cannot be undone.',
               style: TextStyle(
                 fontSize: 14,
                 color: isDark ? Colors.white70 : Colors.black87,
@@ -2468,15 +2600,83 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFFDF3F32).withValues(alpha: 0.2)),
               ),
-              child: const Text(
-                'All your progress, quizzes, notes, subscriptions, and profile data will be permanently removed.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFFDF3F32),
-                  fontWeight: FontWeight.w500,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Color(0xFFDF3F32), size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'If you sign up again in the future using this same email, it will create a completely new, clean account.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFFDF3F32),
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Confirmation Word Prompt
+            Text(
+              'To confirm, type the word below:',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDF3F32).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFDF3F32).withValues(alpha: 0.35)),
+              ),
+              child: Center(
+                child: SelectableText(
+                  _targetWord,
+                  style: GoogleFonts.firaCode(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFFDF3F32),
+                    letterSpacing: 3,
+                  ),
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _wordCtrl,
+              autocorrect: false,
+              enableSuggestions: false,
+              textCapitalization: TextCapitalization.characters,
+              onChanged: (_) {
+                setState(() {
+                  _wordFieldError = null;
+                });
+              },
+              decoration: InputDecoration(
+                errorText: _wordFieldError,
+                hintText: 'Type $_targetWord here',
+                prefixIcon: Icon(
+                  _isWordMatching ? Icons.check_circle_rounded : Icons.keyboard_rounded,
+                  color: _isWordMatching ? const Color(0xFF81B655) : Colors.grey,
+                  size: 20,
+                ),
+                filled: true,
+                fillColor: isDark ? const Color(0xFF333333) : const Color(0xFFF8F9FA),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+            ),
+
             if (isPasswordUser) ...[
               const SizedBox(height: 16),
               Text(
@@ -2492,27 +2692,13 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                 controller: _passwordCtrl,
                 obscureText: _obscurePassword,
                 onChanged: (_) {
-                  if (_passwordFieldError != null) {
-                    setState(() => _passwordFieldError = null);
-                  }
+                  setState(() {
+                    _passwordFieldError = null;
+                  });
                 },
                 decoration: InputDecoration(
                   errorText: _passwordFieldError,
-                  label: const Text.rich(
-                    TextSpan(
-                      text: 'Enter your password',
-                      children: [
-                        TextSpan(
-                          text: ' *',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  floatingLabelBehavior: FloatingLabelBehavior.never,
+                  hintText: 'Enter your password',
                   prefixIcon: const Icon(Icons.lock_outline, size: 20),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -2559,17 +2745,17 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
         ),
         FilledButton(
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFDF3F32),
+            backgroundColor: _canSubmit ? const Color(0xFFDF3F32) : Colors.grey.shade400,
             foregroundColor: Colors.white,
           ),
-          onPressed: _isLoading ? null : _handleDelete,
+          onPressed: _canSubmit ? _handleDelete : null,
           child: _isLoading
               ? const SizedBox(
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('Delete Account'),
+              : const Text('Permanently Delete'),
         ),
       ],
     );

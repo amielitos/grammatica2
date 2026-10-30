@@ -63,6 +63,7 @@ class _SignupPageState extends State<SignupPage> {
   @override
   void initState() {
     super.initState();
+    AuthService.preferredGoogleRole = _selectedRole;
     _authSubscription = AuthService.instance.authStateChanges().listen((user) {
       if (user != null && mounted) {
         final isGoogleUser = user.providerData.any(
@@ -433,7 +434,8 @@ class _SignupPageState extends State<SignupPage> {
     });
 
     try {
-      await AuthService.instance.googleSignIn();
+      AuthService.preferredGoogleRole = _selectedRole;
+      await AuthService.instance.googleSignIn(role: _selectedRole);
       // Now that sign-up/sign-in is successful, pop this page so the AuthWrapper in main.dart
       // can show the dashboard.
       if (mounted) {
@@ -647,7 +649,10 @@ class _SignupPageState extends State<SignupPage> {
               children: [
                 Expanded(
                   child: InkWell(
-                    onTap: () => setState(() => _selectedRole = 'learner'),
+                    onTap: () => setState(() {
+                      _selectedRole = 'learner';
+                      AuthService.preferredGoogleRole = 'learner';
+                    }),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -683,6 +688,7 @@ class _SignupPageState extends State<SignupPage> {
                   child: InkWell(
                     onTap: () => setState(() {
                       _selectedRole = 'validator';
+                      AuthService.preferredGoogleRole = 'validator';
                       if (_selectedDate != null && _selectedDate!.isAfter(DateTime(2005, 12, 31))) {
                         _selectedDate = null;
                         _dobController.clear();
@@ -824,7 +830,7 @@ class _SignupPageState extends State<SignupPage> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Date of birth cannot be edited after registration.',
+                      'Date of birth can only be edited once after registration.',
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,

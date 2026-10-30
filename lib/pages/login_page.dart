@@ -113,6 +113,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+    AuthService.preferredGoogleRole = null;
     _checkInitialLockout();
     _authSubscription = AuthService.instance.authStateChanges().listen((user) async {
       if (user != null && mounted) {

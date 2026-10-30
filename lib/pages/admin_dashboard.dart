@@ -24,6 +24,7 @@ import 'notebook/notebook_list_page.dart';
 import 'admin/educator_groups_tab.dart';
 import 'admin/admin_lessons_tab.dart';
 import 'admin/admin_lesson_database_tab.dart';
+import 'admin/admin_feedback_tab.dart';
 
 import 'dart:async';
 
@@ -304,6 +305,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
         tabs.add(const AdminLandingSettingsTab());
         navItems.add(
           const ModernNavItem(icon: Icons.web_rounded, label: 'Site Settings'),
+        );
+
+        tabs.add(const AdminFeedbackTab());
+        navItems.add(
+          const ModernNavItem(
+            icon: Icons.feedback_rounded,
+            label: 'Feedbacks',
+          ),
         );
       } else if (isEducator) {
         tabs.add(

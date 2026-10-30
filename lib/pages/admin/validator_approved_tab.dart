@@ -338,6 +338,7 @@ class _ApprovedLessonsListState extends State<_ApprovedLessonsList> {
           children: [
             Expanded(
               child: ListView.separated(
+                key: const PageStorageKey('validator_approved_lessons_list'),
                 padding: const EdgeInsets.all(16),
                 itemCount: pageItems.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 12),
@@ -589,6 +590,7 @@ class _ApprovedEducatorsListState extends State<_ApprovedEducatorsList> {
           children: [
             Expanded(
               child: ListView.separated(
+                key: const PageStorageKey('validator_approved_lessons_list'),
                 padding: const EdgeInsets.all(16),
                 itemCount: pageItems.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 16),

@@ -1701,53 +1701,73 @@ class DatabaseService {
   }
 
   /// Archives a lesson for 30 days before permanent deletion.
+  ///
+  /// A lesson is the single centralized unit of content: its quiz and all
+  /// companion materials (mind maps, presentations, flashcards, study guides)
+  /// are archived together with it and can never be archived on their own.
   Future<void> archiveLesson(String id) async {
     final now = DateTime.now();
     final purgeDate = now.add(const Duration(days: 30));
-    await _lessons.doc(id).update({
+    final archiveFields = <String, dynamic>{
       'isArchived': true,
       'archivedAt': Timestamp.fromDate(now),
       'purgeAt': Timestamp.fromDate(purgeDate),
-    });
-    final doc = await _lessons.doc(id).get();
-    final quizId = doc.data()?['quizId'] as String?;
-    if (quizId != null && quizId.isNotEmpty) {
-      await archiveQuiz(quizId);
-    }
+    };
+    await _lessons.doc(id).update(archiveFields);
+    await _applyToLessonPackage(id, archiveFields);
   }
 
-  /// Restores an archived lesson back to active status.
+  /// Restores an archived lesson (and all of its linked content) to active status.
   Future<void> restoreLesson(String id) async {
-    await _lessons.doc(id).update({
+    const restoreFields = <String, dynamic>{
       'isArchived': false,
       'archivedAt': null,
       'purgeAt': null,
-    });
-    final doc = await _lessons.doc(id).get();
-    final quizId = doc.data()?['quizId'] as String?;
-    if (quizId != null && quizId.isNotEmpty) {
-      await restoreQuiz(quizId);
+    };
+    await _lessons.doc(id).update(restoreFields);
+    await _applyToLessonPackage(id, restoreFields);
+  }
+
+  /// Applies [fields] to every quiz and published item linked to a lesson,
+  /// whether linked via the lesson's `quizId`, its `notebookId`, or `lessonId`.
+  Future<void> _applyToLessonPackage(
+    String lessonId,
+    Map<String, dynamic> fields,
+  ) async {
+    final lessonDoc = await _lessons.doc(lessonId).get();
+    final data = lessonDoc.data() ?? {};
+    final quizId = (data['quizId'] ?? '').toString();
+    final notebookId = (data['notebookId'] ?? '').toString();
+    final nbId = notebookId.isNotEmpty ? notebookId : lessonId;
+
+    final refs = <String, DocumentReference<Map<String, dynamic>>>{};
+    if (quizId.isNotEmpty) refs[_quizzes.doc(quizId).path] = _quizzes.doc(quizId);
+
+    Future<void> collect(Query<Map<String, dynamic>> query) async {
+      try {
+        final snap = await query.get();
+        for (final doc in snap.docs) {
+          refs[doc.reference.path] = doc.reference;
+        }
+      } catch (e) {
+        debugPrint('Error collecting linked lesson content: $e');
+      }
     }
-  }
 
-  /// Archives a quiz for 30 days before permanent deletion.
-  Future<void> archiveQuiz(String id) async {
-    final now = DateTime.now();
-    final purgeDate = now.add(const Duration(days: 30));
-    await _quizzes.doc(id).update({
-      'isArchived': true,
-      'archivedAt': Timestamp.fromDate(now),
-      'purgeAt': Timestamp.fromDate(purgeDate),
-    });
-  }
+    await Future.wait([
+      collect(_quizzes.where('notebookId', isEqualTo: nbId)),
+      collect(_quizzes.where('lessonId', isEqualTo: lessonId)),
+      collect(_publishedContent.where('notebookId', isEqualTo: nbId)),
+      collect(_publishedContent.where('lessonId', isEqualTo: lessonId)),
+    ]);
 
-  /// Restores an archived quiz back to active status.
-  Future<void> restoreQuiz(String id) async {
-    await _quizzes.doc(id).update({
-      'isArchived': false,
-      'archivedAt': null,
-      'purgeAt': null,
-    });
+    for (final ref in refs.values) {
+      try {
+        await ref.update(fields);
+      } catch (e) {
+        debugPrint('Error updating linked content ${ref.path}: $e');
+      }
+    }
   }
 
   /// Stream archived lessons for viewing in the Archive modal/view.
@@ -1764,21 +1784,8 @@ class DatabaseService {
     });
   }
 
-  /// Stream archived quizzes for viewing in the Archive modal/view.
-  Stream<List<Quiz>> streamArchivedQuizzes({String? uid}) {
-    return _quizzes
-        .where('isArchived', isEqualTo: true)
-        .snapshots()
-        .map((snap) {
-      var list = snap.docs.map(Quiz.fromDoc).toList();
-      if (uid != null) {
-        list = list.where((q) => q.createdByUid == uid).toList();
-      }
-      return list;
-    });
-  }
-
-  /// Permanently purges items whose 30-day archive period has elapsed.
+  /// Permanently purges lessons whose 30-day archive period has elapsed,
+  /// together with their entire linked content package.
   Future<void> purgeExpiredArchive() async {
     final now = Timestamp.now();
     try {
@@ -1786,13 +1793,46 @@ class DatabaseService {
       for (final doc in expiredLessons.docs) {
         await permanentlyDeleteLessonPackage(lesson: Lesson.fromDoc(doc));
       }
+
+      // Legacy cleanup: quizzes used to be archivable on their own. A quiz
+      // whose parent lesson is still active is restored instead of purged;
+      // only orphaned quizzes (no surviving lesson) are deleted.
       final expiredQuizzes = await _quizzes.where('isArchived', isEqualTo: true).where('purgeAt', isLessThanOrEqualTo: now).get();
       for (final doc in expiredQuizzes.docs) {
-        await deleteQuiz(doc.id);
+        final parent = await _findParentLesson(doc.id, doc.data());
+        if (parent != null && parent.data()?['isArchived'] != true) {
+          await doc.reference.update({'isArchived': false, 'archivedAt': null, 'purgeAt': null});
+        } else if (parent == null) {
+          await deleteQuiz(doc.id);
+        }
       }
     } catch (e) {
       debugPrint('Error purging expired archive: $e');
     }
+  }
+
+  /// Finds the lesson that owns a quiz (via `quizId`, `lessonId`, or `notebookId`).
+  Future<DocumentSnapshot<Map<String, dynamic>>?> _findParentLesson(
+    String quizId,
+    Map<String, dynamic> quizData,
+  ) async {
+    final byQuizId = await _lessons.where('quizId', isEqualTo: quizId).limit(1).get();
+    if (byQuizId.docs.isNotEmpty) return byQuizId.docs.first;
+
+    final lessonId = (quizData['lessonId'] ?? '').toString();
+    if (lessonId.isNotEmpty) {
+      final doc = await _lessons.doc(lessonId).get();
+      if (doc.exists) return doc;
+    }
+
+    final notebookId = (quizData['notebookId'] ?? '').toString();
+    if (notebookId.isNotEmpty) {
+      final byNotebook = await _lessons.where('notebookId', isEqualTo: notebookId).limit(1).get();
+      if (byNotebook.docs.isNotEmpty) return byNotebook.docs.first;
+      final byId = await _lessons.doc(notebookId).get();
+      if (byId.exists) return byId;
+    }
+    return null;
   }
 
   /// Permanently purges a lesson and all of its associated content from the site database,
@@ -3822,7 +3862,8 @@ class DatabaseService {
           final List<Map<String, dynamic>> subscriptions = [];
           for (final doc in snapshot.docs) {
             final data = doc.data();
-            final eduUid = data['educatorUid'] as String;
+            final eduUid = (data['educatorUid'] ?? data['educatorId'] ?? doc.id) as String?;
+            if (eduUid == null || eduUid.isEmpty) continue;
             final eduDoc = await _firestore
                 .collection('users')
                 .doc(eduUid)
@@ -3859,132 +3900,103 @@ class DatabaseService {
     });
   }
 
-  Future<void> deleteUserAccount(String uid, {bool asSuperAdmin = false}) async {
+  /// Archives a user account.
+  /// Per system requirements: Accounts are NEVER permanently deleted.
+  /// All accounts are preserved in the archive so emails cannot be recycled or claimed,
+  /// and the archived user is permanently barred from logging in.
+  Future<void> archiveUserAccount(String uid, {bool asSuperAdmin = false}) async {
     try {
-      // Guard: Administrator accounts are strictly protected and cannot be deleted
       final userDocSnap = await _firestore.collection('users').doc(uid).get();
       if (userDocSnap.exists) {
         if (RoleService.isDefaultAdmin(userDocSnap.data(), uid)) {
-          throw Exception('The default Super Admin account cannot be deleted.');
+          throw Exception('The default Super Admin account cannot be archived.');
         }
         final role = (userDocSnap.data()?['role'] as String?)?.toUpperCase();
         if (!asSuperAdmin && (role == 'ADMIN' || role == 'SUPERADMIN')) {
-          throw Exception('Administrator accounts cannot be deleted.');
+          throw Exception('Administrator accounts cannot be archived.');
         }
       }
 
-      // 1. Delete all user content (Lessons)
-      final lessonSnap = await _lessons
-          .where('createdByUid', isEqualTo: uid)
-          .get();
-      for (final doc in lessonSnap.docs) {
-        await deleteLesson(doc.id);
-      }
+      final userData = userDocSnap.data() ?? {};
+      final email = userData['email'] ?? '';
+      final username = userData['username'] ?? userData['full_name'] ?? '';
+      final role = userData['role'] ?? 'LEARNER';
 
-      // 2. Delete all user content (Quizzes)
-      final quizSnap = await _quizzes
-          .where('createdByUid', isEqualTo: uid)
-          .get();
-      for (final doc in quizSnap.docs) {
-        await deleteQuiz(doc.id);
-      }
+      // 1. Mark account as ARCHIVED in users collection
+      await _firestore.collection('users').doc(uid).set({
+        'status': 'ARCHIVED',
+        'isArchived': true,
+        'is_active': false,
+        'archivedAt': FieldValue.serverTimestamp(),
+        'archivedBySuperAdmin': asSuperAdmin,
+      }, SetOptions(merge: true));
 
-      // 3. Delete all user images
-      final imageSnap = await _images.where('userId', isEqualTo: uid).get();
-      for (final doc in imageSnap.docs) {
-        await deleteImage(doc.id, doc.data()['imageUrl'] ?? '');
-      }
-
-      // 4. Delete educator applications
-      final appSnap = await _educatorApplications
-          .where('applicantUid', isEqualTo: uid)
-          .get();
-      for (final doc in appSnap.docs) {
-        final data = doc.data();
-        await _deleteFileFromUrl(data['videoUrl']);
-        await _deleteFileFromUrl(data['syllabusUrl']);
-        await doc.reference.delete();
-      }
-
-      // 5. Delete specific collections
-      // Progress
-      final progressSnap = await _userProgress(uid).get();
-      for (final doc in progressSnap.docs) {
-        await doc.reference.delete();
-      }
-
-      // Quiz Progress
-      final qProgressSnap = await _userQuizProgress(uid).get();
-      for (final doc in qProgressSnap.docs) {
-        await doc.reference.delete();
-      }
-
-      // Subscriptions (Learner side)
-      final subsSnap = await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('subscriptions')
-          .get();
-      for (final doc in subsSnap.docs) {
-        // Also remove learner from educator's subscriber list
-        final educatorUid = doc.id;
-        await _firestore
-            .collection('users')
-            .doc(educatorUid)
-            .collection('subscribers')
-            .doc(uid)
-            .delete();
-        await doc.reference.delete();
-      }
-
-      // Subscribers (Educator side)
-      final followersSnap = await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('subscribers')
-          .get();
-      for (final doc in followersSnap.docs) {
-        // Also remove educator from learner's subscription list
-        final learnerUid = doc.id;
-        await _firestore
-            .collection('users')
-            .doc(learnerUid)
-            .collection('subscriptions')
-            .doc(uid)
-            .delete();
-        await doc.reference.delete();
-      }
-
-      // 6. Delete user profile photo if exists
-      final userDoc = await _firestore.collection('users').doc(uid).get();
-      if (userDoc.exists) {
-        final photoUrl = userDoc.data()?['photoUrl'];
-        if (photoUrl != null && photoUrl.toString().isNotEmpty) {
-          await _deleteFileFromUrl(photoUrl);
-        }
-      }
-
-      // 7. Delete user notifications
-      final notifSnap = await _firestore
-          .collection('notifications')
-          .where('uid', isEqualTo: uid)
-          .get();
-      for (final doc in notifSnap.docs) {
-        await doc.reference.delete();
-      }
-
-      // 8. Record deletion in deleted_users to prevent cached auto-recreation
-      await _firestore.collection('deleted_users').doc(uid).set({
+      // 2. Record archive audit entry
+      await _firestore.collection('archived_users').doc(uid).set({
         'uid': uid,
-        'deletedAt': FieldValue.serverTimestamp(),
+        'email': email,
+        'username': username,
+        'role': role,
+        'archivedAt': FieldValue.serverTimestamp(),
         'bySuperAdmin': asSuperAdmin,
-      });
-
-      // 9. Finally delete user doc
-      await _firestore.collection('users').doc(uid).delete();
+      }, SetOptions(merge: true));
     } catch (e) {
-      throw Exception('Failed to delete user account: $e');
+      throw Exception('Failed to archive user account: $e');
     }
+  }
+
+  /// Restores an archived user account back to ACTIVE status.
+  Future<void> unarchiveUserAccount(String uid, {bool asSuperAdmin = false}) async {
+    try {
+      final userDocSnap = await _firestore.collection('users').doc(uid).get();
+      if (!userDocSnap.exists) {
+        throw Exception('User account not found.');
+      }
+
+      // 1. Mark account as ACTIVE in users collection
+      await _firestore.collection('users').doc(uid).set({
+        'status': 'ACTIVE',
+        'isArchived': false,
+        'is_active': true,
+        'unarchivedAt': FieldValue.serverTimestamp(),
+        'unarchivedBySuperAdmin': asSuperAdmin,
+      }, SetOptions(merge: true));
+
+      // 2. Remove from archived_users collection
+      await _firestore.collection('archived_users').doc(uid).delete();
+    } catch (e) {
+      throw Exception('Failed to unarchive user account: $e');
+    }
+  }
+
+  /// Permanently removes a user account from Firestore.
+  /// Used exclusively when the owner of the account permanently deletes their account.
+  /// Completely deletes the user doc, any archive record, and any lingering lockout document.
+  Future<void> permanentlyDeleteUserAccount(String uid, {String? email}) async {
+    try {
+      // 1. Delete user document from users collection
+      await _firestore.collection('users').doc(uid).delete();
+
+      // 2. Remove any archive audit doc in archived_users
+      await _firestore.collection('archived_users').doc(uid).delete();
+
+      // 3. Clear any lockout documents for this email so new signup starts clean
+      if (email != null && email.trim().isNotEmpty) {
+        final emailClean = email.trim().toLowerCase().replaceAll('/', '_');
+        try {
+          await _firestore.collection('login_attempts').doc(emailClean).delete();
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('Error in permanentlyDeleteUserAccount: $e');
+      throw Exception('Failed to permanently delete user account from database: $e');
+    }
+  }
+
+  /// Backward-compatible wrapper: accounts are NEVER permanently deleted.
+  /// Routes directly to [archiveUserAccount].
+  Future<void> deleteUserAccount(String uid, {bool asSuperAdmin = false}) async {
+    await archiveUserAccount(uid, asSuperAdmin: asSuperAdmin);
   }
 
   // --- Rating and Review System ---

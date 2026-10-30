@@ -290,12 +290,7 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline, size: 18, color: Colors.grey),
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        onPressed: () => _confirmDeleteQuiz(context, q),
-                                      ),
+                                      const Icon(Icons.quiz_outlined, size: 16, color: Color(0xFF88B342)),
                                     ],
                                   ),
                                   const SizedBox(height: 4),
@@ -325,47 +320,6 @@ class AdminAssessmentsTabState extends State<AdminAssessmentsTab> {
         );
       },
     );
-  }
-
-  Future<void> _confirmDeleteQuiz(BuildContext context, Quiz quiz) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Assessment?'),
-        content: Text(
-          'Are you sure you want to delete "${quiz.title}"?\n\nAfter 30days, the content will be permanently deleted from Grammatica.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok == true) {
-      try {
-        await DatabaseService.instance.archiveQuiz(quiz.id);
-        if (_selectedQuizId == quiz.id) resetForm();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Assessment moved to Archive. After 30days, the content will be permanently deleted from Grammatica.'),
-            ),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-        }
-      }
-    }
   }
 
   Widget _buildInputFields() {

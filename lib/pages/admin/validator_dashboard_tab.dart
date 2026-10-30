@@ -9,6 +9,7 @@ import '../../widgets/application_preview_widgets.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/feedback_dialog.dart';
 
 // ─────────────────────────────────────────────
 //  Status label helpers
@@ -222,6 +223,7 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
         return Container(
           color: bgColor,
           child: SingleChildScrollView(
+            key: const PageStorageKey('validator_dashboard_scroll_view'),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             child: Center(
               child: ConstrainedBox(
@@ -258,32 +260,73 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        isUnderReview ? Icons.hourglass_top_rounded : Icons.verified_rounded,
-                                        color: isUnderReview ? Colors.amberAccent : Colors.white,
-                                        size: 13,
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.18),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
-                                      const SizedBox(width: 5),
-                                      Text(
-                                        isUnderReview ? 'APPLICATION UNDER REVIEW' : 'VALIDATOR DASHBOARD',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 1.1,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isUnderReview ? Icons.hourglass_top_rounded : Icons.verified_rounded,
+                                            color: isUnderReview ? Colors.amberAccent : Colors.white,
+                                            size: 13,
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            isUnderReview ? 'APPLICATION UNDER REVIEW' : 'VALIDATOR DASHBOARD',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 1.1,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: () => FeedbackDialog.show(
+                                        context,
+                                        user: user,
+                                        userData: data,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.18),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: Colors.white.withValues(alpha: 0.35),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.rate_review_rounded, color: Colors.white, size: 12),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Feedback',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
@@ -323,6 +366,10 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 20),
+
+                    // ── Validator Feedback Banner (Sent to grammatica.support@gmail.com) ──
+                    _buildFeedbackBanner(context, user: user, userData: data, isDark: isDark),
                     const SizedBox(height: 20),
 
                     if (isUnderReview) ...[
@@ -569,6 +616,92 @@ class _ValidatorDashboardTabState extends State<ValidatorDashboardTab> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildFeedbackBanner(
+    BuildContext context, {
+    required User user,
+    required Map<String, dynamic> userData,
+    required bool isDark,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF81B655).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.rate_review_rounded,
+              color: Color(0xFF81B655),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Have feedback or suggestions?',
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Share your ideas, report issues, or rate your validator experience.',
+                  style: GoogleFonts.inter(
+                    fontSize: 11.5,
+                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.send_rounded, size: 14),
+            label: Text(
+              'Give Feedback',
+              style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+            onPressed: () => FeedbackDialog.show(
+              context,
+              user: user,
+              userData: userData,
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF81B655),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

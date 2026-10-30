@@ -88,6 +88,124 @@ Future<void> main() async {
           continue;
         }
 
+        // --- Resend API Relay (bypasses browser CORS for Flutter Web) ---
+        if (request.uri.path == '/send-resend') {
+          final apiKey = (data['apiKey'] ?? Platform.environment['RESEND_API_KEY'] ?? '').toString();
+          if (apiKey.isEmpty) {
+            request.response.statusCode = 400;
+            request.response.write(jsonEncode({'error': 'RESEND_API_KEY is not configured or provided.'}));
+            await request.response.close();
+            continue;
+          }
+          final recipientList = data['to'] is List
+              ? List<String>.from((data['to'] as List).map((e) => e.toString()))
+              : [data['to']?.toString() ?? 'grammatica.support@gmail.com'];
+          final subject = data['subject']?.toString() ?? 'Grammatica Notification';
+          final htmlContent = (data['html'] ?? data['body'] ?? '').toString();
+          final replyTo = data['reply_to'] ?? data['replyTo'] ?? 'grammatica.support@gmail.com';
+
+          final String resendAccountEmail = (data['ownerEmail'] ?? Platform.environment['RESEND_OWNER_EMAIL'] ?? Platform.environment['SMTP_EMAIL'] ?? '').toString();
+          final String resendInboundEmail = (data['inboundEmail'] ?? Platform.environment['RESEND_INBOUND_EMAIL'] ?? '').toString();
+          final String supportEmail = (data['supportEmail'] ?? Platform.environment['SUPPORT_EMAIL'] ?? 'grammatica.support@gmail.com').toString();
+
+          bool resendSuccess = false;
+          String resBody = '';
+          String? resendId;
+
+          // 1. Attempt delivery via Resend API to user's verified account email
+          try {
+            final client = HttpClient();
+            final resendReq = await client.postUrl(Uri.parse('https://api.resend.com/emails'));
+            resendReq.headers.set('authorization', 'Bearer $apiKey');
+            resendReq.headers.set('content-type', 'application/json');
+            resendReq.headers.set('user-agent', 'GrammaticaApp/1.0');
+
+            final targetRecipients = recipientList.isNotEmpty
+                ? recipientList
+                : (resendAccountEmail.isNotEmpty ? [resendAccountEmail] : ['grammatica.support@gmail.com']);
+
+            final resendPayload = {
+              'from': 'Grammatica Feedback <onboarding@resend.dev>',
+              'to': targetRecipients,
+              'reply_to': replyTo,
+              'subject': subject,
+              'html': htmlContent,
+            };
+            resendReq.write(jsonEncode(resendPayload));
+            final resendRes = await resendReq.close();
+            resBody = await utf8.decoder.bind(resendRes).join();
+
+            if (resendRes.statusCode >= 200 && resendRes.statusCode < 300) {
+              resendSuccess = true;
+              final parsed = jsonDecode(resBody) as Map<String, dynamic>;
+              resendId = parsed['id']?.toString();
+              stdout.writeln('[RESEND] Delivered to $resendAccountEmail via Resend API (id: $resendId)');
+            } else {
+              stdout.writeln('[RESEND] Resend returned HTTP ${resendRes.statusCode}: $resBody');
+            }
+          } catch (e) {
+            stdout.writeln('[RESEND EXCEPTION] $e');
+          }
+
+          // 2. Also deliver via SMTP directly to Support and Resend Inbound mailbox
+          try {
+            const fallbackSmtpEmail = 'otosuave@gmail.com';
+            const fallbackSmtpPassword = 'ughc ndaj gxpf vkxe';
+            final smtpServer = gmail(fallbackSmtpEmail, fallbackSmtpPassword);
+
+            final targetRecipients = <String>{
+              ...recipientList,
+              supportEmail,
+              resendInboundEmail,
+            }.toList();
+
+            final message = Message()
+              ..from = Address(fallbackSmtpEmail, 'Grammatica Team')
+              ..recipients.addAll(targetRecipients)
+              ..subject = subject
+              ..html = htmlContent;
+
+            final sendReport = await send(message, smtpServer);
+            stdout.writeln('[SMTP DELIVERY] Successfully delivered email to $targetRecipients: ${sendReport.toString()}');
+
+            request.response.statusCode = HttpStatus.ok;
+            request.response.headers.contentType = ContentType.json;
+            request.response.write(jsonEncode({
+              'id': resendId ?? 'smtp_${DateTime.now().millisecondsSinceEpoch}',
+              'success': true,
+              'resendDelivered': resendSuccess,
+              'deliveredTo': targetRecipients.join(', '),
+              'resendInbound': resendInboundEmail,
+              'supportEmail': supportEmail,
+            }));
+            await request.response.close();
+            continue;
+          } catch (smtpError) {
+            stdout.writeln('[SMTP DELIVERY ERROR] $smtpError');
+            if (resendSuccess) {
+              // Resend succeeded even if SMTP failed
+              request.response.statusCode = HttpStatus.ok;
+              request.response.headers.contentType = ContentType.json;
+              request.response.write(jsonEncode({
+                'id': resendId,
+                'success': true,
+                'deliveredTo': resendAccountEmail,
+              }));
+              await request.response.close();
+              continue;
+            }
+
+            request.response.statusCode = HttpStatus.internalServerError;
+            request.response.headers.contentType = ContentType.json;
+            request.response.write(jsonEncode({
+              'success': false,
+              'error': 'Resend: $resBody | SMTP: $smtpError',
+            }));
+            await request.response.close();
+            continue;
+          }
+        }
+
         final String smtpEmail = data['smtpEmail'];
         final String smtpPassword = data['smtpPassword'];
         final String recipientEmail = data['recipientEmail'];

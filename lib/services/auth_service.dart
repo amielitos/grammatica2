@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'database_service.dart';
 import 'email_sender_service.dart';
 import 'email_validator_service.dart';
@@ -31,6 +32,7 @@ class AuthService {
   static final messengerKey = GlobalKey<ScaffoldMessengerState>();
   static final navigatorKey = GlobalKey<NavigatorState>();
   static bool justSignedUpWithGoogle = false;
+  static String? preferredGoogleRole;
 
   static const int maxFailedAttempts = 3;
   static const Duration lockoutDuration = Duration(minutes: 5);
@@ -111,21 +113,41 @@ class AuthService {
     }
   }
 
-  Future<bool> _ensureUserDocumentExists(User? user) async {
+  Future<bool> _ensureUserDocumentExists(User? user, {String? role}) async {
     if (user != null) {
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
       if (!userDoc.exists) {
+        String chosenRole = (role ?? preferredGoogleRole ?? '').trim().toUpperCase();
+        if (chosenRole != 'VALIDATOR' && chosenRole != 'LEARNER') {
+          final navContext = navigatorKey.currentContext;
+          if (navContext != null && navContext.mounted) {
+            final selected = await showDialog<String>(
+              context: navContext,
+              barrierDismissible: false,
+              builder: (ctx) => const _GoogleRoleSelectionDialog(),
+            );
+            if (selected != null && selected.isNotEmpty) {
+              chosenRole = selected.toUpperCase();
+            }
+          }
+        }
+        if (chosenRole != 'VALIDATOR') {
+          chosenRole = 'LEARNER';
+        }
+        final isValidator = chosenRole == 'VALIDATOR';
         await _firestore.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'email': user.email,
           'createdAt': FieldValue.serverTimestamp(),
-          'role': 'LEARNER',
-          'status': 'ACTIVE',
+          'role': chosenRole,
+          'status': isValidator ? 'Validator in Review' : 'ACTIVE',
+          'isVerified': !isValidator,
           'subscription_status': 'NONE',
           'username': user.displayName ?? 'Google User',
           'photoUrl': user.photoURL ?? '',
           'has_completed_onboarding': false,
         });
+        preferredGoogleRole = null;
         return true; // Is new user
       }
       return false; // Not new
@@ -491,18 +513,21 @@ class AuthService {
       // Check user document and verification policy
       final user = userCredential.user;
       if (user != null) {
-        // Initial Security Check: check if the user is deactivated
+        // Initial Security Check: check if the user is deactivated or archived
         final userDoc = await _firestore
             .collection('users')
             .doc(user.uid)
             .get();
         final userData = userDoc.data();
         final status = (userData?['status'] as String?)?.toUpperCase();
-        if (userDoc.exists && status == 'DEACTIVATED') {
+        final isArchived = status == 'ARCHIVED' || userData?['isArchived'] == true;
+        if (userDoc.exists && (status == 'DEACTIVATED' || isArchived)) {
           await _auth.signOut();
           throw FirebaseAuthException(
-            code: 'account-deactivated',
-            message: 'Your account has been deactivated. Please contact support.',
+            code: isArchived ? 'account-archived' : 'account-deactivated',
+            message: isArchived
+                ? 'This account has been archived. Please contact support.'
+                : 'Your account has been deactivated. Please contact support.',
           );
         }
 
@@ -556,7 +581,7 @@ class AuthService {
     }
   }
 
-  Future<UserCredential> googleSignIn() async {
+  Future<UserCredential> googleSignIn({String? role}) async {
     await ensureGoogleSignInInitialized();
 
     // On Web, direct programmatic sign-in via authenticate() is not supported.
@@ -589,19 +614,23 @@ class AuthService {
         credential,
       );
 
-      // Security Check: Deactivated Status
+      // Security Check: Deactivated or Archived Status
       final userDoc = await _firestore.collection('users').doc(userCredential.user?.uid).get();
-      final status = (userDoc.data()?['status'] as String?)?.toUpperCase();
-      if (userDoc.exists && status == 'DEACTIVATED') {
+      final userData = userDoc.data();
+      final status = (userData?['status'] as String?)?.toUpperCase();
+      final isArchived = status == 'ARCHIVED' || userData?['isArchived'] == true;
+      if (userDoc.exists && (status == 'DEACTIVATED' || isArchived)) {
         await _auth.signOut();
         await _googleSignIn.signOut();
         throw FirebaseAuthException(
-          code: 'account-deactivated',
-          message: 'Your account has been deactivated. Please contact support.',
+          code: isArchived ? 'account-archived' : 'account-deactivated',
+          message: isArchived
+              ? 'This account has been archived. Please contact support.'
+              : 'Your account has been deactivated. Please contact support.',
         );
       }
 
-      bool isNewUser = await _ensureUserDocumentExists(userCredential.user);
+      bool isNewUser = await _ensureUserDocumentExists(userCredential.user, role: role);
       final isNewAuthUser = userCredential.additionalUserInfo?.isNewUser ?? false;
       if (isNewUser || isNewAuthUser) {
         justSignedUpWithGoogle = true;
@@ -754,11 +783,49 @@ class AuthService {
     } catch (_) {}
   }
 
-  Future<void> deleteAccount() async {
+  /// Archives the current user account.
+  /// Per system requirement: Accounts are NEVER permanently deleted.
+  /// The user is marked ARCHIVED in Firestore, barred from signing in,
+  /// but retained in Auth/Firestore so their email cannot be claimed or reused.
+  Future<void> archiveAccount() async {
     final user = _auth.currentUser;
     if (user == null) return;
 
     final uid = user.uid;
+
+    // Guard: Administrator and Superadmin accounts cannot be archived
+    final userDoc = await _firestore.collection('users').doc(uid).get();
+    if (userDoc.exists) {
+      final role = (userDoc.data()?['role'] as String?)?.toUpperCase();
+      if (role == 'ADMIN' || role == 'SUPERADMIN') {
+        throw FirebaseAuthException(
+          code: 'admin-account-archive-forbidden',
+          message: 'Administrator accounts cannot be archived.',
+        );
+      }
+    }
+
+    try {
+      // 1. Mark account as ARCHIVED in Firestore
+      await DatabaseService.instance.archiveUserAccount(uid);
+
+      // 2. Sign out the user immediately
+      await signOut();
+    } catch (e) {
+      debugPrint('Error archiving account: $e');
+      rethrow;
+    }
+  }
+
+  /// Permanently deletes the current user account from Firebase Auth and Firestore.
+  /// This operation is triggered exclusively by the account owner.
+  /// If the user registers again with the same email, it will be treated as a brand new account.
+  Future<void> permanentlyDeleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final uid = user.uid;
+    final email = user.email;
 
     // Guard: Administrator and Superadmin accounts cannot be deleted
     final userDoc = await _firestore.collection('users').doc(uid).get();
@@ -767,23 +834,32 @@ class AuthService {
       if (role == 'ADMIN' || role == 'SUPERADMIN') {
         throw FirebaseAuthException(
           code: 'admin-account-deletion-forbidden',
-          message: 'Administrator accounts cannot be deleted.',
+          message: 'Administrator accounts cannot be permanently deleted.',
         );
       }
     }
 
     try {
-      // 1. Delete all Firestore and Storage data
-      await DatabaseService.instance.deleteUserAccount(uid);
+      // 1. Completely delete Firestore documents for this user
+      await DatabaseService.instance.permanentlyDeleteUserAccount(uid, email: email);
 
-      // 2. Delete the Auth user
-      // Note: This may require recent authentication.
-      // If it fails, the UI should catch it and handle re-authentication if necessary.
+      // 2. Delete user from Firebase Authentication
       await user.delete();
+
+      // 3. Clear Google Sign-In and device session
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+      await DeviceSessionService.instance.clearLockout();
     } catch (e) {
-      debugPrint('Error deleting account: $e');
+      debugPrint('Error during permanent account deletion: $e');
       rethrow;
     }
+  }
+
+  /// Deletes the current user account (routes to [permanentlyDeleteAccount]).
+  Future<void> deleteAccount() async {
+    await permanentlyDeleteAccount();
   }
 
   /// Reauthenticates current user using password (for Email/Password accounts)
@@ -1022,6 +1098,177 @@ class AuthService {
     }, SetOptions(merge: true));
 
     await signOut();
+  }
+}
+
+class _GoogleRoleSelectionDialog extends StatefulWidget {
+  const _GoogleRoleSelectionDialog();
+
+  @override
+  State<_GoogleRoleSelectionDialog> createState() => _GoogleRoleSelectionDialogState();
+}
+
+class _GoogleRoleSelectionDialogState extends State<_GoogleRoleSelectionDialog> {
+  String _selectedRole = 'LEARNER';
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      title: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF81B655).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person_pin_rounded, color: Color(0xFF81B655), size: 32),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Choose Your Role',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 22),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Welcome to Grammatica! How will you use your account?',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(fontSize: 13, color: Colors.grey),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildRoleOption(
+              role: 'LEARNER',
+              title: 'Learner',
+              subtitle: 'Access interactive lessons, AI quizzes, and practice tools.',
+              icon: Icons.school_rounded,
+              color: const Color(0xFF81B655),
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _buildRoleOption(
+              role: 'VALIDATOR',
+              title: 'Validator',
+              subtitle: 'Review and validate educational lessons created by educators.',
+              icon: Icons.verified_rounded,
+              color: const Color(0xFF3B82F6),
+              isDark: isDark,
+            ),
+          ],
+        ),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF81B655),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(context, _selectedRole),
+            child: Text(
+              'Continue as ${_selectedRole == "VALIDATOR" ? "Validator" : "Learner"}',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoleOption({
+    required String role,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    final isSelected = _selectedRole == role;
+    return InkWell(
+      onTap: () => setState(() => _selectedRole = role),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.12)
+              : (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade50),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? color : (isDark ? Colors.white12 : Colors.grey.shade200),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? color : Colors.grey.shade400,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: color,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

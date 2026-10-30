@@ -786,7 +786,7 @@ class EmailSenderService {
                     'body': body,
                   }),
                 )
-                .timeout(const Duration(seconds: 10));
+                .timeout(const Duration(seconds: 3));
 
             if (response.statusCode == 200) {
               debugPrint('✅ Python backend sent email to $toEmail');

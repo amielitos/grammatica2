@@ -12,8 +12,6 @@ import '../../services/email_sender_service.dart';
 import '../../services/email_validator_service.dart';
 import '../../services/notification_service.dart';
 import '../../models/notification.dart';
-import '../../widgets/application_preview_widgets.dart';
-import '../../widgets/content_denial_dialog.dart';
 import '../../services/badge_service.dart';
 import '../../models/badge_model.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -38,15 +36,21 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
   String _selectedRoleFilter = 'ALL';
   int _currentPage = 1;
   static const int _pageSize = 10;
+  late final Stream<List<Map<String, dynamic>>> _usersStream;
+  final ScrollController _scrollController = ScrollController();
 
   final List<String> _filterOptions = ['Name', 'Role', 'Status', 'Create Date'];
 
-  bool _isPendingValidator(Map<String, dynamic> u) {
-    final role = (u['role'] ?? '').toString().toUpperCase();
-    if (role != 'VALIDATOR') return false;
-    final isVerified = u['isVerified'] == true;
-    final status = (u['status'] ?? '').toString().toLowerCase();
-    return !isVerified || status.contains('in review') || status == 'pending';
+  @override
+  void initState() {
+    super.initState();
+    _usersStream = RoleService.instance.allUsersStream();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   String _formatTs(dynamic ts) {
@@ -65,9 +69,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     return LayoutBuilder(
       builder: (context, constraints) {
         return StreamBuilder<List<Map<String, dynamic>>>(
-          stream: RoleService.instance.allUsersStream(),
+          stream: _usersStream,
           builder: (context, snapshot) {
-            if (!snapshot.hasData) {
+            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
             var allUsers = snapshot.data!;
@@ -78,9 +82,12 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             final validatorCount = allUsers.where((u) => (u['role'] ?? '').toString().toUpperCase() == 'VALIDATOR').length;
             final educatorCount = allUsers.where((u) => (u['role'] ?? '').toString().toUpperCase() == 'EDUCATOR').length;
             final learnerCount = allUsers.where((u) => (u['role'] ?? '').toString().toUpperCase() == 'LEARNER').length;
+            final archivedCount = allUsers.where((u) => (u['isArchived'] == true) || (u['status'] ?? '').toString().toUpperCase() == 'ARCHIVED').length;
 
-            // Filter by role if selected
-            if (_selectedRoleFilter != 'ALL') {
+            // Filter by role or archive if selected
+            if (_selectedRoleFilter == 'ARCHIVED') {
+              users = users.where((u) => (u['isArchived'] == true) || (u['status'] ?? '').toString().toUpperCase() == 'ARCHIVED').toList();
+            } else if (_selectedRoleFilter != 'ALL') {
               users = users.where((u) => (u['role'] ?? '').toString().toUpperCase() == _selectedRoleFilter).toList();
             }
 
@@ -140,6 +147,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             final isMobile = constraints.maxWidth < 600;
 
             return SingleChildScrollView(
+              key: const PageStorageKey('admin_users_scroll_view'),
+              controller: _scrollController,
               padding: EdgeInsets.all(isMobile ? 16 : 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -242,6 +251,8 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         _buildStatCard(label: 'Validators', count: validatorCount, icon: Icons.verified_rounded, color: const Color(0xFF3B82F6), roleKey: 'VALIDATOR', expanded: false),
                         _buildStatCard(label: 'Educators', count: educatorCount, icon: Icons.school_rounded, color: const Color(0xFF81B655), roleKey: 'EDUCATOR', expanded: false),
                         _buildStatCard(label: 'Learners', count: learnerCount, icon: Icons.person_rounded, color: const Color(0xFFF59E0B), roleKey: 'LEARNER', expanded: false),
+                        if (archivedCount > 0)
+                          _buildStatCard(label: 'Archived', count: archivedCount, icon: Icons.archive_outlined, color: const Color(0xFF64748B), roleKey: 'ARCHIVED', expanded: false),
                       ],
                     )
                   else
@@ -254,6 +265,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         _buildStatCard(label: 'Educators', count: educatorCount, icon: Icons.school_rounded, color: const Color(0xFF81B655), roleKey: 'EDUCATOR'),
                         const SizedBox(width: 16),
                         _buildStatCard(label: 'Learners', count: learnerCount, icon: Icons.person_rounded, color: const Color(0xFFF59E0B), roleKey: 'LEARNER'),
+                        if (archivedCount > 0) ...[
+                          const SizedBox(width: 16),
+                          _buildStatCard(label: 'Archived', count: archivedCount, icon: Icons.archive_outlined, color: const Color(0xFF64748B), roleKey: 'ARCHIVED'),
+                        ],
                       ],
                     ),
                   const SizedBox(height: 20),
@@ -272,6 +287,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         _buildRoleChip('EDUCATOR', 'Educators', educatorCount, const Color(0xFF81B655)),
                         const SizedBox(width: 8),
                         _buildRoleChip('LEARNER', 'Learners', learnerCount, const Color(0xFFF59E0B)),
+                        if (archivedCount > 0) ...[
+                          const SizedBox(width: 8),
+                          _buildRoleChip('ARCHIVED', 'Archived', archivedCount, const Color(0xFF64748B)),
+                        ],
                       ],
                     ),
                   ),
@@ -959,6 +978,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final uid = (u['uid'] ?? 'N/A') as String;
     final username = (u['username'] ?? 'N/A') as String;
     final status = (u['status'] ?? 'N/A') as String;
+    final isArchived = (u['isArchived'] == true) || (status.toUpperCase() == 'ARCHIVED');
 
     final educStart = u['educatorStartDate'] != null ? _formatTs(u['educatorStartDate']) : 'N/A';
     final educEnd = u['educatorEndDate'] != null ? _formatTs(u['educatorEndDate']) : 'Present';
@@ -1132,16 +1152,20 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: isActive ? const Color(0xFF81B655) : Colors.orange,
+                              color: isArchived
+                                  ? Colors.grey.shade500
+                                  : (isActive ? const Color(0xFF81B655) : Colors.orange),
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            status.toUpperCase(),
+                            isArchived ? 'ARCHIVED' : status.toUpperCase(),
                             style: GoogleFonts.inter(
                               fontSize: 12,
-                              color: isActive ? const Color(0xFF81B655) : Colors.orange,
+                              color: isArchived
+                                  ? Colors.grey.shade600
+                                  : (isActive ? const Color(0xFF81B655) : Colors.orange),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -1261,28 +1285,47 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       ),
                     const SizedBox(width: 6),
 
-                    // Remove User Button
-                    Tooltip(
-                      message: isDefaultAdmin
-                          ? 'Default Super Admin cannot be removed'
-                          : (isSelf
-                              ? 'You cannot remove your own account'
-                              : 'Remove User'),
-                      child: IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                        color: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade400,
-                        style: IconButton.styleFrom(
-                          backgroundColor: canRemoveThisUser
-                              ? const Color(0xFFEF4444).withValues(alpha: 0.10)
-                              : Colors.grey.shade100,
-                          padding: const EdgeInsets.all(8),
-                          minimumSize: const Size(32, 32),
+                    // Archive / Unarchive User Button
+                    if (isArchived)
+                      Tooltip(
+                        message: 'Unarchive User (Restore Account)',
+                        child: IconButton(
+                          icon: const Icon(Icons.unarchive_outlined, size: 18),
+                          color: canRemoveThisUser ? const Color(0xFF10B981) : Colors.grey.shade400,
+                          style: IconButton.styleFrom(
+                            backgroundColor: canRemoveThisUser
+                                ? const Color(0xFF10B981).withValues(alpha: 0.12)
+                                : Colors.grey.shade100,
+                            padding: const EdgeInsets.all(8),
+                            minimumSize: const Size(32, 32),
+                          ),
+                          onPressed: canRemoveThisUser
+                              ? () => _showUnarchiveConfirmation(uid, username, email, role)
+                              : null,
                         ),
-                        onPressed: canRemoveThisUser
-                            ? () => _showRemoveUserConfirmation(uid, username, email, role)
-                            : null,
+                      )
+                    else
+                      Tooltip(
+                        message: isDefaultAdmin
+                            ? 'Default Super Admin cannot be archived'
+                            : (isSelf
+                                ? 'You cannot archive your own account'
+                                : 'Archive User'),
+                        child: IconButton(
+                          icon: const Icon(Icons.archive_outlined, size: 18),
+                          color: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade400,
+                          style: IconButton.styleFrom(
+                            backgroundColor: canRemoveThisUser
+                                ? const Color(0xFFEF4444).withValues(alpha: 0.10)
+                                : Colors.grey.shade100,
+                            padding: const EdgeInsets.all(8),
+                            minimumSize: const Size(32, 32),
+                          ),
+                          onPressed: canRemoveThisUser
+                              ? () => _showRemoveUserConfirmation(uid, username, email, role)
+                              : null,
+                        ),
                       ),
-                    ),
 
                     if (isLocked) ...[
                       const SizedBox(width: 6),
@@ -1315,73 +1358,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         ),
                       ),
                     ],
-
-                    Builder(
-                      builder: (context) {
-                        final isTargetValidator = role.toUpperCase() == 'VALIDATOR';
-                        final isVerified = u['isVerified'] == true;
-                        final isPendingValidator = _isPendingValidator(u);
-                        final isAlreadyValidated = isTargetValidator && isVerified && (status.toLowerCase() == 'active');
-                        final canValidate = isSuperAdmin && !isDefaultAdmin && isPendingValidator;
-
-                        String validateTooltip;
-                        if (isDefaultAdmin) {
-                          validateTooltip = 'Default Super Admin cannot be modified';
-                        } else if (isAlreadyValidated) {
-                          validateTooltip = 'Validator is already validated & active';
-                        } else if (!isPendingValidator) {
-                          validateTooltip = 'Validation is only available for pending validators';
-                        } else {
-                          validateTooltip = 'Validate Validator Application';
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.only(left: 6),
-                          child: Tooltip(
-                            message: validateTooltip,
-                            child: ElevatedButton.icon(
-                              icon: Icon(
-                                isAlreadyValidated
-                                    ? Icons.verified_rounded
-                                    : Icons.check_circle_outline_rounded,
-                                size: 13,
-                              ),
-                              label: Text(isAlreadyValidated ? 'VALIDATED' : 'VALIDATE'),
-                              onPressed: canValidate
-                                  ? () => _showValidateValidatorDialog(u)
-                                  : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: canValidate
-                                    ? const Color(0xFF81B655)
-                                    : (isAlreadyValidated
-                                        ? const Color(0xFF81B655).withValues(alpha: 0.08)
-                                        : Colors.grey.shade100),
-                                foregroundColor: canValidate
-                                    ? Colors.white
-                                    : (isAlreadyValidated
-                                        ? const Color(0xFF81B655).withValues(alpha: 0.7)
-                                        : Colors.grey.shade400),
-                                elevation: canValidate ? 1 : 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                side: BorderSide(
-                                  color: canValidate
-                                      ? const Color(0xFF81B655)
-                                      : (isAlreadyValidated
-                                          ? const Color(0xFF81B655).withValues(alpha: 0.25)
-                                          : Colors.grey.shade300),
-                                ),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                textStyle: GoogleFonts.outfit(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
                   ],
                 );
               },
@@ -1399,6 +1375,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     final uid = (u['uid'] ?? 'N/A') as String;
     final username = (u['username'] ?? 'N/A') as String;
     final status = (u['status'] ?? 'N/A') as String;
+    final isArchived = (u['isArchived'] == true) || (status.toUpperCase() == 'ARCHIVED');
 
     final lockedUntilTs = u['locked_until'] as Timestamp?;
     final isLocked = lockedUntilTs != null && lockedUntilTs.toDate().isAfter(DateTime.now());
@@ -1537,14 +1514,22 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     width: 7,
                     height: 7,
                     decoration: BoxDecoration(
-                      color: isActive ? const Color(0xFF81B655) : Colors.orange,
+                      color: isArchived
+                          ? Colors.grey.shade500
+                          : (isActive ? const Color(0xFF81B655) : Colors.orange),
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    status.toUpperCase(),
-                    style: GoogleFonts.inter(fontSize: 12, color: isActive ? const Color(0xFF81B655) : Colors.orange, fontWeight: FontWeight.w600),
+                    isArchived ? 'ARCHIVED' : status.toUpperCase(),
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isArchived
+                          ? Colors.grey.shade600
+                          : (isActive ? const Color(0xFF81B655) : Colors.orange),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
                 if (educStart != null) ...[
@@ -1651,26 +1636,42 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           ),
                         ),
                       ),
-                    // Remove User (Super Admin only)
-                    Tooltip(
-                      message: isDefaultAdmin
-                          ? 'Default Super Admin cannot be removed'
-                          : (isSelf ? 'You cannot remove your own account' : 'Remove User'),
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.delete_outline_rounded, size: 15),
-                        label: const Text('Remove User'),
+                    // Archive / Unarchive User (Super Admin only)
+                    if (isArchived)
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.unarchive_outlined, size: 15),
+                        label: const Text('Unarchive User'),
                         onPressed: canRemoveThisUser
-                            ? () => _showRemoveUserConfirmation(uid, username, email, role)
+                            ? () => _showUnarchiveConfirmation(uid, username, email, role)
                             : null,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade400,
-                          side: BorderSide(color: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade300),
+                          foregroundColor: canRemoveThisUser ? const Color(0xFF10B981) : Colors.grey.shade400,
+                          side: BorderSide(color: canRemoveThisUser ? const Color(0xFF10B981) : Colors.grey.shade300),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
+                      )
+                    else
+                      Tooltip(
+                        message: isDefaultAdmin
+                            ? 'Default Super Admin cannot be archived'
+                            : (isSelf ? 'You cannot archive your own account' : 'Archive User'),
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.archive_outlined, size: 15),
+                          label: const Text('Archive User'),
+                          onPressed: canRemoveThisUser
+                              ? () => _showRemoveUserConfirmation(uid, username, email, role)
+                              : null,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade400,
+                            side: BorderSide(color: canRemoveThisUser ? const Color(0xFFEF4444) : Colors.grey.shade300),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
                       ),
-                    ),
                     // Unlock (if locked)
                     if (isLocked)
                       Tooltip(
@@ -1690,64 +1691,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           ),
                         ),
                       ),
-                    // Validate Validator Button
-                    Builder(
-                      builder: (context) {
-                        final isTargetValidator = role.toUpperCase() == 'VALIDATOR';
-                        final isVerified = u['isVerified'] == true;
-                        final isPendingValidator = _isPendingValidator(u);
-                        final isAlreadyValidated = isTargetValidator && isVerified && (status.toLowerCase() == 'active');
-                        final canValidate = isSuperAdmin && !isDefaultAdmin && isPendingValidator;
-
-                        String validateTooltip;
-                        if (isDefaultAdmin) {
-                          validateTooltip = 'Default Super Admin cannot be modified';
-                        } else if (isAlreadyValidated) {
-                          validateTooltip = 'Validator is already validated & active';
-                        } else if (!isPendingValidator) {
-                          validateTooltip = 'Validation is only available for pending validators';
-                        } else {
-                          validateTooltip = 'Validate Validator Application';
-                        }
-
-                        return Tooltip(
-                          message: validateTooltip,
-                          child: ElevatedButton.icon(
-                            icon: Icon(
-                              isAlreadyValidated
-                                  ? Icons.verified_rounded
-                                  : Icons.check_circle_outline_rounded,
-                              size: 14,
-                            ),
-                            label: Text(isAlreadyValidated ? 'VALIDATED' : 'VALIDATE'),
-                            onPressed: canValidate ? () => _showValidateValidatorDialog(u) : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: canValidate
-                                  ? const Color(0xFF81B655)
-                                  : (isAlreadyValidated
-                                      ? const Color(0xFF81B655).withValues(alpha: 0.08)
-                                      : Colors.grey.shade100),
-                              foregroundColor: canValidate
-                                  ? Colors.white
-                                  : (isAlreadyValidated
-                                      ? const Color(0xFF81B655).withValues(alpha: 0.7)
-                                      : Colors.grey.shade400),
-                              elevation: canValidate ? 1 : 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              side: BorderSide(
-                                color: canValidate
-                                    ? const Color(0xFF81B655)
-                                    : (isAlreadyValidated
-                                        ? const Color(0xFF81B655).withValues(alpha: 0.25)
-                                        : Colors.grey.shade300),
-                              ),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
                   ],
                 );
               },
@@ -2068,371 +2011,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showValidateValidatorDialog(Map<String, dynamic> u) async {
-    if (widget.role != UserRole.superadmin) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only Super Admin can validate validator applications.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-      return;
-    }
-    final uid = (u['uid'] ?? '').toString();
-    final username = (u['username'] ?? u['full_name'] ?? 'Applicant').toString();
-    final email = (u['email'] ?? 'N/A').toString();
-
-    // Look for PRC file in user doc or in educatorApplications collection
-    String prcUrl = (u['prc_url'] ?? u['prcUrl'] ?? '').toString();
-    String prcFileName = (u['prc_file_name'] ?? u['prcFileName'] ?? '').toString();
-    EducatorApplication? app;
-
-    try {
-      final appsSnap = await FirebaseFirestore.instance
-          .collection('educatorApplications')
-          .where('applicantUid', isEqualTo: uid)
-          .get();
-      for (final doc in appsSnap.docs) {
-        final a = EducatorApplication.fromDoc(doc);
-        if (a.applicationType == 'validator' || a.status == 'pending') {
-          app = a;
-          if (prcUrl.isEmpty && a.prcUrl.isNotEmpty) {
-            prcUrl = a.prcUrl;
-          }
-          if (prcFileName.isEmpty && (a.prcFileName ?? '').isNotEmpty) {
-            prcFileName = a.prcFileName!;
-          }
-          break;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error finding application: $e');
-    }
-
-    if (prcFileName.isEmpty && prcUrl.isNotEmpty) {
-      prcFileName = 'PRC_License_Document.pdf';
-    }
-
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          width: 440,
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Header ───────────────────────────────────────
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF81B655).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.verified_user_rounded,
-                      color: Color(0xFF81B655),
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Validate Validator',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        Text(
-                          'Accreditation Verification',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // ── Applicant Info Box ─────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF64748B)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            username,
-                            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 14, color: const Color(0xFF1E293B)),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.shade50,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.amber.shade300),
-                          ),
-                          child: Text(
-                            'IN REVIEW',
-                            style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.amber.shade900),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.email_outlined, size: 16, color: Color(0xFF64748B)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            email,
-                            style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade700),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ── PRC Document Review ───────────────────────────
-              Text(
-                'Accreditation Document',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF334155),
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (prcUrl.isNotEmpty) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFCBD5E1)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF4B49AC).withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.file_present_rounded, color: Color(0xFF4B49AC), size: 20),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              prcFileName,
-                              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12, color: const Color(0xFF1E293B)),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              'PRC / ID Document',
-                              style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.tonalIcon(
-                        onPressed: () => showFilePreviewModal(context, prcUrl, prcFileName),
-                        icon: const Icon(Icons.visibility_rounded, size: 14),
-                        label: const Text('View', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF4B49AC).withValues(alpha: 0.12),
-                          foregroundColor: const Color(0xFF4B49AC),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline_rounded, size: 18, color: Colors.amber.shade800),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'No PRC document file found on this profile.',
-                          style: GoogleFonts.inter(fontSize: 12, color: Colors.amber.shade900),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 18),
-
-              Text(
-                'Validating this application will officially verify the applicant as a certified Validator, grant access to the Validator Panel, and update their account status to Active.',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: Colors.grey.shade600,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // ── Actions ───────────────────────────────────────
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(dialogCtx),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black54,
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (app != null) ...[
-                    OutlinedButton(
-                      onPressed: () async {
-                        Navigator.pop(dialogCtx);
-                        final result = await showContentDenialDialog(
-                          context,
-                          contentTitle: 'Validator Application - $username',
-                          authorName: username,
-                          isPermanentDeletion: false,
-                        );
-                        if (result != null) {
-                          try {
-                            await DatabaseService.instance.rejectValidatorApplication(
-                              uid: uid,
-                              reason: result.category,
-                              description: result.explanation,
-                              reviewerEmail: widget.currentUser?.email,
-                            );
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Validator application rejected and applicant notified.'),
-                                  backgroundColor: Color(0xFFE05050),
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error rejecting application: $e')),
-                              );
-                            }
-                          }
-                        }
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.redAccent,
-                        side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.4)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      ),
-                      child: Text('Reject', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.check_circle_rounded, size: 16),
-                      label: Text('VALIDATE', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-                      onPressed: () async {
-                        Navigator.pop(dialogCtx);
-                        try {
-                          await DatabaseService.instance.validateValidatorApplication(
-                            uid: uid,
-                            reviewerEmail: widget.currentUser?.email,
-                          );
-                          if (email.isNotEmpty && email != 'N/A') {
-                            try {
-                              await EmailSenderService.sendEmail(
-                                toEmail: email,
-                                subject: 'Your Grammatica Validator Application Has Been Approved!',
-                                body: 'Hello $username,\n\nYour application to become an official Grammatica Validator has been verified and approved by the Super Admin.\n\nYou now have full access to validate lessons and educational content on Grammatica.\n\nBest regards,\nThe Grammatica Team',
-                              );
-                            } catch (_) {}
-                          }
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Validator application for $username validated successfully!'),
-                                backgroundColor: const Color(0xFF81B655),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to validate validator: $e'),
-                                backgroundColor: Colors.redAccent,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF81B655),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ),
         ),
       ),
@@ -2987,7 +2565,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
-                      Icons.person_remove_rounded,
+                      Icons.archive_outlined,
                       color: Color(0xFFEF4444),
                       size: 24,
                     ),
@@ -2998,7 +2576,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Remove User',
+                          'Archive User',
                           style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w800,
                             fontSize: 18,
@@ -3006,7 +2584,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           ),
                         ),
                         Text(
-                          'Permanent Account Deletion',
+                          'Account Archiving',
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             color: Colors.red.shade700,
@@ -3033,7 +2611,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Warning: This action is permanent and cannot be undone. All user data, lessons, quizzes, progress, and subscriptions will be deleted.',
+                        'Notice: This account will be moved to archive. The user will be barred from signing in, but their account records and registered email will remain preserved in the archive.',
                         style: GoogleFonts.inter(
                           color: Colors.red.shade900,
                           fontSize: 12,
@@ -3047,7 +2625,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Are you sure you want to remove $username ($email) [Role: $role]?',
+                'Are you sure you want to archive $username ($email) [Role: $role]?',
                 style: GoogleFonts.inter(
                   color: Colors.black87,
                   fontSize: 13.5,
@@ -3081,7 +2659,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: Text('Remove User', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                      child: Text('Archive User', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
@@ -3095,15 +2673,15 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
     if (confirmed != true) return;
     if (!mounted) return;
 
-    _showLoadingModal('Deleting user account...');
+    _showLoadingModal('Archiving user account...');
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await DatabaseService.instance.deleteUserAccount(uid, asSuperAdmin: true);
+      await DatabaseService.instance.archiveUserAccount(uid, asSuperAdmin: true);
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text('User $username has been removed permanently.'),
-            backgroundColor: const Color(0xFFEF4444),
+            content: Text('User $username has been moved to archive.'),
+            backgroundColor: const Color(0xFF81B655),
           ),
         );
       }
@@ -3111,7 +2689,172 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       if (mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Error removing user: $e'),
+            content: Text('Error archiving user: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+  }
+
+  Future<void> _showUnarchiveConfirmation(
+    String uid,
+    String username,
+    String email,
+    String role,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        child: Container(
+          width: 440,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.unarchive_outlined,
+                      color: Color(0xFF10B981),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Unarchive User',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          'Account Restoration',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF10B981),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF10B981), size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Restoring this account will reactivate the user\'s access to Grammatica, allowing them to sign in again with their registered credentials and continue their activities.',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF065F46),
+                          fontSize: 12,
+                          height: 1.4,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Are you sure you want to unarchive $username ($email) [Role: $role]?',
+                style: GoogleFonts.inter(
+                  color: Colors.black87,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black54,
+                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Unarchive User', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    _showLoadingModal('Restoring user account...');
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await DatabaseService.instance.unarchiveUserAccount(uid, asSuperAdmin: true);
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('User $username has been unarchived and restored.'),
+            backgroundColor: const Color(0xFF81B655),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Error unarchiving user: $e'),
             backgroundColor: Colors.red,
           ),
         );

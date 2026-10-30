@@ -34,6 +34,7 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
   DateTime? _selectedDate;
   final Set<String> _superAdminUids = {};
   late final Stream<List<Lesson>> _lessonsStream;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -56,6 +57,7 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
   void dispose() {
     _searchDebounce?.cancel();
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -758,6 +760,8 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
         }).toList();
 
         return CustomScrollView(
+          key: const PageStorageKey('admin_lesson_database_scroll_view'),
+          controller: _scrollController,
           slivers: [
             SliverToBoxAdapter(
               child: Padding(

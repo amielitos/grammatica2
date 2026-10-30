@@ -27,27 +27,10 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
   Map<String, dynamic>? _userData;
   int _mentorshipPage = 1;
   static const int _mentorshipPageSize = 4;
-  late final Stream<List<Map<String, dynamic>>> _learnerSubscriptionsStream;
-  late final Stream<List<Map<String, dynamic>>> _mentorshipSessionsStream;
-  late final Stream<List<Map<String, dynamic>>> _learnerPaymentsStream;
-  final Map<String, Future<Map<String, dynamic>?>> _educatorDocFutures = {};
-
-  Future<Map<String, dynamic>?> _getEducatorDocFuture(String educatorId) {
-    return _educatorDocFutures.putIfAbsent(
-      educatorId,
-      () => DatabaseService.instance.getUserDoc(educatorId),
-    );
-  }
 
   @override
   void initState() {
     super.initState();
-    _learnerSubscriptionsStream =
-        DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid);
-    _mentorshipSessionsStream =
-        DatabaseService.instance.streamStudentMentorshipSessions(widget.user.uid);
-    _learnerPaymentsStream =
-        DatabaseService.instance.streamLearnerPayments(widget.user.uid);
     _checkRoleAndLoadPricing();
   }
 
@@ -131,11 +114,10 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             builder: (context) => NotificationsDialog(userId: widget.user.uid),
           );
         },
+        onLogoTap: () => Navigator.pop(context),
+        onProfileTap: () => Navigator.pop(context),
       ),
-      drawer: UniversalDrawer(
-        user: widget.user,
-        userData: _userData ?? {},
-      ),
+      drawer: UniversalDrawer(user: widget.user, userData: _userData ?? {}),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -145,6 +127,50 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Back Button
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFF81B655,
+                          ).withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(
+                              0xFF81B655,
+                            ).withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.arrow_back_rounded,
+                              size: 16,
+                              color: Color(0xFF81B655),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Back',
+                              style: GoogleFonts.outfit(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF81B655),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
                   // Header Title
                   Text(
@@ -184,7 +210,9 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                         border: Border.all(color: borderColor),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.0 : 0.04),
+                            color: Colors.black.withValues(
+                              alpha: isDark ? 0.0 : 0.04,
+                            ),
                             blurRadius: 20,
                             offset: const Offset(0, 6),
                           ),
@@ -301,10 +329,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
       controller: controller,
       keyboardType: TextInputType.number,
       onChanged: onChanged,
-      style: GoogleFonts.inter(
-        fontSize: 14,
-        color: textColor,
-      ),
+      style: GoogleFonts.inter(fontSize: 14, color: textColor),
       decoration: InputDecoration(
         errorText: errorText,
         labelText: isRequired ? null : label,
@@ -340,17 +365,17 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
         ),
         filled: true,
         fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: borderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(
-            color: Color(0xFF81B655),
-            width: 1.5,
-          ),
+          borderSide: const BorderSide(color: Color(0xFF81B655), width: 1.5),
         ),
       ),
     );
@@ -364,14 +389,20 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     Color subtitleColor,
   ) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _learnerSubscriptionsStream,
+      stream: DatabaseService.instance.streamLearnerSubscriptions(
+        widget.user.uid,
+      ),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         final subscriptions = snapshot.data ?? [];
-        final active = subscriptions.where((s) => s['status'] == 'active').toList();
-        final history = subscriptions.where((s) => s['status'] != 'active').toList();
+        final active = subscriptions
+            .where((s) => s['status'] == 'active')
+            .toList();
+        final history = subscriptions
+            .where((s) => s['status'] != 'active')
+            .toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -385,12 +416,34 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             ),
             const SizedBox(height: 16),
             if (active.isEmpty)
-              _buildEmptyCard('No active subscriptions.', isDark, cardBg, borderColor, subtitleColor)
+              _buildEmptyCard(
+                'No active subscriptions.',
+                isDark,
+                cardBg,
+                borderColor,
+                subtitleColor,
+              )
             else
-              ...active.map((s) => _buildSubscriptionCard(s, true, isDark, cardBg, borderColor, textColor, subtitleColor)),
+              ...active.map(
+                (s) => _buildSubscriptionCard(
+                  s,
+                  true,
+                  isDark,
+                  cardBg,
+                  borderColor,
+                  textColor,
+                  subtitleColor,
+                ),
+              ),
 
             const SizedBox(height: 36),
-            _buildMentorshipSection(isDark, cardBg, borderColor, textColor, subtitleColor),
+            _buildMentorshipSection(
+              isDark,
+              cardBg,
+              borderColor,
+              textColor,
+              subtitleColor,
+            ),
 
             const SizedBox(height: 36),
             _buildHeaderBox(
@@ -402,12 +455,34 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             ),
             const SizedBox(height: 16),
             if (history.isEmpty)
-              _buildEmptyCard('No subscription history.', isDark, cardBg, borderColor, subtitleColor)
+              _buildEmptyCard(
+                'No subscription history.',
+                isDark,
+                cardBg,
+                borderColor,
+                subtitleColor,
+              )
             else
-              ...history.map((s) => _buildSubscriptionCard(s, false, isDark, cardBg, borderColor, textColor, subtitleColor)),
+              ...history.map(
+                (s) => _buildSubscriptionCard(
+                  s,
+                  false,
+                  isDark,
+                  cardBg,
+                  borderColor,
+                  textColor,
+                  subtitleColor,
+                ),
+              ),
 
             const SizedBox(height: 36),
-            _buildPaymentsHistorySection(isDark, cardBg, borderColor, textColor, subtitleColor),
+            _buildPaymentsHistorySection(
+              isDark,
+              cardBg,
+              borderColor,
+              textColor,
+              subtitleColor,
+            ),
           ],
         );
       },
@@ -422,26 +497,41 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     Color subtitleColor,
   ) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _mentorshipSessionsStream,
+      stream: DatabaseService.instance.streamStudentMentorshipSessions(
+        widget.user.uid,
+      ),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         final sessions = snapshot.data ?? [];
-        final scheduledSessions = sessions
-            .where((s) => (s['status'] ?? 'scheduled').toString().toLowerCase() != 'cancelled')
-            .toList()
-          ..sort((a, b) {
-            final ta = (a['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
-            final tb = (b['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
-            return ta.compareTo(tb);
-          });
+        final scheduledSessions =
+            sessions
+                .where(
+                  (s) =>
+                      (s['status'] ?? 'scheduled').toString().toLowerCase() !=
+                      'cancelled',
+                )
+                .toList()
+              ..sort((a, b) {
+                final ta =
+                    (a['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                final tb =
+                    (b['startTime'] as Timestamp?)?.toDate() ?? DateTime(2000);
+                return ta.compareTo(tb);
+              });
 
         final totalSessions = scheduledSessions.length;
-        final maxPage = (totalSessions / _mentorshipPageSize).ceil().clamp(1, 9999);
+        final maxPage = (totalSessions / _mentorshipPageSize).ceil().clamp(
+          1,
+          9999,
+        );
         if (_mentorshipPage > maxPage) _mentorshipPage = maxPage;
         final startIndex = (_mentorshipPage - 1) * _mentorshipPageSize;
-        final pageSessions = scheduledSessions.skip(startIndex).take(_mentorshipPageSize).toList();
+        final pageSessions = scheduledSessions
+            .skip(startIndex)
+            .take(_mentorshipPageSize)
+            .toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,9 +545,24 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             ),
             const SizedBox(height: 16),
             if (scheduledSessions.isEmpty)
-              _buildEmptyCard('No scheduled mentorship meetings.', isDark, cardBg, borderColor, subtitleColor)
+              _buildEmptyCard(
+                'No scheduled mentorship meetings.',
+                isDark,
+                cardBg,
+                borderColor,
+                subtitleColor,
+              )
             else ...[
-              ...pageSessions.map((s) => _buildMentorshipCard(s, isDark, cardBg, borderColor, textColor, subtitleColor)),
+              ...pageSessions.map(
+                (s) => _buildMentorshipCard(
+                  s,
+                  isDark,
+                  cardBg,
+                  borderColor,
+                  textColor,
+                  subtitleColor,
+                ),
+              ),
               if (totalSessions > _mentorshipPageSize) ...[
                 const SizedBox(height: 16),
                 PaginationBar(
@@ -494,7 +599,9 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     final startTime = (session['startTime'] as Timestamp?)?.toDate();
     final endTime = (session['endTime'] as Timestamp?)?.toDate();
 
-    final dateStr = startTime != null ? DateFormat('EEE, MMM d, yyyy').format(startTime) : 'Scheduled Date';
+    final dateStr = startTime != null
+        ? DateFormat('EEE, MMM d, yyyy').format(startTime)
+        : 'Scheduled Date';
     final timeStr = (startTime != null && endTime != null)
         ? '${DateFormat('h:mm a').format(startTime)} - ${DateFormat('h:mm a').format(endTime)}'
         : '';
@@ -536,7 +643,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                     ),
                     const SizedBox(height: 6),
                     FutureBuilder<Map<String, dynamic>?>(
-                      future: _getEducatorDocFuture(educatorId),
+                      future: DatabaseService.instance.getUserDoc(educatorId),
                       builder: (context, eduSnap) {
                         final eduName = eduSnap.data?['username'] ?? 'Educator';
                         return Text(
@@ -558,7 +665,11 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
           const SizedBox(height: 14),
           Row(
             children: [
-              Icon(Icons.calendar_today_rounded, size: 16, color: const Color(0xFF81B655)),
+              Icon(
+                Icons.calendar_today_rounded,
+                size: 16,
+                color: const Color(0xFF81B655),
+              ),
               const SizedBox(width: 8),
               Text(
                 '$dateStr  •  $timeStr',
@@ -687,7 +798,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     final username = eduData['username'] as String? ?? 'Educator';
     final rawTier = sub['tier'] as String? ?? 'Basic';
     final tier = rawTier.toLowerCase() == 'standard' ? 'Premium' : rawTier;
-    final eduUid = sub['educatorUid'] as String;
+    final eduUid = (sub['educatorUid'] ?? sub['educatorId'] ?? '') as String;
 
     final lowerTier = tier.toLowerCase();
     Color pillBg;
@@ -723,14 +834,19 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: isActive ? const Color(0xFF81B655) : Colors.grey.shade400,
+                color: isActive
+                    ? const Color(0xFF81B655)
+                    : Colors.grey.shade400,
                 width: 2,
               ),
             ),
             child: CircleAvatar(
               radius: 26,
-              backgroundColor: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
-              backgroundImage: (eduData['photoUrl'] as String?)?.isNotEmpty == true
+              backgroundColor: isDark
+                  ? const Color(0xFF334155)
+                  : const Color(0xFFF1F5F9),
+              backgroundImage:
+                  (eduData['photoUrl'] as String?)?.isNotEmpty == true
                   ? NetworkImage(eduData['photoUrl']!)
                   : null,
               child: (eduData['photoUrl'] as String?)?.isNotEmpty == true
@@ -759,7 +875,10 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: pillBg,
                         borderRadius: BorderRadius.circular(20),
@@ -780,7 +899,9 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                       style: GoogleFonts.inter(
                         color: isActive
                             ? const Color(0xFF81B655)
-                            : (isDark ? Colors.white38 : const Color(0xFF94A3B8)),
+                            : (isDark
+                                  ? Colors.white38
+                                  : const Color(0xFF94A3B8)),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -791,7 +912,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             ),
           ),
           if (isActive) ...[
-            if (_isEducator && lowerTier == 'premium') ...[
+            if (lowerTier == 'premium') ...[
               ElevatedButton.icon(
                 icon: const Icon(Icons.video_call_rounded, size: 16),
                 label: Text(
@@ -805,7 +926,10 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                   backgroundColor: const Color(0xFF81B655),
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -834,8 +958,13 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.redAccent,
-                side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.4)),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                side: BorderSide(
+                  color: Colors.redAccent.withValues(alpha: 0.4),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -933,9 +1062,9 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     Color subtitleColor,
   ) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _learnerPaymentsStream,
+      stream: DatabaseService.instance.streamLearnerPayments(widget.user.uid),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         final payments = snapshot.data ?? [];
@@ -957,9 +1086,24 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
             ),
             const SizedBox(height: 16),
             if (payments.isEmpty)
-              _buildEmptyCard('No payment receipts recorded yet.', isDark, cardBg, borderColor, subtitleColor)
+              _buildEmptyCard(
+                'No payment receipts recorded yet.',
+                isDark,
+                cardBg,
+                borderColor,
+                subtitleColor,
+              )
             else
-              ...payments.map((p) => _buildPaymentReceiptTile(p, isDark, cardBg, borderColor, textColor, subtitleColor)),
+              ...payments.map(
+                (p) => _buildPaymentReceiptTile(
+                  p,
+                  isDark,
+                  cardBg,
+                  borderColor,
+                  textColor,
+                  subtitleColor,
+                ),
+              ),
           ],
         );
       },
@@ -976,7 +1120,10 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
   ) {
     final eduName = payment['educatorName'] as String? ?? 'Educator';
     final tier = payment['tier'] as String? ?? 'Subscription';
-    final refNumber = payment['referenceNumber'] as String? ?? payment['paymentId'] as String? ?? 'N/A';
+    final refNumber =
+        payment['referenceNumber'] as String? ??
+        payment['paymentId'] as String? ??
+        'N/A';
     final amount = (payment['amountPhp'] as num?)?.toDouble() ?? 0.0;
     final status = payment['status'] as String? ?? 'paid';
     final isPaid = status.toLowerCase() == 'paid';
@@ -1042,7 +1189,10 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF81B655).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
@@ -1090,14 +1240,22 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               ),
               const SizedBox(height: 4),
               InkWell(
-                onTap: () => _showPaymentReceiptDialog(context, payment, isDark),
+                onTap: () =>
+                    _showPaymentReceiptDialog(context, payment, isDark),
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.receipt_rounded, size: 14, color: Color(0xFF1E88E5)),
+                      const Icon(
+                        Icons.receipt_rounded,
+                        size: 14,
+                        color: Color(0xFF1E88E5),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'Receipt',
@@ -1125,7 +1283,10 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
   ) {
     final eduName = payment['educatorName'] as String? ?? 'Educator';
     final tier = payment['tier'] as String? ?? 'Subscription';
-    final refNumber = payment['referenceNumber'] as String? ?? payment['paymentId'] as String? ?? 'N/A';
+    final refNumber =
+        payment['referenceNumber'] as String? ??
+        payment['paymentId'] as String? ??
+        'N/A';
     final amount = (payment['amountPhp'] as num?)?.toDouble() ?? 0.0;
     final method = payment['paymentMethod'] as String? ?? 'PayMongo QR PH';
 
@@ -1162,7 +1323,11 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                     color: const Color(0xFF81B655).withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check_circle_rounded, color: Color(0xFF81B655), size: 36),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF81B655),
+                    size: 36,
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -1187,15 +1352,29 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                  ),
                 ),
                 child: Column(
                   children: [
-                    _buildReceiptRow('Status', 'PAID', isDark, isHighlight: true),
+                    _buildReceiptRow(
+                      'Status',
+                      'PAID',
+                      isDark,
+                      isHighlight: true,
+                    ),
                     const Divider(height: 18),
-                    _buildReceiptRow('Amount Paid', '₱${amount.toStringAsFixed(2)}', isDark, isBold: true),
+                    _buildReceiptRow(
+                      'Amount Paid',
+                      '₱${amount.toStringAsFixed(2)}',
+                      isDark,
+                      isBold: true,
+                    ),
                     const Divider(height: 18),
                     _buildReceiptRow('Educator', eduName, isDark),
                     const Divider(height: 18),
@@ -1212,14 +1391,20 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Icon(Icons.mark_email_read_rounded, size: 16, color: Color(0xFF81B655)),
+                  const Icon(
+                    Icons.mark_email_read_rounded,
+                    size: 16,
+                    color: Color(0xFF81B655),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'A confirmation email with this receipt was sent to ${widget.user.email ?? 'your email'}.',
                       style: GoogleFonts.inter(
                         fontSize: 11,
-                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                        color: isDark
+                            ? Colors.white70
+                            : const Color(0xFF475569),
                       ),
                     ),
                   ),
@@ -1233,12 +1418,17 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                     backgroundColor: const Color(0xFF81B655),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   onPressed: () => Navigator.pop(ctx),
                   child: Text(
                     'Done',
-                    style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 14),
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ),
@@ -1249,7 +1439,13 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     );
   }
 
-  Widget _buildReceiptRow(String label, String value, bool isDark, {bool isHighlight = false, bool isBold = false}) {
+  Widget _buildReceiptRow(
+    String label,
+    String value,
+    bool isDark, {
+    bool isHighlight = false,
+    bool isBold = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1264,7 +1460,9 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
           value,
           style: GoogleFonts.outfit(
             fontSize: 13,
-            fontWeight: isBold || isHighlight ? FontWeight.w800 : FontWeight.w600,
+            fontWeight: isBold || isHighlight
+                ? FontWeight.w800
+                : FontWeight.w600,
             color: isHighlight
                 ? const Color(0xFF81B655)
                 : (isDark ? Colors.white : const Color(0xFF0F172A)),
@@ -1323,8 +1521,11 @@ class _LearnerMentorshipBookingModalState
               color: const Color(0xFF81B655).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.video_call_rounded,
-                color: Color(0xFF81B655), size: 20),
+            child: const Icon(
+              Icons.video_call_rounded,
+              color: Color(0xFF81B655),
+              size: 20,
+            ),
           ),
           const SizedBox(width: 10),
           Text(
@@ -1356,8 +1557,11 @@ class _LearnerMentorshipBookingModalState
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline_rounded,
-                        color: Color(0xFF81B655), size: 16),
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      color: Color(0xFF81B655),
+                      size: 16,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -1379,9 +1583,10 @@ class _LearnerMentorshipBookingModalState
                 TextSpan(
                   text: 'Session Title / Topic',
                   style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
                   children: const [
                     TextSpan(
                       text: ' *',
@@ -1412,8 +1617,9 @@ class _LearnerMentorshipBookingModalState
                       ? Colors.white.withValues(alpha: 0.05)
                       : Colors.grey.withValues(alpha: 0.05),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -1422,9 +1628,10 @@ class _LearnerMentorshipBookingModalState
                 TextSpan(
                   text: 'Select Educator',
                   style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
                   children: const [
                     TextSpan(
                       text: ' *',
@@ -1438,24 +1645,33 @@ class _LearnerMentorshipBookingModalState
               ),
               const SizedBox(height: 8),
               StreamBuilder<List<Map<String, dynamic>>>(
-                stream: DatabaseService.instance
-                    .streamLearnerSubscriptions(widget.user.uid),
+                stream: DatabaseService.instance.streamLearnerSubscriptions(
+                  widget.user.uid,
+                ),
                 builder: (context, snapshot) {
                   final activeSubs = (snapshot.data ?? [])
-                      .where((s) => s['status'] == 'active' && (s['tier'] as String?)?.toLowerCase() == 'premium')
+                      .where(
+                        (s) =>
+                            s['status'] == 'active' &&
+                            (s['tier'] as String?)?.toLowerCase() == 'premium',
+                      )
                       .toList();
                   if (activeSubs.isEmpty) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                            'No active premium educator subscriptions found. Mentorship is only available for Premium subscribers.',
-                            style: TextStyle(color: Colors.grey, fontSize: 13)),
+                          'No active premium educator subscriptions found. Mentorship is only available for Premium subscribers.',
+                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                        ),
                         if (_educatorError != null) ...[
                           const SizedBox(height: 6),
                           Text(
                             _educatorError!,
-                            style: const TextStyle(color: Colors.red, fontSize: 12),
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ],
@@ -1463,10 +1679,9 @@ class _LearnerMentorshipBookingModalState
                   }
 
                   final initialVal =
-                      activeSubs.any((s) =>
-                              s['educatorUid'] == _selectedEduUid)
-                          ? _selectedEduUid
-                          : activeSubs.first['educatorUid'] as String;
+                      activeSubs.any((s) => s['educatorUid'] == _selectedEduUid)
+                      ? _selectedEduUid
+                      : activeSubs.first['educatorUid'] as String;
 
                   _selectedEduUid ??= initialVal;
 
@@ -1480,8 +1695,9 @@ class _LearnerMentorshipBookingModalState
                           ? Colors.white.withValues(alpha: 0.05)
                           : Colors.grey.withValues(alpha: 0.05),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none),
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                     items: activeSubs.map((s) {
                       final eduUid = s['educatorUid'] as String;
@@ -1507,11 +1723,14 @@ class _LearnerMentorshipBookingModalState
               ),
               const SizedBox(height: 16),
 
-              Text('Schedule',
-                  style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey)),
+              Text(
+                'Schedule',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -1524,8 +1743,9 @@ class _LearnerMentorshipBookingModalState
                           context: context,
                           initialDate: _date,
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now()
-                              .add(const Duration(days: 365)),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365),
+                          ),
                         );
                         if (picked != null) setState(() => _date = picked);
                       },
@@ -1538,7 +1758,9 @@ class _LearnerMentorshipBookingModalState
                       label: Text(_time.format(context)),
                       onPressed: () async {
                         final picked = await showTimePicker(
-                            context: context, initialTime: _time);
+                          context: context,
+                          initialTime: _time,
+                        );
                         if (picked != null) setState(() => _time = picked);
                       },
                     ),
@@ -1546,11 +1768,14 @@ class _LearnerMentorshipBookingModalState
                 ],
               ),
               const SizedBox(height: 16),
-              Text('Duration',
-                  style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey)),
+              Text(
+                'Duration',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
                 initialValue: _duration,
@@ -1560,12 +1785,14 @@ class _LearnerMentorshipBookingModalState
                       ? Colors.white.withValues(alpha: 0.05)
                       : Colors.grey.withValues(alpha: 0.05),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide.none),
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
                 items: [30, 45, 60, 90, 120]
-                    .map((m) =>
-                        DropdownMenuItem(value: m, child: Text('$m mins')))
+                    .map(
+                      (m) => DropdownMenuItem(value: m, child: Text('$m mins')),
+                    )
                     .toList(),
                 onChanged: (val) => setState(() => _duration = val!),
               ),
@@ -1583,9 +1810,9 @@ class _LearnerMentorshipBookingModalState
             backgroundColor: const Color(0xFF81B655),
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8)),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
           onPressed: _isSubmitting ? null : _handleSchedule,
           child: _isSubmitting
@@ -1593,9 +1820,14 @@ class _LearnerMentorshipBookingModalState
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white))
-              : Text('Schedule',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  'Schedule',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                ),
         ),
       ],
     );
@@ -1606,10 +1838,14 @@ class _LearnerMentorshipBookingModalState
     final eduUid = _selectedEduUid;
     setState(() {
       _titleError = title.isEmpty ? 'Session title is required' : null;
-      _educatorError =
-          (eduUid == null || eduUid.isEmpty) ? 'Please select an educator' : null;
+      _educatorError = (eduUid == null || eduUid.isEmpty)
+          ? 'Please select an educator'
+          : null;
     });
-    if (_titleError != null || _educatorError != null || eduUid == null) {
+    if (_titleError != null ||
+        _educatorError != null ||
+        eduUid == null ||
+        eduUid.isEmpty) {
       return;
     }
 
@@ -1617,12 +1853,19 @@ class _LearnerMentorshipBookingModalState
 
     try {
       final start = DateTime(
-          _date.year, _date.month, _date.day, _time.hour, _time.minute);
+        _date.year,
+        _date.month,
+        _date.day,
+        _time.hour,
+        _time.minute,
+      );
       final end = start.add(Duration(minutes: _duration));
 
-      final studentDoc =
-          await DatabaseService.instance.getUserDoc(widget.user.uid);
-      final studentName = studentDoc?['username'] ??
+      final studentDoc = await DatabaseService.instance.getUserDoc(
+        widget.user.uid,
+      );
+      final studentName =
+          studentDoc?['username'] ??
           widget.user.displayName ??
           widget.user.email ??
           'Learner';
@@ -1643,7 +1886,9 @@ class _LearnerMentorshipBookingModalState
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Mentorship session scheduled successfully! Tap "Join Conference" when ready.'),
+            content: Text(
+              'Mentorship session scheduled successfully! Tap "Join Conference" when ready.',
+            ),
             backgroundColor: Color(0xFF81B655),
           ),
         );
@@ -1652,10 +1897,7 @@ class _LearnerMentorshipBookingModalState
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }

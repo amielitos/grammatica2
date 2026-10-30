@@ -32,6 +32,7 @@ import '../models/badge_model.dart';
 import '../services/badge_service.dart';
 import '../models/published_content_item.dart';
 import '../models/notebook_models.dart';
+import '../widgets/feedback_dialog.dart';
 
 class HomePage extends StatefulWidget {
   final User user;
@@ -458,7 +459,11 @@ class _LessonsListState extends State<_LessonsList> {
                       // 2. Upcoming Mentorship Session Banner
                       _buildUpcomingSessionBanner(context),
 
-                      // 3. Search Bar & Filter Chips
+                      // 3. User Feedback Banner (Sent to grammatica.support@gmail.com)
+                      _buildFeedbackBanner(context, isDark: isDark),
+                      const SizedBox(height: 16),
+
+                      // 4. Search Bar & Filter Chips
                       _buildSearchBarAndFilters(context),
                       const SizedBox(height: 20),
 
@@ -1004,6 +1009,40 @@ class _LessonsListState extends State<_LessonsList> {
                           ),
                         );
                       },
+                    ),
+                    InkWell(
+                      onTap: () => FeedbackDialog.show(
+                        context,
+                        user: widget.user,
+                        userData: widget.userData,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.35),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.rate_review_rounded, color: Colors.white, size: 12),
+                            SizedBox(width: 4),
+                            Text(
+                              'Feedback',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -2029,6 +2068,87 @@ class _LessonsListState extends State<_LessonsList> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeedbackBanner(BuildContext context, {required bool isDark}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF81B655).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.rate_review_rounded,
+              color: Color(0xFF81B655),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Have feedback or suggestions?',
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Share your ideas, report issues, or rate your experience with us.',
+                  style: GoogleFonts.inter(
+                    fontSize: 11.5,
+                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.send_rounded, size: 14),
+            label: Text(
+              'Give Feedback',
+              style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+            onPressed: () => FeedbackDialog.show(
+              context,
+              user: widget.user,
+              userData: widget.userData,
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF81B655),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
       ),
     );
   }
