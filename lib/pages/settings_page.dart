@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../services/role_service.dart';
 import '../services/auth_service.dart';
 import '../main.dart';
@@ -7,6 +8,8 @@ import '../theme/app_colors.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/universal_drawer.dart';
 import '../widgets/notification_widgets.dart';
+import '../widgets/terms_and_conditions_dialog.dart';
+import '../widgets/privacy_policy_dialog.dart';
 
 class SettingsPage extends StatefulWidget {
   final User user;
@@ -19,6 +22,30 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _emailNotifications = true;
   double _voiceVolume = 0.8;
+  String _appVersion = 'v1.0.0';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPackageInfo();
+  }
+
+  Future<void> _loadPackageInfo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _appVersion = 'v${info.version}+${info.buildNumber}';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _appVersion = 'v1.0.0';
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,11 +113,33 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 32),
                 _buildSectionHeader('Legal & About'),
                 _buildSettingsCard([
-                   _buildLinkTile(Icons.description_outlined, 'Terms of Service'),
-                   const Divider(indent: 56),
-                   _buildLinkTile(Icons.privacy_tip_outlined, 'Privacy Policy'),
-                   const Divider(indent: 56),
-                   _buildLinkTile(Icons.info_outline, 'App Version', trailing: 'v1.2.0'),
+                  _buildLinkTile(
+                    Icons.description_outlined,
+                    'Terms of Service',
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => const TermsAndConditionsDialog(),
+                      );
+                    },
+                  ),
+                  const Divider(indent: 56),
+                  _buildLinkTile(
+                    Icons.privacy_tip_outlined,
+                    'Privacy Policy',
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => const PrivacyPolicyDialog(),
+                      );
+                    },
+                  ),
+                  const Divider(indent: 56),
+                  _buildLinkTile(
+                    Icons.info_outline,
+                    'App Version',
+                    trailing: _appVersion,
+                  ),
                 ]),
                 const SizedBox(height: 32),
                 _buildSectionHeader('Account'),
@@ -262,7 +311,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildLinkTile(IconData icon, String title, {String? trailing}) {
+  Widget _buildLinkTile(IconData icon, String title, {String? trailing, VoidCallback? onTap}) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       leading: Container(
@@ -274,7 +323,7 @@ class _SettingsPageState extends State<SettingsPage> {
       trailing: trailing != null 
           ? Text(trailing, style: const TextStyle(color: Colors.grey))
           : const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-      onTap: () {},
+      onTap: onTap,
     );
   }
 }

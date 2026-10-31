@@ -221,112 +221,229 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Section Header ───────────────────────────────────
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF81B655,
-                          ).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.people_rounded,
-                          color: Color(0xFF81B655),
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  if (isMobile)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Text(
-                              'User Management',
-                              style: GoogleFonts.outfit(
-                                fontSize: isMobile ? 18 : 22,
-                                fontWeight: FontWeight.w800,
-                                color: textPrimary,
-                                letterSpacing: -0.5,
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF81B655,
+                                ).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.people_rounded,
+                                color: Color(0xFF81B655),
+                                size: 22,
                               ),
                             ),
-                            Text(
-                              'Manage roles and account status for all users',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: textSecondary,
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'User Management',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: textPrimary,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Manage roles and account status for all users',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: textSecondary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      if (widget.role == UserRole.superadmin ||
-                          widget.role == UserRole.admin) ...[
-                        const SizedBox(width: 12),
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            await BadgeService.instance.seedBadgesIfEmpty(
-                              force: true,
-                            );
-                            if (context.mounted) {
-                              _showSeedBadgesListDialog();
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.military_tech_rounded,
-                            size: 18,
+                        if (widget.role == UserRole.superadmin ||
+                            widget.role == UserRole.admin) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  await BadgeService.instance.seedBadgesIfEmpty(
+                                    force: true,
+                                  );
+                                  if (context.mounted) {
+                                    _showSeedBadgesListDialog();
+                                  }
+                                },
+                                icon: const Icon(
+                                  Icons.military_tech_rounded,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  'Seed Badges',
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
+                                  side: BorderSide(color: borderColor),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                              if (widget.role == UserRole.superadmin)
+                                ElevatedButton.icon(
+                                  onPressed: _showAddAdminDialog,
+                                  icon: const Icon(Icons.person_add_rounded, size: 18),
+                                  label: Text(
+                                    'Add Admin',
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF8B5CF6),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                ),
+                            ],
                           ),
-                          label: Text(
-                            'Seed Badges',
-                            style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
+                        ],
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF81B655,
+                            ).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: isDark
-                                ? Colors.white
-                                : const Color(0xFF0F172A),
-                            side: BorderSide(color: borderColor),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                          child: const Icon(
+                            Icons.people_rounded,
+                            color: Color(0xFF81B655),
+                            size: 22,
                           ),
                         ),
-                      ],
-                      if (widget.role == UserRole.superadmin) ...[
-                        const SizedBox(width: 12),
-                        ElevatedButton.icon(
-                          onPressed: _showAddAdminDialog,
-                          icon: const Icon(Icons.person_add_rounded, size: 18),
-                          label: Text(
-                            'Add Admin',
-                            style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF8B5CF6),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'User Management',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w800,
+                                  color: textPrimary,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              Text(
+                                'Manage roles and account status for all users',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        if (widget.role == UserRole.superadmin ||
+                            widget.role == UserRole.admin) ...[
+                          const SizedBox(width: 12),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              await BadgeService.instance.seedBadgesIfEmpty(
+                                force: true,
+                              );
+                              if (context.mounted) {
+                                _showSeedBadgesListDialog();
+                              }
+                            },
+                            icon: const Icon(
+                              Icons.military_tech_rounded,
+                              size: 18,
+                            ),
+                            label: Text(
+                              'Seed Badges',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              side: BorderSide(color: borderColor),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (widget.role == UserRole.superadmin) ...[
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            onPressed: _showAddAdminDialog,
+                            icon: const Icon(Icons.person_add_rounded, size: 18),
+                            label: Text(
+                              'Add Admin',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF8B5CF6),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
+                    ),
                   const SizedBox(height: 24),
 
                   // ── Stat Cards ─────────────────────────────────────────
@@ -337,7 +454,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       physics: const NeverScrollableScrollPhysics(),
                       mainAxisSpacing: 10,
                       crossAxisSpacing: 10,
-                      childAspectRatio: 1.6,
+                      childAspectRatio: 1.10,
                       children: [
                         _buildStatCard(
                           label: 'Admins',
@@ -803,7 +920,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       borderRadius: BorderRadius.circular(18),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 18),
+        padding: EdgeInsets.symmetric(
+          vertical: expanded ? 20 : 12,
+          horizontal: expanded ? 18 : 12,
+        ),
         decoration: BoxDecoration(
           color: isSelected
               ? color.withValues(alpha: isDark ? 0.2 : 0.05)
@@ -1004,8 +1124,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
       child: isMobile
           ? Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -1025,7 +1148,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
                     Text(
                       'Showing ${startIndex + 1}–$endIndex of $totalUsers',
                       style: GoogleFonts.inter(
@@ -1037,8 +1159,11 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 6,
                   children: [
                     _pageNavBtn(
                       icon: Icons.chevron_left_rounded,
@@ -1047,10 +1172,9 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       isDark: isDark,
                       onTap: () => setState(() => _currentPage--),
                     ),
-                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
+                        horizontal: 12,
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
@@ -1066,7 +1190,6 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
                     _pageNavBtn(
                       icon: Icons.chevron_right_rounded,
                       label: 'Next',
@@ -2011,7 +2134,10 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             const SizedBox(height: 12),
 
             // Status row
-            Row(
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
               children: [
                 if (isLocked) ...[
                   Icon(
@@ -4357,124 +4483,180 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                           b,
                         );
 
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xFF0F172A)
-                                : const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isDark
-                                  ? const Color(0xFF334155)
-                                  : const Color(0xFFE2E8F0),
-                            ),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Badge Icon
-                              Container(
-                                width: 56,
-                                height: 56,
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: tierColor.withValues(alpha: 0.12),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: tierColor.withValues(alpha: 0.4),
-                                    width: 1.5,
+                        return LayoutBuilder(
+                          builder: (context, cardConstraints) {
+                            final isNarrow = cardConstraints.maxWidth < 450;
+                            final headerRow = Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                Text(
+                                  b.name,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
                                   ),
                                 ),
-                                child: b.iconAsset.endsWith('.svg')
-                                    ? SvgPicture.asset(
-                                        b.iconAsset,
-                                        placeholderBuilder: (_) => Icon(
-                                          Icons.military_tech_rounded,
-                                          color: tierColor,
-                                        ),
-                                      )
-                                    : Icon(
-                                        Icons.military_tech_rounded,
-                                        color: tierColor,
-                                        size: 28,
-                                      ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: tierColor.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: tierColor.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    b.tier.toUpperCase(),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: tierColor,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white12
+                                        : Colors.grey.shade200,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    b.category
+                                        .replaceAll('_', ' ')
+                                        .toUpperCase(),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? Colors.white70
+                                          : Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+
+                            final achieveBox = Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
                               ),
-                              const SizedBox(width: 14),
-                              Expanded(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF81B655)
+                                    .withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: const Color(0xFF81B655)
+                                      .withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.emoji_events_rounded,
+                                    color: Color(0xFF81B655),
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: RichText(
+                                      text: TextSpan(
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: isDark
+                                              ? Colors.white70
+                                              : Colors.black87,
+                                        ),
+                                        children: [
+                                          const TextSpan(
+                                            text: 'How to achieve: ',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF81B655),
+                                            ),
+                                          ),
+                                          TextSpan(text: instructions),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (isNarrow) {
+                              return Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF0F172A)
+                                      : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isDark
+                                        ? const Color(0xFF334155)
+                                        : const Color(0xFFE2E8F0),
+                                  ),
+                                ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
                                       children: [
-                                        Text(
-                                          b.name,
-                                          style: GoogleFonts.outfit(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                            color: isDark
-                                                ? Colors.white
-                                                : const Color(0xFF0F172A),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
+                                          width: 44,
+                                          height: 44,
+                                          padding: const EdgeInsets.all(6),
                                           decoration: BoxDecoration(
-                                            color: tierColor.withValues(
-                                              alpha: 0.15,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
+                                            color: tierColor
+                                                .withValues(alpha: 0.12),
+                                            shape: BoxShape.circle,
                                             border: Border.all(
-                                              color: tierColor.withValues(
-                                                alpha: 0.3,
-                                              ),
+                                              color: tierColor
+                                                  .withValues(alpha: 0.4),
+                                              width: 1.5,
                                             ),
                                           ),
-                                          child: Text(
-                                            b.tier.toUpperCase(),
-                                            style: GoogleFonts.inter(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w800,
-                                              color: tierColor,
-                                            ),
-                                          ),
+                                          child: b.iconAsset.endsWith('.svg')
+                                              ? SvgPicture.asset(
+                                                  b.iconAsset,
+                                                  placeholderBuilder: (_) =>
+                                                      Icon(
+                                                    Icons
+                                                        .military_tech_rounded,
+                                                    color: tierColor,
+                                                    size: 20,
+                                                  ),
+                                                )
+                                              : Icon(
+                                                  Icons
+                                                      .military_tech_rounded,
+                                                  color: tierColor,
+                                                  size: 22,
+                                                ),
                                         ),
-                                        const SizedBox(width: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: isDark
-                                                ? Colors.white12
-                                                : Colors.grey.shade200,
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            b.category
-                                                .replaceAll('_', ' ')
-                                                .toUpperCase(),
-                                            style: GoogleFonts.inter(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark
-                                                  ? Colors.white70
-                                                  : Colors.black87,
-                                            ),
-                                          ),
-                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(child: headerRow),
                                       ],
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 8),
                                     Text(
                                       b.description,
                                       style: GoogleFonts.inter(
@@ -4484,66 +4666,84 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                                             : Colors.grey.shade700,
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    // How to achieve box
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(
-                                          0xFF81B655,
-                                        ).withValues(alpha: 0.08),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: const Color(
-                                            0xFF81B655,
-                                          ).withValues(alpha: 0.2),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Icon(
-                                            Icons.emoji_events_rounded,
-                                            color: Color(0xFF81B655),
-                                            size: 16,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Expanded(
-                                            child: RichText(
-                                              text: TextSpan(
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 12,
-                                                  color: isDark
-                                                      ? Colors.white70
-                                                      : Colors.black87,
-                                                ),
-                                                children: [
-                                                  const TextSpan(
-                                                    text: 'How to achieve: ',
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: Color(0xFF81B655),
-                                                    ),
-                                                  ),
-                                                  TextSpan(text: instructions),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
+                                    const SizedBox(height: 10),
+                                    achieveBox,
                                   ],
                                 ),
+                              );
+                            }
+
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF0F172A)
+                                    : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isDark
+                                      ? const Color(0xFF334155)
+                                      : const Color(0xFFE2E8F0),
+                                ),
                               ),
-                            ],
-                          ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Badge Icon
+                                  Container(
+                                    width: 56,
+                                    height: 56,
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: tierColor
+                                          .withValues(alpha: 0.12),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: tierColor
+                                            .withValues(alpha: 0.4),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: b.iconAsset.endsWith('.svg')
+                                        ? SvgPicture.asset(
+                                            b.iconAsset,
+                                            placeholderBuilder: (_) => Icon(
+                                              Icons.military_tech_rounded,
+                                              color: tierColor,
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.military_tech_rounded,
+                                            color: tierColor,
+                                            size: 28,
+                                          ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        headerRow,
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          b.description,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            color: isDark
+                                                ? Colors.white70
+                                                : Colors.grey.shade700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        achieveBox,
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         );
                       },
                     );

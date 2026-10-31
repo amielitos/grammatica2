@@ -269,30 +269,29 @@ class _ApprovedLessonsListState extends State<_ApprovedLessonsList> {
             ),
             child: SafeArea(
               top: false,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.verified_rounded, size: 16, color: Color(0xFF16A34A)),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Approved on $approvedAtStr',
-                            style: GoogleFonts.inter(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(ctx).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF64748B),
-                            ),
-                            overflow: TextOverflow.ellipsis,
+              child: LayoutBuilder(
+                builder: (ctx, constraints) {
+                  final isNarrow = constraints.maxWidth < 450;
+                  final infoWidget = Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.verified_rounded, size: 16, color: Color(0xFF16A34A)),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Approved on $approvedAtStr',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(ctx).brightness == Brightness.dark ? Colors.white70 : const Color(0xFF64748B),
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  FilledButton.icon(
+                      ),
+                    ],
+                  );
+
+                  final closeBtn = FilledButton.icon(
                     onPressed: () => Navigator.pop(ctx),
                     icon: const Icon(Icons.close_rounded, size: 18),
                     label: Text('Close Preview', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
@@ -302,8 +301,28 @@ class _ApprovedLessonsListState extends State<_ApprovedLessonsList> {
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                  ),
-                ],
+                  );
+
+                  if (isNarrow) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        infoWidget,
+                        const SizedBox(height: 10),
+                        closeBtn,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: infoWidget),
+                      const SizedBox(width: 16),
+                      closeBtn,
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -382,139 +401,128 @@ class _ApprovedLessonsListState extends State<_ApprovedLessonsList> {
                       borderRadius: BorderRadius.circular(16),
                       child: Padding(
                         padding: const EdgeInsets.all(18),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF16A34A).withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Icon(
-                                Icons.menu_book_rounded,
-                                color: Color(0xFF16A34A),
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 4,
-                                    crossAxisAlignment: WrapCrossAlignment.center,
-                                    children: [
-                                      Text(
-                                        lesson.title,
-                                        style: GoogleFonts.outfit(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 16,
-                                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF16A34A).withValues(alpha: 0.12),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(Icons.verified_rounded, size: 12, color: Color(0xFF16A34A)),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Approved',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w700,
-                                                color: const Color(0xFF16A34A),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: (isOfficial ? const Color(0xFFD97706) : const Color(0xFF3B82F6))
-                                              .withValues(alpha: 0.12),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: Text(
-                                          isOfficial ? 'Grammatica Official' : 'Community Hub',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: isOfficial ? const Color(0xFFD97706) : const Color(0xFF3B82F6),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                        child: LayoutBuilder(
+                          builder: (context, cardConstraints) {
+                            final isNarrow = cardConstraints.maxWidth < 640;
+
+                            final contentColumn = Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  lesson.title,
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                                   ),
-                                  const SizedBox(height: 6),
-                                  AuthorName(
-                                    uid: lesson.createdByUid,
-                                    fallbackEmail: lesson.createdByEmail,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12.5,
-                                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Wrap(
-                                    spacing: 12,
-                                    runSpacing: 6,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF16A34A).withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(Icons.check_circle_outline_rounded, size: 13, color: Color(0xFF16A34A)),
-                                            const SizedBox(width: 5),
-                                            Text(
-                                              'Approved: $approvedAtStr',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 11.5,
-                                                fontWeight: FontWeight.w700,
-                                                color: const Color(0xFF16A34A),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                ),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
-                                      Row(
+                                      child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(
-                                            Icons.schedule_rounded,
-                                            size: 13,
-                                            color: isDark ? Colors.white38 : Colors.grey.shade500,
-                                          ),
+                                          const Icon(Icons.verified_rounded, size: 12, color: Color(0xFF16A34A)),
                                           const SizedBox(width: 4),
                                           Text(
-                                            'Submitted: $submittedAtStr',
+                                            'Approved',
                                             style: GoogleFonts.inter(
-                                              fontSize: 11.5,
-                                              color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: const Color(0xFF16A34A),
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ],
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: (isOfficial ? const Color(0xFFD97706) : const Color(0xFF3B82F6))
+                                            .withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        isOfficial ? 'Grammatica Official' : 'Community Hub',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isOfficial ? const Color(0xFFD97706) : const Color(0xFF3B82F6),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                AuthorName(
+                                  uid: lesson.createdByUid,
+                                  fallbackEmail: lesson.createdByEmail,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12.5,
+                                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
                                   ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            FilledButton.tonalIcon(
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.check_circle_outline_rounded, size: 13, color: Color(0xFF16A34A)),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            'Approved: $approvedAtStr',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: const Color(0xFF16A34A),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.schedule_rounded,
+                                          size: 13,
+                                          color: isDark ? Colors.white38 : Colors.grey.shade500,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Submitted: $submittedAtStr',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11.5,
+                                            color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+
+                            final viewButton = FilledButton.tonalIcon(
                               onPressed: () => _previewLesson(context, lesson),
                               icon: const Icon(Icons.visibility_rounded, size: 16),
                               label: const Text('View Lesson'),
@@ -522,8 +530,58 @@ class _ApprovedLessonsListState extends State<_ApprovedLessonsList> {
                                 backgroundColor: const Color(0xFF81B655).withValues(alpha: 0.15),
                                 foregroundColor: const Color(0xFF81B655),
                               ),
-                            ),
-                          ],
+                            );
+
+                            if (isNarrow) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        child: const Icon(
+                                          Icons.menu_book_rounded,
+                                          color: Color(0xFF16A34A),
+                                          size: 24,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(child: contentColumn),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  viewButton,
+                                ],
+                              );
+                            }
+
+                            return Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Icon(
+                                    Icons.menu_book_rounded,
+                                    color: Color(0xFF16A34A),
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(child: contentColumn),
+                                const SizedBox(width: 12),
+                                viewButton,
+                              ],
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -722,21 +780,21 @@ class _ApprovedEducatorHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
-                      Flexible(
-                        child: Text(
-                          displayName,
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 17,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        displayName,
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                         decoration: BoxDecoration(

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification.dart';
+import 'role_service.dart';
 
 class NotificationService {
   NotificationService._();
@@ -21,11 +22,21 @@ class NotificationService {
         .where('isArchived', isEqualTo: archived)
         .limit(50)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => NotificationModel.fromDoc(doc))
-              .toList()
-                ..sort((a, b) => b.createdAt.compareTo(a.createdAt)), // Manual sort
+        .asyncMap(
+          (snapshot) async {
+            UserRole role = UserRole.learner;
+            try {
+              role = await RoleService.instance.getRole(uid);
+            } catch (_) {}
+            final isLearner = role == UserRole.learner;
+
+            final list = snapshot.docs
+                .map((doc) => NotificationModel.fromDoc(doc))
+                .where((n) => isLearner || n.type != NotificationType.achievement)
+                .toList()
+                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            return list;
+          },
         );
   }
 
@@ -207,9 +218,8 @@ class NotificationService {
   }) async {
     // Badges and achievements are strictly for learners
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      final role = (userDoc.data()?['role'] as String?)?.toLowerCase();
-      if (role != null && role != 'learner') {
+      final role = await RoleService.instance.getRole(uid);
+      if (role != UserRole.learner) {
         return;
       }
     } catch (_) {}

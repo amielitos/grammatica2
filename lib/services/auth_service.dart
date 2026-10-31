@@ -797,7 +797,7 @@ class AuthService {
     final userDoc = await _firestore.collection('users').doc(uid).get();
     if (userDoc.exists) {
       final role = (userDoc.data()?['role'] as String?)?.toUpperCase();
-      if (role == 'ADMIN' || role == 'SUPERADMIN') {
+      if (role == 'ADMIN' || role == 'SUPERADMIN' || role == 'VALIDATOR') {
         throw FirebaseAuthException(
           code: 'admin-account-archive-forbidden',
           message: 'Administrator accounts cannot be archived.',
@@ -831,7 +831,7 @@ class AuthService {
     final userDoc = await _firestore.collection('users').doc(uid).get();
     if (userDoc.exists) {
       final role = (userDoc.data()?['role'] as String?)?.toUpperCase();
-      if (role == 'ADMIN' || role == 'SUPERADMIN') {
+      if (role == 'ADMIN' || role == 'SUPERADMIN' || role == 'VALIDATOR') {
         throw FirebaseAuthException(
           code: 'admin-account-deletion-forbidden',
           message: 'Administrator accounts cannot be permanently deleted.',
@@ -1083,7 +1083,7 @@ class AuthService {
     final userDoc = await _firestore.collection('users').doc(uid).get();
     if (userDoc.exists) {
       final role = (userDoc.data()?['role'] as String?)?.toUpperCase();
-      if (role == 'ADMIN' || role == 'SUPERADMIN') {
+      if (role == 'ADMIN' || role == 'SUPERADMIN' || role == 'VALIDATOR') {
         throw FirebaseAuthException(
           code: 'admin-deactivation-forbidden',
           message: 'Administrator accounts cannot be deactivated.',

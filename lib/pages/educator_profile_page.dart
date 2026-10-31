@@ -42,6 +42,24 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
   bool _mentorshipSortNewestFirst = false;
   int _mentorshipPage = 1;
   static const int _mentorshipPageSize = 3;
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _tabSectionKey = GlobalKey();
+
+  void _selectTab(int index, {bool scrollToSection = false}) {
+    setState(() => _selectedTab = index.clamp(0, 2));
+    if (scrollToSection) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = _tabSectionKey.currentContext;
+        if (ctx != null) {
+          Scrollable.ensureVisible(
+            ctx,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -51,6 +69,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -92,6 +111,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
+          controller: _scrollController,
           child: Column(
             children: [
               // ── 1. Gradient Cover Banner & Profile Container ─────────
@@ -307,7 +327,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                                                       isDark,
                                                       textColor,
                                                       subtitleColor,
-                                                      onTap: () => setState(() => _selectedTab = 1),
+                                                      onTap: () => _selectTab(1, scrollToSection: true),
                                                     ),
                                                     _buildVerticalDivider(borderColor),
                                                     _buildStatItem(
@@ -318,7 +338,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                                                       isDark,
                                                       textColor,
                                                       subtitleColor,
-                                                      onTap: () => setState(() => _selectedTab = 2),
+                                                      onTap: () => _selectTab(2, scrollToSection: true),
                                                     ),
                                                   ],
                                                 );
@@ -344,6 +364,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
 
               // ── 2. Segmented Tab Switcher & Body Content ──────────────
               Center(
+                key: _tabSectionKey,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1100),
                   child: Padding(
@@ -646,7 +667,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
             SizedBox(
               height: 44,
               child: OutlinedButton.icon(
-                onPressed: () => setState(() => _selectedTab = 1),
+                onPressed: () => _selectTab(1, scrollToSection: true),
                 icon: const Icon(Icons.playlist_play_rounded, size: 18, color: Color(0xFF81B655)),
                 label: Text(
                   'Learning Collections',
@@ -784,24 +805,30 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                     ]
                   : null,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: isSel ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 18,
+                      color: isSel ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$label ($count)',
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                        color: isSel ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF64748B)),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  '$label ($count)',
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                    color: isSel ? Colors.white : (isDark ? Colors.white70 : const Color(0xFF64748B)),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -1003,23 +1030,26 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (isMembersOnly && !canViewMembers) ...[
-                      const Icon(Icons.lock_rounded, size: 14),
-                      const SizedBox(width: 6),
-                    ],
-                    Text(
-                      isMembersOnly
-                          ? (canViewMembers ? 'Start Member Lesson' : 'Members Only (Locked)')
-                          : 'Start Lesson',
-                      style: GoogleFonts.outfit(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (isMembersOnly && !canViewMembers) ...[
+                        const Icon(Icons.lock_rounded, size: 14),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        isMembersOnly
+                            ? (canViewMembers ? 'Start Member Lesson' : 'Members Only (Locked)')
+                            : 'Start Lesson',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1080,7 +1110,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 360,
-              mainAxisExtent: 245,
+              mainAxisExtent: 255,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
             ),
@@ -1160,7 +1190,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 360,
-              mainAxisExtent: 245,
+              mainAxisExtent: 255,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
             ),

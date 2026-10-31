@@ -538,11 +538,14 @@ class ProfilePageState extends State<ProfilePage> {
         final isDark = mode == ThemeMode.dark;
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 5),
               ),
@@ -640,11 +643,12 @@ class ProfilePageState extends State<ProfilePage> {
               offset: const Offset(0, -36),
               child: Column(
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      // Avatar with change photo button
-                      Stack(
+                  LayoutBuilder(
+                    builder: (context, headerConstraints) {
+                      final isNarrow = headerConstraints.maxWidth < 480;
+
+                      final avatarWidget = Stack(
+                        clipBehavior: Clip.none,
                         children: [
                           Container(
                             decoration: BoxDecoration(
@@ -662,19 +666,19 @@ class ProfilePageState extends State<ProfilePage> {
                               ],
                             ),
                             child: CircleAvatar(
-                              radius: 46,
+                              radius: isNarrow ? 40 : 46,
                               backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                               child: (_photoUrl != null && _photoUrl!.isNotEmpty)
                                   ? ClipOval(
                                       child: Image.network(
                                         _photoUrl!,
-                                        width: 92,
-                                        height: 92,
+                                        width: isNarrow ? 80 : 92,
+                                        height: isNarrow ? 80 : 92,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, _, _) => Icon(Icons.person, size: 46, color: isDark ? Colors.white24 : Colors.grey.shade400),
+                                        errorBuilder: (_, _, _) => Icon(Icons.person, size: isNarrow ? 40 : 46, color: isDark ? Colors.white24 : Colors.grey.shade400),
                                       ),
                                     )
-                                  : Icon(Icons.person, size: 46, color: isDark ? Colors.white24 : Colors.grey.shade400),
+                                  : Icon(Icons.person, size: isNarrow ? 40 : 46, color: isDark ? Colors.white24 : Colors.grey.shade400),
                             ),
                           ),
                           Positioned(
@@ -694,99 +698,115 @@ class ProfilePageState extends State<ProfilePage> {
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(width: 20),
+                      );
 
-                      // User Identity
-                      Expanded(
-                        child: Column(
+                      final identityWidget = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 10,
+                            runSpacing: 4,
+                            children: [
+                              Text(
+                                _displayName.isNotEmpty ? _displayName : 'User Profile',
+                                style: GoogleFonts.outfit(
+                                  fontSize: isNarrow ? 20 : 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: roleColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: roleColor.withValues(alpha: 0.4)),
+                                ),
+                                child: Text(
+                                  roleLabel,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: roleColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.user.email ?? '',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: isDark ? Colors.white60 : Colors.grey.shade600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      );
+
+                      if (isNarrow) {
+                        return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Wrap(
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 10,
-                              runSpacing: 4,
-                              children: [
-                                Text(
-                                  _displayName.isNotEmpty ? _displayName : 'User Profile',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: roleColor.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: roleColor.withValues(alpha: 0.4)),
-                                  ),
-                                  child: Text(
-                                    roleLabel,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: roleColor,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            avatarWidget,
+                            const SizedBox(height: 12),
+                            identityWidget,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          avatarWidget,
+                          const SizedBox(width: 20),
+                          Expanded(child: identityWidget),
+                          if (isWide) ...[
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                showDialog<void>(
+                                  context: context,
+                                  builder: (_) => _ChangePasswordDialog(user: widget.user),
+                                );
+                              },
+                              icon: const Icon(Icons.lock_reset_rounded, size: 16),
+                              label: const Text('Change Password'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF81B655),
+                                side: const BorderSide(color: Color(0xFF81B655)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.user.email ?? '',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: isDark ? Colors.white60 : Colors.grey.shade600,
+                            const SizedBox(width: 10),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                if (_isEditing) {
+                                  _confirmCancelEdit();
+                                } else {
+                                  setState(() {
+                                    _editSubmitted = false;
+                                    _isEditing = true;
+                                  });
+                                }
+                              },
+                              icon: Icon(_isEditing ? Icons.close : Icons.edit_outlined, size: 16),
+                              label: Text(_isEditing ? 'Cancel Edit' : 'Edit Profile'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF81B655),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                elevation: 0,
                               ),
                             ),
                           ],
-                        ),
-                      ),
-
-                      // Quick action buttons
-                      if (isWide) ...[
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            showDialog<void>(
-                              context: context,
-                              builder: (_) => _ChangePasswordDialog(user: widget.user),
-                            );
-                          },
-                          icon: const Icon(Icons.lock_reset_rounded, size: 16),
-                          label: const Text('Change Password'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF81B655),
-                            side: const BorderSide(color: Color(0xFF81B655)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            if (_isEditing) {
-                              _confirmCancelEdit();
-                            } else {
-                              setState(() {
-                                _editSubmitted = false;
-                                _isEditing = true;
-                              });
-                            }
-                          },
-                          icon: Icon(_isEditing ? Icons.close : Icons.edit_outlined, size: 16),
-                          label: Text(_isEditing ? 'Cancel Edit' : 'Edit Profile'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF81B655),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                            elevation: 0,
-                          ),
-                        ),
-                      ],
-                    ],
+                        ],
+                      );
+                    },
                   ),
                   if (!isWide) ...[
                     const SizedBox(height: 16),
@@ -1075,16 +1095,22 @@ class ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Row(
-                  children: [
-                    Icon(Icons.info_outline_rounded, size: 13, color: Colors.amber),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.info_outline_rounded, size: 13, color: Colors.amber),
+                    ),
                     SizedBox(width: 4),
-                    Text(
-                      'Date of birth can only be edited once. (Must be 2014 or earlier)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.amber,
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        'Date of birth can only be edited once. (Must be 2014 or earlier)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.amber,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -1330,41 +1356,69 @@ class ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 20),
               const Divider(),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
+              LayoutBuilder(
+                builder: (context, secConstraints) {
+                  final isNarrow = secConstraints.maxWidth < 360;
+                  final signOutBtn = SizedBox(
+                    height: 48,
+                    width: isNarrow ? double.infinity : null,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDF3F32),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => AuthService.instance.confirmAndSignOut(context),
+                      child: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text('Sign out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
+                    ),
+                  );
+
+                  Widget? deactivateBtn;
+                  if (roleStr != 'ADMIN' && roleStr != 'SUPERADMIN') {
+                    deactivateBtn = SizedBox(
                       height: 48,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFDF3F32),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
+                      width: isNarrow ? double.infinity : null,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark ? Colors.white70 : Colors.black87,
+                          side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade400),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         ),
-                        onPressed: () => AuthService.instance.confirmAndSignOut(context),
-                        child: const Text('Sign out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                      ),
-                    ),
-                  ),
-                  if (roleStr != 'ADMIN' && roleStr != 'SUPERADMIN') ...[
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: isDark ? Colors.white70 : Colors.black87,
-                            side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade400),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          onPressed: () => _confirmDeactivateAccount(),
-                          child: const Text('Deactivate', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        onPressed: () => _confirmDeactivateAccount(),
+                        child: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('Deactivate', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                         ),
                       ),
-                    ),
-                  ],
-                ],
+                    );
+                  }
+
+                  if (isNarrow) {
+                    return Column(
+                      children: [
+                        signOutBtn,
+                        if (deactivateBtn != null) ...[
+                          const SizedBox(height: 10),
+                          deactivateBtn,
+                        ],
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: signOutBtn),
+                      if (deactivateBtn != null) ...[
+                        const SizedBox(width: 12),
+                        Expanded(child: deactivateBtn),
+                      ],
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -1485,47 +1539,52 @@ class ProfilePageState extends State<ProfilePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF81B655).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.auto_awesome_rounded,
-                      size: 22,
-                      color: Color(0xFF81B655),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Daily AI Usage',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
+              LayoutBuilder(
+                builder: (context, aiConstraints) {
+                  final isNarrow = aiConstraints.maxWidth < 420;
+
+                  final titleSection = Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        Text(
-                          'Today\'s generation quota & limits',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? Colors.white54 : Colors.grey.shade600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 22,
+                          color: Color(0xFF81B655),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Daily AI Usage',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.black,
+                              ),
+                            ),
+                            Text(
+                              'Today\'s generation quota & limits',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white54 : Colors.grey.shade600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+
+                  final badgeWidget = Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: isDark ? Colors.white10 : Colors.grey.shade100,
@@ -1540,8 +1599,28 @@ class ProfilePageState extends State<ProfilePage> {
                         color: isDark ? Colors.white70 : Colors.black87,
                       ),
                     ),
-                  ),
-                ],
+                  );
+
+                  if (isNarrow) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        titleSection,
+                        const SizedBox(height: 10),
+                        badgeWidget,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(child: titleSection),
+                      const SizedBox(width: 8),
+                      badgeWidget,
+                    ],
+                  );
+                },
               ),
 
               const SizedBox(height: 24),
@@ -1810,9 +1889,8 @@ class ProfilePageState extends State<ProfilePage> {
                       final canReapplyNow = application.canReapplyNow;
                       final daysRemaining = application.daysUntilReapply;
 
-                      return SizedBox(
-                        width: double.infinity,
-                        height: 52,
+                      return ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 52, minWidth: double.infinity),
                         child: ElevatedButton.icon(
                           onPressed: () => _showApplicationStatusDialog(application),
                           icon: Icon(
@@ -1821,17 +1899,22 @@ class ProfilePageState extends State<ProfilePage> {
                                 : Icons.info_outline_rounded,
                             color: Colors.white,
                           ),
-                          label: Text(
-                            isBlockedForSexualMisconduct
-                                ? 'Application Blocked (Sexual Misconduct)'
-                                : canReapplyNow
-                                    ? 'View Previous Application Status (Rejected)'
-                                    : 'View Application Status (Re-apply in $daysRemaining ${daysRemaining == 1 ? 'day' : 'days'})',
-                            style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                          label: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Text(
+                              isBlockedForSexualMisconduct
+                                  ? 'Application Blocked (Sexual Misconduct)'
+                                  : canReapplyNow
+                                      ? 'View Previous Application Status (Rejected)'
+                                      : 'View Application Status (Re-apply in $daysRemaining ${daysRemaining == 1 ? 'day' : 'days'})',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                            ),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFDC2626),
                             foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 0,
                           ),
@@ -1918,7 +2001,7 @@ class ProfilePageState extends State<ProfilePage> {
             ),
           ),
 
-        if (role != UserRole.admin && role != UserRole.superadmin) ...[
+        if (role != UserRole.admin && role != UserRole.superadmin && role != UserRole.validator) ...[
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
@@ -1963,7 +2046,9 @@ class ProfilePageState extends State<ProfilePage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Administrator accounts are protected and cannot be deleted or deactivated.',
+                    role == UserRole.validator
+                        ? 'Validator accounts are protected and cannot be deleted.'
+                        : 'Administrator accounts are protected and cannot be deleted or deactivated.',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -2118,6 +2203,17 @@ class ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _confirmDeleteAccount() async {
+    final role = roleFromString(_roleStr);
+    if (role == UserRole.validator || role == UserRole.admin || role == UserRole.superadmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Validator and Administrator accounts cannot be deleted.'),
+          backgroundColor: Color(0xFFDF3F32),
+        ),
+      );
+      return;
+    }
+
     final deleted = await showDialog<bool>(
       context: context,
       barrierDismissible: false,

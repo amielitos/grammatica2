@@ -350,12 +350,17 @@ class _LandingPageState extends State<LandingPage>
 
   // ─── HERO ─────────────────────────────────────────────────────────────────
 
+  static const List<String> _defaultHeroImages = [
+    'assets/hero_library_bg.jpg',
+    'assets/student_teacher_bg2.png',
+    'assets/student_teacher_bg3.png',
+    'assets/hero_bg2.png',
+  ];
+
   Widget _buildHeroImage(int index) {
-    if (_bgImages.isEmpty) {
-      return Container(color: const Color(0xFF0F172A));
-    }
-    final safeIndex = index % _bgImages.length;
-    final imagePath = _bgImages[safeIndex];
+    final images = _bgImages.isNotEmpty ? _bgImages : _defaultHeroImages;
+    final safeIndex = index % images.length;
+    final imagePath = images[safeIndex];
     final isNetwork =
         imagePath.startsWith('http://') || imagePath.startsWith('https://');
 
@@ -364,6 +369,7 @@ class _LandingPageState extends State<LandingPage>
         imagePath,
         key: ValueKey<String>('hero_bg_net_$imagePath'),
         fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
         alignment: const Alignment(0, 0.35),
         width: double.infinity,
         height: double.infinity,
@@ -372,7 +378,17 @@ class _LandingPageState extends State<LandingPage>
       );
     }
 
-    return Container(color: const Color(0xFF0F172A));
+    return Image.asset(
+      imagePath,
+      key: ValueKey<String>('hero_bg_asset_$imagePath'),
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.high,
+      alignment: const Alignment(0, 0.35),
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (context, error, stackTrace) =>
+          Container(color: const Color(0xFF0F172A)),
+    );
   }
 
   Widget _buildHeroSection(bool isDesktop) {
@@ -1533,15 +1549,22 @@ class _LandingPageState extends State<LandingPage>
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(6),
+                                width: 36,
+                                height: 36,
+                                padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF81B655),
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Icon(
-                                  Icons.language_rounded,
-                                  color: Colors.white,
-                                  size: 24,
+                                child: Image.asset(
+                                  'assets/logo.png',
+                                  fit: BoxFit.contain,
+                                  filterQuality: FilterQuality.high,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(
+                                    Icons.menu_book_rounded,
+                                    color: Color(0xFF81B655),
+                                    size: 22,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
@@ -1640,15 +1663,22 @@ class _LandingPageState extends State<LandingPage>
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(6),
+                          width: 32,
+                          height: 32,
+                          padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF81B655),
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
-                            Icons.language_rounded,
-                            color: Colors.white,
-                            size: 22,
+                          child: Image.asset(
+                            'assets/logo.png',
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.menu_book_rounded,
+                              color: Color(0xFF81B655),
+                              size: 20,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 10),

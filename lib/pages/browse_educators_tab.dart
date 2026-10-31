@@ -955,28 +955,34 @@ class _EducatorCardState extends State<_EducatorCard>
                               ),
                             ),
                             child: Center(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    isEnrolled ? 'View Profile' : 'Enroll & View Profile',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: isEnrolled || _hovered
-                                          ? Colors.white
-                                          : const Color(0xFF81B655),
-                                    ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        isEnrolled ? 'View Profile' : 'Enroll & View Profile',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: isEnrolled || _hovered
+                                              ? Colors.white
+                                              : const Color(0xFF81B655),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 13,
+                                        color: isEnrolled || _hovered
+                                            ? Colors.white
+                                            : const Color(0xFF81B655),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 5),
-                                  Icon(
-                                    Icons.arrow_forward_rounded,
-                                    size: 13,
-                                    color: isEnrolled || _hovered
-                                        ? Colors.white
-                                        : const Color(0xFF81B655),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           ),

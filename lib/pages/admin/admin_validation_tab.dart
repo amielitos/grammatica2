@@ -1228,49 +1228,65 @@ class _ValidationListState extends State<_ValidationList> {
                             ),
                           ),
                         )
-                      : Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  _reject(context, item);
-                                },
-                                icon: const Icon(Icons.close_rounded, size: 18),
-                                label: Text(
-                                  'Deny Content',
-                                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFFEF4444),
-                                  side: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
+                      : LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isNarrow = constraints.maxWidth < 420;
+                            final denyBtn = OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _reject(context, item);
+                              },
+                              icon: const Icon(Icons.close_rounded, size: 18),
+                              label: Text(
+                                'Deny Content',
+                                style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: FilledButton.icon(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  _approve(context, item);
-                                },
-                                icon: const Icon(Icons.check_rounded, size: 18),
-                                label: Text(
-                                  'Approve Content',
-                                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
-                                ),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF10B981),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 0,
-                                ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFFEF4444),
+                                side: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
-                            ),
-                          ],
+                            );
+                            final approveBtn = FilledButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _approve(context, item);
+                              },
+                              icon: const Icon(Icons.check_rounded, size: 18),
+                              label: Text(
+                                'Approve Content',
+                                style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+                              ),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFF10B981),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                            );
+
+                            if (isNarrow) {
+                              return Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  approveBtn,
+                                  const SizedBox(height: 10),
+                                  denyBtn,
+                                ],
+                              );
+                            }
+
+                            return Row(
+                              children: [
+                                Expanded(child: denyBtn),
+                                const SizedBox(width: 16),
+                                Expanded(child: approveBtn),
+                              ],
+                            );
+                          },
                         ),
                 ),
               ),

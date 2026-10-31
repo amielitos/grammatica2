@@ -351,7 +351,9 @@ class _LessonPageState extends State<LessonPage> {
           if (widget.previewMode || _lesson.validationStatus == 'awaiting_approval')
             Container(
               width: double.infinity,
-              color: _lesson.isUpdate ? const Color(0xFF6366F1) : const Color(0xFFE8A838),
+              color: _lesson.validationStatus == 'approved'
+                  ? const Color(0xFF16A34A)
+                  : (_lesson.isUpdate ? const Color(0xFF6366F1) : const Color(0xFFE8A838)),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: SafeArea(
                 bottom: false,
@@ -360,16 +362,20 @@ class _LessonPageState extends State<LessonPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      _lesson.isUpdate ? Icons.edit_note_rounded : Icons.schedule_rounded,
+                      _lesson.validationStatus == 'approved'
+                          ? Icons.verified_rounded
+                          : (_lesson.isUpdate ? Icons.edit_note_rounded : Icons.schedule_rounded),
                       color: Colors.white,
                       size: 18,
                     ),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        _lesson.isUpdate
-                            ? 'Creator wants to update already existing lesson • Submitted: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}'
-                            : 'Pending Approval • Submitted: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}',
+                        _lesson.validationStatus == 'approved'
+                            ? 'Approved Lesson • Verified Content'
+                            : (_lesson.isUpdate
+                                ? 'Creator wants to update already existing lesson • Submitted: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}'
+                                : 'Pending Approval • Submitted: ${_lesson.createdAt != null ? _fmt(_lesson.createdAt!) : 'N/A'}'),
                         style: GoogleFonts.inter(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -487,9 +493,10 @@ class _LessonPageState extends State<LessonPage> {
                 ),
 
                 // Floating side tab trigger button on edge of screen (Screenshot 4)
-                Positioned(
-                  top: 70,
-                  right: 0,
+                if (!widget.previewMode && _curriculumLessons.isNotEmpty)
+                  Positioned(
+                    top: 70,
+                    right: 0,
                   child: MouseRegion(
                     cursor: SystemMouseCursors.click,
                     child: GestureDetector(
@@ -884,74 +891,95 @@ class _LessonPageState extends State<LessonPage> {
             style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              if (hasPrev)
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    final prevId = playlist.lessonIds[currentIndex - 1];
-                    final prevLesson = await DatabaseService.instance.getLesson(prevId);
-                    if (!context.mounted) return;
-                    final canOpen = prevLesson != null &&
-                        !prevLesson.isArchived &&
-                        (prevLesson.validationStatus == 'approved' ||
-                            prevLesson.createdByUid == _effectiveUser.uid ||
-                            _userRole == UserRole.validator);
-                    if (canOpen) {
-                      NavigationService.instance.goToLesson(context, prevLesson, replace: true, playlist: playlist);
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('That lesson is awaiting approval and is not yet available.')),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.skip_previous_rounded),
-                  label: const Text('Previous Lesson'),
-                ),
-              const Spacer(),
-              if (hasNext)
-                FilledButton.icon(
-                  onPressed: () async {
-                    final nextId = playlist.lessonIds[currentIndex + 1];
-                    final nextLesson = await DatabaseService.instance.getLesson(nextId);
-                    if (!context.mounted) return;
-                    final canOpen = nextLesson != null &&
-                        !nextLesson.isArchived &&
-                        (nextLesson.validationStatus == 'approved' ||
-                            nextLesson.createdByUid == _effectiveUser.uid ||
-                            _userRole == UserRole.validator);
-                    if (canOpen) {
-                      NavigationService.instance.goToLesson(context, nextLesson, replace: true, playlist: playlist);
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('That lesson is awaiting approval and is not yet available.')),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.skip_next_rounded),
-                  label: const Text('Next in Playlist'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.celebration_rounded, color: Colors.green, size: 20),
-                      const SizedBox(width: 8),
-                      Text('You finished all lessons in this playlist!',
-                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.green)),
-                    ],
-                  ),
-                ),
-            ],
+          LayoutBuilder(
+            builder: (context, navConstraints) {
+              final isNarrow = navConstraints.maxWidth < 440;
+              final prevBtn = hasPrev
+                  ? OutlinedButton.icon(
+                      onPressed: () async {
+                        final prevId = playlist.lessonIds[currentIndex - 1];
+                        final prevLesson = await DatabaseService.instance.getLesson(prevId);
+                        if (!context.mounted) return;
+                        final canOpen = prevLesson != null &&
+                            !prevLesson.isArchived &&
+                            (prevLesson.validationStatus == 'approved' ||
+                                prevLesson.createdByUid == _effectiveUser.uid ||
+                                _userRole == UserRole.validator);
+                        if (canOpen) {
+                          NavigationService.instance.goToLesson(context, prevLesson, replace: true, playlist: playlist);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('That lesson is awaiting approval and is not yet available.')),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.skip_previous_rounded),
+                      label: const Text('Previous Lesson'),
+                    )
+                  : null;
+
+              final nextBtn = hasNext
+                  ? FilledButton.icon(
+                      onPressed: () async {
+                        final nextId = playlist.lessonIds[currentIndex + 1];
+                        final nextLesson = await DatabaseService.instance.getLesson(nextId);
+                        if (!context.mounted) return;
+                        final canOpen = nextLesson != null &&
+                            !nextLesson.isArchived &&
+                            (nextLesson.validationStatus == 'approved' ||
+                                nextLesson.createdByUid == _effectiveUser.uid ||
+                                _userRole == UserRole.validator);
+                        if (canOpen) {
+                          NavigationService.instance.goToLesson(context, nextLesson, replace: true, playlist: playlist);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('That lesson is awaiting approval and is not yet available.')),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.skip_next_rounded),
+                      label: const Text('Next in Playlist'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      ),
+                    )
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.celebration_rounded, color: Colors.green, size: 20),
+                          const SizedBox(width: 8),
+                          Text('You finished all lessons in this playlist!',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.green)),
+                        ],
+                      ),
+                    );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ?prevBtn,
+                    if (prevBtn != null) const SizedBox(height: 10),
+                    nextBtn,
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  ?prevBtn,
+                  const Spacer(),
+                  nextBtn,
+                ],
+              );
+            },
           ),
         ],
       ),

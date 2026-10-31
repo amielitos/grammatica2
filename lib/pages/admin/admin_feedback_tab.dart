@@ -718,51 +718,88 @@ class _AdminFeedbackTabState extends State<AdminFeedbackTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Row: Rating, Category, Status menu
-          Row(
+          // Top Row: Rating, Category, Date, Status menu
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              // Rating Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$rating/5',
-                      style: const TextStyle(
-                        fontSize: 11.5,
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  // Rating Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$rating/5',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Category Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _categoryColor(category).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      category,
+                      style: TextStyle(
+                        color: _categoryColor(category),
                         fontWeight: FontWeight.bold,
-                        color: Colors.amber,
+                        fontSize: 11,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // Category Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _categoryColor(category).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  category,
-                  style: TextStyle(
-                    color: _categoryColor(category),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
                   ),
-                ),
+
+                  // Date Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white10 : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 12,
+                          color: isDark ? Colors.white54 : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatDate(createdAt),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(),
 
               // Status Dropdown Switcher
               PopupMenuButton<String>(
@@ -844,83 +881,116 @@ class _AdminFeedbackTabState extends State<AdminFeedbackTab> {
           const Divider(height: 1),
           const SizedBox(height: 8),
 
-          // Bottom Row: Clean user info with bullet • (No middot!)
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 14,
-                backgroundColor: const Color(0xFF81B655).withValues(alpha: 0.2),
-                child: Text(
-                  userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF81B655),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$userName • $userRole',
-                      style: GoogleFonts.inter(
+          // Bottom Row: Clean user info and action icons
+          LayoutBuilder(
+            builder: (context, btmConstraints) {
+              final isNarrow = btmConstraints.maxWidth < 460;
+
+              final userInfo = Row(
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: const Color(0xFF81B655).withValues(alpha: 0.2),
+                    child: Text(
+                      userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                      style: const TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF81B655),
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
-                      '$userEmail • ${_formatDate(createdAt)}',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: isDark ? Colors.white54 : Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$userName • $userRole',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          userEmail,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: isDark ? Colors.white54 : Colors.grey.shade600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+
+              final actionIcons = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (userEmail.isNotEmpty)
+                    IconButton(
+                      tooltip: 'Reply via email',
+                      icon: const Icon(
+                        Icons.email_outlined,
+                        size: 19,
+                        color: Color(0xFF3B82F6),
                       ),
-                      overflow: TextOverflow.ellipsis,
+                      onPressed: () async {
+                        final uri = Uri(
+                          scheme: 'mailto',
+                          path: userEmail,
+                          query: 'subject=Re: [Grammatica Feedback] $subject',
+                        );
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        }
+                      },
+                    ),
+                  IconButton(
+                    tooltip: 'View details',
+                    icon: const Icon(
+                      Icons.open_in_new_rounded,
+                      size: 19,
+                      color: Color(0xFF81B655),
+                    ),
+                    onPressed: () => _showDetailDialog(context, item, isDark),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete feedback',
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      size: 19,
+                      color: Colors.redAccent,
+                    ),
+                    onPressed: () => _confirmDelete(context, id, subject),
+                  ),
+                ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    userInfo,
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: actionIcons,
                     ),
                   ],
-                ),
-              ),
-              if (userEmail.isNotEmpty)
-                IconButton(
-                  tooltip: 'Reply via email',
-                  icon: const Icon(
-                    Icons.email_outlined,
-                    size: 19,
-                    color: Color(0xFF3B82F6),
-                  ),
-                  onPressed: () async {
-                    final uri = Uri(
-                      scheme: 'mailto',
-                      path: userEmail,
-                      query: 'subject=Re: [Grammatica Feedback] $subject',
-                    );
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri);
-                    }
-                  },
-                ),
-              IconButton(
-                tooltip: 'View details',
-                icon: const Icon(
-                  Icons.open_in_new_rounded,
-                  size: 19,
-                  color: Color(0xFF81B655),
-                ),
-                onPressed: () => _showDetailDialog(context, item, isDark),
-              ),
-              IconButton(
-                tooltip: 'Delete feedback',
-                icon: const Icon(
-                  Icons.delete_outline_rounded,
-                  size: 19,
-                  color: Colors.redAccent,
-                ),
-                onPressed: () => _confirmDelete(context, id, subject),
-              ),
-            ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: userInfo),
+                  actionIcons,
+                ],
+              );
+            },
           ),
         ],
       ),

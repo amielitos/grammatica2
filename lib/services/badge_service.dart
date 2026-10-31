@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../models/badge_model.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import '../services/role_service.dart';
 import '../widgets/badge_unlocked_dialog.dart';
 
 class BadgeService {
@@ -238,8 +239,10 @@ class BadgeService {
         final userSnap = await transaction.get(userRef);
         final statsData = statsSnap.data() ?? {};
         final userData = userSnap.data() ?? {};
-        final userRole = (userData['role'] as String?)?.toLowerCase();
-        if (userRole != null && userRole != 'learner') {
+        final effectiveRole = RoleService.isDefaultAdmin(userData, uid)
+            ? UserRole.superadmin
+            : roleFromString(userData['role'] as String?);
+        if (effectiveRole != UserRole.learner) {
           return; // Streaks and badges are strictly for learners
         }
 
@@ -373,8 +376,10 @@ class BadgeService {
         final userSnap = await transaction.get(userRef);
         final data = snap.data() ?? {};
         final userData = userSnap.data() ?? {};
-        final userRole = (userData['role'] as String?)?.toLowerCase();
-        if (userRole != null && userRole != 'learner') {
+        final effectiveRole = RoleService.isDefaultAdmin(userData, uid)
+            ? UserRole.superadmin
+            : roleFromString(userData['role'] as String?);
+        if (effectiveRole != UserRole.learner) {
           return; // Streaks and badges are strictly for learners
         }
 
@@ -447,10 +452,9 @@ class BadgeService {
     final awarded = <BadgeModel>[];
     try {
       // 0. Ensure user is a learner - Educators, Validators, Superadmins NEVER earn badges
-      final userSnap = await _userDoc(uid).get();
-      final userRole = (userSnap.data()?['role'] as String?)?.toLowerCase();
-      if (userRole != null && userRole != 'learner') {
-        debugPrint('[BadgeService] Skipping badge check for non-learner role ($userRole) on uid: $uid');
+      final effectiveRole = await RoleService.instance.getRole(uid);
+      if (effectiveRole != UserRole.learner) {
+        debugPrint('[BadgeService] Skipping badge check for non-learner role ($effectiveRole) on uid: $uid');
         return awarded;
       }
 

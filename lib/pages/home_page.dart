@@ -329,7 +329,9 @@ class _LessonsListState extends State<_LessonsList>
     }
 
     // Record daily activity once per day (Philippine time UTC+8) via atomic transaction
-    BadgeService.instance.checkDailyActivity(uid);
+    if (widget.role == UserRole.learner) {
+      BadgeService.instance.checkDailyActivity(uid);
+    }
 
     _badgesSub?.cancel();
     _badgesSub = BadgeService.instance.streamEarnedBadgesCount(uid).listen(

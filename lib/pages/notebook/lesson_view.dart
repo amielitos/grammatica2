@@ -90,7 +90,8 @@ class _LessonViewState extends State<LessonView> {
             for (final row in rows) {
               final r = row as Map<String, dynamic>;
               buf.writeln(
-                  '| ${headers.map((h) => r[h]?.toString() ?? '').join(' | ')} |');
+                '| ${headers.map((h) => r[h]?.toString() ?? '').join(' | ')} |',
+              );
             }
             text = buf.toString();
           } else {
@@ -137,7 +138,11 @@ class _LessonViewState extends State<LessonView> {
     return _blockCtrls.map((c) => c.text.trim()).join('\n\n');
   }
 
-  Future<void> _handleImageUpload(int blockIndex, Uint8List bytes, String fileName) async {
+  Future<void> _handleImageUpload(
+    int blockIndex,
+    Uint8List bytes,
+    String fileName,
+  ) async {
     setState(() => _uploadingBlockIndices.add(blockIndex));
     try {
       final folder = 'lesson_images/notebook_${widget.notebookId}';
@@ -157,7 +162,9 @@ class _LessonViewState extends State<LessonView> {
       newContent[blockIndex] = updatedBlock;
 
       final updatedLesson = AILessonResponse(
-        title: _titleCtrl.text.trim().isNotEmpty ? _titleCtrl.text.trim() : _lesson.title,
+        title: _titleCtrl.text.trim().isNotEmpty
+            ? _titleCtrl.text.trim()
+            : _lesson.title,
         content: newContent,
       );
 
@@ -166,7 +173,10 @@ class _LessonViewState extends State<LessonView> {
         data: updatedLesson.toJson(),
       );
 
-      await NotebookService.instance.updateOutput(widget.notebookId, updatedOutput);
+      await NotebookService.instance.updateOutput(
+        widget.notebookId,
+        updatedOutput,
+      );
 
       if (mounted) {
         setState(() {
@@ -208,7 +218,9 @@ class _LessonViewState extends State<LessonView> {
     newContent[blockIndex] = updatedBlock;
 
     final updatedLesson = AILessonResponse(
-      title: _titleCtrl.text.trim().isNotEmpty ? _titleCtrl.text.trim() : _lesson.title,
+      title: _titleCtrl.text.trim().isNotEmpty
+          ? _titleCtrl.text.trim()
+          : _lesson.title,
       content: newContent,
     );
 
@@ -217,13 +229,17 @@ class _LessonViewState extends State<LessonView> {
       data: updatedLesson.toJson(),
     );
 
-    await NotebookService.instance.updateOutput(widget.notebookId, updatedOutput);
+    await NotebookService.instance.updateOutput(
+      widget.notebookId,
+      updatedOutput,
+    );
 
     if (mounted) {
       setState(() {
         _lesson = updatedLesson;
         if (blockIndex < _blockCtrls.length) {
-          _blockCtrls[blockIndex].text = '[Image Placeholder: ${oldBlock.data}]';
+          _blockCtrls[blockIndex].text =
+              '[Image Placeholder: ${oldBlock.data}]';
         }
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -240,16 +256,21 @@ class _LessonViewState extends State<LessonView> {
 
     final updatedBlocks = <ContentBlock>[];
     for (int i = 0; i < _blockCtrls.length; i++) {
-      final originalBlock = i < _lesson.content.length ? _lesson.content[i] : null;
+      final originalBlock = i < _lesson.content.length
+          ? _lesson.content[i]
+          : null;
       final editedText = _blockCtrls[i].text.trim();
 
-      if (originalBlock != null && originalBlock.type == ContentBlockType.image) {
+      if (originalBlock != null &&
+          originalBlock.type == ContentBlockType.image) {
         updatedBlocks.add(originalBlock);
       } else {
-        updatedBlocks.add(ContentBlock(
-          type: originalBlock?.type ?? ContentBlockType.text,
-          data: editedText,
-        ));
+        updatedBlocks.add(
+          ContentBlock(
+            type: originalBlock?.type ?? ContentBlockType.text,
+            data: editedText,
+          ),
+        );
       }
     }
 
@@ -263,7 +284,10 @@ class _LessonViewState extends State<LessonView> {
       data: updatedLesson.toJson(),
     );
 
-    await NotebookService.instance.updateOutput(widget.notebookId, updatedOutput);
+    await NotebookService.instance.updateOutput(
+      widget.notebookId,
+      updatedOutput,
+    );
 
     setState(() {
       _lesson = updatedLesson;
@@ -273,7 +297,9 @@ class _LessonViewState extends State<LessonView> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lesson drafts saved to notebook session!')),
+        const SnackBar(
+          content: Text('Lesson drafts saved to notebook session!'),
+        ),
       );
     }
   }
@@ -285,10 +311,7 @@ class _LessonViewState extends State<LessonView> {
     final currentTitle = _titleCtrl.text.trim();
     final effectiveOutput = canUpdateApprovedLesson
         ? widget.output.copyWith(title: currentTitle)
-        : widget.output.copyWith(
-            title: currentTitle,
-            publishedId: null,
-          );
+        : widget.output.copyWith(title: currentTitle, publishedId: null);
 
     showDialog(
       context: context,
@@ -297,7 +320,8 @@ class _LessonViewState extends State<LessonView> {
         output: effectiveOutput,
         markdownPrompt: _assembleMarkdown(),
         approvedLessonId: canUpdateApprovedLesson ? approvedLessonId : null,
-        forceSeparateLesson: !canUpdateApprovedLesson && (approvedLessonId != null),
+        forceSeparateLesson:
+            !canUpdateApprovedLesson && (approvedLessonId != null),
         onPublished: () {
           setState(() {});
           widget.onLessonPublished?.call(widget.output.publishedId ?? '');
@@ -317,8 +341,11 @@ class _LessonViewState extends State<LessonView> {
           .snapshots(),
       builder: (context, lessonSnap) {
         DocumentSnapshot<Map<String, dynamic>>? validatedDoc;
-        if (widget.output.publishedId != null && widget.output.publishedId!.isNotEmpty) {
-          validatedDoc = lessonSnap.data?.docs.where((d) => d.id == widget.output.publishedId).firstOrNull;
+        if (widget.output.publishedId != null &&
+            widget.output.publishedId!.isNotEmpty) {
+          validatedDoc = lessonSnap.data?.docs
+              .where((d) => d.id == widget.output.publishedId)
+              .firstOrNull;
         }
         validatedDoc ??= lessonSnap.data?.docs.where((d) {
           final data = d.data();
@@ -327,14 +354,18 @@ class _LessonViewState extends State<LessonView> {
         }).firstOrNull;
 
         final validatedData = validatedDoc?.data();
-        final bool isValidated = validatedDoc != null &&
+        final bool isValidated =
+            validatedDoc != null &&
             (validatedData?['validationStatus'] == 'approved' ||
-             validatedData?['reviewedAt'] != null);
+                validatedData?['reviewedAt'] != null);
 
-        final String? approvedTitle = isValidated ? (validatedData?['title'])?.toString().trim() : null;
+        final String? approvedTitle = isValidated
+            ? (validatedData?['title'])?.toString().trim()
+            : null;
         final String currentTitle = _titleCtrl.text.trim();
 
-        final bool isSameTitle = isValidated &&
+        final bool isSameTitle =
+            isValidated &&
             approvedTitle != null &&
             approvedTitle.isNotEmpty &&
             currentTitle.isNotEmpty &&
@@ -343,7 +374,9 @@ class _LessonViewState extends State<LessonView> {
         // When updating a lesson already validated by the validator:
         // It should ONLY happen if the title is the same as the already approved content.
         // If it is not, then the button should also go from "Update" to whatever it is in default ("Publish to Curriculum").
-        final bool canUpdateApprovedLesson = isValidated ? isSameTitle : widget.output.isPublished;
+        final bool canUpdateApprovedLesson = isValidated
+            ? isSameTitle
+            : widget.output.isPublished;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(28, 20, 28, 48),
@@ -382,10 +415,17 @@ class _LessonViewState extends State<LessonView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
@@ -393,7 +433,11 @@ class _LessonViewState extends State<LessonView> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.school_rounded, size: 14, color: AppColors.primary),
+                    const Icon(
+                      Icons.school_rounded,
+                      size: 14,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 5),
                     Text(
                       'INTERACTIVE LESSON',
@@ -407,19 +451,28 @@ class _LessonViewState extends State<LessonView> {
                   ],
                 ),
               ),
-              const Spacer(),
+
               if (canUpdateApprovedLesson)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF10B981).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                    border: Border.all(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.check_circle_rounded, size: 15, color: Color(0xFF10B981)),
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        size: 15,
+                        color: Color(0xFF10B981),
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'Live in Curriculum',
@@ -434,7 +487,10 @@ class _LessonViewState extends State<LessonView> {
                 )
               else
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.amber.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
@@ -451,11 +507,16 @@ class _LessonViewState extends State<LessonView> {
               if (_hasUnsavedEdits)
                 Container(
                   margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.orange.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                    border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.4),
+                    ),
                   ),
                   child: const Text(
                     'Unsaved changes',
@@ -497,7 +558,9 @@ class _LessonViewState extends State<LessonView> {
                   ),
                 )
               : Text(
-                  _titleCtrl.text.isNotEmpty ? _titleCtrl.text : 'Untitled Lesson',
+                  _titleCtrl.text.isNotEmpty
+                      ? _titleCtrl.text
+                      : 'Untitled Lesson',
                   style: GoogleFonts.outfit(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -534,21 +597,26 @@ class _LessonViewState extends State<LessonView> {
             approvedLessonId: approvedLessonId,
           ),
           icon: Icon(
-            canUpdateApprovedLesson ? Icons.update_rounded : Icons.cloud_upload_rounded,
+            canUpdateApprovedLesson
+                ? Icons.update_rounded
+                : Icons.cloud_upload_rounded,
             size: 18,
           ),
           label: Text(
-            canUpdateApprovedLesson ? 'Update in Curriculum' : 'Publish to Curriculum',
+            canUpdateApprovedLesson
+                ? 'Update in Curriculum'
+                : 'Publish to Curriculum',
             style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
-
 
         // Inline Edit / Save Toggle
         if (!_isEditingInline)
@@ -557,13 +625,20 @@ class _LessonViewState extends State<LessonView> {
             icon: const Icon(Icons.edit_note_rounded, size: 18),
             label: Text(
               'Quick Edit Text',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: isDark ? Colors.white70 : AppColors.textPrimary,
-              side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+              side: BorderSide(
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           )
         else
@@ -572,13 +647,18 @@ class _LessonViewState extends State<LessonView> {
             icon: const Icon(Icons.check_rounded, size: 18),
             label: Text(
               'Save Edits',
-              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF10B981),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
 
@@ -600,7 +680,9 @@ class _LessonViewState extends State<LessonView> {
           color: isDark ? const Color(0xFF1E261D) : Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Center(child: Text('No content blocks available in this lesson.')),
+        child: const Center(
+          child: Text('No content blocks available in this lesson.'),
+        ),
       );
     }
 
@@ -608,7 +690,9 @@ class _LessonViewState extends State<LessonView> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: List.generate(_blockCtrls.length, (index) {
         final ctrl = _blockCtrls[index];
-        final rawBlock = index < _lesson.content.length ? _lesson.content[index] : null;
+        final rawBlock = index < _lesson.content.length
+            ? _lesson.content[index]
+            : null;
         final isImage = rawBlock?.type == ContentBlockType.image;
 
         return Container(
@@ -618,7 +702,9 @@ class _LessonViewState extends State<LessonView> {
             color: isDark ? const Color(0xFF1E261D) : Colors.white,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+              color: isDark
+                  ? Colors.white10
+                  : Colors.black.withValues(alpha: 0.05),
             ),
             boxShadow: [
               BoxShadow(
@@ -661,7 +747,9 @@ class _LessonViewState extends State<LessonView> {
                   ),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: isDark ? const Color(0xFF2A3428) : Colors.grey.shade50,
+                    fillColor: isDark
+                        ? const Color(0xFF2A3428)
+                        : Colors.grey.shade50,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(
@@ -680,12 +768,17 @@ class _LessonViewState extends State<LessonView> {
     );
   }
 
-  Widget _buildImageBlockPlaceholder(int blockIndex, ContentBlock block, bool isDark) {
+  Widget _buildImageBlockPlaceholder(
+    int blockIndex,
+    ContentBlock block,
+    bool isDark,
+  ) {
     return LessonImageDropzone(
       imagePrompt: block.data.toString(),
       currentImageUrl: block.imageUrl,
       isUploading: _uploadingBlockIndices.contains(blockIndex),
-      onImageSelected: (bytes, fileName) => _handleImageUpload(blockIndex, bytes, fileName),
+      onImageSelected: (bytes, fileName) =>
+          _handleImageUpload(blockIndex, bytes, fileName),
       onRemoveImage: (block.imageUrl != null && block.imageUrl!.isNotEmpty)
           ? () => _handleRemoveImage(blockIndex)
           : null,

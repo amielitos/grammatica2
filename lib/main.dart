@@ -138,6 +138,7 @@ class _AuthWrapper extends StatelessWidget {
                     p?['photoUrl'] == c?['photoUrl'] &&
                     p?['username'] == c?['username'] &&
                     p?['status'] == c?['status'] &&
+                    p?['theme_preference'] == c?['theme_preference'] &&
                     p?['requires_email_verification'] ==
                         c?['requires_email_verification'];
               }),
@@ -265,8 +266,9 @@ class _AuthWrapper extends StatelessWidget {
             }
 
             // Derive role and info status
-            final roleStr = (data['role'] as String?) ?? 'LEARNER';
-            final role = roleFromString(roleStr);
+            final role = RoleService.isDefaultAdmin(data, user.uid)
+                ? UserRole.superadmin
+                : roleFromString((data['role'] as String?) ?? 'LEARNER');
 
             final phone = data['phone_number'] as String?;
             final dobTimestamp = data['date_of_birth'] as Timestamp?;

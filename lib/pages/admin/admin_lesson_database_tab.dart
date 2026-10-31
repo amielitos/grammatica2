@@ -770,46 +770,53 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Page Header ──────────────────────────────────────────
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Icon(
-                            Icons.table_chart_rounded,
-                            color: AppColors.primary,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Lesson Database',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : AppColors.textPrimary,
-                                ),
+                    LayoutBuilder(
+                      builder: (context, headerConstraints) {
+                        final isNarrow = headerConstraints.maxWidth < 500;
+
+                        final headerInfo = Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Master database of all platform lessons across educators and official curriculum.',
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
-                                ),
+                              child: const Icon(
+                                Icons.table_chart_rounded,
+                                color: AppColors.primary,
+                                size: 28,
                               ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        FilledButton.tonalIcon(
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Lesson Database',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Master database of all platform lessons across educators and official curriculum.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+
+                        final archiveButton = FilledButton.tonalIcon(
                           onPressed: () {
                             showDialog(
                               context: context,
@@ -827,8 +834,27 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                        ),
-                      ],
+                        );
+
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              headerInfo,
+                              const SizedBox(height: 14),
+                              archiveButton,
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: headerInfo),
+                            const SizedBox(width: 16),
+                            archiveButton,
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 20),
 

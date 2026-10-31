@@ -104,7 +104,10 @@ class _NotebookListPageState extends State<NotebookListPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 10,
+                  runSpacing: 6,
                   children: [
                     Text(
                       'AI Notebooks',
@@ -114,7 +117,7 @@ class _NotebookListPageState extends State<NotebookListPage> {
                         color: isDark ? Colors.white : AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(width: 10),
+
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
