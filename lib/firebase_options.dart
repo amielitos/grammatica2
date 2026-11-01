@@ -36,8 +36,6 @@ class DefaultFirebaseOptions {
     storageBucket: 'grammatica-68829.firebasestorage.app',
   );
 
-  // TODO: Replace all below configs with your Firebase project settings.
-
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyD_wcr5QUTJz8Wy0p7nf348Jr6znxkhzMs',
     appId: '1:458713583940:android:a97bae985c314d3e03c711',

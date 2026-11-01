@@ -960,8 +960,8 @@ class _LessonsListState extends State<_LessonsList>
                   const SizedBox(height: 12),
                   Text(
                     query.isNotEmpty
-                        ? 'No playlists match "$query"'
-                        : 'No learning playlists available yet',
+                        ? 'No lesson collections match "$query"'
+                        : 'No lesson collections available yet',
                     style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -970,7 +970,7 @@ class _LessonsListState extends State<_LessonsList>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Educators organize sequential lessons into playlists. Check back soon!',
+                    'Educators organize sequential lessons into lesson collections. Check back soon!',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 13,
@@ -1001,7 +1001,7 @@ class _LessonsListState extends State<_LessonsList>
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Curated Playlists (${playlists.length})',
+                    'Curated Lesson Collections (${playlists.length})',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -1334,7 +1334,7 @@ class _LessonsListState extends State<_LessonsList>
       'All': 'All Hubs',
       'Grammatica': 'Official',
       'Public': 'Community',
-      'Playlists': 'Playlists',
+      'Playlists': 'Lesson Collections',
       'Completed': 'Completed',
     };
 

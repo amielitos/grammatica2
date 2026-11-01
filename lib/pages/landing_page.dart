@@ -1548,22 +1548,23 @@ class _LandingPageState extends State<LandingPage>
                         children: [
                           Row(
                             children: [
-                              Container(
+                              SizedBox(
                                 width: 36,
                                 height: 36,
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Image.asset(
-                                  'assets/logo.png',
-                                  fit: BoxFit.contain,
-                                  filterQuality: FilterQuality.high,
-                                  errorBuilder: (context, error, stackTrace) => const Icon(
-                                    Icons.menu_book_rounded,
-                                    color: Color(0xFF81B655),
-                                    size: 22,
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    'assets/logo.png',
+                                    fit: BoxFit.contain,
+                                    filterQuality: FilterQuality.high,
+                                    errorBuilder: (context, error, stackTrace) => const CircleAvatar(
+                                      radius: 18,
+                                      backgroundColor: Color(0xFF81B655),
+                                      child: Icon(
+                                        Icons.menu_book_rounded,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1662,22 +1663,23 @@ class _LandingPageState extends State<LandingPage>
                   children: [
                     Row(
                       children: [
-                        Container(
+                        SizedBox(
                           width: 32,
                           height: 32,
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Image.asset(
-                            'assets/logo.png',
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.high,
-                            errorBuilder: (context, error, stackTrace) => const Icon(
-                              Icons.menu_book_rounded,
-                              color: Color(0xFF81B655),
-                              size: 20,
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/logo.png',
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.high,
+                              errorBuilder: (context, error, stackTrace) => const CircleAvatar(
+                                radius: 16,
+                                backgroundColor: Color(0xFF81B655),
+                                child: Icon(
+                                  Icons.menu_book_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
                             ),
                           ),
                         ),

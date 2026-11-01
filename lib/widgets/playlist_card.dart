@@ -108,13 +108,13 @@ class PlaylistCard extends StatelessWidget {
                       if (onEdit != null)
                         IconButton(
                           icon: const Icon(Icons.edit_rounded, size: 18),
-                          tooltip: 'Edit Playlist',
+                          tooltip: 'Edit Collection',
                           onPressed: onEdit,
                         ),
                       if (onDelete != null)
                         IconButton(
                           icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
-                          tooltip: 'Delete Playlist',
+                          tooltip: 'Delete Collection',
                           onPressed: onDelete,
                         ),
                     ],
@@ -197,6 +197,20 @@ class PlaylistCard extends StatelessWidget {
   }
 }
 
+class _SequenceItem {
+  final String lessonId;
+  final Lesson? lesson;
+  final int orderNumber;
+  final bool isPending;
+
+  const _SequenceItem({
+    required this.lessonId,
+    required this.lesson,
+    required this.orderNumber,
+    required this.isPending,
+  });
+}
+
 /// Modal showing playlist breakdown and allowing learners to jump in.
 class PlaylistDetailModal extends StatelessWidget {
   final LessonPlaylist playlist;
@@ -230,7 +244,8 @@ class PlaylistDetailModal extends StatelessWidget {
             (currentEmail != null && playlist.createdByEmail.toLowerCase() == currentEmail) ||
             role == UserRole.validator ||
             role == UserRole.admin ||
-            role == UserRole.superadmin);
+            role == UserRole.superadmin ||
+            role == UserRole.educator);
     if (!canAccess) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This lesson is awaiting approval and is not yet available.')),
@@ -239,6 +254,20 @@ class PlaylistDetailModal extends StatelessWidget {
     }
     Navigator.of(context).pop();
     NavigationService.instance.goToLesson(context, lesson, playlist: playlist);
+  }
+
+  Future<Map<String, dynamic>> _loadSequenceData() async {
+    final currentUid = AuthService.instance.currentUser?.uid;
+    final role = currentUid != null
+        ? await RoleService.instance.getRole(currentUid)
+        : UserRole.learner;
+    final lessons = await Future.wait(
+      playlist.lessonIds.map((id) => DatabaseService.instance.getLesson(id)),
+    );
+    return {
+      'role': role,
+      'lessons': lessons,
+    };
   }
 
   @override
@@ -252,51 +281,89 @@ class PlaylistDetailModal extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 580, maxHeight: 680),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _loadSequenceData(),
+          builder: (context, snapshot) {
+            final currentUid = AuthService.instance.currentUser?.uid;
+            final currentEmail = AuthService.instance.currentUser?.email?.toLowerCase();
+            final role = (snapshot.data?['role'] as UserRole?) ?? UserRole.learner;
+            final lessons = (snapshot.data?['lessons'] as List<Lesson?>?) ?? [];
+
+            final isEducatorOrStaff = role == UserRole.educator ||
+                role == UserRole.admin ||
+                role == UserRole.superadmin ||
+                role == UserRole.validator ||
+                (currentUid != null && playlist.createdByUid == currentUid) ||
+                (currentEmail != null && playlist.createdByEmail.toLowerCase() == currentEmail);
+
+            final items = <_SequenceItem>[];
+            for (int i = 0; i < playlist.lessonIds.length; i++) {
+              final lessonId = playlist.lessonIds[i];
+              final lesson = i < lessons.length ? lessons[i] : null;
+              final isApproved = lesson != null && !lesson.isArchived && lesson.validationStatus == 'approved';
+
+              if (isEducatorOrStaff) {
+                // Educators and staff can view the full sequence, with pending lessons marked clearly
+                items.add(_SequenceItem(
+                  lessonId: lessonId,
+                  lesson: lesson,
+                  orderNumber: i + 1,
+                  isPending: !isApproved,
+                ));
+              } else {
+                // Learners ONLY see approved, active lessons. Pending lessons are completely hidden!
+                if (isApproved) {
+                  items.add(_SequenceItem(
+                    lessonId: lessonId,
+                    lesson: lesson,
+                    orderNumber: items.length + 1,
+                    isPending: false,
+                  ));
+                }
+              }
+            }
+
+            final visibleCount = snapshot.hasData ? items.length : null;
+
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 28),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          playlist.title,
-                          style: GoogleFonts.outfit(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: textPrimary,
-                          ),
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        const SizedBox(height: 2),
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 8,
-                          runSpacing: 4,
+                        child: const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 28),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
+                            Text(
+                              playlist.title,
+                              style: GoogleFonts.outfit(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 4,
                               children: [
-                                Text(
-                                  'By ',
-                                  style: GoogleFonts.inter(fontSize: 12, color: textSecondary),
-                                ),
                                 AuthorName(
                                   uid: playlist.createdByUid,
                                   fallbackEmail: playlist.createdByEmail,
+                                  prefix: 'By: ',
                                   isClickable: true,
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
@@ -305,148 +372,183 @@ class PlaylistDetailModal extends StatelessWidget {
                                     decoration: TextDecoration.underline,
                                   ),
                                 ),
+                                Text(
+                                  visibleCount != null
+                                      ? '• $visibleCount ${visibleCount == 1 ? "Lesson" : "Lessons"}'
+                                      : '• ... Lessons',
+                                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+                                ),
+                                if (playlist.createdByUid.isNotEmpty)
+                                  InkWell(
+                                    onTap: () async {
+                                      final currentUser = FirebaseAuth.instance.currentUser;
+                                      if (currentUser == null) return;
+                                      final doc = await FirebaseFirestore.instance.collection('users').doc(playlist.createdByUid).get();
+                                      final eduData = doc.data() ?? {'uid': playlist.createdByUid, 'email': playlist.createdByEmail};
+                                      if (context.mounted) {
+                                        Navigator.pop(context);
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => EducatorProfilePage(
+                                              educator: {'uid': playlist.createdByUid, ...eduData},
+                                              currentUser: currentUser,
+                                              initialTab: 1, // Open directly to Playlists!
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: const Color(0xFF81B655).withValues(alpha: 0.3)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.playlist_play_rounded, size: 14, color: Color(0xFF81B655)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Educator\'s Collections',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: const Color(0xFF81B655),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
-                            Text(
-                              '• ${playlist.lessonIds.length} Lessons',
-                              style: GoogleFonts.inter(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
-                            ),
-                            if (playlist.createdByUid.isNotEmpty)
-                              InkWell(
-                                onTap: () async {
-                                  final currentUser = FirebaseAuth.instance.currentUser;
-                                  if (currentUser == null) return;
-                                  final doc = await FirebaseFirestore.instance.collection('users').doc(playlist.createdByUid).get();
-                                  final eduData = doc.data() ?? {'uid': playlist.createdByUid, 'email': playlist.createdByEmail};
-                                  if (context.mounted) {
-                                    Navigator.pop(context);
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => EducatorProfilePage(
-                                          educator: {'uid': playlist.createdByUid, ...eduData},
-                                          currentUser: currentUser,
-                                          initialTab: 1, // Open directly to Playlists!
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                                borderRadius: BorderRadius.circular(6),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF81B655).withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xFF81B655).withValues(alpha: 0.3)),
-                                  ),
-                                  child: Row(
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                  if (playlist.description.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                      ),
+                      child: Text(
+                        playlist.description,
+                        style: GoogleFonts.inter(fontSize: 13, color: textSecondary, height: 1.5),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  Text(
+                    'Lessons in this sequence',
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // List of lessons
+                  Expanded(
+                    child: snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData
+                        ? const Center(child: CircularProgressIndicator())
+                        : items.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                                  child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.playlist_play_rounded, size: 14, color: Color(0xFF81B655)),
-                                      const SizedBox(width: 4),
+                                      Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.menu_book_rounded,
+                                          size: 36,
+                                          color: isDark ? Colors.white38 : Colors.grey.shade400,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
                                       Text(
-                                        'Educator\'s Playlists',
+                                        'No available lessons yet',
                                         style: GoogleFonts.outfit(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: const Color(0xFF81B655),
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Lessons in this collection are currently awaiting review and will appear once approved.',
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12.5,
+                                          color: textSecondary,
+                                          height: 1.4,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              if (playlist.description.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
-                  ),
-                  child: Text(
-                    playlist.description,
-                    style: GoogleFonts.inter(fontSize: 13, color: textSecondary, height: 1.5),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 20),
-              Text(
-                'Lessons in this sequence',
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              // List of lessons
-              Expanded(
-                child: playlist.lessonIds.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No lessons inside this playlist yet.',
-                          style: GoogleFonts.inter(color: textSecondary),
-                        ),
-                      )
-                    : FutureBuilder<UserRole>(
-                        future: AuthService.instance.currentUser != null
-                            ? RoleService.instance.getRole(AuthService.instance.currentUser!.uid)
-                            : Future.value(UserRole.learner),
-                        builder: (context, roleSnap) {
-                          final currentUid = AuthService.instance.currentUser?.uid;
-                          final role = roleSnap.data ?? UserRole.learner;
-                          return ListView.separated(
-                            itemCount: playlist.lessonIds.length,
-                            separatorBuilder: (context, index) => const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
-                              final lessonId = playlist.lessonIds[index];
-                              return FutureBuilder<Lesson?>(
-                                future: DatabaseService.instance.getLesson(lessonId),
-                                builder: (context, snapshot) {
-                                  final lesson = snapshot.data;
-                                  final isAvailable = lesson == null ||
-                                      (!lesson.isArchived &&
-                                          (lesson.validationStatus == 'approved' ||
-                                              (currentUid != null && lesson.createdByUid == currentUid) ||
-                                              role == UserRole.validator));
-                                  final title = !isAvailable
-                                      ? 'Lesson ${index + 1} (Pending Approval)'
-                                      : (lesson?.title ?? 'Lesson ${index + 1}');
-                                  final prompt = !isAvailable
-                                      ? 'This lesson will become available once approved.'
-                                      : (lesson?.prompt ?? 'Loading details...');
+                              )
+                            : ListView.separated(
+                                itemCount: items.length,
+                                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                                itemBuilder: (context, index) {
+                                  final item = items[index];
+                                  final lesson = item.lesson;
+                                  final isPending = item.isPending;
+
+                                  final title = isPending
+                                      ? (lesson?.title.isNotEmpty == true
+                                          ? '${lesson!.title} (Pending Approval)'
+                                          : 'Lesson ${item.orderNumber} (Pending Approval)')
+                                      : (lesson?.title ?? 'Lesson ${item.orderNumber}');
+
+                                  final prompt = isPending
+                                      ? 'Awaiting validator approval • Visible only to educators'
+                                      : (lesson?.prompt ?? 'Interactive lesson content');
 
                                   return Container(
                                     decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                                      color: isPending
+                                          ? (isDark ? const Color(0xFF2C2411) : const Color(0xFFFEFCE8))
+                                          : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
                                       borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                                      border: Border.all(
+                                        color: isPending
+                                            ? const Color(0xFFE8A838).withValues(alpha: 0.4)
+                                            : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                                      ),
                                     ),
                                     child: ListTile(
-                                      onTap: isAvailable ? () => _startAtLesson(context, lessonId) : null,
+                                      onTap: () => _startAtLesson(context, item.lessonId),
                                       leading: CircleAvatar(
                                         radius: 14,
-                                        backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                                        backgroundColor: isPending
+                                            ? const Color(0xFFE8A838).withValues(alpha: 0.2)
+                                            : AppColors.primary.withValues(alpha: 0.15),
                                         child: Text(
-                                          '${index + 1}',
+                                          '${item.orderNumber}',
                                           style: GoogleFonts.inter(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
-                                            color: AppColors.primary,
+                                            color: isPending ? const Color(0xFFE8A838) : AppColors.primary,
                                           ),
                                         ),
                                       ),
@@ -455,50 +557,56 @@ class PlaylistDetailModal extends StatelessWidget {
                                         style: GoogleFonts.outfit(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 14,
-                                          color: isAvailable ? textPrimary : textSecondary,
+                                          color: isPending
+                                              ? (isDark ? Colors.amber.shade300 : const Color(0xFFB45309))
+                                              : textPrimary,
                                         ),
                                       ),
                                       subtitle: Text(
                                         prompt,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.inter(fontSize: 11, color: textSecondary),
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11,
+                                          color: isPending
+                                              ? (isDark ? Colors.amber.shade200 : const Color(0xFF92400E))
+                                              : textSecondary,
+                                        ),
                                       ),
                                       trailing: Icon(
-                                        isAvailable ? Icons.play_circle_fill_rounded : Icons.hourglass_top_rounded,
-                                        color: isAvailable ? AppColors.primary : textSecondary,
+                                        isPending ? Icons.hourglass_top_rounded : Icons.play_circle_fill_rounded,
+                                        color: isPending ? const Color(0xFFE8A838) : AppColors.primary,
                                         size: 24,
                                       ),
                                     ),
                                   );
                                 },
-                              );
-                            },
-                          );
-                        },
-                      ),
-              ),
-              const SizedBox(height: 16),
-              if (playlist.lessonIds.isNotEmpty)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _startAtLesson(context, playlist.lessonIds.first),
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: Text(
-                      'Start Playlist Journey',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
+                              ),
                   ),
-                ),
-            ],
-          ),
+                  if (items.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _startAtLesson(context, items.first.lessonId),
+                        icon: const Icon(Icons.play_arrow_rounded),
+                        label: Text(
+                          'Start Collection Journey',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
