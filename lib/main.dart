@@ -62,6 +62,28 @@ final notificationVisibleNotifier = ValueNotifier<bool>(false);
 class GrammaticaApp extends StatelessWidget {
   const GrammaticaApp({super.key});
 
+  static String? extractOobCode(Uri uri) {
+    String? code = uri.queryParameters['oobCode'];
+    if (code == null && uri.fragment.isNotEmpty) {
+      try {
+        final frag = uri.fragment.startsWith('/') ? uri.fragment : '/${uri.fragment}';
+        code = Uri.parse(frag).queryParameters['oobCode'];
+      } catch (_) {}
+    }
+    return code;
+  }
+
+  static String? extractMode(Uri uri) {
+    String? mode = uri.queryParameters['mode'];
+    if (mode == null && uri.fragment.isNotEmpty) {
+      try {
+        final frag = uri.fragment.startsWith('/') ? uri.fragment : '/${uri.fragment}';
+        mode = Uri.parse(frag).queryParameters['mode'];
+      } catch (_) {}
+    }
+    return mode;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
@@ -93,6 +115,32 @@ class GrammaticaApp extends StatelessWidget {
             );
           },
           home: const _AuthWrapper(key: ValueKey('grammatica_auth_wrapper')),
+          onGenerateRoute: (settings) {
+            final uri = Uri.tryParse(settings.name ?? '');
+            final mode = uri != null ? extractMode(uri) : extractMode(Uri.base);
+            final oobCode = uri != null ? extractOobCode(uri) : extractOobCode(Uri.base);
+            if ((mode == 'resetPassword' || mode == 'reset-password') && oobCode != null && oobCode.isNotEmpty) {
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (_) => ResetPasswordActionPage(oobCode: oobCode),
+              );
+            }
+            return null;
+          },
+          onUnknownRoute: (settings) {
+            final mode = extractMode(Uri.base);
+            final oobCode = extractOobCode(Uri.base);
+            if ((mode == 'resetPassword' || mode == 'reset-password') && oobCode != null && oobCode.isNotEmpty) {
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (_) => ResetPasswordActionPage(oobCode: oobCode),
+              );
+            }
+            return MaterialPageRoute(
+              settings: settings,
+              builder: (_) => const _AuthWrapper(key: ValueKey('grammatica_auth_wrapper')),
+            );
+          },
           routes: {
             '/login': (context) => const LoginPage(),
             '/register': (context) => const SignupPage(),
@@ -111,8 +159,8 @@ class _AuthWrapper extends StatelessWidget {
     // Intercept action code deep links (e.g. Firebase Password Reset)
     try {
       final uri = Uri.base;
-      final mode = uri.queryParameters['mode'];
-      final oobCode = uri.queryParameters['oobCode'];
+      final mode = GrammaticaApp.extractMode(uri);
+      final oobCode = GrammaticaApp.extractOobCode(uri);
       if ((mode == 'resetPassword' || mode == 'reset-password') &&
           oobCode != null &&
           oobCode.isNotEmpty) {

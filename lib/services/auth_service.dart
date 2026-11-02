@@ -898,21 +898,22 @@ class AuthService {
   Future<void> sendPasswordResetEmail(String email) async {
     final emailClean = email.trim().toLowerCase();
 
-    String resetUrl = 'https://grammatica-68829.web.app/?mode=resetPassword';
+    String resetUrl = 'https://grammatica-68829.web.app';
     if (kIsWeb) {
       try {
         final origin = Uri.base.origin;
-        if (origin.isNotEmpty && !origin.contains('null')) {
-          resetUrl = '$origin/?mode=resetPassword';
+        if (origin.startsWith('https://') &&
+            (origin.contains('grammatica') ||
+                origin.contains('web.app') ||
+                origin.contains('firebaseapp.com'))) {
+          resetUrl = origin;
         }
       } catch (_) {}
     }
 
     final actionCodeSettings = ActionCodeSettings(
       url: resetUrl,
-      handleCodeInApp: true,
-      androidPackageName: 'com.example.grammatica',
-      androidInstallApp: false,
+      handleCodeInApp: false,
     );
 
     // 1. Trigger Firebase Auth native password reset email with custom ActionCodeSettings
@@ -921,6 +922,7 @@ class AuthService {
         email: emailClean,
         actionCodeSettings: actionCodeSettings,
       );
+      debugPrint('✅ Official Firebase password reset email sent to $emailClean with action URL $resetUrl');
     } catch (e) {
       // Fallback without actionCodeSettings if domain is not yet whitelisted in Firebase Auth Console
       debugPrint('Fallback to standard sendPasswordResetEmail: $e');

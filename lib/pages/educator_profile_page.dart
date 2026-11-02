@@ -670,7 +670,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
                 onPressed: () => _selectTab(1, scrollToSection: true),
                 icon: const Icon(Icons.playlist_play_rounded, size: 18, color: Color(0xFF81B655)),
                 label: Text(
-                  'Learning Collections',
+                  'Curated Lesson Collections',
                   style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -848,7 +848,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
           child: Row(
             children: [
               buildTabPill('Lessons', Icons.auto_stories_rounded, 0, lessonsCount),
-              buildTabPill('Collections', Icons.playlist_play_rounded, 1, playlistsCount),
+              buildTabPill('Curated Collections', Icons.playlist_play_rounded, 1, playlistsCount),
               buildTabPill('Reviews', Icons.star_rounded, 2, reviewCount),
             ],
           ),
@@ -1240,7 +1240,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
               ),
               const SizedBox(height: 16),
               Text(
-                'No learning collections published yet',
+                'No curated lesson collections published yet',
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -1249,7 +1249,7 @@ class _EducatorProfilePageState extends State<EducatorProfilePage> {
               ),
               const SizedBox(height: 6),
               Text(
-                'This educator has not created sequential learning collections yet.',
+                'This educator has not created curated lesson collections yet.',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   color: subtitleColor,

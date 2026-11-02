@@ -128,6 +128,7 @@ class _LessonPageState extends State<LessonPage> {
       if (widget.playlist != null && widget.playlist!.lessonIds.isNotEmpty) {
         final pl = all.where((l) => widget.playlist!.lessonIds.contains(l.id)).toList();
         if (pl.isNotEmpty) {
+          pl.sort((a, b) => widget.playlist!.lessonIds.indexOf(a.id).compareTo(widget.playlist!.lessonIds.indexOf(b.id)));
           setState(() => _curriculumLessons = pl);
           return;
         }
@@ -821,7 +822,12 @@ class _LessonPageState extends State<LessonPage> {
 
   Widget _buildPlaylistTopBanner(BuildContext context, bool isDark) {
     final playlist = widget.playlist!;
-    final currentIndex = playlist.lessonIds.indexOf(_lesson.id);
+    final isLearner = _userRole == UserRole.learner;
+    final visibleLessonIds = (isLearner && _curriculumLessons.isNotEmpty)
+        ? _curriculumLessons.map((l) => l.id).toList()
+        : playlist.lessonIds;
+    final currentIndex = visibleLessonIds.indexOf(_lesson.id);
+    final totalCount = visibleLessonIds.length;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -836,7 +842,7 @@ class _LessonPageState extends State<LessonPage> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Playlist: ${playlist.title}',
+              'Curated Lesson Collection: ${playlist.title}',
               style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary),
               overflow: TextOverflow.ellipsis,
             ),
@@ -848,7 +854,7 @@ class _LessonPageState extends State<LessonPage> {
               borderRadius: BorderRadius.circular(100),
             ),
             child: Text(
-              currentIndex != -1 ? 'Lesson ${currentIndex + 1} of ${playlist.lessonIds.length}' : 'Playlist Mode',
+              currentIndex != -1 ? 'Lesson ${currentIndex + 1} of $totalCount' : 'Curated Collection Mode',
               style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
             ),
           ),
@@ -859,8 +865,12 @@ class _LessonPageState extends State<LessonPage> {
 
   Widget _buildPlaylistControls(BuildContext context, bool isDark) {
     final playlist = widget.playlist!;
-    final currentIndex = playlist.lessonIds.indexOf(_lesson.id);
-    final hasNext = currentIndex != -1 && currentIndex < playlist.lessonIds.length - 1;
+    final isLearner = _userRole == UserRole.learner;
+    final visibleLessonIds = (isLearner && _curriculumLessons.isNotEmpty)
+        ? _curriculumLessons.map((l) => l.id).toList()
+        : playlist.lessonIds;
+    final currentIndex = visibleLessonIds.indexOf(_lesson.id);
+    final hasNext = currentIndex != -1 && currentIndex < visibleLessonIds.length - 1;
     final hasPrev = currentIndex > 0;
 
     return Container(
@@ -897,14 +907,16 @@ class _LessonPageState extends State<LessonPage> {
               final prevBtn = hasPrev
                   ? OutlinedButton.icon(
                       onPressed: () async {
-                        final prevId = playlist.lessonIds[currentIndex - 1];
+                        final prevId = visibleLessonIds[currentIndex - 1];
                         final prevLesson = await DatabaseService.instance.getLesson(prevId);
                         if (!context.mounted) return;
                         final canOpen = prevLesson != null &&
                             !prevLesson.isArchived &&
                             (prevLesson.validationStatus == 'approved' ||
                                 prevLesson.createdByUid == _effectiveUser.uid ||
-                                _userRole == UserRole.validator);
+                                _userRole == UserRole.validator ||
+                                _userRole == UserRole.admin ||
+                                _userRole == UserRole.superadmin);
                         if (canOpen) {
                           NavigationService.instance.goToLesson(context, prevLesson, replace: true, playlist: playlist);
                         } else {
@@ -921,14 +933,16 @@ class _LessonPageState extends State<LessonPage> {
               final nextBtn = hasNext
                   ? FilledButton.icon(
                       onPressed: () async {
-                        final nextId = playlist.lessonIds[currentIndex + 1];
+                        final nextId = visibleLessonIds[currentIndex + 1];
                         final nextLesson = await DatabaseService.instance.getLesson(nextId);
                         if (!context.mounted) return;
                         final canOpen = nextLesson != null &&
                             !nextLesson.isArchived &&
                             (nextLesson.validationStatus == 'approved' ||
                                 nextLesson.createdByUid == _effectiveUser.uid ||
-                                _userRole == UserRole.validator);
+                                _userRole == UserRole.validator ||
+                                _userRole == UserRole.admin ||
+                                _userRole == UserRole.superadmin);
                         if (canOpen) {
                           NavigationService.instance.goToLesson(context, nextLesson, replace: true, playlist: playlist);
                         } else {
@@ -938,7 +952,7 @@ class _LessonPageState extends State<LessonPage> {
                         }
                       },
                       icon: const Icon(Icons.skip_next_rounded),
-                      label: const Text('Next in Playlist'),
+                      label: const Text('Next in Curated Collection'),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -955,7 +969,7 @@ class _LessonPageState extends State<LessonPage> {
                         children: [
                           const Icon(Icons.celebration_rounded, color: Colors.green, size: 20),
                           const SizedBox(width: 8),
-                          Text('You finished all lessons in this playlist!',
+                          Text('You finished all lessons in this curated lesson collection!',
                               style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.green)),
                         ],
                       ),

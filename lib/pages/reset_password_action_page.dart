@@ -38,14 +38,41 @@ class _ResetPasswordActionPageState extends State<ResetPasswordActionPage> {
 
   // Real-time password requirement validations
   bool get _hasMinLength => _passwordController.text.length >= 8;
-  bool get _hasUppercase => RegExp(r'[A-Z]').hasMatch(_passwordController.text);
-  bool get _hasLowercase => RegExp(r'[a-z]').hasMatch(_passwordController.text);
-  bool get _hasDigit => RegExp(r'[0-9]').hasMatch(_passwordController.text);
+  bool get _hasUppercase => _passwordController.text.contains(RegExp(r'[A-Z]'));
+  bool get _hasLowercase => _passwordController.text.contains(RegExp(r'[a-z]'));
+  bool get _hasDigit => _passwordController.text.contains(RegExp(r'[0-9]'));
   bool get _hasSpecialChar =>
-      RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(_passwordController.text);
+      _passwordController.text.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>~_\-+=]'));
   bool get _passwordsMatch =>
       _confirmPasswordController.text.isNotEmpty &&
       _confirmPasswordController.text == _passwordController.text;
+
+  int get _score {
+    final pass = _passwordController.text;
+    if (pass.isEmpty) return 0;
+    int s = 0;
+    if (_hasMinLength) s++;
+    if (_hasUppercase) s++;
+    if (_hasLowercase) s++;
+    if (_hasDigit) s++;
+    if (_hasSpecialChar) s++;
+    return s;
+  }
+
+  String get _passwordStrength {
+    if (_passwordController.text.isEmpty) return "";
+    if (_score == 5) return "Strong";
+    if (_score >= 3) return "Medium";
+    return "Weak";
+  }
+
+  Color get _strengthColor {
+    final strength = _passwordStrength;
+    if (strength == "Strong") return const Color(0xFF16A34A);
+    if (strength == "Medium") return Colors.orange;
+    if (strength.contains("Weak")) return Colors.red;
+    return Colors.grey;
+  }
 
   bool get _isFormValid =>
       _hasMinLength &&
@@ -406,7 +433,7 @@ class _ResetPasswordActionPageState extends State<ResetPasswordActionPage> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  _email!,
+                  'for $_email',
                   style: GoogleFonts.inter(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -521,6 +548,33 @@ class _ResetPasswordActionPageState extends State<ResetPasswordActionPage> {
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
+        if (_passwordController.text.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: _score / 5,
+                    backgroundColor: isDark ? Colors.white12 : Colors.grey.shade200,
+                    valueColor: AlwaysStoppedAnimation<Color>(_strengthColor),
+                    minHeight: 4,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Strength: $_passwordStrength',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: _strengthColor,
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 16),
 
         // Confirm Password Input
@@ -588,6 +642,27 @@ class _ResetPasswordActionPageState extends State<ResetPasswordActionPage> {
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
         ),
+        if (_confirmPasswordController.text.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(
+                _passwordsMatch ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                size: 14,
+                color: _passwordsMatch ? const Color(0xFF10B981) : Colors.red,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _passwordsMatch ? "Passwords match" : "Passwords do not match",
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _passwordsMatch ? const Color(0xFF10B981) : Colors.red,
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 20),
 
         // Password Requirements Checklist
@@ -619,27 +694,44 @@ class _ResetPasswordActionPageState extends State<ResetPasswordActionPage> {
               _buildRequirementRow('At least 8 characters', _hasMinLength, isDark),
               const SizedBox(height: 6),
               _buildRequirementRow(
-                'At least one uppercase letter (A-Z)',
+                'At least 1 uppercase letter (A-Z)',
                 _hasUppercase,
                 isDark,
               ),
               const SizedBox(height: 6),
               _buildRequirementRow(
-                'At least one lowercase letter (a-z)',
+                'At least 1 lowercase letter (a-z)',
                 _hasLowercase,
                 isDark,
               ),
               const SizedBox(height: 6),
               _buildRequirementRow(
-                'At least one numeric digit (0-9)',
+                'At least 1 number (0-9)',
                 _hasDigit,
                 isDark,
               ),
               const SizedBox(height: 6),
               _buildRequirementRow(
-                'At least one special character (!@#\$%^&*)',
+                'At least 1 special character',
                 _hasSpecialChar,
                 isDark,
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0).withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Allowed special characters: ! @ # \$ % ^ & * ( ) , . ? " : { } | < > ~ _ - + =',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontFamily: 'monospace',
+                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                  ),
+                ),
               ),
               const SizedBox(height: 6),
               _buildRequirementRow(

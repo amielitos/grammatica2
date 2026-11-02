@@ -254,7 +254,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                       ),
                                       const SizedBox(width: 4),
                                       ChoiceChip(
-                                        label: const Text('Learning Collections'),
+                                        label: const Text('Curated Collections'),
                                         selected: _activeView == 1,
                                         onSelected: (val) {
                                           if (val) setState(() => _activeView = 1);
@@ -276,7 +276,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                   FilledButton.icon(
                                     onPressed: () => _showPlaylistDialog(context, lessons),
                                     icon: const Icon(Icons.playlist_add_rounded, size: 18),
-                                    label: const Text('New Learning Collection'),
+                                    label: const Text('New Curated Lesson Collection'),
                                     style: FilledButton.styleFrom(
                                       backgroundColor: AppColors.primary,
                                       foregroundColor: Colors.white,
@@ -844,7 +844,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              existing == null ? 'Create Learning Collection' : 'Edit Learning Collection',
+                              existing == null ? 'Create Curated Lesson Collection' : 'Edit Curated Lesson Collection',
                               style: GoogleFonts.outfit(
                                 fontSize: isMobile ? 18 : 22,
                                 fontWeight: FontWeight.bold,
@@ -1261,15 +1261,15 @@ class _LessonsListTabState extends State<LessonsListTab> {
                 children: [
                   Icon(Icons.playlist_play_rounded, size: 72, color: AppColors.primary.withValues(alpha: 0.2)),
                   const SizedBox(height: 16),
-                  Text('No learning collections created yet', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text('No curated lesson collections created yet', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text('Organize your lessons into ordered learning collections for sequential student learning.',
+                  Text('Organize your lessons into ordered curated lesson collections for sequential student learning.',
                       textAlign: TextAlign.center, style: GoogleFonts.inter(color: AppColors.textSecondary)),
                   const SizedBox(height: 20),
                   FilledButton.icon(
                     onPressed: () => _showPlaylistDialog(context, allLessons),
                     icon: const Icon(Icons.add),
-                    label: const Text('Create First Learning Collection'),
+                    label: const Text('Create First Curated Lesson Collection'),
                     style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
                   ),
                 ],
@@ -1312,8 +1312,8 @@ class _LessonsListTabState extends State<LessonsListTab> {
                         final ok = await showDialog<bool>(
                           context: context,
                           builder: (ctx) => AlertDialog(
-                            title: const Text('Delete Learning Collection?'),
-                            content: Text('Are you sure you want to delete learning collection "${p.title}"? Lessons inside the collection will NOT be deleted.'),
+                            title: const Text('Delete Curated Lesson Collection?'),
+                            content: Text('Are you sure you want to delete curated lesson collection "${p.title}"? Lessons inside the collection will NOT be deleted.'),
                             actions: [
                               TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                               ElevatedButton(
@@ -1327,7 +1327,7 @@ class _LessonsListTabState extends State<LessonsListTab> {
                         if (ok == true) {
                           await DatabaseService.instance.deletePlaylist(p.id);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Learning Collection deleted.')));
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Curated Lesson Collection deleted.')));
                           }
                         }
                       },
@@ -1738,7 +1738,7 @@ class _PlaylistCard extends StatelessWidget {
               const SizedBox(height: 4),
               Expanded(
                 child: Text(
-                  playlist.description.isNotEmpty ? playlist.description : 'Sequential learning collection.',
+                  playlist.description.isNotEmpty ? playlist.description : 'Sequential curated lesson collection.',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary, height: 1.4),

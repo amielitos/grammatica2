@@ -1400,7 +1400,7 @@ class _LandingPageState extends State<LandingPage>
                     icon: Icons.public_rounded,
                     title: 'Accessible Learning',
                     description:
-                        'Empowering learners anywhere, anytime with structured educator playlists and guided community hubs.',
+                        'Empowering learners anywhere, anytime with structured educator curated lesson collections and guided community hubs.',
                     width: isDesktop ? 350 : double.infinity,
                   ),
                 ],
@@ -1479,17 +1479,17 @@ class _LandingPageState extends State<LandingPage>
       {
         'q': 'How does Grammatica bridge the gap with traditional learning?',
         'a':
-            'Traditional methods often focus on passive memorization. Grammatica combines dynamic grammar challenges, interactive notebook sessions, instant feedback, and educator-curated playlists to turn theoretical grammar into active, confident communication and critical thinking.',
+            'Traditional methods often focus on passive memorization. Grammatica combines dynamic grammar challenges, interactive notebook sessions, instant feedback, and educator curated lesson collections to turn theoretical grammar into active, confident communication and critical thinking.',
       },
       {
-        'q': 'Can I learn at my own pace with educator playlists?',
+        'q': 'Can I learn at my own pace with educator curated lesson collections?',
         'a':
-            'Yes! You can explore curated playlists organized by topics, join interactive conference sessions with educators, review notebook presentations, and track your ongoing learning progress at your own pace.',
+            'Yes! You can explore curated lesson collections organized by topics, join interactive conference sessions with educators, review notebook presentations, and track your ongoing learning progress at your own pace.',
       },
       {
         'q': 'How do I access quizzes and practice activities?',
         'a':
-            'Simply create a free account or log in. From your dashboard, you can browse all learning hubs, enroll in educator playlists, take interactive quizzes, and join community discussions.',
+            'Simply create a free account or log in. From your dashboard, you can browse all learning hubs, enroll in educator curated lesson collections, take interactive quizzes, and join community discussions.',
       },
       {
         'q': 'Is Grammatica accessible on mobile and desktop devices?',
