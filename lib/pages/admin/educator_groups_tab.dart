@@ -2176,6 +2176,7 @@ class _EducatorSetAvailabilityDialogState extends State<EducatorSetAvailabilityD
   @override
   void initState() {
     super.initState();
+    DatabaseService.instance.cleanupPastUnbookedAvailabilitySlots(widget.user.uid);
     final now = DateTime.now();
     int nextHour = now.minute > 30 ? (now.hour + 2) : (now.hour + 1);
     if (nextHour >= 24) {
@@ -2378,7 +2379,16 @@ class _EducatorSetAvailabilityDialogState extends State<EducatorSetAvailabilityD
                   if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                     return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
                   }
-                  final allSlots = List<Map<String, dynamic>>.from(snapshot.data ?? []);
+                  final now = DateTime.now();
+                  final allSlots = List<Map<String, dynamic>>.from(snapshot.data ?? [])
+                      .where((s) {
+                        final isBooked = s['isBooked'] == true;
+                        if (isBooked) return true;
+                        final start = (s['startTime'] as Timestamp?)?.toDate();
+                        if (start == null) return false;
+                        return !start.isBefore(now);
+                      })
+                      .toList();
                   allSlots.sort((a, b) {
                     final ta = (a['startTime'] as Timestamp?)?.toDate() ?? DateTime.now();
                     final tb = (b['startTime'] as Timestamp?)?.toDate() ?? DateTime.now();

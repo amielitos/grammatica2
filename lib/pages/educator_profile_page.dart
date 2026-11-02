@@ -2069,10 +2069,13 @@ class _EducatorMentorshipCalendarDialogState
                     );
                   }
 
-                  // Filter slots for selected day
+                  // Filter slots for selected day (excluding past unbooked slots)
+                  final now = DateTime.now();
                   final daySlots = allSlots.where((s) {
+                    final isBooked = s['isBooked'] == true;
                     final start = (s['startTime'] as Timestamp?)?.toDate();
                     if (start == null) return false;
+                    if (!isBooked && start.isBefore(now)) return false;
                     return start.year == _selectedDay.year &&
                         start.month == _selectedDay.month &&
                         start.day == _selectedDay.day;

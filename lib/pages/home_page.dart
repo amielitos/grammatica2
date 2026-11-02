@@ -84,14 +84,18 @@ class _HomePageState extends State<HomePage> {
     HomePage.activeTabNotifier.addListener(_onTabNotifierChange);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkProfileCompletion();
-      NotificationService.instance.checkUpcomingMentorshipReminders(widget.user.uid);
+      NotificationService.instance.checkUpcomingMentorshipReminders(
+        widget.user.uid,
+      );
       if (widget.role == UserRole.learner) {
         BadgeService.instance.checkDailyActivity(widget.user.uid);
       }
     });
     _mentorshipReminderTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) {
-        NotificationService.instance.checkUpcomingMentorshipReminders(widget.user.uid);
+        NotificationService.instance.checkUpcomingMentorshipReminders(
+          widget.user.uid,
+        );
       }
     });
   }
@@ -119,17 +123,16 @@ class _HomePageState extends State<HomePage> {
   List<ModernNavItem> _buildNavItems(User user) {
     final items = [
       ModernNavItem(
-        icon: widget.role == UserRole.learner ? Icons.dashboard_rounded : Icons.book,
+        icon: widget.role == UserRole.learner
+            ? Icons.dashboard_rounded
+            : Icons.book,
         label: widget.role == UserRole.learner ? 'Dashboard' : 'Lessons',
       ),
       const ModernNavItem(icon: Icons.auto_awesome, label: 'Practice'),
       if (widget.role != UserRole.learner)
         const ModernNavItem(icon: Icons.help_outline, label: 'Quizzes'),
       const ModernNavItem(icon: Icons.credit_card, label: 'Enrollment'),
-      const ModernNavItem(
-        icon: Icons.person,
-        label: 'My Profile',
-      ),
+      const ModernNavItem(icon: Icons.person, label: 'My Profile'),
     ];
     return items;
   }
@@ -183,7 +186,8 @@ class _HomePageState extends State<HomePage> {
                     showDialog(
                       context: context,
                       barrierColor: Colors.transparent,
-                      builder: (context) => NotificationsDialog(userId: user.uid),
+                      builder: (context) =>
+                          NotificationsDialog(userId: user.uid),
                     );
                   },
                   onLogoTap: () async {
@@ -194,7 +198,9 @@ class _HomePageState extends State<HomePage> {
                     return true;
                   },
                   onProfileTap: () async {
-                    final profileIndex = navItems.indexWhere((item) => item.icon == Icons.person);
+                    final profileIndex = navItems.indexWhere(
+                      (item) => item.icon == Icons.person,
+                    );
                     if (profileIndex != -1) {
                       setState(() {
                         _tabIndex = profileIndex;
@@ -218,7 +224,8 @@ class _HomePageState extends State<HomePage> {
                       CenterNoticeDialog.show(
                         context,
                         title: 'Generation in Progress',
-                        message: 'Please wait until the AI finishes generating before switching tabs.',
+                        message:
+                            'Please wait until the AI finishes generating before switching tabs.',
                       );
                       return;
                     }
@@ -230,7 +237,9 @@ class _HomePageState extends State<HomePage> {
                       _tabIndex = index;
                       _persistedTabIndex = index;
                     });
-                    if (index >= 0 && index < navItems.length && navItems[index].icon == Icons.person) {
+                    if (index >= 0 &&
+                        index < navItems.length &&
+                        navItems[index].icon == Icons.person) {
                       _profileKey.currentState?.fetchProfile();
                     }
                   },
@@ -334,84 +343,88 @@ class _LessonsListState extends State<_LessonsList>
     }
 
     _badgesSub?.cancel();
-    _badgesSub = BadgeService.instance.streamEarnedBadgesCount(uid).listen(
-      (int val) {
-        _cachedBadgesEarned = val;
-        if (mounted) {
-          setState(() {
-            _badgesEarned = val;
-            _badgesError = false;
-          });
-        }
-      },
-      onError: (Object e) {
-        debugPrint('KPI Badges Earned stream error: $e');
-        if (mounted) {
-          setState(() => _badgesError = true);
-        }
-      },
-    );
+    _badgesSub = BadgeService.instance
+        .streamEarnedBadgesCount(uid)
+        .listen(
+          (int val) {
+            _cachedBadgesEarned = val;
+            if (mounted) {
+              setState(() {
+                _badgesEarned = val;
+                _badgesError = false;
+              });
+            }
+          },
+          onError: (Object e) {
+            debugPrint('KPI Badges Earned stream error: $e');
+            if (mounted) {
+              setState(() => _badgesError = true);
+            }
+          },
+        );
 
     _mentorshipSub?.cancel();
     _mentorshipSub = DatabaseService.instance
         .streamCompletedMentorshipSessionsCount(uid)
         .listen(
-      (int val) {
-        _cachedMentorshipSessions = val;
-        if (mounted) {
-          setState(() {
-            _mentorshipSessions = val;
-            _mentorshipError = false;
-          });
-        }
-      },
-      onError: (Object e) {
-        debugPrint('KPI Mentorship Sessions stream error: $e');
-        if (mounted) {
-          setState(() => _mentorshipError = true);
-        }
-      },
-    );
+          (int val) {
+            _cachedMentorshipSessions = val;
+            if (mounted) {
+              setState(() {
+                _mentorshipSessions = val;
+                _mentorshipError = false;
+              });
+            }
+          },
+          onError: (Object e) {
+            debugPrint('KPI Mentorship Sessions stream error: $e');
+            if (mounted) {
+              setState(() => _mentorshipError = true);
+            }
+          },
+        );
 
     _followedSub?.cancel();
     _followedSub = DatabaseService.instance
         .streamFollowedEducatorsCount(uid)
         .listen(
-      (int val) {
-        _cachedEducatorsFollowed = val;
-        if (mounted) {
-          setState(() {
-            _educatorsFollowed = val;
-            _followedError = false;
-          });
-        }
-      },
-      onError: (Object e) {
-        debugPrint('KPI Educators Followed stream error: $e');
-        if (mounted) {
-          setState(() => _followedError = true);
-        }
-      },
-    );
+          (int val) {
+            _cachedEducatorsFollowed = val;
+            if (mounted) {
+              setState(() {
+                _educatorsFollowed = val;
+                _followedError = false;
+              });
+            }
+          },
+          onError: (Object e) {
+            debugPrint('KPI Educators Followed stream error: $e');
+            if (mounted) {
+              setState(() => _followedError = true);
+            }
+          },
+        );
 
     _streakSub?.cancel();
-    _streakSub = BadgeService.instance.streamDailyStreak(uid).listen(
-      (streak) {
-        _cachedDailyStreak = streak;
-        if (mounted) {
-          setState(() {
-            _dailyStreak = streak;
-            _streakError = false;
-          });
-        }
-      },
-      onError: (Object e) {
-        debugPrint('KPI Daily Streak stream error: $e');
-        if (mounted) {
-          setState(() => _streakError = true);
-        }
-      },
-    );
+    _streakSub = BadgeService.instance
+        .streamDailyStreak(uid)
+        .listen(
+          (streak) {
+            _cachedDailyStreak = streak;
+            if (mounted) {
+              setState(() {
+                _dailyStreak = streak;
+                _streakError = false;
+              });
+            }
+          },
+          onError: (Object e) {
+            debugPrint('KPI Daily Streak stream error: $e');
+            if (mounted) {
+              setState(() => _streakError = true);
+            }
+          },
+        );
   }
 
   void _onDashboardReset() {
@@ -439,7 +452,8 @@ class _LessonsListState extends State<_LessonsList>
     return StreamBuilder<List<Lesson>>(
       stream: _lessonsStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
@@ -453,7 +467,8 @@ class _LessonsListState extends State<_LessonsList>
         return StreamBuilder<List<PublishedContentItem>>(
           stream: _publishedStream,
           builder: (context, pubSnap) {
-            final publishedItems = pubSnap.data ?? const <PublishedContentItem>[];
+            final publishedItems =
+                pubSnap.data ?? const <PublishedContentItem>[];
 
             return StreamBuilder<Map<String, Map<String, dynamic>>>(
               stream: _progressStream,
@@ -461,10 +476,14 @@ class _LessonsListState extends State<_LessonsList>
                 final progressMap = progressSnap.data ?? {};
 
                 final grammaticaLessons = lessons
-                    .where((l) =>
-                        l.isGrammaticaLesson == true ||
-                        (l.createdByEmail != null &&
-                            l.createdByEmail!.toLowerCase().contains('admin')))
+                    .where(
+                      (l) =>
+                          l.isGrammaticaLesson == true ||
+                          (l.createdByEmail != null &&
+                              l.createdByEmail!.toLowerCase().contains(
+                                'admin',
+                              )),
+                    )
                     .toList();
 
                 final publicLessons = lessons.where((l) {
@@ -477,8 +496,12 @@ class _LessonsListState extends State<_LessonsList>
                   return true;
                 }).toList();
                 // Calculate completed counts for each hub
-                final int grammaticaCompleted = grammaticaLessons.where((l) => progressMap[l.id]?['completed'] == true).length;
-                final int publicCompleted = publicLessons.where((l) => progressMap[l.id]?['completed'] == true).length;
+                final int grammaticaCompleted = grammaticaLessons
+                    .where((l) => progressMap[l.id]?['completed'] == true)
+                    .length;
+                final int publicCompleted = publicLessons
+                    .where((l) => progressMap[l.id]?['completed'] == true)
+                    .length;
 
                 if (_activeFolder != null) {
                   return LessonFolderPage(
@@ -496,431 +519,537 @@ class _LessonsListState extends State<_LessonsList>
                   );
                 }
 
-            // Workaround: Display the 'last lesson' the user viewed instead of attempting
-            // to compute an uncompleted/current lesson (which incorrectly reported legacy
-            // content without modern progress records as pending).
-            Lesson? nextLesson;
+                // Workaround: Display the 'last lesson' the user viewed instead of attempting
+                // to compute an uncompleted/current lesson (which incorrectly reported legacy
+                // content without modern progress records as pending).
+                Lesson? nextLesson;
 
-            // 1. In-memory active session match
-            if (DatabaseService.lastViewedLessonId != null) {
-              final match = lessons
-                  .where((l) => l.id == DatabaseService.lastViewedLessonId)
-                  .toList();
-              if (match.isNotEmpty) {
-                nextLesson = match.first;
-              }
-            }
-
-            // 2. Most recent activity from progress history (sorted by latest timestamp descending)
-            if (nextLesson == null) {
-              final lessonsWithHistory = lessons.where((l) {
-                final p = progressMap[l.id];
-                return p != null &&
-                    (p['lastReadAt'] != null || p['completedAt'] != null);
-              }).toList();
-
-              if (lessonsWithHistory.isNotEmpty) {
-                lessonsWithHistory.sort((a, b) {
-                  final dynamic tsA = progressMap[a.id]?['lastReadAt'] ??
-                      progressMap[a.id]?['completedAt'];
-                  final dynamic tsB = progressMap[b.id]?['lastReadAt'] ??
-                      progressMap[b.id]?['completedAt'];
-                  if (tsA == null && tsB == null) return 0;
-                  if (tsA == null) return 1;
-                  if (tsB == null) return -1;
-                  if (tsA is Timestamp && tsB is Timestamp) {
-                    return tsB.compareTo(tsA);
+                // 1. In-memory active session match
+                if (DatabaseService.lastViewedLessonId != null) {
+                  final match = lessons
+                      .where((l) => l.id == DatabaseService.lastViewedLessonId)
+                      .toList();
+                  if (match.isNotEmpty) {
+                    nextLesson = match.first;
                   }
-                  return 0;
-                });
-                // Strictly use the most recently viewed lesson
-                nextLesson = lessonsWithHistory.first;
-              }
-            }
-
-            // 3. User profile persistent record
-            if (nextLesson == null) {
-              final lastId = widget.userData['lastViewedLessonId'] as String?;
-              if (lastId != null && lastId.isNotEmpty) {
-                final match = lessons.where((l) => l.id == lastId).toList();
-                if (match.isNotEmpty) {
-                  nextLesson = match.first;
                 }
-              }
-            }
 
-            final isDark = Theme.of(context).brightness == Brightness.dark;
-            final username = widget.userData['username'] as String? ?? 'Learner';
-            final query = _searchQuery.trim().toLowerCase();
-            final allFolderLessons = <Lesson>[
-              ...grammaticaLessons,
-              ...publicLessons,
-            ];
-            final matchingLessons = query.isEmpty
-                ? <Lesson>[]
-                : allFolderLessons.where((l) {
-                    final title = l.title.toLowerCase();
-                    return title.contains(query);
+                // 2. Most recent activity from progress history (sorted by latest timestamp descending)
+                if (nextLesson == null) {
+                  final lessonsWithHistory = lessons.where((l) {
+                    final p = progressMap[l.id];
+                    return p != null &&
+                        (p['lastReadAt'] != null || p['completedAt'] != null);
                   }).toList();
 
-            return CustomPaint(
-              painter: _DashboardBackgroundPainter(isDark: isDark),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 960),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. Hero Header
-                      _buildHeroHeader(context, username: username),
-                      const SizedBox(height: 16),
+                  if (lessonsWithHistory.isNotEmpty) {
+                    lessonsWithHistory.sort((a, b) {
+                      final dynamic tsA =
+                          progressMap[a.id]?['lastReadAt'] ??
+                          progressMap[a.id]?['completedAt'];
+                      final dynamic tsB =
+                          progressMap[b.id]?['lastReadAt'] ??
+                          progressMap[b.id]?['completedAt'];
+                      if (tsA == null && tsB == null) return 0;
+                      if (tsA == null) return 1;
+                      if (tsB == null) return -1;
+                      if (tsA is Timestamp && tsB is Timestamp) {
+                        return tsB.compareTo(tsA);
+                      }
+                      return 0;
+                    });
+                    // Strictly use the most recently viewed lesson
+                    nextLesson = lessonsWithHistory.first;
+                  }
+                }
 
-                      // Real-time Reactive Stats Overview
-                      _buildLiveStatsOverview(
-                        context,
-                        isDark: isDark,
-                      ),
-                      const SizedBox(height: 16),
+                // 3. User profile persistent record
+                if (nextLesson == null) {
+                  final lastId =
+                      widget.userData['lastViewedLessonId'] as String?;
+                  if (lastId != null && lastId.isNotEmpty) {
+                    final match = lessons.where((l) => l.id == lastId).toList();
+                    if (match.isNotEmpty) {
+                      nextLesson = match.first;
+                    }
+                  }
+                }
 
-                      // 2. Upcoming Mentorship Session Banner
-                      _buildUpcomingSessionBanner(context),
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                final username =
+                    widget.userData['username'] as String? ?? 'Learner';
+                final query = _searchQuery.trim().toLowerCase();
+                final allFolderLessons = <Lesson>[
+                  ...grammaticaLessons,
+                  ...publicLessons,
+                ];
+                final matchingLessons = query.isEmpty
+                    ? <Lesson>[]
+                    : allFolderLessons.where((l) {
+                        final title = l.title.toLowerCase();
+                        return title.contains(query);
+                      }).toList();
 
-                      // 3. Search Bar & Filter Chips
-                      _buildSearchBarAndFilters(context),
-                      const SizedBox(height: 20),
+                return CustomPaint(
+                  painter: _DashboardBackgroundPainter(isDark: isDark),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 20,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 960),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1. Hero Header
+                            _buildHeroHeader(context, username: username),
+                            const SizedBox(height: 16),
 
-                      if (_searchQuery.trim().isNotEmpty) ...[
-                        // Search Results Section
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 4,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF81B655),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Search Results (${matchingLessons.length})',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                  letterSpacing: -0.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (matchingLessons.isEmpty)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(Icons.search_off_rounded,
-                                    size: 44,
-                                    color: isDark ? Colors.white24 : Colors.grey.shade400),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'No lessons match "${_searchQuery.trim()}"',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white70 : Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Try searching for different keywords or topics.',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: isDark ? Colors.white38 : Colors.grey.shade500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: matchingLessons.length,
-                            separatorBuilder: (context, index) => const SizedBox(height: 12),
-                            itemBuilder: (context, idx) {
-                              final l = matchingLessons[idx];
-                              final isCompleted = progressMap[l.id]?['completed'] == true;
-                              final isOfficialFolder = l.isGrammaticaLesson == true ||
-                                  (l.createdByEmail != null &&
-                                      l.createdByEmail!.toLowerCase().contains('admin'));
-                              final folderLabel = isOfficialFolder
-                                  ? 'Grammatica Official'
-                                  : 'Community Hub';
-                              final folderColor = isOfficialFolder
-                                  ? const Color(0xFFD97706)
-                                  : const Color(0xFFDC2626);
-                              final folderIcon = isOfficialFolder
-                                  ? Icons.verified_rounded
-                                  : Icons.public_rounded;
+                            // Real-time Reactive Stats Overview
+                            _buildLiveStatsOverview(context, isDark: isDark),
+                            const SizedBox(height: 16),
 
-                              return Container(
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.03),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 3),
+                            // 2. Upcoming Mentorship Session Banner
+                            _buildUpcomingSessionBanner(context),
+
+                            // 3. Search Bar & Filter Chips
+                            _buildSearchBarAndFilters(context),
+                            const SizedBox(height: 20),
+
+                            if (_searchQuery.trim().isNotEmpty) ...[
+                              // Search Results Section
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 4,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF81B655),
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Search Results (${matchingLessons.length})',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        color: isDark
+                                            ? Colors.white
+                                            : Colors.black87,
+                                        letterSpacing: -0.3,
+                                      ),
                                     ),
                                   ],
                                 ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  leading: Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF81B655).withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      isCompleted ? Icons.check_circle_rounded : Icons.menu_book_rounded,
-                                      color: const Color(0xFF81B655),
-                                      size: 24,
+                              ),
+                              if (matchingLessons.isEmpty)
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 36,
+                                    horizontal: 20,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? const Color(0xFF1E293B)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.white12
+                                          : const Color(0xFFE2E8F0),
                                     ),
                                   ),
-                                  title: Wrap(
-                                    crossAxisAlignment: WrapCrossAlignment.center,
-                                    spacing: 8,
-                                    runSpacing: 4,
+                                  child: Column(
                                     children: [
+                                      Icon(
+                                        Icons.search_off_rounded,
+                                        size: 44,
+                                        color: isDark
+                                            ? Colors.white24
+                                            : Colors.grey.shade400,
+                                      ),
+                                      const SizedBox(height: 12),
                                       Text(
-                                        l.title,
+                                        'No lessons match "${_searchQuery.trim()}"',
                                         style: TextStyle(
+                                          fontSize: 16,
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 15,
-                                          color: isDark ? Colors.white : Colors.black87,
+                                          color: isDark
+                                              ? Colors.white70
+                                              : Colors.black87,
                                         ),
                                       ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(
-                                          color: folderColor.withValues(alpha: isDark ? 0.2 : 0.12),
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(
-                                            color: folderColor.withValues(alpha: 0.35),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(folderIcon, size: 12, color: folderColor),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              folderLabel,
-                                              style: TextStyle(
-                                                fontSize: 10.5,
-                                                fontWeight: FontWeight.w800,
-                                                color: folderColor,
-                                              ),
-                                            ),
-                                          ],
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Try searching for different keywords or topics.',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: isDark
+                                              ? Colors.white38
+                                              : Colors.grey.shade500,
                                         ),
                                       ),
                                     ],
                                   ),
-                                  subtitle: Text(
-                                    l.prompt.isNotEmpty ? l.prompt : folderLabel,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDark ? Colors.white60 : Colors.black54,
-                                    ),
-                                  ),
-                                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Color(0xFF81B655)),
-                                  onTap: () {
-                                    NavigationService.instance.goToLesson(context, l);
+                                )
+                              else
+                                ListView.separated(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: matchingLessons.length,
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(height: 12),
+                                  itemBuilder: (context, idx) {
+                                    final l = matchingLessons[idx];
+                                    final isCompleted =
+                                        progressMap[l.id]?['completed'] == true;
+                                    final isOfficialFolder =
+                                        l.isGrammaticaLesson == true ||
+                                        (l.createdByEmail != null &&
+                                            l.createdByEmail!
+                                                .toLowerCase()
+                                                .contains('admin'));
+                                    final folderLabel = isOfficialFolder
+                                        ? 'Grammatica Official'
+                                        : 'Community Hub';
+                                    final folderColor = isOfficialFolder
+                                        ? const Color(0xFFD97706)
+                                        : const Color(0xFFDC2626);
+                                    final folderIcon = isOfficialFolder
+                                        ? Icons.verified_rounded
+                                        : Icons.public_rounded;
+
+                                    return Container(
+                                      decoration: BoxDecoration(
+                                        color: isDark
+                                            ? const Color(0xFF1E293B)
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: isDark
+                                              ? Colors.white12
+                                              : const Color(0xFFE2E8F0),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.03,
+                                            ),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: ListTile(
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 8,
+                                            ),
+                                        leading: Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: const Color(
+                                              0xFF81B655,
+                                            ).withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            isCompleted
+                                                ? Icons.check_circle_rounded
+                                                : Icons.menu_book_rounded,
+                                            color: const Color(0xFF81B655),
+                                            size: 24,
+                                          ),
+                                        ),
+                                        title: Wrap(
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          spacing: 8,
+                                          runSpacing: 4,
+                                          children: [
+                                            Text(
+                                              l.title,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 15,
+                                                color: isDark
+                                                    ? Colors.white
+                                                    : Colors.black87,
+                                              ),
+                                            ),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 3,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: folderColor.withValues(
+                                                  alpha: isDark ? 0.2 : 0.12,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: folderColor.withValues(
+                                                    alpha: 0.35,
+                                                  ),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    folderIcon,
+                                                    size: 12,
+                                                    color: folderColor,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    folderLabel,
+                                                    style: TextStyle(
+                                                      fontSize: 10.5,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color: folderColor,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        subtitle: Text(
+                                          l.prompt.isNotEmpty
+                                              ? l.prompt
+                                              : folderLabel,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark
+                                                ? Colors.white60
+                                                : Colors.black54,
+                                          ),
+                                        ),
+                                        trailing: const Icon(
+                                          Icons.arrow_forward_ios_rounded,
+                                          size: 16,
+                                          color: Color(0xFF81B655),
+                                        ),
+                                        onTap: () {
+                                          NavigationService.instance.goToLesson(
+                                            context,
+                                            l,
+                                          );
+                                        },
+                                      ),
+                                    );
                                   },
                                 ),
-                              );
-                            },
-                          ),
-                        const SizedBox(height: 24),
-                      ] else ...[
-                        // 4. Continue Learning Card
-                        if (nextLesson != null && _searchQuery.isEmpty && _selectedFilter == 'All') ...[
-                          _buildContinueLearningCard(context, nextLesson, progressMap[nextLesson.id]),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // 4. Learning Hubs label & Hub Cards (hidden in Playlists filter)
-                        if (_selectedFilter != 'Playlists') ...[
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 4,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF81B655),
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
+                              const SizedBox(height: 24),
+                            ] else ...[
+                              // 4. Continue Learning Card
+                              if (nextLesson != null &&
+                                  _searchQuery.isEmpty &&
+                                  _selectedFilter == 'All') ...[
+                                _buildContinueLearningCard(
+                                  context,
+                                  nextLesson,
+                                  progressMap[nextLesson.id],
                                 ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'Learning Hubs',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    color: isDark ? Colors.white : Colors.black87,
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
+                                const SizedBox(height: 24),
                               ],
-                            ),
-                          ),
 
-                          // 5. Hub Cards — responsive row
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final isNarrow = constraints.maxWidth < 600;
-                              final cards = <Widget>[
-                                if (_selectedFilter == 'All' ||
-                                    _selectedFilter == 'Grammatica' ||
-                                    (_selectedFilter == 'Completed' && grammaticaCompleted > 0))
-                                  _buildHubCard(
-                                    context,
-                                    tag: 'OFFICIAL CURRICULUM',
-                                    title: 'Grammatica Official',
-                                    description:
-                                        'Structured lessons by language experts. Master tenses, punctuation & sentence structure.',
-                                    icon: Icons.verified_rounded,
-                                    brandColor: const Color(0xFFF59E0B),
-                                    gradientEnd: const Color(0xFFD97706),
-                                    lessonCount: grammaticaLessons.length,
-                                    completedCount: grammaticaCompleted,
-                                    onTap: () {
-                                      setState(() {
-                                        _activeFolder = {
-                                          'title': 'Grammatica Lessons',
-                                          'pillLabel': 'From Grammatica',
-                                          'lessons': grammaticaLessons,
-                                        };
-                                      });
-                                      widget.onFolderChanged?.call('Grammatica Lessons');
-                                    },
+                              // 4. Learning Hubs label & Hub Cards (hidden in Playlists filter)
+                              if (_selectedFilter != 'Playlists') ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 4,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF81B655),
+                                          borderRadius: BorderRadius.circular(
+                                            2,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        'Learning Hubs',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w800,
+                                          color: isDark
+                                              ? Colors.white
+                                              : Colors.black87,
+                                          letterSpacing: -0.3,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                if (_selectedFilter == 'All' ||
-                                    _selectedFilter == 'Public' ||
-                                    (_selectedFilter == 'Completed' && publicCompleted > 0))
-                                  _buildHubCard(
-                                    context,
-                                    tag: 'COMMUNITY & EDUCATORS',
-                                    title: 'Community Hub',
-                                    description:
-                                        'Public lessons by verified educators. Real-world topics & specialized exercises.',
-                                    icon: Icons.public_rounded,
-                                    brandColor: const Color(0xFFEF4444),
-                                    gradientEnd: const Color(0xFFDC2626),
-                                    lessonCount: publicLessons.length,
-                                    completedCount: publicCompleted,
-                                    onTap: () {
-                                      setState(() {
-                                        _activeFolder = {
-                                          'title': 'Public Lessons',
-                                          'pillLabel': 'Public',
-                                          'lessons': publicLessons,
-                                          'isPublicFolder': true,
-                                        };
-                                      });
-                                      widget.onFolderChanged?.call('Public');
-                                    },
-                                  ),
-                              ];
-
-                              if (isNarrow) {
-                                return Column(
-                                  children: cards
-                                      .map((c) => Padding(
-                                            padding: const EdgeInsets.only(bottom: 16),
-                                            child: c,
-                                          ))
-                                      .toList(),
-                                );
-                              }
-                              return IntrinsicHeight(
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: cards
-                                      .map((c) => Expanded(
-                                            child: Padding(
-                                              padding: const EdgeInsets.only(right: 16),
-                                              child: c,
-                                            ),
-                                          ))
-                                      .toList(),
                                 ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 24),
-                        ],
 
-                        // Curated Playlists (shown in All Hubs section and dedicated Playlists filter tab)
-                        if (_selectedFilter == 'All' || _selectedFilter == 'Playlists') ...[
-                          _buildPlaylistsSection(context, isDark),
-                          const SizedBox(height: 24),
-                        ],
+                                // 5. Hub Cards — responsive row
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final isNarrow = constraints.maxWidth < 600;
+                                    final cards = <Widget>[
+                                      if (_selectedFilter == 'All' ||
+                                          _selectedFilter == 'Grammatica' ||
+                                          (_selectedFilter == 'Completed' &&
+                                              grammaticaCompleted > 0))
+                                        _buildHubCard(
+                                          context,
+                                          tag: 'OFFICIAL CURRICULUM',
+                                          title: 'Grammatica Official',
+                                          description:
+                                              'Structured lessons by language experts. Master tenses, punctuation & sentence structure.',
+                                          icon: Icons.verified_rounded,
+                                          brandColor: const Color(0xFFF59E0B),
+                                          gradientEnd: const Color(0xFFD97706),
+                                          lessonCount: grammaticaLessons.length,
+                                          completedCount: grammaticaCompleted,
+                                          onTap: () {
+                                            setState(() {
+                                              _activeFolder = {
+                                                'title': 'Grammatica Lessons',
+                                                'pillLabel': 'From Grammatica',
+                                                'lessons': grammaticaLessons,
+                                              };
+                                            });
+                                            widget.onFolderChanged?.call(
+                                              'Grammatica Lessons',
+                                            );
+                                          },
+                                        ),
+                                      if (_selectedFilter == 'All' ||
+                                          _selectedFilter == 'Public' ||
+                                          (_selectedFilter == 'Completed' &&
+                                              publicCompleted > 0))
+                                        _buildHubCard(
+                                          context,
+                                          tag: 'COMMUNITY & EDUCATORS',
+                                          title: 'Community Hub',
+                                          description:
+                                              'Public lessons by verified educators. Real-world topics & specialized exercises.',
+                                          icon: Icons.public_rounded,
+                                          brandColor: const Color(0xFFEF4444),
+                                          gradientEnd: const Color(0xFFDC2626),
+                                          lessonCount: publicLessons.length,
+                                          completedCount: publicCompleted,
+                                          onTap: () {
+                                            setState(() {
+                                              _activeFolder = {
+                                                'title': 'Public Lessons',
+                                                'pillLabel': 'Public',
+                                                'lessons': publicLessons,
+                                                'isPublicFolder': true,
+                                              };
+                                            });
+                                            widget.onFolderChanged?.call(
+                                              'Public',
+                                            );
+                                          },
+                                        ),
+                                    ];
 
-                        // Enrolled Educators (My Educators) & Recent Lessons (placed below Curated Playlists)
-                        if (_selectedFilter != 'Grammatica' && _selectedFilter != 'Playlists') ...[
-                          _buildSubscribedEducatorsSection(context, isDark),
-                          _buildSubscribedEducatorLessonsSection(context, lessons, progressMap, isDark),
-                          const SizedBox(height: 24),
-                        ],
-                      ],
+                                    if (isNarrow) {
+                                      return Column(
+                                        children: cards
+                                            .map(
+                                              (c) => Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: 16,
+                                                ),
+                                                child: c,
+                                              ),
+                                            )
+                                            .toList(),
+                                      );
+                                    }
+                                    return IntrinsicHeight(
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: cards
+                                            .map(
+                                              (c) => Expanded(
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        right: 16,
+                                                      ),
+                                                  child: c,
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 24),
+                              ],
 
-                      // 6. AI Practice Banner
-                      _buildAiPracticeBanner(context),
-                      const SizedBox(height: 16),
-                    ],
+                              // Curated Playlists (shown in All Hubs section and dedicated Playlists filter tab)
+                              if (_selectedFilter == 'All' ||
+                                  _selectedFilter == 'Playlists') ...[
+                                _buildPlaylistsSection(context, isDark),
+                                const SizedBox(height: 24),
+                              ],
+
+                              // Enrolled Educators (My Educators) & Recent Lessons (placed below Curated Playlists)
+                              if (_selectedFilter != 'Grammatica' &&
+                                  _selectedFilter != 'Playlists') ...[
+                                _buildSubscribedEducatorsSection(
+                                  context,
+                                  isDark,
+                                ),
+                                _buildSubscribedEducatorLessonsSection(
+                                  context,
+                                  lessons,
+                                  progressMap,
+                                  isDark,
+                                ),
+                                const SizedBox(height: 24),
+                              ],
+                            ],
+
+                            // 6. AI Practice Banner
+                            _buildAiPracticeBanner(context),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
-          );
-
+                );
+              },
+            );
           },
         );
       },
     );
-  },
-);
   }
 
   Widget _buildPlaylistsSection(BuildContext context, bool isDark) {
     return StreamBuilder<List<LessonPlaylist>>(
       stream: DatabaseService.instance.streamAllPlaylists(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(24),
@@ -932,11 +1061,14 @@ class _LessonsListState extends State<_LessonsList>
         final query = _searchQuery.trim().toLowerCase();
         final playlists = query.isEmpty
             ? allPlaylists
-            : allPlaylists.where((p) =>
-                p.title.toLowerCase().contains(query) ||
-                p.description.toLowerCase().contains(query) ||
-                p.createdByEmail.toLowerCase().contains(query)
-              ).toList();
+            : allPlaylists
+                  .where(
+                    (p) =>
+                        p.title.toLowerCase().contains(query) ||
+                        p.description.toLowerCase().contains(query) ||
+                        p.createdByEmail.toLowerCase().contains(query),
+                  )
+                  .toList();
 
         if (playlists.isEmpty) {
           if (_selectedFilter == 'Playlists') {
@@ -960,8 +1092,8 @@ class _LessonsListState extends State<_LessonsList>
                   const SizedBox(height: 12),
                   Text(
                     query.isNotEmpty
-                        ? 'No curated lesson collections match "$query"'
-                        : 'No curated lesson collections available yet',
+                        ? 'No lesson collections match "$query"'
+                        : 'No lesson collections available yet',
                     style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -970,7 +1102,7 @@ class _LessonsListState extends State<_LessonsList>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Educators organize sequential lessons into curated lesson collections. Check back soon!',
+                    'Educators organize sequential lessons into lesson collections. Check back soon!',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 13,
@@ -1027,10 +1159,7 @@ class _LessonsListState extends State<_LessonsList>
                   itemCount: playlists.length,
                   itemBuilder: (context, index) {
                     final p = playlists[index];
-                    return PlaylistCard(
-                      playlist: p,
-                      isDark: isDark,
-                    );
+                    return PlaylistCard(playlist: p, isDark: isDark);
                   },
                 );
               },
@@ -1041,10 +1170,7 @@ class _LessonsListState extends State<_LessonsList>
     );
   }
 
-  Widget _buildHeroHeader(
-    BuildContext context, {
-    required String username,
-  }) {
+  Widget _buildHeroHeader(BuildContext context, {required String username}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final firstName = username.split(' ').first;
 
@@ -1056,8 +1182,9 @@ class _LessonsListState extends State<_LessonsList>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: (isDark ? Colors.black : const Color(0xFF6AAF3D))
-                .withValues(alpha: 0.22),
+            color: (isDark ? Colors.black : const Color(0xFF6AAF3D)).withValues(
+              alpha: 0.22,
+            ),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -1076,8 +1203,10 @@ class _LessonsListState extends State<_LessonsList>
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(20),
@@ -1085,8 +1214,11 @@ class _LessonsListState extends State<_LessonsList>
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.stars_rounded,
-                              color: Colors.amberAccent, size: 13),
+                          Icon(
+                            Icons.stars_rounded,
+                            color: Colors.amberAccent,
+                            size: 13,
+                          ),
                           SizedBox(width: 5),
                           Text(
                             'LEARNER DASHBOARD',
@@ -1104,20 +1236,30 @@ class _LessonsListState extends State<_LessonsList>
                       builder: (context) {
                         final streak = _dailyStreak ?? 0;
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                            color: const Color(
+                              0xFFF59E0B,
+                            ).withValues(alpha: 0.25),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: const Color(0xFFF59E0B).withValues(alpha: 0.6),
+                              color: const Color(
+                                0xFFF59E0B,
+                              ).withValues(alpha: 0.6),
                               width: 1,
                             ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.local_fire_department_rounded,
-                                  color: Color(0xFFFDE68A), size: 14),
+                              const Icon(
+                                Icons.local_fire_department_rounded,
+                                color: Color(0xFFFDE68A),
+                                size: 14,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 '$streak Day${streak == 1 ? '' : 's'} Streak',
@@ -1174,10 +1316,7 @@ class _LessonsListState extends State<_LessonsList>
     );
   }
 
-  Widget _buildLiveStatsOverview(
-    BuildContext context, {
-    required bool isDark,
-  }) {
+  Widget _buildLiveStatsOverview(BuildContext context, {required bool isDark}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 650;
@@ -1201,7 +1340,9 @@ class _LessonsListState extends State<_LessonsList>
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                color: isDark
+                    ? Colors.white10
+                    : Colors.black.withValues(alpha: 0.06),
               ),
               boxShadow: [
                 BoxShadow(
@@ -1334,7 +1475,7 @@ class _LessonsListState extends State<_LessonsList>
       'All': 'All Hubs',
       'Grammatica': 'Official',
       'Public': 'Community',
-      'Playlists': 'Curated Collections',
+      'Playlists': 'Lesson Collections',
       'Completed': 'Completed',
     };
 
@@ -1361,7 +1502,9 @@ class _LessonsListState extends State<_LessonsList>
           child: TextField(
             controller: _searchController,
             style: TextStyle(
-                color: isDark ? Colors.white : Colors.black87, fontSize: 14),
+              color: isDark ? Colors.white : Colors.black87,
+              fontSize: 14,
+            ),
             onChanged: (val) {
               _debounceTimer?.cancel();
               _debounceTimer = Timer(const Duration(milliseconds: 350), () {
@@ -1394,8 +1537,10 @@ class _LessonsListState extends State<_LessonsList>
                       },
                     )
                   : null,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
             ),
           ),
         ),
@@ -1420,7 +1565,10 @@ class _LessonsListState extends State<_LessonsList>
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
-                icon: const Icon(Icons.filter_list_rounded, color: Color(0xFF81B655)),
+                icon: const Icon(
+                  Icons.filter_list_rounded,
+                  color: Color(0xFF81B655),
+                ),
                 items: filters.map((filter) {
                   return DropdownMenuItem<String>(
                     value: filter,
@@ -1448,13 +1596,13 @@ class _LessonsListState extends State<_LessonsList>
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 7),
+                        horizontal: 14,
+                        vertical: 7,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? const Color(0xFF81B655)
-                            : (isDark
-                                ? const Color(0xFF1E293B)
-                                : Colors.white),
+                            : (isDark ? const Color(0xFF1E293B) : Colors.white),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isSelected
@@ -1464,11 +1612,12 @@ class _LessonsListState extends State<_LessonsList>
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
-                                  color: const Color(0xFF81B655)
-                                      .withValues(alpha: 0.3),
+                                  color: const Color(
+                                    0xFF81B655,
+                                  ).withValues(alpha: 0.3),
                                   blurRadius: 8,
                                   offset: const Offset(0, 3),
-                                )
+                                ),
                               ]
                             : [],
                       ),
@@ -1476,8 +1625,9 @@ class _LessonsListState extends State<_LessonsList>
                         filterLabels[filter]!,
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                           color: isSelected
                               ? Colors.white
                               : (isDark ? Colors.white70 : Colors.black87),
@@ -1538,7 +1688,9 @@ class _LessonsListState extends State<_LessonsList>
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: brandColor.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(20),
@@ -1612,7 +1764,9 @@ class _LessonsListState extends State<_LessonsList>
                         Text(
                           'Explore Hub',
                           style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.bold),
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         SizedBox(width: 6),
                         Icon(Icons.arrow_forward_rounded, size: 16),
@@ -1630,7 +1784,9 @@ class _LessonsListState extends State<_LessonsList>
 
   Widget _buildSubscribedEducatorsSection(BuildContext context, bool isDark) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid),
+      stream: DatabaseService.instance.streamLearnerSubscriptions(
+        widget.user.uid,
+      ),
       builder: (context, snapshot) {
         final subs = snapshot.data ?? [];
         final activeSubs = subs.where((s) => s['status'] == 'active').toList();
@@ -1662,7 +1818,14 @@ class _LessonsListState extends State<_LessonsList>
                 const Spacer(),
                 TextButton(
                   onPressed: () => HomePage.navigateToTab(context, 2),
-                  child: const Text('Browse More', style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: const Text(
+                    'Browse More',
+                    style: TextStyle(
+                      color: Color(0xFF6366F1),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1675,14 +1838,22 @@ class _LessonsListState extends State<_LessonsList>
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
                   final sub = activeSubs[index];
-                  final eduData = (sub['educatorData'] as Map<String, dynamic>?) ?? {};
-                  final eduUid = (sub['educatorUid'] as String?) ?? (eduData['uid'] as String?) ?? '';
+                  final eduData =
+                      (sub['educatorData'] as Map<String, dynamic>?) ?? {};
+                  final eduUid =
+                      (sub['educatorUid'] as String?) ??
+                      (eduData['uid'] as String?) ??
+                      '';
                   final tier = (sub['tier'] as String?) ?? 'Pro';
-                  final firstName = (eduData['first_name'] as String?)?.trim() ?? '';
-                  final lastName = (eduData['last_name'] as String?)?.trim() ?? '';
+                  final firstName =
+                      (eduData['first_name'] as String?)?.trim() ?? '';
+                  final lastName =
+                      (eduData['last_name'] as String?)?.trim() ?? '';
                   final fullName = '$firstName $lastName'.trim();
                   final username = (eduData['username'] as String?)?.trim();
-                  final name = fullName.isNotEmpty ? fullName : (username ?? 'Educator');
+                  final name = fullName.isNotEmpty
+                      ? fullName
+                      : (username ?? 'Educator');
                   final photoUrl = eduData['photoUrl'] as String?;
 
                   return InkWell(
@@ -1701,16 +1872,23 @@ class _LessonsListState extends State<_LessonsList>
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       width: 210,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF1E293B) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                          color: isDark
+                              ? Colors.white12
+                              : const Color(0xFFE2E8F0),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                            color: Colors.black.withValues(
+                              alpha: isDark ? 0.2 : 0.04,
+                            ),
                             blurRadius: 8,
                             offset: const Offset(0, 3),
                           ),
@@ -1720,13 +1898,26 @@ class _LessonsListState extends State<_LessonsList>
                         children: [
                           CircleAvatar(
                             radius: 20,
-                            backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.15),
-                            backgroundImage: (photoUrl != null && photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
-                            onBackgroundImageError: (photoUrl != null && photoUrl.isNotEmpty) ? (err, st) {} : null,
+                            backgroundColor: const Color(
+                              0xFF6366F1,
+                            ).withValues(alpha: 0.15),
+                            backgroundImage:
+                                (photoUrl != null && photoUrl.isNotEmpty)
+                                ? NetworkImage(photoUrl)
+                                : null,
+                            onBackgroundImageError:
+                                (photoUrl != null && photoUrl.isNotEmpty)
+                                ? (err, st) {}
+                                : null,
                             child: (photoUrl == null || photoUrl.isEmpty)
                                 ? Text(
-                                    name.isNotEmpty ? name[0].toUpperCase() : 'E',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF6366F1)),
+                                    name.isNotEmpty
+                                        ? name[0].toUpperCase()
+                                        : 'E',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF6366F1),
+                                    ),
                                   )
                                 : null,
                           ),
@@ -1743,14 +1934,21 @@ class _LessonsListState extends State<_LessonsList>
                                   style: TextStyle(
                                     fontSize: 13.5,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
                                   ),
                                 ),
                                 const SizedBox(height: 3),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 1.5,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                                    color: const Color(
+                                      0xFF6366F1,
+                                    ).withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -1786,7 +1984,9 @@ class _LessonsListState extends State<_LessonsList>
     bool isDark,
   ) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: DatabaseService.instance.streamLearnerSubscriptions(widget.user.uid),
+      stream: DatabaseService.instance.streamLearnerSubscriptions(
+        widget.user.uid,
+      ),
       builder: (context, snapshot) {
         final subs = snapshot.data ?? [];
         final activeSubUids = subs
@@ -1847,7 +2047,9 @@ class _LessonsListState extends State<_LessonsList>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.2 : 0.03,
+                        ),
                         blurRadius: 10,
                         offset: const Offset(0, 3),
                       ),
@@ -1858,7 +2060,9 @@ class _LessonsListState extends State<_LessonsList>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0D9488).withValues(alpha: 0.12),
+                          color: const Color(
+                            0xFF0D9488,
+                          ).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
@@ -1879,7 +2083,9 @@ class _LessonsListState extends State<_LessonsList>
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                               ),
                             ),
                             const SizedBox(height: 3),
@@ -1888,14 +2094,17 @@ class _LessonsListState extends State<_LessonsList>
                               fallbackEmail: l.createdByEmail,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                color: isDark
+                                    ? Colors.white60
+                                    : const Color(0xFF64748B),
                               ),
                             ),
                           ],
                         ),
                       ),
                       FilledButton.tonal(
-                        onPressed: () => NavigationService.instance.goToLesson(context, l),
+                        onPressed: () =>
+                            NavigationService.instance.goToLesson(context, l),
                         style: FilledButton.styleFrom(
                           backgroundColor: isCompleted
                               ? (isDark ? Colors.white10 : Colors.grey.shade100)
@@ -1903,11 +2112,17 @@ class _LessonsListState extends State<_LessonsList>
                           foregroundColor: isCompleted
                               ? (isDark ? Colors.white60 : Colors.grey.shade700)
                               : const Color(0xFF0D9488),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
                         ),
                         child: Text(
                           isCompleted ? 'Review' : 'Start',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -1922,9 +2137,14 @@ class _LessonsListState extends State<_LessonsList>
     );
   }
 
-  Widget _buildContinueLearningCard(BuildContext context, Lesson lesson, Map<String, dynamic>? progressInfo) {
+  Widget _buildContinueLearningCard(
+    BuildContext context,
+    Lesson lesson,
+    Map<String, dynamic>? progressInfo,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final double progress = (progressInfo?['progress'] as num?)?.toDouble() ?? 0.0;
+    final double progress =
+        (progressInfo?['progress'] as num?)?.toDouble() ?? 0.0;
     final bool isCompleted = progressInfo?['completed'] == true;
 
     return Container(
@@ -1986,9 +2206,14 @@ class _LessonsListState extends State<_LessonsList>
                           if (progress > 0.0 && !isCompleted) ...[
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                                color: const Color(
+                                  0xFF81B655,
+                                ).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -2003,9 +2228,14 @@ class _LessonsListState extends State<_LessonsList>
                           ] else if (isCompleted) ...[
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                                color: const Color(
+                                  0xFF81B655,
+                                ).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Text(
@@ -2050,15 +2280,22 @@ class _LessonsListState extends State<_LessonsList>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF81B655),
                     foregroundColor: Colors.white,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 11,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 0,
                   ),
-                  child: Text(isCompleted ? 'Review' : 'Resume',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: Text(
+                    isCompleted ? 'Review' : 'Resume',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -2071,28 +2308,32 @@ class _LessonsListState extends State<_LessonsList>
   Widget _buildUpcomingSessionBanner(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: DatabaseService.instance.streamStudentMentorshipSessions(widget.user.uid),
+      stream: DatabaseService.instance.streamStudentMentorshipSessions(
+        widget.user.uid,
+      ),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data == null) return const SizedBox.shrink();
+        if (!snapshot.hasData || snapshot.data == null)
+          return const SizedBox.shrink();
         final now = DateTime.now();
-        final upcoming = snapshot.data!
-            .where((s) {
+        final upcoming =
+            snapshot.data!.where((s) {
               final status = (s['status'] ?? '').toString().toLowerCase();
               if (status == 'cancelled' || status == 'completed') return false;
               final startTime = (s['startTime'] as Timestamp?)?.toDate();
               final endTime = (s['endTime'] as Timestamp?)?.toDate();
               final compareTime = endTime ?? startTime;
               // Filter out sessions whose scheduled time has already passed
-              if (compareTime != null && compareTime.isBefore(now)) return false;
+              if (compareTime != null && compareTime.isBefore(now))
+                return false;
               return true;
-            })
-            .toList()
-          ..sort((a, b) {
-            // Sort by nearest upcoming startTime
-            final ta = (a['startTime'] as Timestamp?)?.toDate() ?? DateTime(2099);
-            final tb = (b['startTime'] as Timestamp?)?.toDate() ?? DateTime(2099);
-            return ta.compareTo(tb);
-          });
+            }).toList()..sort((a, b) {
+              // Sort by nearest upcoming startTime
+              final ta =
+                  (a['startTime'] as Timestamp?)?.toDate() ?? DateTime(2099);
+              final tb =
+                  (b['startTime'] as Timestamp?)?.toDate() ?? DateTime(2099);
+              return ta.compareTo(tb);
+            });
 
         if (upcoming.isEmpty) return const SizedBox.shrink();
         final next = upcoming.first;
@@ -2133,7 +2374,9 @@ class _LessonsListState extends State<_LessonsList>
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF3B82F6).withValues(alpha: isDark ? 0.15 : 0.10),
+                    color: const Color(
+                      0xFF3B82F6,
+                    ).withValues(alpha: isDark ? 0.15 : 0.10),
                     blurRadius: 16,
                     offset: const Offset(0, 5),
                   ),
@@ -2145,15 +2388,24 @@ class _LessonsListState extends State<_LessonsList>
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                          color: const Color(
+                            0xFF3B82F6,
+                          ).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.event_rounded, size: 12, color: Color(0xFF3B82F6)),
+                            const Icon(
+                              Icons.event_rounded,
+                              size: 12,
+                              color: Color(0xFF3B82F6),
+                            ),
                             const SizedBox(width: 5),
                             Text(
                               'UPCOMING SESSION',
@@ -2169,23 +2421,30 @@ class _LessonsListState extends State<_LessonsList>
                       ),
                       const Spacer(),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: appColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: appColor.withValues(alpha: 0.35)),
+                          border: Border.all(
+                            color: appColor.withValues(alpha: 0.35),
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(appIcon, size: 13, color: appColor),
                             const SizedBox(width: 4),
-                            Text(appLabel,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: appColor,
-                                )),
+                            Text(
+                              appLabel,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: appColor,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -2207,18 +2466,28 @@ class _LessonsListState extends State<_LessonsList>
                   FutureBuilder<Map<String, dynamic>?>(
                     future: DatabaseService.instance.getUserDoc(educatorId),
                     builder: (context, snap) {
-                      final name = snap.data?['username'] as String? ?? 'Your Educator';
+                      final name =
+                          snap.data?['username'] as String? ?? 'Your Educator';
                       return Row(
                         children: [
-                          Icon(Icons.person_rounded, size: 14,
-                              color: isDark ? Colors.white54 : const Color(0xFF4B7AB5)),
+                          Icon(
+                            Icons.person_rounded,
+                            size: 14,
+                            color: isDark
+                                ? Colors.white54
+                                : const Color(0xFF4B7AB5),
+                          ),
                           const SizedBox(width: 4),
-                          Text(name,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDark ? Colors.white60 : const Color(0xFF4B7AB5),
-                                fontWeight: FontWeight.w600,
-                              )),
+                          Text(
+                            name,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark
+                                  ? Colors.white60
+                                  : const Color(0xFF4B7AB5),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       );
                     },
@@ -2226,15 +2495,24 @@ class _LessonsListState extends State<_LessonsList>
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Icon(Icons.calendar_today_rounded, size: 14,
-                          color: isDark ? Colors.white54 : const Color(0xFF4B7AB5)),
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 14,
+                        color: isDark
+                            ? Colors.white54
+                            : const Color(0xFF4B7AB5),
+                      ),
                       const SizedBox(width: 4),
-                      Text('$dateStr  •  $timeStr',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: isDark ? Colors.white60 : const Color(0xFF4B7AB5),
-                            fontWeight: FontWeight.w500,
-                          )),
+                      Text(
+                        '$dateStr  •  $timeStr',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: isDark
+                              ? Colors.white60
+                              : const Color(0xFF4B7AB5),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -2281,11 +2559,11 @@ class _LessonsListState extends State<_LessonsList>
                                   final channel = agoraChannel.isNotEmpty
                                       ? agoraChannel
                                       : AgoraService.instance
-                                          .channelFromSessionId(
-                                          sessionId.isNotEmpty
-                                              ? sessionId
-                                              : 'session',
-                                        );
+                                            .channelFromSessionId(
+                                              sessionId.isNotEmpty
+                                                  ? sessionId
+                                                  : 'session',
+                                            );
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -2339,8 +2617,10 @@ class _LessonsListState extends State<_LessonsList>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(10),
@@ -2382,7 +2662,9 @@ class _LessonsListState extends State<_LessonsList>
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF4338CA),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -2391,19 +2673,14 @@ class _LessonsListState extends State<_LessonsList>
                   icon: const Icon(Icons.auto_awesome_rounded, size: 15),
                   label: const Text(
                     'Start Practice',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 16),
-          const Icon(
-            Icons.psychology_rounded,
-            color: Colors.white24,
-            size: 72,
-          ),
+          const Icon(Icons.psychology_rounded, color: Colors.white24, size: 72),
         ],
       ),
     );
@@ -2441,4 +2718,3 @@ class _DashboardBackgroundPainter extends CustomPainter {
   bool shouldRepaint(covariant _DashboardBackgroundPainter oldDelegate) =>
       oldDelegate.isDark != isDark;
 }
-

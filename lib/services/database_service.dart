@@ -1315,15 +1315,56 @@ class DatabaseService {
   }
 
   /// Real-time stream of availability slots for an educator.
+  /// Automatically filters out past slots that were not booked.
   Stream<List<Map<String, dynamic>>> streamEducatorAvailability(String educatorId) {
     return _firestore
         .collection('mentorship_availability')
         .where('educatorId', isEqualTo: educatorId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => {
-              ...doc.data(),
-              'id': doc.id,
-            }).toList());
+        .map((snapshot) {
+          final now = DateTime.now();
+          return snapshot.docs
+              .map((doc) => {
+                    ...doc.data(),
+                    'id': doc.id,
+                  })
+              .where((s) {
+                final isBooked = s['isBooked'] == true;
+                if (isBooked) return true;
+                final start = (s['startTime'] as Timestamp?)?.toDate();
+                if (start == null) return false;
+                return !start.isBefore(now);
+              })
+              .toList();
+        });
+  }
+
+  /// Automatically purge unbooked availability slots whose start time is in the past.
+  Future<void> cleanupPastUnbookedAvailabilitySlots(String educatorId) async {
+    try {
+      final now = DateTime.now();
+      final snap = await _firestore
+          .collection('mentorship_availability')
+          .where('educatorId', isEqualTo: educatorId)
+          .where('isBooked', isEqualTo: false)
+          .get();
+
+      final batch = _firestore.batch();
+      bool hasDeletes = false;
+      for (final doc in snap.docs) {
+        final start = (doc.data()['startTime'] as Timestamp?)?.toDate();
+        if (start != null && start.isBefore(now)) {
+          batch.delete(doc.reference);
+          hasDeletes = true;
+        }
+      }
+      if (hasDeletes) {
+        await batch.commit();
+        debugPrint('[DatabaseService] Cleaned up past unbooked availability slots for educator $educatorId');
+      }
+    } catch (e) {
+      debugPrint('[DatabaseService] Error cleaning up past unbooked availability slots: $e');
+    }
   }
 
   /// Atomically reserve an availability slot to prevent double booking.

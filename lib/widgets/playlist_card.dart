@@ -32,10 +32,7 @@ class PlaylistCard extends StatelessWidget {
   Future<void> _handleTap(BuildContext context) async {
     showDialog(
       context: context,
-      builder: (ctx) => PlaylistDetailModal(
-        playlist: playlist,
-        isDark: isDark,
-      ),
+      builder: (ctx) => PlaylistDetailModal(playlist: playlist, isDark: isDark),
     );
   }
 
@@ -48,7 +45,9 @@ class PlaylistCard extends StatelessWidget {
         color: cardBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.grey.withValues(alpha: 0.15),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.grey.withValues(alpha: 0.15),
           width: 1.5,
         ),
         boxShadow: [
@@ -77,7 +76,11 @@ class PlaylistCard extends StatelessWidget {
                         color: AppColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 24),
+                      child: const Icon(
+                        Icons.playlist_play_rounded,
+                        color: AppColors.primary,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -98,7 +101,9 @@ class PlaylistCard extends StatelessWidget {
                             isClickable: true,
                             style: GoogleFonts.inter(
                               fontSize: 12,
-                              color: isDark ? Colors.white60 : AppColors.textSecondary,
+                              color: isDark
+                                  ? Colors.white60
+                                  : AppColors.textSecondary,
                             ),
                           ),
                         ],
@@ -108,13 +113,17 @@ class PlaylistCard extends StatelessWidget {
                       if (onEdit != null)
                         IconButton(
                           icon: const Icon(Icons.edit_rounded, size: 18),
-                          tooltip: 'Edit Curated Lesson Collection',
+                          tooltip: 'Edit Collection',
                           onPressed: onEdit,
                         ),
                       if (onDelete != null)
                         IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
-                          tooltip: 'Delete Curated Lesson Collection',
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: Colors.red,
+                          ),
+                          tooltip: 'Delete Collection',
                           onPressed: onDelete,
                         ),
                     ],
@@ -150,7 +159,10 @@ class PlaylistCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF81B655).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -158,7 +170,11 @@ class PlaylistCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.route_rounded, size: 14, color: Color(0xFF81B655)),
+                          const Icon(
+                            Icons.route_rounded,
+                            size: 14,
+                            color: Color(0xFF81B655),
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'Learning Path',
@@ -183,7 +199,11 @@ class PlaylistCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primary),
+                        const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
                       ],
                     ),
                   ],
@@ -197,21 +217,7 @@ class PlaylistCard extends StatelessWidget {
   }
 }
 
-class _SequenceItem {
-  final String lessonId;
-  final Lesson? lesson;
-  final int orderNumber;
-  final bool isPending;
-
-  const _SequenceItem({
-    required this.lessonId,
-    required this.lesson,
-    required this.orderNumber,
-    required this.isPending,
-  });
-}
-
-/// Modal showing curated lesson collection breakdown and allowing learners to jump in.
+/// Modal showing playlist breakdown and allowing learners to jump in.
 class PlaylistDetailModal extends StatelessWidget {
   final LessonPlaylist playlist;
   final bool isDark;
@@ -236,18 +242,26 @@ class PlaylistDetailModal extends StatelessWidget {
       return;
     }
     final currentEmail = AuthService.instance.currentUser?.email?.toLowerCase();
-    final canAccess = !lesson.isArchived &&
+    final canAccess =
+        !lesson.isArchived &&
         (lesson.validationStatus == 'approved' ||
             (currentUid != null && lesson.createdByUid == currentUid) ||
-            (currentEmail != null && lesson.createdByEmail?.toLowerCase() == currentEmail) ||
+            (currentEmail != null &&
+                lesson.createdByEmail?.toLowerCase() == currentEmail) ||
             (currentUid != null && playlist.createdByUid == currentUid) ||
-            (currentEmail != null && playlist.createdByEmail.toLowerCase() == currentEmail) ||
+            (currentEmail != null &&
+                playlist.createdByEmail.toLowerCase() == currentEmail) ||
             role == UserRole.validator ||
             role == UserRole.admin ||
-            role == UserRole.superadmin);
+            role == UserRole.superadmin ||
+            role == UserRole.educator);
     if (!canAccess) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This lesson is awaiting approval and is not yet available.')),
+        const SnackBar(
+          content: Text(
+            'This lesson is awaiting approval and is not yet available.',
+          ),
+        ),
       );
       return;
     }
@@ -263,10 +277,7 @@ class PlaylistDetailModal extends StatelessWidget {
     final lessons = await Future.wait(
       playlist.lessonIds.map((id) => DatabaseService.instance.getLesson(id)),
     );
-    return {
-      'role': role,
-      'lessons': lessons,
-    };
+    return {'role': role, 'lessons': lessons};
   }
 
   @override
@@ -284,39 +295,51 @@ class PlaylistDetailModal extends StatelessWidget {
           future: _loadSequenceData(),
           builder: (context, snapshot) {
             final currentUid = AuthService.instance.currentUser?.uid;
-            final currentEmail = AuthService.instance.currentUser?.email?.toLowerCase();
-            final role = (snapshot.data?['role'] as UserRole?) ?? UserRole.learner;
+            final currentEmail = AuthService.instance.currentUser?.email
+                ?.toLowerCase();
+            final role =
+                (snapshot.data?['role'] as UserRole?) ?? UserRole.learner;
             final lessons = (snapshot.data?['lessons'] as List<Lesson?>?) ?? [];
 
-            final isAuthorOrStaff = role == UserRole.admin ||
+            final isEducatorOrStaff =
+                role == UserRole.educator ||
+                role == UserRole.admin ||
                 role == UserRole.superadmin ||
                 role == UserRole.validator ||
                 (currentUid != null && playlist.createdByUid == currentUid) ||
-                (currentEmail != null && playlist.createdByEmail.toLowerCase() == currentEmail);
+                (currentEmail != null &&
+                    playlist.createdByEmail.toLowerCase() == currentEmail);
 
             final items = <_SequenceItem>[];
             for (int i = 0; i < playlist.lessonIds.length; i++) {
               final lessonId = playlist.lessonIds[i];
               final lesson = i < lessons.length ? lessons[i] : null;
-              final isApproved = lesson != null && !lesson.isArchived && lesson.validationStatus == 'approved';
+              final isApproved =
+                  lesson != null &&
+                  !lesson.isArchived &&
+                  lesson.validationStatus == 'approved';
 
-              if (isAuthorOrStaff) {
-                // Creator and staff can view full sequence, with pending lessons marked clearly
-                items.add(_SequenceItem(
-                  lessonId: lessonId,
-                  lesson: lesson,
-                  orderNumber: i + 1,
-                  isPending: !isApproved,
-                ));
+              if (isEducatorOrStaff) {
+                // Educators and staff can view the full sequence, with pending lessons marked clearly
+                items.add(
+                  _SequenceItem(
+                    lessonId: lessonId,
+                    lesson: lesson,
+                    orderNumber: i + 1,
+                    isPending: !isApproved,
+                  ),
+                );
               } else {
                 // Learners ONLY see approved, active lessons. Pending lessons are completely hidden!
                 if (isApproved) {
-                  items.add(_SequenceItem(
-                    lessonId: lessonId,
-                    lesson: lesson,
-                    orderNumber: items.length + 1,
-                    isPending: false,
-                  ));
+                  items.add(
+                    _SequenceItem(
+                      lessonId: lessonId,
+                      lesson: lesson,
+                      orderNumber: items.length + 1,
+                      isPending: false,
+                    ),
+                  );
                 }
               }
             }
@@ -337,7 +360,11 @@ class PlaylistDetailModal extends StatelessWidget {
                           color: AppColors.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Icon(Icons.playlist_play_rounded, color: AppColors.primary, size: 28),
+                        child: const Icon(
+                          Icons.playlist_play_rounded,
+                          color: AppColors.primary,
+                          size: 28,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -358,48 +385,58 @@ class PlaylistDetailModal extends StatelessWidget {
                               spacing: 8,
                               runSpacing: 4,
                               children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'By ',
-                                      style: GoogleFonts.inter(fontSize: 12, color: textSecondary),
-                                    ),
-                                    AuthorName(
-                                      uid: playlist.createdByUid,
-                                      fallbackEmail: playlist.createdByEmail,
-                                      isClickable: true,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: const Color(0xFF81B655),
-                                        decoration: TextDecoration.underline,
-                                      ),
-                                    ),
-                                  ],
+                                AuthorName(
+                                  uid: playlist.createdByUid,
+                                  fallbackEmail: playlist.createdByEmail,
+                                  prefix: 'By: ',
+                                  isClickable: true,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF81B655),
+                                    decoration: TextDecoration.underline,
+                                  ),
                                 ),
                                 Text(
                                   visibleCount != null
                                       ? '• $visibleCount ${visibleCount == 1 ? "Lesson" : "Lessons"}'
                                       : '• ... Lessons',
-                                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                                 if (playlist.createdByUid.isNotEmpty)
                                   InkWell(
                                     onTap: () async {
-                                      final currentUser = FirebaseAuth.instance.currentUser;
+                                      final currentUser =
+                                          FirebaseAuth.instance.currentUser;
                                       if (currentUser == null) return;
-                                      final doc = await FirebaseFirestore.instance.collection('users').doc(playlist.createdByUid).get();
-                                      final eduData = doc.data() ?? {'uid': playlist.createdByUid, 'email': playlist.createdByEmail};
+                                      final doc = await FirebaseFirestore
+                                          .instance
+                                          .collection('users')
+                                          .doc(playlist.createdByUid)
+                                          .get();
+                                      final eduData =
+                                          doc.data() ??
+                                          {
+                                            'uid': playlist.createdByUid,
+                                            'email': playlist.createdByEmail,
+                                          };
                                       if (context.mounted) {
                                         Navigator.pop(context);
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
                                             builder: (_) => EducatorProfilePage(
-                                              educator: {'uid': playlist.createdByUid, ...eduData},
+                                              educator: {
+                                                'uid': playlist.createdByUid,
+                                                ...eduData,
+                                              },
                                               currentUser: currentUser,
-                                              initialTab: 1, // Open directly to Collections!
+                                              initialTab:
+                                                  1, // Open directly to Playlists!
                                             ),
                                           ),
                                         );
@@ -407,19 +444,32 @@ class PlaylistDetailModal extends StatelessWidget {
                                     },
                                     borderRadius: BorderRadius.circular(6),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                                        color: const Color(
+                                          0xFF81B655,
+                                        ).withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: const Color(0xFF81B655).withValues(alpha: 0.3)),
+                                        border: Border.all(
+                                          color: const Color(
+                                            0xFF81B655,
+                                          ).withValues(alpha: 0.3),
+                                        ),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.playlist_play_rounded, size: 14, color: Color(0xFF81B655)),
+                                          const Icon(
+                                            Icons.playlist_play_rounded,
+                                            size: 14,
+                                            color: Color(0xFF81B655),
+                                          ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            'Educator\'s Curated Collections',
+                                            'Educator\'s Collections',
                                             style: GoogleFonts.outfit(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
@@ -446,13 +496,23 @@ class PlaylistDetailModal extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: isDark ? Colors.white12 : const Color(0xFFE2E8F0)),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white12
+                              : const Color(0xFFE2E8F0),
+                        ),
                       ),
                       child: Text(
                         playlist.description,
-                        style: GoogleFonts.inter(fontSize: 13, color: textSecondary, height: 1.5),
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: textSecondary,
+                          height: 1.5,
+                        ),
                       ),
                     ),
                   ],
@@ -468,145 +528,181 @@ class PlaylistDetailModal extends StatelessWidget {
                   const SizedBox(height: 12),
                   // List of lessons
                   Expanded(
-                    child: snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData
+                    child:
+                        snapshot.connectionState == ConnectionState.waiting &&
+                            !snapshot.hasData
                         ? const Center(child: CircularProgressIndicator())
                         : items.isEmpty
-                            ? Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.1),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          Icons.menu_book_rounded,
-                                          size: 36,
-                                          color: isDark ? Colors.white38 : Colors.grey.shade400,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 14),
-                                      Text(
-                                        'No available lessons yet',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        'Lessons in this curated lesson collection are currently awaiting review and will appear once approved.',
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12.5,
-                                          color: textSecondary,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 20,
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.05)
+                                          : Colors.grey.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.menu_book_rounded,
+                                      size: 36,
+                                      color: isDark
+                                          ? Colors.white38
+                                          : Colors.grey.shade400,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    'No available lessons yet',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Lessons in this collection are currently awaiting review and will appear once approved.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12.5,
+                                      color: textSecondary,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            itemCount: items.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              final lesson = item.lesson;
+                              final isPending = item.isPending;
+
+                              final title = isPending
+                                  ? (lesson?.title.isNotEmpty == true
+                                        ? '${lesson!.title} (Pending Approval)'
+                                        : 'Lesson ${item.orderNumber} (Pending Approval)')
+                                  : (lesson?.title ??
+                                        'Lesson ${item.orderNumber}');
+
+                              final prompt = isPending
+                                  ? 'Awaiting validator approval • Visible only to educators'
+                                  : (lesson?.prompt ??
+                                        'Interactive lesson content');
+
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: isPending
+                                      ? (isDark
+                                            ? const Color(0xFF2C2411)
+                                            : const Color(0xFFFEFCE8))
+                                      : (isDark
+                                            ? const Color(0xFF0F172A)
+                                            : const Color(0xFFF8FAFC)),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: isPending
+                                        ? const Color(
+                                            0xFFE8A838,
+                                          ).withValues(alpha: 0.4)
+                                        : (isDark
+                                              ? Colors.white10
+                                              : const Color(0xFFE2E8F0)),
                                   ),
                                 ),
-                              )
-                            : ListView.separated(
-                                itemCount: items.length,
-                                separatorBuilder: (context, index) => const SizedBox(height: 10),
-                                itemBuilder: (context, index) {
-                                  final item = items[index];
-                                  final lesson = item.lesson;
-                                  final isPending = item.isPending;
-
-                                  final title = isPending
-                                      ? (lesson?.title.isNotEmpty == true
-                                          ? '${lesson!.title} (Pending Approval)'
-                                          : 'Lesson ${item.orderNumber} (Pending Approval)')
-                                      : (lesson?.title.isNotEmpty == true
-                                          ? lesson!.title
-                                          : 'Lesson ${item.orderNumber}');
-
-                                  final prompt = isPending
-                                      ? 'This lesson is awaiting approval • Visible only to creator and staff'
-                                      : (lesson?.prompt ?? 'Interactive lesson content');
-
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                      color: isPending
-                                          ? (isDark ? const Color(0xFF2C2411) : const Color(0xFFFEFCE8))
-                                          : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: isPending
-                                            ? const Color(0xFFE8A838).withValues(alpha: 0.4)
-                                            : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
-                                      ),
-                                    ),
-                                    child: ListTile(
-                                      onTap: () => _startAtLesson(context, item.lessonId),
-                                      leading: CircleAvatar(
-                                        radius: 14,
-                                        backgroundColor: isPending
-                                            ? const Color(0xFFE8A838).withValues(alpha: 0.2)
-                                            : AppColors.primary.withValues(alpha: 0.15),
-                                        child: Text(
-                                          '${item.orderNumber}',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: isPending ? const Color(0xFFE8A838) : AppColors.primary,
+                                child: ListTile(
+                                  onTap: () =>
+                                      _startAtLesson(context, item.lessonId),
+                                  leading: CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: isPending
+                                        ? const Color(
+                                            0xFFE8A838,
+                                          ).withValues(alpha: 0.2)
+                                        : AppColors.primary.withValues(
+                                            alpha: 0.15,
                                           ),
-                                        ),
-                                      ),
-                                      title: Text(
-                                        title,
-                                        style: GoogleFonts.outfit(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14,
-                                          color: isPending
-                                              ? (isDark ? Colors.amber.shade300 : const Color(0xFFB45309))
-                                              : textPrimary,
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        prompt,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          color: isPending
-                                              ? (isDark ? Colors.amber.shade200 : const Color(0xFF92400E))
-                                              : textSecondary,
-                                        ),
-                                      ),
-                                      trailing: Icon(
-                                        isPending ? Icons.hourglass_top_rounded : Icons.play_circle_fill_rounded,
-                                        color: isPending ? const Color(0xFFE8A838) : AppColors.primary,
-                                        size: 24,
+                                    child: Text(
+                                      '${item.orderNumber}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: isPending
+                                            ? const Color(0xFFE8A838)
+                                            : AppColors.primary,
                                       ),
                                     ),
-                                  );
-                                },
-                              ),
+                                  ),
+                                  title: Text(
+                                    title,
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      color: isPending
+                                          ? (isDark
+                                                ? Colors.amber.shade300
+                                                : const Color(0xFFB45309))
+                                          : textPrimary,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    prompt,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: isPending
+                                          ? (isDark
+                                                ? Colors.amber.shade200
+                                                : const Color(0xFF92400E))
+                                          : textSecondary,
+                                    ),
+                                  ),
+                                  trailing: Icon(
+                                    isPending
+                                        ? Icons.hourglass_top_rounded
+                                        : Icons.play_circle_fill_rounded,
+                                    color: isPending
+                                        ? const Color(0xFFE8A838)
+                                        : AppColors.primary,
+                                    size: 24,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                   ),
                   if (items.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => _startAtLesson(context, items.first.lessonId),
+                        onPressed: () =>
+                            _startAtLesson(context, items.first.lessonId),
                         icon: const Icon(Icons.play_arrow_rounded),
                         label: Text(
-                          'Start Curated Collection Journey',
+                          'Start Collection Journey',
                           style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                       ),
                     ),
