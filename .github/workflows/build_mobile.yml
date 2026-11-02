@@ -1,0 +1,83 @@
+name: Build Mobile Apps (iOS IPA & Android APK)
+
+on:
+  push:
+    branches:
+      - main
+      - final11-2
+      - trylangIPA
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build iOS IPA & Android APK
+    runs-on: macos-14
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Android APK
+        run: flutter build apk --release
+
+      - name: Build iOS Application (Unsigned)
+        run: flutter build ios --release --no-codesign
+
+      - name: Package iOS into IPA
+        run: |
+          mkdir -p build/ios/ipa_payload/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/ipa_payload/Payload/
+          cd build/ios/ipa_payload
+          zip -r ../../../grammatica.ipa Payload
+          cd ../../..
+
+      - name: Prepare APK files
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk ./app-release.apk
+          cp build/app/outputs/flutter-apk/app-release.apk ./grammatica.apk
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: grammatica-ios-ipa
+          path: grammatica.ipa
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: grammatica-android-apk
+          path: app-release.apk
+
+      - name: Publish or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref_name == 'main' || github.ref_name == 'final11-2' || github.ref_name == 'trylangIPA'
+        with:
+          tag_name: latest
+          name: Grammatica Mobile Release (Latest)
+          draft: false
+          prerelease: false
+          files: |
+            grammatica.ipa
+            app-release.apk
+            grammatica.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
