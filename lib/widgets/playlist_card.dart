@@ -217,7 +217,21 @@ class PlaylistCard extends StatelessWidget {
   }
 }
 
-/// Modal showing playlist breakdown and allowing learners to jump in.
+class _SequenceItem {
+  final String lessonId;
+  final Lesson? lesson;
+  final int orderNumber;
+  final bool isPending;
+
+  const _SequenceItem({
+    required this.lessonId,
+    required this.lesson,
+    required this.orderNumber,
+    required this.isPending,
+  });
+}
+
+/// Modal showing curated lesson collection breakdown and allowing learners to jump in.
 class PlaylistDetailModal extends StatelessWidget {
   final LessonPlaylist playlist;
   final bool isDark;

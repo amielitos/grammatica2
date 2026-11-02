@@ -1095,7 +1095,7 @@ class _LessonPageState extends State<LessonPage> {
             ),
             child: Text(
               currentIndex != -1
-                  ? 'Lesson ${currentIndex + 1} of ${playlist.lessonIds.length}'
+                  ? 'Lesson ${currentIndex + 1} of $totalCount'
                   : 'Collection Mode',
               style: GoogleFonts.inter(
                 fontSize: 12,

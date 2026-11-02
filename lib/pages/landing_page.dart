@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -39,6 +38,7 @@ class _LandingPageState extends State<LandingPage>
       'https://github.com/amielitos/grammatica2/releases/latest/download/grammatica.ipa';
   String _apkUrl =
       'https://github.com/amielitos/grammatica2/releases/latest/download/app-release.apk';
+  final _downloadKey = GlobalKey();
 
   @override
   void initState() {
@@ -2211,7 +2211,7 @@ class _LandingPageState extends State<LandingPage>
                         children: [
                           Row(
                             children: [
-                              SizedBox(
+                              Container(
                                 width: 36,
                                 height: 36,
                                 padding: const EdgeInsets.all(4),
@@ -2353,7 +2353,7 @@ class _LandingPageState extends State<LandingPage>
                   children: [
                     Row(
                       children: [
-                        SizedBox(
+                        Container(
                           width: 32,
                           height: 32,
                           padding: const EdgeInsets.all(4),

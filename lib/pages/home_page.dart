@@ -2312,8 +2312,9 @@ class _LessonsListState extends State<_LessonsList>
         widget.user.uid,
       ),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data == null)
+        if (!snapshot.hasData || snapshot.data == null) {
           return const SizedBox.shrink();
+        }
         final now = DateTime.now();
         final upcoming =
             snapshot.data!.where((s) {
@@ -2323,8 +2324,9 @@ class _LessonsListState extends State<_LessonsList>
               final endTime = (s['endTime'] as Timestamp?)?.toDate();
               final compareTime = endTime ?? startTime;
               // Filter out sessions whose scheduled time has already passed
-              if (compareTime != null && compareTime.isBefore(now))
+              if (compareTime != null && compareTime.isBefore(now)) {
                 return false;
+              }
               return true;
             }).toList()..sort((a, b) {
               // Sort by nearest upcoming startTime
