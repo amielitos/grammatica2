@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -20,7 +17,6 @@ class _LandingPageState extends State<LandingPage>
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _aboutKey = GlobalKey();
   final GlobalKey _faqKey = GlobalKey();
-  final GlobalKey _downloadKey = GlobalKey();
   bool _isScrolled = false;
   bool _showBackToTop = false;
   late AnimationController _animController;
@@ -33,11 +29,6 @@ class _LandingPageState extends State<LandingPage>
   Timer? _bgTimer;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _landingSettingsSub;
-
-  String _ipaUrl =
-      'https://github.com/amielitos/grammatica2/releases/latest/download/grammatica.ipa';
-  String _apkUrl =
-      'https://github.com/amielitos/grammatica2/releases/latest/download/app-release.apk';
 
   @override
   void initState() {
@@ -81,15 +72,7 @@ class _LandingPageState extends State<LandingPage>
             if (!mounted) return;
             if (doc.exists) {
               final data = doc.data() ?? {};
-              final customIpa = data['ipa_url']?.toString().trim();
-              final customApk = data['apk_url']?.toString().trim();
-              if (customIpa != null && customIpa.isNotEmpty) {
-                _ipaUrl = customIpa;
-              }
               final raw = data['hero_images'];
-              if (customApk != null && customApk.isNotEmpty) {
-                _apkUrl = customApk;
-              }
               if (raw is List && raw.isNotEmpty) {
                 final customUrls = List<String>.from(
                   raw.whereType<String>(),
@@ -178,7 +161,6 @@ class _LandingPageState extends State<LandingPage>
             _buildFeaturesSection(isDesktop),
             _buildHowItWorksSection(isDesktop),
             _buildAboutGrammaticaSection(isDesktop),
-            _buildDownloadAppSection(isDesktop),
             _buildFAQSection(isDesktop),
             _buildCTASection(isDesktop),
             _buildFooter(isDesktop),
@@ -254,27 +236,6 @@ class _LandingPageState extends State<LandingPage>
 
               // Desktop nav links
               if (isDesktop) ...[
-                OutlinedButton.icon(
-                  onPressed: () => _scrollToKey(_downloadKey),
-                  icon: const Icon(Icons.phone_iphone_rounded, size: 16),
-                  label: const Text('Download App'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0F172A),
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    textStyle: GoogleFonts.outfit(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
                 TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/login'),
                   style: TextButton.styleFrom(
@@ -371,28 +332,6 @@ class _LandingPageState extends State<LandingPage>
                                   ),
                                 ),
                                 child: const Text('Log In'),
-                              ),
-                              const SizedBox(height: 12),
-                              OutlinedButton.icon(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  _scrollToKey(_downloadKey);
-                                },
-                                icon: const Icon(Icons.phone_iphone_rounded, size: 18),
-                                label: const Text('Download App (IPA & APK)'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFF0F172A),
-                                  side: const BorderSide(
-                                    color: Color(0xFFCBD5E1),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                  textStyle: GoogleFonts.outfit(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                  ),
-                                ),
                               ),
                             ],
                           ),
@@ -1472,560 +1411,6 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  // ─── DOWNLOAD MOBILE APP SECTION ──────────────────────────────────────────
-
-  Widget _buildDownloadAppSection(bool isDesktop) {
-    return Container(
-      key: _downloadKey,
-      width: double.infinity,
-      color: const Color(0xFFF8FAFC),
-      padding: EdgeInsets.symmetric(
-        horizontal: isDesktop ? 60 : 20,
-        vertical: 88,
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Column(
-            children: [
-              ScrollReveal(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF81B655).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFF81B655).withValues(alpha: 0.25),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.phone_iphone_rounded,
-                        size: 14,
-                        color: Color(0xFF5A8E30),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'MOBILE APPS',
-                        style: GoogleFonts.outfit(
-                          color: const Color(0xFF5A8E30),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              ScrollReveal(
-                delay: 80.ms,
-                child: Text(
-                  'Download Grammatica for Mobile',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    fontSize: isDesktop ? 40 : 28,
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFF0F172A),
-                    letterSpacing: -0.8,
-                    height: 1.2,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ScrollReveal(
-                delay: 140.ms,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 680),
-                  child: Text(
-                    'Practice grammar anywhere! Scan the QR code with your phone or tap the download button to get the mobile app on iPhone (iOS) or Android.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      height: 1.6,
-                      color: const Color(0xFF64748B),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 48),
-              if (isDesktop)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _buildDownloadCard(
-                        platform: 'iPhone (iOS)',
-                        badge: 'iOS IPA',
-                        icon: Icons.apple,
-                        iconColor: const Color(0xFF0F172A),
-                        description:
-                            'Download and install Grammatica directly on your iPhone. Works on iOS 13 and newer.',
-                        qrData: _ipaUrl,
-                        downloadUrl: _ipaUrl,
-                        onGuidePressed: () => _showIosInstallGuideModal(context),
-                        isApple: true,
-                      ),
-                    ),
-                    const SizedBox(width: 32),
-                    Expanded(
-                      child: _buildDownloadCard(
-                        platform: 'Android',
-                        badge: 'Android APK',
-                        icon: Icons.android_rounded,
-                        iconColor: const Color(0xFF16A34A),
-                        description:
-                            'Direct installable APK package for Android smartphones and tablets (Android 7+).',
-                        qrData: _apkUrl,
-                        downloadUrl: _apkUrl,
-                        onGuidePressed: () => _showAndroidInstallGuideModal(context),
-                        isApple: false,
-                      ),
-                    ),
-                  ],
-                )
-              else
-                Column(
-                  children: [
-                    _buildDownloadCard(
-                      platform: 'iPhone (iOS)',
-                      badge: 'iOS IPA',
-                      icon: Icons.apple,
-                      iconColor: const Color(0xFF0F172A),
-                      description:
-                          'Download and install Grammatica directly on your iPhone. Works on iOS 13 and newer.',
-                      qrData: _ipaUrl,
-                      downloadUrl: _ipaUrl,
-                      onGuidePressed: () => _showIosInstallGuideModal(context),
-                      isApple: true,
-                    ),
-                    const SizedBox(height: 24),
-                    _buildDownloadCard(
-                      platform: 'Android',
-                      badge: 'Android APK',
-                      icon: Icons.android_rounded,
-                      iconColor: const Color(0xFF16A34A),
-                      description:
-                          'Direct installable APK package for Android smartphones and tablets (Android 7+).',
-                      qrData: _apkUrl,
-                      downloadUrl: _apkUrl,
-                      onGuidePressed: () => _showAndroidInstallGuideModal(context),
-                      isApple: false,
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDownloadCard({
-    required String platform,
-    required String badge,
-    required IconData icon,
-    required Color iconColor,
-    required String description,
-    required String qrData,
-    required String downloadUrl,
-    required VoidCallback onGuidePressed,
-    required bool isApple,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFE2E8F0),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: iconColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(icon, color: iconColor, size: 26),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        platform,
-                        style: GoogleFonts.outfit(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0F172A),
-                        ),
-                      ),
-                      Text(
-                        isApple ? 'Requires iOS 13+' : 'Requires Android 7+',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: const Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                ),
-                child: Text(
-                  badge,
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF475569),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            description,
-            textAlign: TextAlign.start,
-            style: GoogleFonts.inter(
-              fontSize: 13.5,
-              height: 1.5,
-              color: const Color(0xFF475569),
-            ),
-          ),
-          const SizedBox(height: 20),
-          // QR Code Card
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                QrImageView(
-                  data: qrData,
-                  version: QrVersions.auto,
-                  size: 160.0,
-                  padding: const EdgeInsets.all(6),
-                  backgroundColor: Colors.white,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.qr_code_scanner_rounded,
-                      size: 14,
-                      color: Color(0xFF64748B),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isApple ? 'Scan with iPhone Camera' : 'Scan with Phone Camera',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-          // Direct Download button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _launchDownloadUrl(downloadUrl, platform),
-              icon: const Icon(Icons.download_rounded, size: 18),
-              label: Text(
-                isApple ? 'Download .IPA' : 'Download .APK',
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isApple
-                    ? const Color(0xFF0F172A)
-                    : const Color(0xFF81B655),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onGuidePressed,
-                  icon: const Icon(Icons.help_outline_rounded, size: 15),
-                  label: const Text('Install Guide'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF334155),
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    textStyle: GoogleFonts.outfit(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Tooltip(
-                message: 'Copy download link',
-                child: IconButton.outlined(
-                  onPressed: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    await Clipboard.setData(ClipboardData(text: downloadUrl));
-                    if (!mounted) return;
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text('$platform download link copied to clipboard!'),
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.copy_rounded, size: 16),
-                  style: IconButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _launchDownloadUrl(String url, String platformName) async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final uri = Uri.parse(url);
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!launched) {
-        await Clipboard.setData(ClipboardData(text: url));
-        if (mounted) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text('$platformName download link copied to clipboard!'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      await Clipboard.setData(ClipboardData(text: url));
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('$platformName download link copied to clipboard!'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showIosInstallGuideModal(BuildContext context) {
-    _showInfoModal(
-      context: context,
-      title: 'How to Install on iPhone (iOS)',
-      icon: Icons.apple,
-      children: [
-        Text(
-          'Step-by-step Guide for iPhone',
-          style: GoogleFonts.outfit(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Grammatica is distributed as an iOS IPA package. You can install and run it on your iPhone using any of the standard sideloading methods below:',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            height: 1.6,
-            color: const Color(0xFF475569),
-          ),
-        ),
-        const SizedBox(height: 18),
-        _buildInstallStep(
-          number: '1',
-          title: 'Download the .IPA package',
-          description:
-              'Scan the QR code with your iPhone Camera or tap "Download .IPA" to save the file to your iPhone Files or computer.',
-        ),
-        _buildInstallStep(
-          number: '2',
-          title: 'Method A: Sideloadly or AltStore (Recommended, Free & No Jailbreak)',
-          description:
-              'Connect your iPhone to a computer, open Sideloadly (sideloadly.io) or AltStore (altstore.io), drag & drop the downloaded .ipa file, and click Start. The app will install directly onto your iPhone home screen.',
-        ),
-        _buildInstallStep(
-          number: '3',
-          title: 'Method B: On-Device Installers (Scarlet, TrollStore, ESign)',
-          description:
-              'If you use Scarlet or TrollStore directly on your iPhone, open the app, import the downloaded grammatica.ipa file, and tap Install.',
-        ),
-        _buildInstallStep(
-          number: '4',
-          title: 'Trust the Developer Profile',
-          description:
-              'Before opening for the first time, open iPhone Settings > General > VPN & Device Management, tap your Apple ID profile, and tap "Trust".',
-        ),
-      ],
-    );
-  }
-
-  void _showAndroidInstallGuideModal(BuildContext context) {
-    _showInfoModal(
-      context: context,
-      title: 'How to Install on Android',
-      icon: Icons.android_rounded,
-      children: [
-        Text(
-          'Quick Android Installation',
-          style: GoogleFonts.outfit(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0F172A),
-          ),
-        ),
-        const SizedBox(height: 8),
-        _buildInstallStep(
-          number: '1',
-          title: 'Scan or Download',
-          description: 'Scan the QR code with your phone camera or tap "Download .APK".',
-        ),
-        _buildInstallStep(
-          number: '2',
-          title: 'Confirm Download',
-          description:
-              'Tap "Download anyway" when your browser prompts about APK file downloads.',
-        ),
-        _buildInstallStep(
-          number: '3',
-          title: 'Open and Install',
-          description:
-              'Open the downloaded APK file. If prompted, toggle "Allow from this source" in Settings, then tap "Install".',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInstallStep({
-    required String number,
-    required String title,
-    required String description,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: const Color(0xFF81B655).withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              number,
-              style: GoogleFonts.outfit(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF5A8E30),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: GoogleFonts.inter(
-                    fontSize: 13.5,
-                    height: 1.55,
-                    color: const Color(0xFF475569),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ─── FAQ SECTION ──────────────────────────────────────────────────────────
 
   Widget _buildFAQSection(bool isDesktop) {
@@ -2053,7 +1438,7 @@ class _LandingPageState extends State<LandingPage>
       {
         'q': 'Is Grammatica accessible on mobile and desktop devices?',
         'a':
-            'Yes! Grammatica runs seamlessly on web browsers and as dedicated installable mobile apps for both Apple iPhone (iOS IPA) and Android (APK). You can scan the QR codes or tap the download buttons in our Mobile Apps section above.',
+            'Yes, Grammatica is fully responsive and designed to deliver a seamless learning experience across modern web browsers on desktops, tablets, and mobile devices.',
       },
     ];
 
@@ -2210,7 +1595,7 @@ class _LandingPageState extends State<LandingPage>
                     const SizedBox(width: 48),
                     // Navigation / About
                     Expanded(
-                      flex: 2,
+                      flex: 3,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -2223,29 +1608,6 @@ class _LandingPageState extends State<LandingPage>
                           _buildFooterLink(
                             'About Us',
                             () => _showAboutUsDialog(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Mobile App
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildFooterHeading('Mobile Apps'),
-                          const SizedBox(height: 16),
-                          _buildFooterLink(
-                            'iPhone (iOS IPA)',
-                            () => _scrollToKey(_downloadKey),
-                          ),
-                          _buildFooterLink(
-                            'Android (APK)',
-                            () => _scrollToKey(_downloadKey),
-                          ),
-                          _buildFooterLink(
-                            'iOS Install Guide',
-                            () => _showIosInstallGuideModal(context),
                           ),
                         ],
                       ),
@@ -2275,7 +1637,7 @@ class _LandingPageState extends State<LandingPage>
                     ),
                     // Legal
                     Expanded(
-                      flex: 2,
+                      flex: 3,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -2349,10 +1711,6 @@ class _LandingPageState extends State<LandingPage>
                       runSpacing: 10,
                       children: [
                         _buildFooterLink(
-                          'Download App (IPA/APK)',
-                          () => _scrollToKey(_downloadKey),
-                        ),
-                        _buildFooterLink(
                           'About Grammatica',
                           () => _showAboutGrammaticaDialog(context),
                         ),
@@ -2361,10 +1719,6 @@ class _LandingPageState extends State<LandingPage>
                           () => _showAboutUsDialog(context),
                         ),
                         _buildFooterLink('FAQ', () => _scrollToKey(_faqKey)),
-                        _buildFooterLink(
-                          'iOS Install Guide',
-                          () => _showIosInstallGuideModal(context),
-                        ),
                         _buildFooterLink(
                           'Privacy Policy',
                           () => _showPrivacyPolicyDialog(context),
