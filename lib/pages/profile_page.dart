@@ -2001,7 +2001,7 @@ class ProfilePageState extends State<ProfilePage> {
             ),
           ),
 
-        if (role != UserRole.admin && role != UserRole.superadmin && role != UserRole.validator) ...[
+        if (role != UserRole.admin && role != UserRole.superadmin) ...[
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
@@ -2046,9 +2046,7 @@ class ProfilePageState extends State<ProfilePage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    role == UserRole.validator
-                        ? 'Validator accounts are protected and cannot be deleted.'
-                        : 'Administrator accounts are protected and cannot be deleted or deactivated.',
+                    'Administrator accounts are protected and cannot be deleted or deactivated.',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -2204,10 +2202,10 @@ class ProfilePageState extends State<ProfilePage> {
 
   Future<void> _confirmDeleteAccount() async {
     final role = roleFromString(_roleStr);
-    if (role == UserRole.validator || role == UserRole.admin || role == UserRole.superadmin) {
+    if (role == UserRole.admin || role == UserRole.superadmin) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Validator and Administrator accounts cannot be deleted.'),
+          content: Text('Administrator accounts cannot be deleted.'),
           backgroundColor: Color(0xFFDF3F32),
         ),
       );

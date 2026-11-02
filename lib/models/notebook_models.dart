@@ -285,7 +285,8 @@ class NotebookOutput {
   final bool isShared;
   final DateTime? sharedAt;
   final List<String> sharedTo; // List of user IDs or ['all_subscribers']
-  final String? publishedId; // Firestore ID in 'lessons' or 'quizzes' if published
+  final String?
+  publishedId; // Firestore ID in 'lessons' or 'quizzes' if published
   final String? publishedCollection; // 'lessons' or 'quizzes'
   final Map<String, dynamic>? publishMetadata; // visibility, duration, attempts
 
@@ -323,17 +324,21 @@ class NotebookOutput {
     return NotebookOutput(
       id: id,
       notebookId: map['notebookId'] as String? ?? '',
-      type: NotebookOutputType.fromString(map['type'] as String? ?? 'study_guide'),
+      type: NotebookOutputType.fromString(
+        map['type'] as String? ?? 'study_guide',
+      ),
       title: map['title'] as String? ?? 'Generated Output',
       data: Map<String, dynamic>.from(map['data'] as Map? ?? {}),
       generatedAt: parseDate(map['generatedAt']),
-      sourceIds: (map['sourceIds'] as List<dynamic>?)
+      sourceIds:
+          (map['sourceIds'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
       isShared: map['isShared'] as bool? ?? false,
       sharedAt: map['sharedAt'] != null ? parseDate(map['sharedAt']) : null,
-      sharedTo: (map['sharedTo'] as List<dynamic>?)
+      sharedTo:
+          (map['sharedTo'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
@@ -357,7 +362,8 @@ class NotebookOutput {
       if (sharedAt != null) 'sharedAt': Timestamp.fromDate(sharedAt!),
       'sharedTo': sharedTo,
       if (publishedId != null) 'publishedId': publishedId,
-      if (publishedCollection != null) 'publishedCollection': publishedCollection,
+      if (publishedCollection != null)
+        'publishedCollection': publishedCollection,
       if (publishMetadata != null) 'publishMetadata': publishMetadata,
     };
   }
@@ -375,7 +381,8 @@ class NotebookOutput {
       if (sharedAt != null) 'sharedAt': sharedAt!.toIso8601String(),
       'sharedTo': sharedTo,
       if (publishedId != null) 'publishedId': publishedId,
-      if (publishedCollection != null) 'publishedCollection': publishedCollection,
+      if (publishedCollection != null)
+        'publishedCollection': publishedCollection,
       if (publishMetadata != null) 'publishMetadata': publishMetadata,
     };
   }
@@ -458,18 +465,19 @@ class Notebook {
       createdBy: map['createdBy'] as String? ?? '',
       createdAt: parseDate(map['createdAt']),
       updatedAt: parseDate(map['updatedAt']),
-      sourceIds: (map['sourceIds'] as List<dynamic>?)
+      sourceIds:
+          (map['sourceIds'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
-      outputIds: (map['outputIds'] as List<dynamic>?)
+      outputIds:
+          (map['outputIds'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
       coverImageUrl: map['coverImageUrl'] as String?,
-      tags: (map['tags'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
+      tags:
+          (map['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
           [],
     );
   }

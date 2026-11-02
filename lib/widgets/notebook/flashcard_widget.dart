@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../models/flashcard_models.dart';
 import '../../theme/app_colors.dart';
 
-/// 3D flip flashcard widget that reveals answer on tap or swipe.
 class FlashcardWidget extends StatefulWidget {
   final Flashcard card;
   final bool showHint;
@@ -111,7 +110,10 @@ class FlashcardWidgetState extends State<FlashcardWidget>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
@@ -129,9 +131,14 @@ class FlashcardWidgetState extends State<FlashcardWidget>
               const Spacer(),
               if (widget.card.tags.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                    color: isDark
+                        ? Colors.white10
+                        : Colors.black.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -198,7 +205,10 @@ class FlashcardWidgetState extends State<FlashcardWidget>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
@@ -231,11 +241,16 @@ class FlashcardWidgetState extends State<FlashcardWidget>
             ),
           ),
 
-          if (widget.showHint && widget.card.hint != null && widget.card.hint!.isNotEmpty) ...[
+          if (widget.showHint &&
+              widget.card.hint != null &&
+              widget.card.hint!.isNotEmpty) ...[
             const SizedBox(height: 16),
             Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF5A623).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
@@ -246,7 +261,11 @@ class FlashcardWidgetState extends State<FlashcardWidget>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.lightbulb_outline_rounded, size: 16, color: Color(0xFFF5A623)),
+                    const Icon(
+                      Icons.lightbulb_outline_rounded,
+                      size: 16,
+                      color: Color(0xFFF5A623),
+                    ),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(

@@ -17,23 +17,32 @@ class BadgeService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Set<String> _inFlightStreakChecks = <String>{};
 
-  /// Returns today's date string ("yyyy-MM-dd") in Philippine Time (Asia/Manila, UTC+8).
   static String getManilaTodayString([DateTime? utcTime]) {
-    final manila = (utcTime ?? DateTime.now().toUtc()).toUtc().add(const Duration(hours: 8));
+    final manila = (utcTime ?? DateTime.now().toUtc()).toUtc().add(
+      const Duration(hours: 8),
+    );
     return '${manila.year.toString().padLeft(4, '0')}-${manila.month.toString().padLeft(2, '0')}-${manila.day.toString().padLeft(2, '0')}';
   }
 
-  /// Returns yesterday's date string ("yyyy-MM-dd") in Philippine Time (Asia/Manila, UTC+8).
   static String getManilaYesterdayString([DateTime? utcTime]) {
-    final manila = (utcTime ?? DateTime.now().toUtc()).toUtc().add(const Duration(hours: 8));
-    final yesterday = DateTime.utc(manila.year, manila.month, manila.day).subtract(const Duration(days: 1));
+    final manila = (utcTime ?? DateTime.now().toUtc()).toUtc().add(
+      const Duration(hours: 8),
+    );
+    final yesterday = DateTime.utc(
+      manila.year,
+      manila.month,
+      manila.day,
+    ).subtract(const Duration(days: 1));
     return '${yesterday.year.toString().padLeft(4, '0')}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
   }
 
-  /// Display the stored streak only if [lastActiveDate] is today or yesterday (Asia/Manila);
-  /// otherwise display 0 until today's activity is recorded.
-  static int computeEffectiveDisplayStreak(int storedStreak, String? lastActiveDate) {
-    if (storedStreak <= 0 || lastActiveDate == null || lastActiveDate.trim().isEmpty) {
+  static int computeEffectiveDisplayStreak(
+    int storedStreak,
+    String? lastActiveDate,
+  ) {
+    if (storedStreak <= 0 ||
+        lastActiveDate == null ||
+        lastActiveDate.trim().isEmpty) {
       return 0;
     }
     final cleanDate = lastActiveDate.trim();
@@ -52,7 +61,11 @@ class BadgeService {
       _firestore.collection('users').doc(uid).collection('earnedBadges');
 
   DocumentReference<Map<String, dynamic>> _userStatsDoc(String uid) =>
-      _firestore.collection('users').doc(uid).collection('stats').doc('summary');
+      _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('stats')
+          .doc('summary');
 
   DocumentReference<Map<String, dynamic>> _userDoc(String uid) =>
       _firestore.collection('users').doc(uid);
@@ -66,8 +79,9 @@ class BadgeService {
         return;
       }
 
-      final jsonString =
-          await rootBundle.loadString('assets/seed/badges_seed.json');
+      final jsonString = await rootBundle.loadString(
+        'assets/seed/badges_seed.json',
+      );
       final Map<String, dynamic> parsed = jsonDecode(jsonString);
       final List badgesList = parsed['badges'] as List? ?? [];
 
@@ -79,7 +93,9 @@ class BadgeService {
         batch.set(docRef, map, SetOptions(merge: true));
       }
       await batch.commit();
-      debugPrint('[BadgeService] Successfully seeded ${badgesList.length} badges.');
+      debugPrint(
+        '[BadgeService] Successfully seeded ${badgesList.length} badges.',
+      );
     } catch (e) {
       debugPrint('[BadgeService] Error seeding badges: $e');
     }
@@ -87,10 +103,7 @@ class BadgeService {
 
   /// Streams all active badges ordered by order
   Stream<List<BadgeModel>> streamBadges() {
-    return _badgesCollection
-        .orderBy('order')
-        .snapshots()
-        .map((snapshot) {
+    return _badgesCollection.orderBy('order').snapshots().map((snapshot) {
       return snapshot.docs
           .map((doc) => BadgeModel.fromMap(doc.id, doc.data()))
           .where((b) => b.isActive)
@@ -121,7 +134,9 @@ class BadgeService {
 
   /// Real-time count of badges earned by [uid] (`users/{uid}/earnedBadges`).
   Stream<int> streamEarnedBadgesCount(String uid) {
-    return _userEarnedBadges(uid).snapshots().map((snapshot) => snapshot.docs.length);
+    return _userEarnedBadges(
+      uid,
+    ).snapshots().map((snapshot) => snapshot.docs.length);
   }
 
   /// Real-time Daily Streak stream combining `users/{uid}/stats/summary` and `users/{uid}`.
@@ -142,18 +157,22 @@ class BadgeService {
       final uData = latestUser ?? const <String, dynamic>{};
       final todayStr = getManilaTodayString();
 
-      final sLastDate = ((sData['lastActiveDate'] as String?) ??
-              (sData['last_active_date'] as String?))
-          ?.trim();
-      final uLastDate = ((uData['lastActiveDate'] as String?) ??
-              (uData['last_active_date'] as String?))
-          ?.trim();
+      final sLastDate =
+          ((sData['lastActiveDate'] as String?) ??
+                  (sData['last_active_date'] as String?))
+              ?.trim();
+      final uLastDate =
+          ((uData['lastActiveDate'] as String?) ??
+                  (uData['last_active_date'] as String?))
+              ?.trim();
 
-      final sStreak = (sData['currentStreak'] as num?)?.toInt() ??
+      final sStreak =
+          (sData['currentStreak'] as num?)?.toInt() ??
           (sData['current_streak'] as num?)?.toInt() ??
           (sData['studyStreakDays'] as num?)?.toInt() ??
           0;
-      final uStreak = (uData['currentStreak'] as num?)?.toInt() ??
+      final uStreak =
+          (uData['currentStreak'] as num?)?.toInt() ??
           (uData['current_streak'] as num?)?.toInt() ??
           (uData['studyStreakDays'] as num?)?.toInt() ??
           0;
@@ -164,7 +183,9 @@ class BadgeService {
       if (uLastDate != null && uLastDate != todayStr && sLastDate == todayStr) {
         effectiveDate = uLastDate;
         storedStreak = uStreak > 0 ? uStreak : sStreak;
-      } else if (sLastDate != null && sLastDate != todayStr && uLastDate == todayStr) {
+      } else if (sLastDate != null &&
+          sLastDate != todayStr &&
+          uLastDate == todayStr) {
         effectiveDate = sLastDate;
         storedStreak = sStreak > 0 ? sStreak : uStreak;
       } else {
@@ -172,7 +193,10 @@ class BadgeService {
         storedStreak = sStreak > 0 ? sStreak : uStreak;
       }
 
-      final displayStreak = computeEffectiveDisplayStreak(storedStreak, effectiveDate);
+      final displayStreak = computeEffectiveDisplayStreak(
+        storedStreak,
+        effectiveDate,
+      );
       if (!controller.isClosed) {
         controller.add(displayStreak);
       }
@@ -246,26 +270,32 @@ class BadgeService {
           return; // Streaks and badges are strictly for learners
         }
 
-        final statsLastDate = ((statsData['lastActiveDate'] as String?) ??
-                (statsData['last_active_date'] as String?))
-            ?.trim();
-        final userLastDate = ((userData['lastActiveDate'] as String?) ??
-                (userData['last_active_date'] as String?))
-            ?.trim();
+        final statsLastDate =
+            ((statsData['lastActiveDate'] as String?) ??
+                    (statsData['last_active_date'] as String?))
+                ?.trim();
+        final userLastDate =
+            ((userData['lastActiveDate'] as String?) ??
+                    (userData['last_active_date'] as String?))
+                ?.trim();
 
-        final statsStreak = (statsData['currentStreak'] as num?)?.toInt() ??
+        final statsStreak =
+            (statsData['currentStreak'] as num?)?.toInt() ??
             (statsData['current_streak'] as num?)?.toInt() ??
             (statsData['studyStreakDays'] as num?)?.toInt() ??
             0;
-        final userStreak = (userData['currentStreak'] as num?)?.toInt() ??
+        final userStreak =
+            (userData['currentStreak'] as num?)?.toInt() ??
             (userData['current_streak'] as num?)?.toInt() ??
             (userData['studyStreakDays'] as num?)?.toInt() ??
             0;
 
-        final statsLongest = (statsData['longestStreak'] as num?)?.toInt() ??
+        final statsLongest =
+            (statsData['longestStreak'] as num?)?.toInt() ??
             (statsData['longest_streak'] as num?)?.toInt() ??
             0;
-        final userLongest = (userData['longestStreak'] as num?)?.toInt() ??
+        final userLongest =
+            (userData['longestStreak'] as num?)?.toInt() ??
             (userData['longest_streak'] as num?)?.toInt() ??
             0;
 
@@ -273,10 +303,14 @@ class BadgeService {
         // to a date other than today, prioritize that doc's date & streak.
         String? lastDate;
         int streak;
-        if (userLastDate != null && userLastDate != todayStr && statsLastDate == todayStr) {
+        if (userLastDate != null &&
+            userLastDate != todayStr &&
+            statsLastDate == todayStr) {
           lastDate = userLastDate;
           streak = userStreak > 0 ? userStreak : statsStreak;
-        } else if (statsLastDate != null && statsLastDate != todayStr && userLastDate == todayStr) {
+        } else if (statsLastDate != null &&
+            statsLastDate != todayStr &&
+            userLastDate == todayStr) {
           lastDate = statsLastDate;
           streak = statsStreak > 0 ? statsStreak : userStreak;
         } else {
@@ -338,7 +372,10 @@ class BadgeService {
   }
 
   /// Record a lesson completion
-  Future<void> recordLessonCompletion(String uid, {BuildContext? context}) async {
+  Future<void> recordLessonCompletion(
+    String uid, {
+    BuildContext? context,
+  }) async {
     await _incrementStat(uid, 'lessons_completed', amount: 1);
   }
 
@@ -348,14 +385,19 @@ class BadgeService {
   }
 
   /// Record an SM-2 flashcard review
-  Future<void> recordFlashcardReviewed(String uid,
-      {int count = 1, BuildContext? context}) async {
-    await _incrementStat(uid, 'flashcards_reviewed',
-        amount: count);
+  Future<void> recordFlashcardReviewed(
+    String uid, {
+    int count = 1,
+    BuildContext? context,
+  }) async {
+    await _incrementStat(uid, 'flashcards_reviewed', amount: count);
   }
 
   /// Record a correct answer in Spelling Bee
-  Future<void> recordSpellingCorrect(String uid, {BuildContext? context}) async {
+  Future<void> recordSpellingCorrect(
+    String uid, {
+    BuildContext? context,
+  }) async {
     await _incrementStat(uid, 'spelling_correct', amount: 1);
   }
 
@@ -387,19 +429,22 @@ class BadgeService {
         currentVal += amount;
 
         // Daily streak maintenance (Asia/Manila UTC+8)
-        int streak = (data['currentStreak'] as num?)?.toInt() ??
+        int streak =
+            (data['currentStreak'] as num?)?.toInt() ??
             (data['current_streak'] as num?)?.toInt() ??
             (data['studyStreakDays'] as num?)?.toInt() ??
             (userData['currentStreak'] as num?)?.toInt() ??
             0;
-        int longestStreak = (data['longestStreak'] as num?)?.toInt() ??
+        int longestStreak =
+            (data['longestStreak'] as num?)?.toInt() ??
             (data['longest_streak'] as num?)?.toInt() ??
             (userData['longestStreak'] as num?)?.toInt() ??
             0;
-        final lastDate = ((data['lastActiveDate'] as String?) ??
-                (data['last_active_date'] as String?) ??
-                (userData['lastActiveDate'] as String?))
-            ?.trim();
+        final lastDate =
+            ((data['lastActiveDate'] as String?) ??
+                    (data['last_active_date'] as String?) ??
+                    (userData['lastActiveDate'] as String?))
+                ?.trim();
 
         if (lastDate == todayStr) {
           if (streak <= 0) streak = 1;
@@ -430,15 +475,11 @@ class BadgeService {
         }
 
         transaction.set(docRef, update, SetOptions(merge: true));
-        transaction.set(
-          userRef,
-          {
-            'currentStreak': streak,
-            'longestStreak': longestStreak,
-            'lastActiveDate': todayStr,
-          },
-          SetOptions(merge: true),
-        );
+        transaction.set(userRef, {
+          'currentStreak': streak,
+          'longestStreak': longestStreak,
+          'lastActiveDate': todayStr,
+        }, SetOptions(merge: true));
       });
 
       await evaluateAndAwardBadges(uid);
@@ -454,7 +495,9 @@ class BadgeService {
       // 0. Ensure user is a learner - Educators, Validators, Superadmins NEVER earn badges
       final effectiveRole = await RoleService.instance.getRole(uid);
       if (effectiveRole != UserRole.learner) {
-        debugPrint('[BadgeService] Skipping badge check for non-learner role ($effectiveRole) on uid: $uid');
+        debugPrint(
+          '[BadgeService] Skipping badge check for non-learner role ($effectiveRole) on uid: $uid',
+        );
         return awarded;
       }
 
@@ -464,7 +507,9 @@ class BadgeService {
       final stats = UserBadgeStats.fromMap(statsData);
 
       // 2. Fetch all active badges
-      final badgesSnap = await _badgesCollection.where('isActive', isEqualTo: true).get();
+      final badgesSnap = await _badgesCollection
+          .where('isActive', isEqualTo: true)
+          .get();
       if (badgesSnap.docs.isEmpty) {
         // Badges not seeded yet - auto-seed
         await seedBadgesIfEmpty();

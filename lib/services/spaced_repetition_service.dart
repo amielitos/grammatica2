@@ -4,8 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/flashcard_models.dart';
 import 'database_service.dart';
 
-/// Service implementing the SuperMemo 2 (SM-2) Spaced Repetition algorithm
-/// along with offline caching and progress synchronization.
 class SpacedRepetitionService {
   SpacedRepetitionService._();
   static final SpacedRepetitionService instance = SpacedRepetitionService._();
@@ -14,16 +12,14 @@ class SpacedRepetitionService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> _userProgressCol(String userId) =>
-      _firestore.collection('users').doc(userId).collection('flashcard_progress');
+      _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('flashcard_progress');
 
   CollectionReference<Map<String, dynamic>> _userSessionsCol(String userId) =>
       _firestore.collection('users').doc(userId).collection('study_sessions');
 
-  // ---------------------------------------------------------------------------
-  // SM-2 Review Computation & Persistence
-  // ---------------------------------------------------------------------------
-
-  /// Pure SM-2 calculation method for determining next interval, ease factor, and repetition count.
   static FlashcardProgress computeNextProgress({
     required String cardId,
     required String deckId,
@@ -31,7 +27,10 @@ class SpacedRepetitionService {
     FlashcardProgress? currentProgress,
     DateTime? now,
   }) {
-    assert(quality >= 0 && quality <= 5, 'Quality score must be between 0 and 5');
+    assert(
+      quality >= 0 && quality <= 5,
+      'Quality score must be between 0 and 5',
+    );
 
     int reps = currentProgress?.repetitions ?? 0;
     double easeFactor = currentProgress?.easeFactor ?? 2.5;
@@ -52,7 +51,8 @@ class SpacedRepetitionService {
     }
 
     // Ease Factor calculation formula
-    easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+    easeFactor =
+        easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
     if (easeFactor < 1.3) {
       easeFactor = 1.3;
     }
@@ -99,7 +99,8 @@ class SpacedRepetitionService {
     await DatabaseService.instance.updateUserStatsSummary(
       uid: userId,
       incrementFlashcardsReviewed: 1,
-      incrementFlashcardsMastered: (updated.repetitions >= 3 || updated.interval >= 6) ? 1 : 0,
+      incrementFlashcardsMastered:
+          (updated.repetitions >= 3 || updated.interval >= 6) ? 1 : 0,
     );
 
     return updated;
@@ -120,7 +121,11 @@ class SpacedRepetitionService {
     int masteredCount = 0;
     for (final rev in reviews) {
       final docId = '${deckId}_${rev.cardId}';
-      batch.set(_userProgressCol(userId).doc(docId), rev.toMap(), SetOptions(merge: true));
+      batch.set(
+        _userProgressCol(userId).doc(docId),
+        rev.toMap(),
+        SetOptions(merge: true),
+      );
       if (rev.repetitions >= 3 || rev.interval >= 6) {
         masteredCount++;
       }
@@ -153,9 +158,9 @@ class SpacedRepetitionService {
     String deckId,
   ) async {
     try {
-      final snap = await _userProgressCol(userId)
-          .where('deckId', isEqualTo: deckId)
-          .get();
+      final snap = await _userProgressCol(
+        userId,
+      ).where('deckId', isEqualTo: deckId).get();
 
       final result = <String, FlashcardProgress>{};
       for (final doc in snap.docs) {
@@ -174,10 +179,9 @@ class SpacedRepetitionService {
     String userId,
     String deckId,
   ) {
-    return _userProgressCol(userId)
-        .where('deckId', isEqualTo: deckId)
-        .snapshots()
-        .map((snap) {
+    return _userProgressCol(
+      userId,
+    ).where('deckId', isEqualTo: deckId).snapshots().map((snap) {
       final map = <String, FlashcardProgress>{};
       for (final doc in snap.docs) {
         final prog = FlashcardProgress.fromMap(doc.data());

@@ -45,7 +45,8 @@ class FeedbackService {
   static String get ownerTestingEmail {
     try {
       if (dotenv.isInitialized) {
-        final email = dotenv.env['RESEND_OWNER_EMAIL'] ?? dotenv.env['SMTP_EMAIL'];
+        final email =
+            dotenv.env['RESEND_OWNER_EMAIL'] ?? dotenv.env['SMTP_EMAIL'];
         if (email != null && email.trim().isNotEmpty) return email.trim();
       }
     } catch (_) {}
@@ -167,10 +168,13 @@ class FeedbackService {
       }
 
       if (delivered) {
-        await _feedbacksCollection.doc(feedbackId).update({
-          'deliveryStatus': 'delivered',
-          'deliveredAt': FieldValue.serverTimestamp(),
-        }).catchError((_) {});
+        await _feedbacksCollection
+            .doc(feedbackId)
+            .update({
+              'deliveryStatus': 'delivered',
+              'deliveredAt': FieldValue.serverTimestamp(),
+            })
+            .catchError((_) {});
       }
     } catch (e) {
       debugPrint('Background feedback email delivery notice: $e');
@@ -252,12 +256,12 @@ class FeedbackService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return data;
+          }).toList();
+        });
   }
 
   /// Updates the resolution status of a feedback document ('PENDING', 'REVIEWED', 'RESOLVED').

@@ -520,14 +520,11 @@ class AuthService {
             .get();
         final userData = userDoc.data();
         final status = (userData?['status'] as String?)?.toUpperCase();
-        final isArchived = status == 'ARCHIVED' || userData?['isArchived'] == true;
-        if (userDoc.exists && (status == 'DEACTIVATED' || isArchived)) {
+        if (userDoc.exists && status == 'DEACTIVATED') {
           await _auth.signOut();
           throw FirebaseAuthException(
-            code: isArchived ? 'account-archived' : 'account-deactivated',
-            message: isArchived
-                ? 'This account has been archived. Please contact support.'
-                : 'Your account has been deactivated. Please contact support.',
+            code: 'account-deactivated',
+            message: 'Your account has been deactivated. Please contact support.',
           );
         }
 
@@ -614,19 +611,16 @@ class AuthService {
         credential,
       );
 
-      // Security Check: Deactivated or Archived Status
+      // Security Check: Deactivated Status
       final userDoc = await _firestore.collection('users').doc(userCredential.user?.uid).get();
       final userData = userDoc.data();
       final status = (userData?['status'] as String?)?.toUpperCase();
-      final isArchived = status == 'ARCHIVED' || userData?['isArchived'] == true;
-      if (userDoc.exists && (status == 'DEACTIVATED' || isArchived)) {
+      if (userDoc.exists && status == 'DEACTIVATED') {
         await _auth.signOut();
         await _googleSignIn.signOut();
         throw FirebaseAuthException(
-          code: isArchived ? 'account-archived' : 'account-deactivated',
-          message: isArchived
-              ? 'This account has been archived. Please contact support.'
-              : 'Your account has been deactivated. Please contact support.',
+          code: 'account-deactivated',
+          message: 'Your account has been deactivated. Please contact support.',
         );
       }
 
@@ -829,9 +823,9 @@ class AuthService {
 
     // Guard: Administrator and Superadmin accounts cannot be deleted
     final userDoc = await _firestore.collection('users').doc(uid).get();
+    final userRole = (userDoc.data()?['role'] as String?)?.toUpperCase() ?? 'LEARNER';
     if (userDoc.exists) {
-      final role = (userDoc.data()?['role'] as String?)?.toUpperCase();
-      if (role == 'ADMIN' || role == 'SUPERADMIN' || role == 'VALIDATOR') {
+      if (userRole == 'ADMIN' || userRole == 'SUPERADMIN') {
         throw FirebaseAuthException(
           code: 'admin-account-deletion-forbidden',
           message: 'Administrator accounts cannot be permanently deleted.',
@@ -841,7 +835,7 @@ class AuthService {
 
     try {
       // 1. Completely delete Firestore documents for this user
-      await DatabaseService.instance.permanentlyDeleteUserAccount(uid, email: email);
+      await DatabaseService.instance.permanentlyDeleteUserAccount(uid, email: email, role: userRole);
 
       // 2. Delete user from Firebase Authentication
       await user.delete();
@@ -904,8 +898,34 @@ class AuthService {
   Future<void> sendPasswordResetEmail(String email) async {
     final emailClean = email.trim().toLowerCase();
 
-    // 1. Trigger Firebase Auth native password reset email (contains secret oobCode)
-    await _auth.sendPasswordResetEmail(email: emailClean);
+    String resetUrl = 'https://grammatica-68829.web.app/?mode=resetPassword';
+    if (kIsWeb) {
+      try {
+        final origin = Uri.base.origin;
+        if (origin.isNotEmpty && !origin.contains('null')) {
+          resetUrl = '$origin/?mode=resetPassword';
+        }
+      } catch (_) {}
+    }
+
+    final actionCodeSettings = ActionCodeSettings(
+      url: resetUrl,
+      handleCodeInApp: true,
+      androidPackageName: 'com.example.grammatica',
+      androidInstallApp: false,
+    );
+
+    // 1. Trigger Firebase Auth native password reset email with custom ActionCodeSettings
+    try {
+      await _auth.sendPasswordResetEmail(
+        email: emailClean,
+        actionCodeSettings: actionCodeSettings,
+      );
+    } catch (e) {
+      // Fallback without actionCodeSettings if domain is not yet whitelisted in Firebase Auth Console
+      debugPrint('Fallback to standard sendPasswordResetEmail: $e');
+      await _auth.sendPasswordResetEmail(email: emailClean);
+    }
 
     // 2. Auto-unlock account if locked
     await unlockAccount(emailClean);

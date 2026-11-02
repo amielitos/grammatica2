@@ -3952,6 +3952,19 @@ class DatabaseService {
   /// Per system requirements: Accounts are NEVER permanently deleted.
   /// All accounts are preserved in the archive so emails cannot be recycled or claimed,
   /// and the archived user is permanently barred from logging in.
+  /// Records a user request to reactivate their archived account
+  Future<void> requestAccountReactivation(String uid) async {
+    try {
+      await _firestore.collection('users').doc(uid).set({
+        'reactivation_requested': true,
+        'reactivation_last_requested_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error requesting account reactivation: $e');
+      rethrow;
+    }
+  }
+
   Future<void> archiveUserAccount(String uid, {bool asSuperAdmin = false}) async {
     try {
       final userDocSnap = await _firestore.collection('users').doc(uid).get();
@@ -3970,13 +3983,15 @@ class DatabaseService {
       final username = userData['username'] ?? userData['full_name'] ?? '';
       final role = userData['role'] ?? 'LEARNER';
 
-      // 1. Mark account as ARCHIVED in users collection
+      // 1. Mark account as ARCHIVED in users collection and clear pending requests
       await _firestore.collection('users').doc(uid).set({
         'status': 'ARCHIVED',
         'isArchived': true,
         'is_active': false,
         'archivedAt': FieldValue.serverTimestamp(),
         'archivedBySuperAdmin': asSuperAdmin,
+        'reactivation_requested': FieldValue.delete(),
+        'reactivation_last_requested_at': FieldValue.delete(),
       }, SetOptions(merge: true));
 
       // 2. Record archive audit entry
@@ -3993,7 +4008,7 @@ class DatabaseService {
     }
   }
 
-  /// Restores an archived user account back to ACTIVE status.
+  /// Restores an archived user account back to ACTIVE status and clears reactivation request flags.
   Future<void> unarchiveUserAccount(String uid, {bool asSuperAdmin = false}) async {
     try {
       final userDocSnap = await _firestore.collection('users').doc(uid).get();
@@ -4001,11 +4016,13 @@ class DatabaseService {
         throw Exception('User account not found.');
       }
 
-      // 1. Mark account as ACTIVE in users collection
+      // 1. Mark account as ACTIVE in users collection and remove reactivation request flags
       await _firestore.collection('users').doc(uid).set({
         'status': 'ACTIVE',
         'isArchived': false,
         'is_active': true,
+        'reactivation_requested': FieldValue.delete(),
+        'reactivation_last_requested_at': FieldValue.delete(),
         'unarchivedAt': FieldValue.serverTimestamp(),
         'unarchivedBySuperAdmin': asSuperAdmin,
       }, SetOptions(merge: true));
@@ -4019,32 +4036,192 @@ class DatabaseService {
 
   /// Permanently removes a user account from Firestore.
   /// Used exclusively when the owner of the account permanently deletes their account.
-  /// Completely deletes the user doc, any archive record, and any lingering lockout document.
-  Future<void> permanentlyDeleteUserAccount(String uid, {String? email}) async {
+  /// Completely deletes the user doc, all subcollections, user content (with role rules),
+  /// and any lingering lockout document.
+  Future<void> permanentlyDeleteUserAccount(
+    String uid, {
+    String? email,
+    String? role,
+  }) async {
     try {
-      // 1. Delete user document from users collection
-      await _firestore.collection('users').doc(uid).delete();
+      // 1. Record in deleted_users so _AuthWrapper never auto-resurrects this user
+      await _firestore.collection('deleted_users').doc(uid).set({
+        'uid': uid,
+        'email': email ?? '',
+        'deletedAt': FieldValue.serverTimestamp(),
+        'byUser': true,
+      });
 
-      // 2. Remove any archive audit doc in archived_users
-      await _firestore.collection('archived_users').doc(uid).delete();
+      // 2. Batch-delete all subcollections under users/{uid}
+      final subcollections = [
+        'progress',
+        'quizProgress',
+        'stats',
+        'earnedBadges',
+        'ai_usage',
+        'subscriptions',
+        'subscribers',
+        'payments',
+        'reviews',
+        'flashcard_progress',
+        'study_sessions',
+      ];
+      for (final sub in subcollections) {
+        try {
+          final snap = await _firestore
+              .collection('users')
+              .doc(uid)
+              .collection(sub)
+              .get();
+          if (snap.docs.isNotEmpty) {
+            final batch = _firestore.batch();
+            for (final doc in snap.docs) {
+              batch.delete(doc.reference);
+            }
+            await batch.commit();
+          }
+        } catch (e) {
+          debugPrint('Error deleting subcollection $sub for user $uid: $e');
+        }
+      }
 
-      // 3. Clear any lockout documents for this email so new signup starts clean
+      // 3. Role-specific content purge:
+      // Educator: purge ALL lessons, quizzes, and published content authored by this user
+      // Validator: approved lessons and quizzes are preserved
+      final normalizedRole = (role ?? '').toUpperCase();
+      if (normalizedRole == 'EDUCATOR') {
+        try {
+          final lessonsSnap = await _lessons.where('createdByUid', isEqualTo: uid).get();
+          for (final doc in lessonsSnap.docs) {
+            try {
+              await permanentlyDeleteLessonPackage(lesson: Lesson.fromDoc(doc));
+            } catch (e) {
+              await deleteLesson(doc.id);
+            }
+          }
+        } catch (e) {
+          debugPrint('Error deleting educator lessons: $e');
+        }
+
+        try {
+          final quizzesSnap = await _quizzes.where('createdByUid', isEqualTo: uid).get();
+          for (final doc in quizzesSnap.docs) {
+            try {
+              await deleteQuiz(doc.id);
+            } catch (_) {}
+          }
+        } catch (e) {
+          debugPrint('Error deleting educator quizzes: $e');
+        }
+
+        try {
+          final pubSnap = await _firestore.collection('published_content').where('createdByUid', isEqualTo: uid).get();
+          for (final doc in pubSnap.docs) {
+            try {
+              await doc.reference.delete();
+            } catch (_) {}
+          }
+        } catch (e) {
+          debugPrint('Error deleting educator published content: $e');
+        }
+
+        try {
+          final playSnap = await _firestore.collection('playlists').where('createdByUid', isEqualTo: uid).get();
+          for (final doc in playSnap.docs) {
+            try {
+              await doc.reference.delete();
+            } catch (_) {}
+          }
+        } catch (e) {
+          debugPrint('Error deleting educator playlists: $e');
+        }
+      }
+
+      // 4. Delete top-level documents created by this user
+      // A. Notebooks
+      try {
+        final nbSnap = await _firestore.collection('notebooks').where('userId', isEqualTo: uid).get();
+        for (final doc in nbSnap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (e) {
+        debugPrint('Error deleting notebooks: $e');
+      }
+
+      // B. Notifications
+      try {
+        final notifSnap = await _firestore.collection('notifications').where('uid', isEqualTo: uid).get();
+        for (final doc in notifSnap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (e) {
+        debugPrint('Error deleting notifications: $e');
+      }
+
+      // C. Educator applications
+      try {
+        final appSnap = await _firestore.collection('educator_applications').where('applicantUid', isEqualTo: uid).get();
+        for (final doc in appSnap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (e) {
+        debugPrint('Error deleting educator applications: $e');
+      }
+
+      // D. Feedbacks
+      try {
+        final fbSnap = await _firestore.collection('feedbacks').where('userId', isEqualTo: uid).get();
+        for (final doc in fbSnap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (e) {
+        debugPrint('Error deleting feedbacks: $e');
+      }
+
+      // E. Mentorship availability & sessions
+      try {
+        final availSnap = await _firestore.collection('mentorship_availability').where('educatorId', isEqualTo: uid).get();
+        for (final doc in availSnap.docs) {
+          await doc.reference.delete();
+        }
+      } catch (_) {}
+      try {
+        final sessSnap1 = await _firestore.collection('mentorship_sessions').where('studentId', isEqualTo: uid).get();
+        for (final doc in sessSnap1.docs) {
+          await doc.reference.delete();
+        }
+      } catch (_) {}
+      try {
+        final sessSnap2 = await _firestore.collection('mentorship_sessions').where('educatorId', isEqualTo: uid).get();
+        for (final doc in sessSnap2.docs) {
+          await doc.reference.delete();
+        }
+      } catch (_) {}
+
+      // 5. Delete archive record
+      try {
+        await _firestore.collection('archived_users').doc(uid).delete();
+      } catch (_) {}
+
+      // 6. Delete login_attempts
       if (email != null && email.trim().isNotEmpty) {
         final emailClean = email.trim().toLowerCase().replaceAll('/', '_');
         try {
           await _firestore.collection('login_attempts').doc(emailClean).delete();
         } catch (_) {}
       }
+
+      // 7. Delete the main user doc from users collection
+      await _firestore.collection('users').doc(uid).delete();
     } catch (e) {
       debugPrint('Error in permanentlyDeleteUserAccount: $e');
       throw Exception('Failed to permanently delete user account from database: $e');
     }
   }
 
-  /// Backward-compatible wrapper: accounts are NEVER permanently deleted.
-  /// Routes directly to [archiveUserAccount].
-  Future<void> deleteUserAccount(String uid, {bool asSuperAdmin = false}) async {
-    await archiveUserAccount(uid, asSuperAdmin: asSuperAdmin);
+  /// Backward-compatible wrapper.
+  Future<void> deleteUserAccount(String uid, {bool asSuperAdmin = false, String? role}) async {
+    await permanentlyDeleteUserAccount(uid, role: role);
   }
 
   // --- Rating and Review System ---

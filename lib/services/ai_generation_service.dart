@@ -12,23 +12,10 @@ import 'ai_logic_service.dart';
 import 'ai_rate_limit_service.dart';
 import 'idempotency_service.dart';
 
-/// Service dedicated to generating multi-format AI artifacts
-/// (Flashcards, Study Guides, Timelines, Briefings, FAQs, Mind Maps, Quizzes)
-/// from aggregated notebook source texts.
-///
-/// Fully supports all three execution modes via [AIConfig.mode]:
-/// - [AIExecutionMode.firebaseAI]
-/// - [AIExecutionMode.directClientSide]
-/// - [AIExecutionMode.pythonBackend]
 class AIGenerationService {
   AIGenerationService._();
   static final AIGenerationService instance = AIGenerationService._();
   factory AIGenerationService() => instance;
-
-
-  // ---------------------------------------------------------------------------
-  // Flashcard Generation
-  // ---------------------------------------------------------------------------
 
   Future<FlashcardDeck> generateFlashcards(
     String sourceText, {
@@ -43,7 +30,8 @@ class AIGenerationService {
 
     final rawJson = await _executeGeneration(
       systemPrompt: systemPrompt,
-      userPrompt: 'Generate a flashcard deck based on the following source material:\n\n$sourceText',
+      userPrompt:
+          'Generate a flashcard deck based on the following source material:\n\n$sourceText',
       backendEndpoint: '/api/v1/generate-flashcards',
       backendPayload: {
         'sourceText': sourceText,
@@ -58,17 +46,15 @@ class AIGenerationService {
       notebookId: notebookId,
       title: parsed['title'] as String? ?? 'Study Flashcards',
       description: parsed['description'] as String? ?? '',
-      cards: (parsed['cards'] as List<dynamic>? ?? [])
-          .asMap()
-          .entries
-          .map((entry) {
-            final cardMap = Map<String, dynamic>.from(entry.value as Map);
-            if (!cardMap.containsKey('id') || (cardMap['id'] as String).isEmpty) {
-              cardMap['id'] = 'card_${entry.key + 1}';
-            }
-            return Flashcard.fromJson(cardMap);
-          })
-          .toList(),
+      cards: (parsed['cards'] as List<dynamic>? ?? []).asMap().entries.map((
+        entry,
+      ) {
+        final cardMap = Map<String, dynamic>.from(entry.value as Map);
+        if (!cardMap.containsKey('id') || (cardMap['id'] as String).isEmpty) {
+          cardMap['id'] = 'card_${entry.key + 1}';
+        }
+        return Flashcard.fromJson(cardMap);
+      }).toList(),
       createdAt: DateTime.now(),
     );
   }
@@ -88,12 +74,10 @@ class AIGenerationService {
 
     final rawJson = await _executeGeneration(
       systemPrompt: systemPrompt,
-      userPrompt: 'Synthesize the following source documents into an interactive, structured lesson:\n\n$sourceText',
+      userPrompt:
+          'Synthesize the following source documents into an interactive, structured lesson:\n\n$sourceText',
       backendEndpoint: '/api/v1/generate-lesson',
-      backendPayload: {
-        'sourceText': sourceText,
-        'customPrompt': ?customPrompt,
-      },
+      backendPayload: {'sourceText': sourceText, 'customPrompt': ?customPrompt},
     );
 
     final parsed = _decodeJsonMap(rawJson);
@@ -139,10 +123,12 @@ class AIGenerationService {
     }
 
     // Default practice quiz
-    final cfg = config ?? QuizGenerationConfig(
-      difficulty: difficulty ?? 'medium',
-      customInstructions: customInstructions ?? '',
-    );
+    final cfg =
+        config ??
+        QuizGenerationConfig(
+          difficulty: difficulty ?? 'medium',
+          customInstructions: customInstructions ?? '',
+        );
     return AILogicService.instance.generateQuiz(
       sourceText,
       numQuestions: count,
@@ -157,7 +143,8 @@ class AIGenerationService {
   Future<StudyGuide> generateStudyGuide(String sourceText) async {
     final rawJson = await _executeGeneration(
       systemPrompt: NotebookPrompts.studyGuideSystemPrompt,
-      userPrompt: 'Generate a comprehensive study guide from these sources:\n\n$sourceText',
+      userPrompt:
+          'Generate a comprehensive study guide from these sources:\n\n$sourceText',
       backendEndpoint: '/api/v1/generate-study-guide',
       backendPayload: {'sourceText': sourceText},
     );
@@ -173,7 +160,8 @@ class AIGenerationService {
   Future<Timeline> generateTimeline(String sourceText) async {
     final rawJson = await _executeGeneration(
       systemPrompt: NotebookPrompts.timelineSystemPrompt,
-      userPrompt: 'Extract a chronological timeline from these sources:\n\n$sourceText',
+      userPrompt:
+          'Extract a chronological timeline from these sources:\n\n$sourceText',
       backendEndpoint: '/api/v1/generate-timeline',
       backendPayload: {'sourceText': sourceText},
     );
@@ -189,7 +177,8 @@ class AIGenerationService {
   Future<Briefing> generateBriefing(String sourceText) async {
     final rawJson = await _executeGeneration(
       systemPrompt: NotebookPrompts.briefingSystemPrompt,
-      userPrompt: 'Generate an executive briefing document from these sources:\n\n$sourceText',
+      userPrompt:
+          'Generate an executive briefing document from these sources:\n\n$sourceText',
       backendEndpoint: '/api/v1/generate-briefing',
       backendPayload: {'sourceText': sourceText},
     );
@@ -207,7 +196,8 @@ class AIGenerationService {
 
     final rawJson = await _executeGeneration(
       systemPrompt: systemPrompt,
-      userPrompt: 'Generate an FAQ with approximately $count questions from these sources:\n\n$sourceText',
+      userPrompt:
+          'Generate an FAQ with approximately $count questions from these sources:\n\n$sourceText',
       backendEndpoint: '/api/v1/generate-faq',
       backendPayload: {'sourceText': sourceText, 'count': count},
     );
@@ -223,7 +213,8 @@ class AIGenerationService {
   Future<MindMap> generateMindMap(String sourceText) async {
     final rawJson = await _executeGeneration(
       systemPrompt: NotebookPrompts.mindMapSystemPrompt,
-      userPrompt: 'Construct a conceptual mind map graph from these sources:\n\n$sourceText',
+      userPrompt:
+          'Construct a conceptual mind map graph from these sources:\n\n$sourceText',
       backendEndpoint: '/api/v1/generate-mind-map',
       backendPayload: {'sourceText': sourceText},
     );
@@ -248,7 +239,8 @@ class AIGenerationService {
 
     final rawJson = await _executeGeneration(
       systemPrompt: systemPrompt,
-      userPrompt: 'Construct an instructional slideshow presentation from these sources:\n\n$sourceText',
+      userPrompt:
+          'Construct an instructional slideshow presentation from these sources:\n\n$sourceText',
       backendEndpoint: '/api/v1/generate-presentation',
       backendPayload: {
         'sourceText': sourceText,
@@ -286,7 +278,10 @@ class AIGenerationService {
     );
   }
 
-  Future<String> _executeFirebase(String systemPrompt, String userPrompt) async {
+  Future<String> _executeFirebase(
+    String systemPrompt,
+    String userPrompt,
+  ) async {
     try {
       final model = FirebaseAI.googleAI().generativeModel(
         model: AIConfig.firebaseAIModel,
@@ -297,9 +292,7 @@ class AIGenerationService {
         ),
       );
 
-      final response = await model.generateContent([
-        Content.text(userPrompt),
-      ]);
+      final response = await model.generateContent([Content.text(userPrompt)]);
 
       final text = response.text;
       if (text == null || text.trim().isEmpty) {
@@ -307,7 +300,9 @@ class AIGenerationService {
       }
       return text.trim();
     } catch (e) {
-      debugPrint('Firebase AI generation error: $e, falling back to direct client-side');
+      debugPrint(
+        'Firebase AI generation error: $e, falling back to direct client-side',
+      );
       return _executeDirect(systemPrompt, userPrompt);
     }
   }
@@ -316,15 +311,15 @@ class AIGenerationService {
     final body = jsonEncode({
       'system_instruction': {
         'parts': [
-          {'text': systemPrompt}
-        ]
+          {'text': systemPrompt},
+        ],
       },
       'contents': [
         {
           'parts': [
-            {'text': userPrompt}
-          ]
-        }
+            {'text': userPrompt},
+          ],
+        },
       ],
       'generationConfig': {
         'responseMimeType': 'application/json',
@@ -334,7 +329,9 @@ class AIGenerationService {
 
     final apiKey = AIConfig.geminiApiKey;
     if (apiKey.isEmpty) {
-      throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
+      throw Exception(
+        'Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.',
+      );
     }
 
     final uri = Uri.parse('${AIConfig.geminiBaseUrl}?key=$apiKey');
@@ -345,7 +342,9 @@ class AIGenerationService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Gemini REST API error (${response.statusCode}): ${response.body}');
+      throw Exception(
+        'Gemini REST API error (${response.statusCode}): ${response.body}',
+      );
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -363,7 +362,10 @@ class AIGenerationService {
     return text.trim();
   }
 
-  Future<String> _executeBackend(String endpoint, Map<String, dynamic> payload) async {
+  Future<String> _executeBackend(
+    String endpoint,
+    Map<String, dynamic> payload,
+  ) async {
     final key = IdempotencyService.instance.generateAiKey(
       action: endpoint.replaceAll('/', '_'),
       contentSnippet: jsonEncode(payload),
@@ -382,7 +384,9 @@ class AIGenerationService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Python Backend error (${response.statusCode}): ${response.body}');
+      throw Exception(
+        'Python Backend error (${response.statusCode}): ${response.body}',
+      );
     }
 
     return response.body;
@@ -407,6 +411,8 @@ class AIGenerationService {
     } else if (decoded is Map) {
       return Map<String, dynamic>.from(decoded);
     }
-    throw FormatException('Expected JSON map, but received: ${decoded.runtimeType}');
+    throw FormatException(
+      'Expected JSON map, but received: ${decoded.runtimeType}',
+    );
   }
 }

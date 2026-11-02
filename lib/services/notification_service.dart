@@ -394,4 +394,30 @@ class NotificationService {
       debugPrint('Error checking mentorship reminders: $e');
     }
   }
+
+  /// Notify Super Admins when an archived user requests account reactivation
+  Future<void> notifySuperAdminsOfReactivationRequest({
+    required String uid,
+    required String userEmail,
+    required String username,
+  }) async {
+    try {
+      final superAdminsSnap = await _firestore
+          .collection('users')
+          .where('role', whereIn: ['superadmin', 'SUPERADMIN'])
+          .get();
+
+      final displayName = username.trim().isNotEmpty ? username.trim() : userEmail;
+      for (final doc in superAdminsSnap.docs) {
+        await sendNotification(
+          uid: doc.id,
+          title: 'Account Reactivation Request',
+          message: '$displayName ($userEmail) has requested reactivation for their archived account.',
+          type: NotificationType.general,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error notifying superadmins of reactivation: $e');
+    }
+  }
 }

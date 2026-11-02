@@ -11,9 +11,6 @@ import '../models/notebook_models.dart';
 import 'ai_logic_service.dart';
 import 'ai_rate_limit_service.dart';
 
-/// Handles extracting text and metadata from varied source formats
-/// (PDF, plain text, web URLs, audio recordings, video clips)
-/// and uploading assets to Firebase Storage.
 class SourceIngestionService {
   SourceIngestionService._();
   static final SourceIngestionService instance = SourceIngestionService._();
@@ -21,12 +18,6 @@ class SourceIngestionService {
 
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // ---------------------------------------------------------------------------
-  // PDF Ingestion
-  // ---------------------------------------------------------------------------
-
-  /// Ingests a PDF document by extracting its text content via [AILogicService]
-  /// and optionally archiving the binary file to Firebase Storage.
   Future<NotebookSource> ingestPdf({
     required String notebookId,
     required String title,
@@ -46,11 +37,15 @@ class SourceIngestionService {
         );
       }
     } catch (e) {
-      debugPrint('Warning: PDF upload to storage failed, continuing with extracted text: $e');
+      debugPrint(
+        'Warning: PDF upload to storage failed, continuing with extracted text: $e',
+      );
     }
 
     try {
-      final extractedText = await AILogicService.instance.extractTextFromPdf(bytes);
+      final extractedText = await AILogicService.instance.extractTextFromPdf(
+        bytes,
+      );
       final wordCount = extractedText.trim().split(RegExp(r'\s+')).length;
 
       return NotebookSource(
@@ -94,7 +89,9 @@ class SourceIngestionService {
     required String title,
     required String text,
   }) async {
-    final cleanTitle = title.trim().isNotEmpty ? title.trim() : 'Pasted Text Note';
+    final cleanTitle = title.trim().isNotEmpty
+        ? title.trim()
+        : 'Pasted Text Note';
     final sanitizedText = text.trim();
     final wordCount = sanitizedText.split(RegExp(r'\s+')).length;
 
@@ -125,28 +122,40 @@ class SourceIngestionService {
   }) async {
     try {
       final uri = Uri.parse(url);
-      final response = await http.get(uri, headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Grammatica/1.0',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      });
+      final response = await http.get(
+        uri,
+        headers: {
+          'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Grammatica/1.0',
+          'Accept':
+              'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      );
 
       if (response.statusCode != 200) {
-        throw Exception('HTTP error ${response.statusCode}: Failed to fetch URL');
+        throw Exception(
+          'HTTP error ${response.statusCode}: Failed to fetch URL',
+        );
       }
 
       final document = html_parser.parse(response.body);
 
       // Remove non-content elements
-      document.querySelectorAll('script, style, noscript, nav, footer, header, aside, iframe, svg').forEach((el) {
-        el.remove();
-      });
+      document
+          .querySelectorAll(
+            'script, style, noscript, nav, footer, header, aside, iframe, svg',
+          )
+          .forEach((el) {
+            el.remove();
+          });
 
       final pageTitle = customTitle?.trim().isNotEmpty == true
           ? customTitle!
           : (document.querySelector('title')?.text.trim() ?? uri.host);
 
       // Extract text from article, main, or body
-      final mainContent = document.querySelector('article') ??
+      final mainContent =
+          document.querySelector('article') ??
           document.querySelector('main') ??
           document.body;
 
@@ -155,7 +164,9 @@ class SourceIngestionService {
           .trim();
 
       if (extractedText.isEmpty) {
-        throw Exception('No readable text could be extracted from this webpage.');
+        throw Exception(
+          'No readable text could be extracted from this webpage.',
+        );
       }
 
       final wordCount = extractedText.split(RegExp(r'\s+')).length;
@@ -167,10 +178,7 @@ class SourceIngestionService {
         title: pageTitle,
         rawContent: extractedText,
         originalUrl: url,
-        metadata: {
-          'host': uri.host,
-          'wordCount': wordCount,
-        },
+        metadata: {'host': uri.host, 'wordCount': wordCount},
         createdAt: DateTime.now(),
         processingStatus: SourceProcessingStatus.ready,
       );
@@ -203,7 +211,9 @@ class SourceIngestionService {
     required String mimeType, // e.g. 'audio/mp3', 'audio/wav', 'audio/m4a'
     String? filename,
   }) async {
-    final cleanTitle = title.isNotEmpty ? title : (filename ?? 'Audio Recording');
+    final cleanTitle = title.isNotEmpty
+        ? title
+        : (filename ?? 'Audio Recording');
     String storageUrl = '';
 
     try {
@@ -339,16 +349,23 @@ class SourceIngestionService {
     );
   }
 
-  Future<String> _transcribeMediaFirebase(List<int> bytes, String mimeType) async {
+  Future<String> _transcribeMediaFirebase(
+    List<int> bytes,
+    String mimeType,
+  ) async {
     try {
       final model = FirebaseAI.googleAI().generativeModel(
         model: AIConfig.firebaseAIModel,
-        systemInstruction: Content.system(NotebookPrompts.audioTranscriptionPrompt),
+        systemInstruction: Content.system(
+          NotebookPrompts.audioTranscriptionPrompt,
+        ),
       );
 
       final response = await model.generateContent([
         Content.multi([
-          TextPart('Transcribe this recording completely and accurately. Provide the transcript text:'),
+          TextPart(
+            'Transcribe this recording completely and accurately. Provide the transcript text:',
+          ),
           InlineDataPart(mimeType, Uint8List.fromList(bytes)),
         ]),
       ]);
@@ -359,43 +376,46 @@ class SourceIngestionService {
       }
       return text.trim();
     } catch (e) {
-      debugPrint('Firebase AI media transcription error: $e, falling back to direct REST');
+      debugPrint(
+        'Firebase AI media transcription error: $e, falling back to direct REST',
+      );
       return _transcribeMediaDirect(bytes, mimeType);
     }
   }
 
-  Future<String> _transcribeMediaDirect(List<int> bytes, String mimeType) async {
+  Future<String> _transcribeMediaDirect(
+    List<int> bytes,
+    String mimeType,
+  ) async {
     final base64Media = base64Encode(bytes);
 
     final body = jsonEncode({
       'system_instruction': {
         'parts': [
-          {'text': NotebookPrompts.audioTranscriptionPrompt}
-        ]
+          {'text': NotebookPrompts.audioTranscriptionPrompt},
+        ],
       },
       'contents': [
         {
           'parts': [
             {
-              'inline_data': {
-                'mime_type': mimeType,
-                'data': base64Media,
-              }
+              'inline_data': {'mime_type': mimeType, 'data': base64Media},
             },
             {
-              'text': 'Transcribe this recording completely and accurately. Provide the transcript text:'
-            }
-          ]
-        }
+              'text':
+                  'Transcribe this recording completely and accurately. Provide the transcript text:',
+            },
+          ],
+        },
       ],
-      'generationConfig': {
-        'temperature': 0.2,
-      },
+      'generationConfig': {'temperature': 0.2},
     });
 
     final apiKey = AIConfig.geminiApiKey;
     if (apiKey.isEmpty) {
-      throw Exception('Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.');
+      throw Exception(
+        'Gemini API key is not configured. Please ensure GEMINI_API_KEY is defined in your environment.',
+      );
     }
 
     final uri = Uri.parse('${AIConfig.geminiBaseUrl}?key=$apiKey');
@@ -406,7 +426,9 @@ class SourceIngestionService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Gemini REST transcription failed (${response.statusCode}): ${response.body}');
+      throw Exception(
+        'Gemini REST transcription failed (${response.statusCode}): ${response.body}',
+      );
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -420,15 +442,20 @@ class SourceIngestionService {
     return text?.trim() ?? '';
   }
 
-  Future<String> _transcribeMediaBackend(List<int> bytes, String mimeType) async {
+  Future<String> _transcribeMediaBackend(
+    List<int> bytes,
+    String mimeType,
+  ) async {
     final uri = Uri.parse('${AIConfig.pythonBackendUrl}/api/v1/transcribe');
     final request = http.MultipartRequest('POST', uri);
     request.headers['X-API-Key'] = AIConfig.pythonApiKey;
-    request.files.add(http.MultipartFile.fromBytes(
-      'file',
-      bytes,
-      filename: 'recording.${mimeType.split('/').last}',
-    ));
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: 'recording.${mimeType.split('/').last}',
+      ),
+    );
 
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
@@ -454,7 +481,9 @@ class SourceIngestionService {
   }) async {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final safeName = filename.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-    final ref = _storage.ref().child('notebooks/$notebookId/sources/${timestamp}_$safeName');
+    final ref = _storage.ref().child(
+      'notebooks/$notebookId/sources/${timestamp}_$safeName',
+    );
 
     final uploadTask = ref.putData(
       Uint8List.fromList(bytes),

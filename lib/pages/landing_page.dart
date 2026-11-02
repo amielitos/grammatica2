@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,6 +20,7 @@ class _LandingPageState extends State<LandingPage>
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _aboutKey = GlobalKey();
   final GlobalKey _faqKey = GlobalKey();
+  final GlobalKey _downloadAppKey = GlobalKey();
   bool _isScrolled = false;
   bool _showBackToTop = false;
   late AnimationController _animController;
@@ -163,6 +167,7 @@ class _LandingPageState extends State<LandingPage>
             _buildAboutGrammaticaSection(isDesktop),
             _buildFAQSection(isDesktop),
             _buildCTASection(isDesktop),
+            _buildApkDownloadSection(isDesktop),
             _buildFooter(isDesktop),
           ],
         ),
@@ -236,6 +241,27 @@ class _LandingPageState extends State<LandingPage>
 
               // Desktop nav links
               if (isDesktop) ...[
+                TextButton.icon(
+                  onPressed: () => _scrollToKey(_downloadAppKey),
+                  icon: const Icon(
+                    Icons.android_rounded,
+                    size: 18,
+                    color: Color(0xFF10B981),
+                  ),
+                  label: const Text('Get App'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF334155),
+                    textStyle: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
                 TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/login'),
                   style: TextButton.styleFrom(
@@ -294,6 +320,36 @@ class _LandingPageState extends State<LandingPage>
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _scrollToKey(_downloadAppKey);
+                                },
+                                icon: const Icon(
+                                  Icons.android_rounded,
+                                  color: Color(0xFF10B981),
+                                  size: 20,
+                                ),
+                                label: const Text('Get Android App (APK)'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF10B981),
+                                  side: const BorderSide(
+                                    color: Color(0xFF10B981),
+                                    width: 1.5,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  textStyle: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
                               ElevatedButton(
                                 onPressed: () {
                                   Navigator.pop(context);
@@ -1560,11 +1616,12 @@ class _LandingPageState extends State<LandingPage>
                                   'assets/logo.png',
                                   fit: BoxFit.contain,
                                   filterQuality: FilterQuality.high,
-                                  errorBuilder: (context, error, stackTrace) => const Icon(
-                                    Icons.menu_book_rounded,
-                                    color: Color(0xFF81B655),
-                                    size: 22,
-                                  ),
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(
+                                        Icons.menu_book_rounded,
+                                        color: Color(0xFF81B655),
+                                        size: 22,
+                                      ),
                                 ),
                               ),
                               const SizedBox(width: 10),
@@ -1620,6 +1677,10 @@ class _LandingPageState extends State<LandingPage>
                           _buildFooterHeading('Support & FAQ'),
                           const SizedBox(height: 16),
                           _buildFooterLink('FAQ', () => _scrollToKey(_faqKey)),
+                          _buildFooterLink(
+                            'Get Android App',
+                            () => _scrollToKey(_downloadAppKey),
+                          ),
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: SelectableText(
@@ -1674,11 +1735,12 @@ class _LandingPageState extends State<LandingPage>
                             'assets/logo.png',
                             fit: BoxFit.contain,
                             filterQuality: FilterQuality.high,
-                            errorBuilder: (context, error, stackTrace) => const Icon(
-                              Icons.menu_book_rounded,
-                              color: Color(0xFF81B655),
-                              size: 20,
-                            ),
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(
+                                  Icons.menu_book_rounded,
+                                  color: Color(0xFF81B655),
+                                  size: 20,
+                                ),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -1717,6 +1779,10 @@ class _LandingPageState extends State<LandingPage>
                           () => _showAboutUsDialog(context),
                         ),
                         _buildFooterLink('FAQ', () => _scrollToKey(_faqKey)),
+                        _buildFooterLink(
+                          'Get Android App',
+                          () => _scrollToKey(_downloadAppKey),
+                        ),
                         _buildFooterLink(
                           'Privacy Policy',
                           () => _showPrivacyPolicyDialog(context),
@@ -2381,6 +2447,635 @@ class _LandingPageState extends State<LandingPage>
           ),
         ],
       ),
+    );
+  }
+
+  // ─── APK DOWNLOAD & QR CODE SECTION ─────────────────────────────────────
+
+  static const String _defaultApkDownloadUrl =
+      'https://firebasestorage.googleapis.com/v0/b/grammatica-68829.firebasestorage.app/o/apk%2Fgrammatica-release.apk?alt=media';
+
+  Future<void> _launchApkDownload(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+        webOnlyWindowName: '_blank',
+      );
+      if (!launched) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
+    } catch (e) {
+      debugPrint('Error launching APK download: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open APK download link: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildApkDownloadSection(bool isDesktop) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('app_settings')
+          .doc('downloads')
+          .snapshots(),
+      builder: (context, snapshot) {
+        String apkUrl = _defaultApkDownloadUrl;
+        if (snapshot.hasData &&
+            snapshot.data != null &&
+            snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
+          final firestoreUrl = data?['apkUrl'] as String?;
+          if (firestoreUrl != null && firestoreUrl.trim().isNotEmpty) {
+            apkUrl = firestoreUrl.trim();
+          }
+        }
+
+        return Container(
+          key: _downloadAppKey,
+          width: double.infinity,
+          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+          padding: EdgeInsets.symmetric(
+            horizontal: isDesktop ? 60 : 24,
+            vertical: isDesktop ? 80 : 56,
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isDark
+                        ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                        : [Colors.white, const Color(0xFFF1F5F9)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.4 : 0.06,
+                      ),
+                      blurRadius: 30,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                padding: EdgeInsets.all(isDesktop ? 48 : 28),
+                child: isDesktop
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            flex: 6,
+                            child: _buildApkInfoContent(
+                              apkUrl,
+                              isDark,
+                              isDesktop,
+                            ),
+                          ),
+                          const SizedBox(width: 48),
+                          Expanded(
+                            flex: 4,
+                            child: _buildApkQrCard(apkUrl, isDark, isDesktop),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          _buildApkInfoContent(apkUrl, isDark, isDesktop),
+                          const SizedBox(height: 36),
+                          _buildApkQrCard(apkUrl, isDark, isDesktop),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildApkInfoContent(String apkUrl, bool isDark, bool isDesktop) {
+    return Column(
+      crossAxisAlignment: isDesktop
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.center,
+      children: [
+        // Android release badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF10B981).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFF10B981).withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.android_rounded,
+                size: 16,
+                color: Color(0xFF10B981),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'OFFICIAL ANDROID APP',
+                style: GoogleFonts.outfit(
+                  color: const Color(0xFF10B981),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11.5,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // Heading
+        Text(
+          'Learn English on the Go with Grammatica Mobile',
+          textAlign: isDesktop ? TextAlign.start : TextAlign.center,
+          style: GoogleFonts.outfit(
+            fontSize: isDesktop ? 34 : 26,
+            fontWeight: FontWeight.w900,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            letterSpacing: -0.5,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Description
+        Text(
+          'Take your English mastery anywhere. Practice grammar rules, complete interactive quizzes, study flashcards, and track your achievements on the move on your Android device.',
+          textAlign: isDesktop ? TextAlign.start : TextAlign.center,
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            height: 1.6,
+            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Specs badges
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
+          children: [
+            _buildSpecPill(Icons.verified_rounded, 'v1.0.0 Release', isDark),
+            _buildSpecPill(Icons.phone_android_rounded, 'Android 8.0+', isDark),
+            _buildSpecPill(
+              Icons.security_rounded,
+              'Direct APK Install',
+              isDark,
+            ),
+          ],
+        ),
+        const SizedBox(height: 28),
+
+        // Action buttons
+        Wrap(
+          spacing: 14,
+          runSpacing: 12,
+          alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
+          children: [
+            ElevatedButton.icon(
+              onPressed: () => _launchApkDownload(apkUrl),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF81B655),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+              icon: const Icon(Icons.download_rounded, size: 20),
+              label: const Text('Download APK'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _showApkInstallationGuideDialog(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: isDark
+                    ? Colors.white70
+                    : const Color(0xFF334155),
+                side: BorderSide(
+                  color: isDark
+                      ? const Color(0xFF475569)
+                      : const Color(0xFFCBD5E1),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14.5,
+                ),
+              ),
+              icon: const Icon(Icons.help_outline_rounded, size: 18),
+              label: const Text('How to install?'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSpecPill(IconData icon, String text, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF334155).withValues(alpha: 0.5)
+            : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: const Color(0xFF81B655)),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: GoogleFonts.inter(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApkQrCard(String apkUrl, bool isDark, bool isDesktop) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Clickable QR Code Container with hover visual feedback
+          Tooltip(
+            message:
+                'Click to download APK directly, or scan with phone camera',
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () => _launchApkDownload(apkUrl),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF81B655).withValues(alpha: 0.5),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: QrImageView(
+                    data: apkUrl,
+                    version: QrVersions.auto,
+                    size: isDesktop ? 180 : 160,
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.all(4),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Click prompt pill
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () => _launchApkDownload(apkUrl),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFF81B655).withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.touch_app_rounded,
+                      size: 14,
+                      color: Color(0xFF2D6A1A),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Click QR or button to download',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF2D6A1A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Caption
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.qr_code_scanner_rounded,
+                size: 16,
+                color: Color(0xFF81B655),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'Scan with phone camera to install',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white70 : const Color(0xFF334155),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Quick copy link action
+          TextButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: apkUrl));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('APK download link copied to clipboard!'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            icon: const Icon(
+              Icons.copy_rounded,
+              size: 14,
+              color: Color(0xFF81B655),
+            ),
+            label: Text(
+              'Copy Download Link',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark
+                    ? const Color(0xFF81B655)
+                    : const Color(0xFF2D6A1A),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showApkInstallationGuideDialog(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.android_rounded,
+                        color: Color(0xFF10B981),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'How to Install APK',
+                            style: GoogleFonts.outfit(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          Text(
+                            'Android Installation Steps',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                      color: isDark ? Colors.white60 : Colors.black45,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                _buildGuideStep(
+                  '1',
+                  'Download the APK',
+                  'Scan the QR code with your phone camera or tap "Download APK". If your browser prompts "File might be harmful", tap "Download anyway".',
+                  isDark,
+                ),
+                const SizedBox(height: 16),
+                _buildGuideStep(
+                  '2',
+                  'Open Downloaded File',
+                  'When the download completes, tap the file in your notification bar or find "grammatica-release.apk" in your phone\'s Files/Downloads folder.',
+                  isDark,
+                ),
+                const SizedBox(height: 16),
+                _buildGuideStep(
+                  '3',
+                  'Allow Install from Unknown Sources',
+                  'If prompted by Android Security, tap Settings and enable "Allow from this source" for your browser or file manager.',
+                  isDark,
+                ),
+                const SizedBox(height: 16),
+                _buildGuideStep(
+                  '4',
+                  'Complete Installation & Launch',
+                  'Tap "Install" on the confirmation prompt. Once installed, tap "Open" and sign in to start learning!',
+                  isDark,
+                ),
+                const SizedBox(height: 24),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF81B655),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      textStyle: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    child: const Text('Got it!'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuideStep(
+    String stepNumber,
+    String title,
+    String description,
+    bool isDark,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: Color(0xFF81B655),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            stepNumber,
+            style: GoogleFonts.outfit(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.outfit(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

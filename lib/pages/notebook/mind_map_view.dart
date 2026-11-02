@@ -4,8 +4,6 @@ import '../../models/study_guide_models.dart';
 import '../../theme/app_colors.dart';
 import 'publish_content_dialogs.dart';
 
-/// Interactive concept map powered by [GraphView], supporting pinch-to-zoom,
-/// panning, and node inspection.
 class MindMapView extends StatefulWidget {
   final MindMap mindMap;
   final String notebookId;
@@ -62,7 +60,8 @@ class _MindMapViewState extends State<MindMapView> {
 
     // 3. Connect explicit edges if any
     for (final edge in widget.mindMap.edges) {
-      if (_nodeMap.containsKey(edge.fromId) && _nodeMap.containsKey(edge.toId)) {
+      if (_nodeMap.containsKey(edge.fromId) &&
+          _nodeMap.containsKey(edge.toId)) {
         final from = _nodeMap[edge.fromId]!;
         final to = _nodeMap[edge.toId]!;
         try {
@@ -93,7 +92,9 @@ class _MindMapViewState extends State<MindMapView> {
                 TreeEdgeRenderer(_builder),
               ),
               paint: Paint()
-                ..color = isDark ? const Color(0xFF4A6B2F) : const Color(0xFFB0C99B)
+                ..color = isDark
+                    ? const Color(0xFF4A6B2F)
+                    : const Color(0xFFB0C99B)
                 ..strokeWidth = 2
                 ..style = PaintingStyle.stroke,
               builder: (Node node) {
@@ -117,10 +118,13 @@ class _MindMapViewState extends State<MindMapView> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: (isDark ? const Color(0xFF1E261D) : Colors.white).withValues(alpha: 0.9),
+              color: (isDark ? const Color(0xFF1E261D) : Colors.white)
+                  .withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
+                color: isDark
+                    ? Colors.white10
+                    : Colors.black.withValues(alpha: 0.06),
               ),
               boxShadow: [
                 BoxShadow(
@@ -132,7 +136,11 @@ class _MindMapViewState extends State<MindMapView> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.hub_rounded, color: Color(0xFFEC4899), size: 22),
+                const Icon(
+                  Icons.hub_rounded,
+                  color: Color(0xFFEC4899),
+                  size: 22,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -155,7 +163,9 @@ class _MindMapViewState extends State<MindMapView> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
-                          color: isDark ? Colors.white60 : AppColors.textSecondary,
+                          color: isDark
+                              ? Colors.white60
+                              : AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -197,10 +207,7 @@ class _MindMapViewState extends State<MindMapView> {
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1B241A) : Colors.white,
           borderRadius: BorderRadius.circular(isRoot ? 20 : 14),
-          border: Border.all(
-            color: nodeColor,
-            width: isRoot ? 2.5 : 1.5,
-          ),
+          border: Border.all(color: nodeColor, width: isRoot ? 2.5 : 1.5),
           boxShadow: [
             BoxShadow(
               color: nodeColor.withValues(alpha: isRoot ? 0.35 : 0.15),
@@ -255,7 +262,10 @@ class _MindMapViewState extends State<MindMapView> {
             children: [
               if (node.category != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -272,7 +282,10 @@ class _MindMapViewState extends State<MindMapView> {
               const SizedBox(height: 8),
               Text(
                 node.label,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
@@ -290,7 +303,9 @@ class _MindMapViewState extends State<MindMapView> {
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text('Close'),
                 ),

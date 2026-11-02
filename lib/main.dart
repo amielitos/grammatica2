@@ -19,6 +19,8 @@ import 'pages/admin_dashboard.dart';
 import 'pages/home_page.dart';
 import 'pages/onboarding_page.dart';
 import 'pages/otp_verification_page.dart';
+import 'pages/archived_account_gate_page.dart';
+import 'pages/reset_password_action_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -106,6 +108,18 @@ class _AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Intercept action code deep links (e.g. Firebase Password Reset)
+    try {
+      final uri = Uri.base;
+      final mode = uri.queryParameters['mode'];
+      final oobCode = uri.queryParameters['oobCode'];
+      if ((mode == 'resetPassword' || mode == 'reset-password') &&
+          oobCode != null &&
+          oobCode.isNotEmpty) {
+        return ResetPasswordActionPage(oobCode: oobCode);
+      }
+    } catch (_) {}
+
     return StreamBuilder<User?>(
       stream: AuthService.instance.userChanges(),
       builder: (context, authSnap) {
@@ -138,6 +152,9 @@ class _AuthWrapper extends StatelessWidget {
                     p?['photoUrl'] == c?['photoUrl'] &&
                     p?['username'] == c?['username'] &&
                     p?['status'] == c?['status'] &&
+                    p?['isArchived'] == c?['isArchived'] &&
+                    p?['reactivation_requested'] == c?['reactivation_requested'] &&
+                    p?['reactivation_last_requested_at'] == c?['reactivation_last_requested_at'] &&
                     p?['theme_preference'] == c?['theme_preference'] &&
                     p?['requires_email_verification'] ==
                         c?['requires_email_verification'];
@@ -223,6 +240,17 @@ class _AuthWrapper extends StatelessWidget {
             }
 
             final data = userDocSnap.data?.data() ?? {};
+
+            // Security Check: Archived Inactivity Gate
+            final isArchived = (data['status'] as String?)?.toUpperCase() == 'ARCHIVED' ||
+                (data['isArchived'] == true);
+            if (isArchived) {
+              return ArchivedAccountGatePage(
+                key: ValueKey('archived_${user.uid}'),
+                user: user,
+                userData: data,
+              );
+            }
 
             // Security Check: Deactivated Status
             final status = (data['status'] as String?)?.toUpperCase();

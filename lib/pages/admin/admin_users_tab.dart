@@ -1574,8 +1574,12 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
           // ── Status Chip ───────────────────────────────────────────
           Expanded(
             flex: 2,
-            child: isLocked
-                ? Tooltip(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                isLocked
+                    ? Tooltip(
                     message:
                         'Account locked due to 3 failed attempts (until ${_formatTs(lockedUntilTs)})',
                     child: Container(
@@ -1692,6 +1696,29 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       ),
                     ],
                   ),
+                if (isArchived && u['reactivation_requested'] == true) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: const Color(0xFF0284C7).withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Text(
+                      'Reactivation Requested',
+                      style: GoogleFonts.inter(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
 
           // ── Educ Dates ────────────────────────────────────────────
@@ -2221,6 +2248,27 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (isArchived && u['reactivation_requested'] == true) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: const Color(0xFF0284C7).withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        'Reactivation Requested',
+                        style: GoogleFonts.inter(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? const Color(0xFF7DD3FC) : const Color(0xFF0284C7),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
                 if (educStart != null) ...[
                   const SizedBox(width: 12),
@@ -3678,7 +3726,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Notice: This account will be moved to archive. The user will be barred from signing in, but their account records and registered email will remain preserved in the archive.',
+                          'Notice: This account will be moved to archive. The user can still log in, but will be presented with an inactivity notice requiring them to request reactivation before accessing the platform.',
                           style: GoogleFonts.inter(
                             color: isDark
                                 ? Colors.red.shade200
@@ -3885,7 +3933,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Restoring this account will reactivate the user\'s access to Grammatica, allowing them to sign in again with their registered credentials and continue their activities.',
+                          'Notice: Restoring this account will reactivate the user\'s access to Grammatica, clearing the inactivity gate and restoring full access to their profile and activities.',
                           style: GoogleFonts.inter(
                             color: isDark
                                 ? const Color(0xFFA7F3D0)

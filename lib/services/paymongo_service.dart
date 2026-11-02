@@ -10,7 +10,7 @@ class PaymongoPaymentLink {
   final String id;
   final String checkoutUrl;
   final String referenceNumber;
-  final String status; // 'unpaid', 'paid', etc.
+  final String status;
   final double amount;
   final String description;
   final bool isLocalFallback;
@@ -86,18 +86,22 @@ class PaymongoService {
     String remarks = 'Grammatica Subscription',
     String? idempotencyKey,
   }) async {
-    final effectiveKey = idempotencyKey ??
-        IdempotencyService.instance.generateUuidV4();
+    final effectiveKey =
+        idempotencyKey ?? IdempotencyService.instance.generateUuidV4();
 
     // ── Check in-memory idempotency cache ──
     if (_activeLinksCache.containsKey(effectiveKey)) {
       final cached = _activeLinksCache[effectiveKey]!;
-      debugPrint('[PayMongo] Returning active cached payment link for key: $effectiveKey');
+      debugPrint(
+        '[PayMongo] Returning active cached payment link for key: $effectiveKey',
+      );
       return cached;
     }
 
     // ── Single-flight deduplication: coalesces concurrent invocations ──
-    return await IdempotencyService.instance.executeDeduplicated<PaymongoPaymentLink?>(
+    return await IdempotencyService.instance.executeDeduplicated<
+      PaymongoPaymentLink?
+    >(
       key: 'paymongo_link_$effectiveKey',
       action: () async {
         final int amountInCents = (amount * 100).toInt();
@@ -108,29 +112,32 @@ class PaymongoService {
           try {
             final backendUrl = AIConfig.pythonBackendUrl;
             final apiKey = AIConfig.pythonApiKey;
-            final response = await http.post(
-              Uri.parse('$backendUrl/api/v1/payment/create-link'),
-              headers: {
-                'accept': 'application/json',
-                'content-type': 'application/json',
-                'X-API-Key': apiKey,
-                'Idempotency-Key': effectiveKey,
-                'X-Idempotency-Key': effectiveKey,
-              },
-              body: jsonEncode({
-                'amount': amount,
-                'description': description,
-                'remarks': remarks,
-                'idempotency_key': effectiveKey,
-              }),
-            ).timeout(const Duration(seconds: 4));
+            final response = await http
+                .post(
+                  Uri.parse('$backendUrl/api/v1/payment/create-link'),
+                  headers: {
+                    'accept': 'application/json',
+                    'content-type': 'application/json',
+                    'X-API-Key': apiKey,
+                    'Idempotency-Key': effectiveKey,
+                    'X-Idempotency-Key': effectiveKey,
+                  },
+                  body: jsonEncode({
+                    'amount': amount,
+                    'description': description,
+                    'remarks': remarks,
+                    'idempotency_key': effectiveKey,
+                  }),
+                )
+                .timeout(const Duration(seconds: 4));
 
             if (response.statusCode == 200 || response.statusCode == 201) {
               final data = jsonDecode(response.body);
               final link = PaymongoPaymentLink(
                 id: data['id'] as String? ?? '',
                 checkoutUrl: data['checkout_url'] as String? ?? '',
-                referenceNumber: data['reference_number'] as String? ??
+                referenceNumber:
+                    data['reference_number'] as String? ??
                     'PM-${DateTime.now().millisecondsSinceEpoch}',
                 status: data['link_status'] as String? ?? 'unpaid',
                 amount: amount,
@@ -146,29 +153,33 @@ class PaymongoService {
 
           // 1B. Try Local Dart Relay (port 8081)
           try {
-            final response = await http.post(
-              Uri.parse('http://localhost:8081/create-paymongo-link'),
-              headers: {
-                'accept': 'application/json',
-                'content-type': 'application/json',
-                'Idempotency-Key': effectiveKey,
-                'X-Idempotency-Key': effectiveKey,
-              },
-              body: jsonEncode({
-                'amount': amount,
-                'description': description,
-                'remarks': remarks,
-                'idempotencyKey': effectiveKey,
-              }),
-            ).timeout(const Duration(seconds: 3));
+            final response = await http
+                .post(
+                  Uri.parse('http://localhost:8081/create-paymongo-link'),
+                  headers: {
+                    'accept': 'application/json',
+                    'content-type': 'application/json',
+                    'Idempotency-Key': effectiveKey,
+                    'X-Idempotency-Key': effectiveKey,
+                  },
+                  body: jsonEncode({
+                    'amount': amount,
+                    'description': description,
+                    'remarks': remarks,
+                    'idempotencyKey': effectiveKey,
+                  }),
+                )
+                .timeout(const Duration(seconds: 3));
 
             if (response.statusCode == 200 || response.statusCode == 201) {
               final data = jsonDecode(response.body);
-              final attributes = data['data']['attributes'] as Map<String, dynamic>;
+              final attributes =
+                  data['data']['attributes'] as Map<String, dynamic>;
               final link = PaymongoPaymentLink(
                 id: data['data']['id'] as String? ?? '',
                 checkoutUrl: attributes['checkout_url'] as String? ?? '',
-                referenceNumber: attributes['reference_number'] as String? ??
+                referenceNumber:
+                    attributes['reference_number'] as String? ??
                     'PM-${DateTime.now().millisecondsSinceEpoch}',
                 status: attributes['status'] as String? ?? 'unpaid',
                 amount: amount,
@@ -186,32 +197,36 @@ class PaymongoService {
           try {
             final String basicAuth =
                 'Basic ${base64Encode(utf8.encode('$_secretKey:'))}';
-            final response = await http.post(
-              Uri.parse('https://api.paymongo.com/v1/links'),
-              headers: {
-                'accept': 'application/json',
-                'content-type': 'application/json',
-                'authorization': basicAuth,
-                'idempotency-key': effectiveKey,
-              },
-              body: jsonEncode({
-                "data": {
-                  "attributes": {
-                    "amount": amountInCents,
-                    "description": description,
-                    "remarks": remarks,
-                  }
-                }
-              }),
-            ).timeout(const Duration(seconds: 4));
+            final response = await http
+                .post(
+                  Uri.parse('https://api.paymongo.com/v1/links'),
+                  headers: {
+                    'accept': 'application/json',
+                    'content-type': 'application/json',
+                    'authorization': basicAuth,
+                    'idempotency-key': effectiveKey,
+                  },
+                  body: jsonEncode({
+                    "data": {
+                      "attributes": {
+                        "amount": amountInCents,
+                        "description": description,
+                        "remarks": remarks,
+                      },
+                    },
+                  }),
+                )
+                .timeout(const Duration(seconds: 4));
 
             if (response.statusCode == 200 || response.statusCode == 201) {
               final data = jsonDecode(response.body);
-              final attributes = data['data']['attributes'] as Map<String, dynamic>;
+              final attributes =
+                  data['data']['attributes'] as Map<String, dynamic>;
               final link = PaymongoPaymentLink(
                 id: data['data']['id'] as String? ?? '',
                 checkoutUrl: attributes['checkout_url'] as String? ?? '',
-                referenceNumber: attributes['reference_number'] as String? ??
+                referenceNumber:
+                    attributes['reference_number'] as String? ??
                     'PM-${DateTime.now().millisecondsSinceEpoch}',
                 status: attributes['status'] as String? ?? 'unpaid',
                 amount: amount,
@@ -226,10 +241,12 @@ class PaymongoService {
           }
 
           // 1D. Standalone Web fallback: Render official Grammatica PayMongo merchant QR PH with reference
-          final ref = 'PM-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+          final ref =
+              'PM-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
           final link = PaymongoPaymentLink(
             id: 'link_merchant_$ref',
-            checkoutUrl: '', // indicates to render official PayMongo QR PH assets/qrph.jpg
+            checkoutUrl:
+                '', // indicates to render official PayMongo QR PH assets/qrph.jpg
             referenceNumber: ref,
             status: 'unpaid',
             amount: amount,
@@ -246,32 +263,36 @@ class PaymongoService {
             'Basic ${base64Encode(utf8.encode('$_secretKey:'))}';
 
         try {
-          final response = await http.post(
-            Uri.parse('https://api.paymongo.com/v1/links'),
-            headers: {
-              'accept': 'application/json',
-              'content-type': 'application/json',
-              'authorization': basicAuth,
-              'idempotency-key': effectiveKey,
-            },
-            body: jsonEncode({
-              "data": {
-                "attributes": {
-                  "amount": amountInCents,
-                  "description": description,
-                  "remarks": remarks,
-                }
-              }
-            }),
-          ).timeout(const Duration(seconds: 10));
+          final response = await http
+              .post(
+                Uri.parse('https://api.paymongo.com/v1/links'),
+                headers: {
+                  'accept': 'application/json',
+                  'content-type': 'application/json',
+                  'authorization': basicAuth,
+                  'idempotency-key': effectiveKey,
+                },
+                body: jsonEncode({
+                  "data": {
+                    "attributes": {
+                      "amount": amountInCents,
+                      "description": description,
+                      "remarks": remarks,
+                    },
+                  },
+                }),
+              )
+              .timeout(const Duration(seconds: 10));
 
           if (response.statusCode == 200 || response.statusCode == 201) {
             final data = jsonDecode(response.body);
-            final attributes = data['data']['attributes'] as Map<String, dynamic>;
+            final attributes =
+                data['data']['attributes'] as Map<String, dynamic>;
             final link = PaymongoPaymentLink(
               id: data['data']['id'] as String? ?? '',
               checkoutUrl: attributes['checkout_url'] as String? ?? '',
-              referenceNumber: attributes['reference_number'] as String? ??
+              referenceNumber:
+                  attributes['reference_number'] as String? ??
                   'PM-${DateTime.now().millisecondsSinceEpoch}',
               status: attributes['status'] as String? ?? 'unpaid',
               amount: amount,
@@ -281,14 +302,17 @@ class PaymongoService {
             _activeLinksCache[effectiveKey] = link;
             return link;
           } else {
-            debugPrint('PayMongo Error: ${response.statusCode} - ${response.body}');
+            debugPrint(
+              'PayMongo Error: ${response.statusCode} - ${response.body}',
+            );
           }
         } catch (e) {
           debugPrint('PayMongo Exception: $e');
         }
 
         // Graceful fallback to merchant QR PH if network drops
-        final ref = 'PM-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+        final ref =
+            'PM-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
         final link = PaymongoPaymentLink(
           id: 'link_merchant_$ref',
           checkoutUrl: '',
@@ -314,13 +338,12 @@ class PaymongoService {
       try {
         final backendUrl = AIConfig.pythonBackendUrl;
         final apiKey = AIConfig.pythonApiKey;
-        final response = await http.get(
-          Uri.parse('$backendUrl/api/v1/payment/link-status/$linkId'),
-          headers: {
-            'accept': 'application/json',
-            'X-API-Key': apiKey,
-          },
-        ).timeout(const Duration(seconds: 4));
+        final response = await http
+            .get(
+              Uri.parse('$backendUrl/api/v1/payment/link-status/$linkId'),
+              headers: {'accept': 'application/json', 'X-API-Key': apiKey},
+            )
+            .timeout(const Duration(seconds: 4));
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
@@ -336,11 +359,13 @@ class PaymongoService {
       } catch (_) {}
 
       try {
-        final response = await http.post(
-          Uri.parse('http://localhost:8081/get-paymongo-link'),
-          headers: {'content-type': 'application/json'},
-          body: jsonEncode({'linkId': linkId}),
-        ).timeout(const Duration(seconds: 3));
+        final response = await http
+            .post(
+              Uri.parse('http://localhost:8081/get-paymongo-link'),
+              headers: {'content-type': 'application/json'},
+              body: jsonEncode({'linkId': linkId}),
+            )
+            .timeout(const Duration(seconds: 3));
 
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
@@ -363,13 +388,12 @@ class PaymongoService {
         'Basic ${base64Encode(utf8.encode('$_secretKey:'))}';
 
     try {
-      final response = await http.get(
-        Uri.parse('https://api.paymongo.com/v1/links/$linkId'),
-        headers: {
-          'accept': 'application/json',
-          'authorization': basicAuth,
-        },
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .get(
+            Uri.parse('https://api.paymongo.com/v1/links/$linkId'),
+            headers: {'accept': 'application/json', 'authorization': basicAuth},
+          )
+          .timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
