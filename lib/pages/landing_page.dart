@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -82,15 +81,7 @@ class _LandingPageState extends State<LandingPage>
             if (!mounted) return;
             if (doc.exists) {
               final data = doc.data() ?? {};
-              final customIpa = data['ipa_url']?.toString().trim();
-              final customApk = data['apk_url']?.toString().trim();
-              if (customIpa != null && customIpa.isNotEmpty) {
-                _ipaUrl = customIpa;
-              }
               final raw = data['hero_images'];
-              if (customApk != null && customApk.isNotEmpty) {
-                _apkUrl = customApk;
-              }
               if (raw is List && raw.isNotEmpty) {
                 final customUrls = List<String>.from(
                   raw.whereType<String>(),
@@ -179,7 +170,6 @@ class _LandingPageState extends State<LandingPage>
             _buildFeaturesSection(isDesktop),
             _buildHowItWorksSection(isDesktop),
             _buildAboutGrammaticaSection(isDesktop),
-            _buildDownloadAppSection(isDesktop),
             _buildFAQSection(isDesktop),
             _buildCTASection(isDesktop),
             _buildApkDownloadSection(isDesktop),
@@ -2101,7 +2091,7 @@ class _LandingPageState extends State<LandingPage>
       {
         'q': 'Is Grammatica accessible on mobile and desktop devices?',
         'a':
-            'Yes! Grammatica runs seamlessly on web browsers and as dedicated installable mobile apps for both Apple iPhone (iOS IPA) and Android (APK). You can scan the QR codes or tap the download buttons in our Mobile Apps section above.',
+            'Yes, Grammatica is fully responsive and designed to deliver a seamless learning experience across modern web browsers on desktops, tablets, and mobile devices.',
       },
     ];
 
@@ -2258,7 +2248,7 @@ class _LandingPageState extends State<LandingPage>
                     const SizedBox(width: 48),
                     // Navigation / About
                     Expanded(
-                      flex: 2,
+                      flex: 3,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -2271,29 +2261,6 @@ class _LandingPageState extends State<LandingPage>
                           _buildFooterLink(
                             'About Us',
                             () => _showAboutUsDialog(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Mobile App
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildFooterHeading('Mobile Apps'),
-                          const SizedBox(height: 16),
-                          _buildFooterLink(
-                            'iPhone (iOS IPA)',
-                            () => _scrollToKey(_downloadKey),
-                          ),
-                          _buildFooterLink(
-                            'Android (APK)',
-                            () => _scrollToKey(_downloadKey),
-                          ),
-                          _buildFooterLink(
-                            'iOS Install Guide',
-                            () => _showIosInstallGuideModal(context),
                           ),
                         ],
                       ),
@@ -2327,7 +2294,7 @@ class _LandingPageState extends State<LandingPage>
                     ),
                     // Legal
                     Expanded(
-                      flex: 2,
+                      flex: 3,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -2400,10 +2367,6 @@ class _LandingPageState extends State<LandingPage>
                       spacing: 16,
                       runSpacing: 10,
                       children: [
-                        _buildFooterLink(
-                          'Download App (IPA/APK)',
-                          () => _scrollToKey(_downloadKey),
-                        ),
                         _buildFooterLink(
                           'About Grammatica',
                           () => _showAboutGrammaticaDialog(context),
