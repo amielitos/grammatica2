@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -127,24 +128,32 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    _showArchived ? 'Archive' : 'Notifications',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Text(
+                      _showArchived ? 'Archive' : 'Notifications',
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
+                  const SizedBox(width: 6),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(),
                         icon: Icon(
                           _showArchived
                               ? CupertinoIcons.list_bullet
                               : CupertinoIcons.archivebox,
+                          size: 20,
                         ),
                         onPressed: () {
                           setState(() {
@@ -154,8 +163,11 @@ class _NotificationOverlayState extends State<NotificationOverlay> {
                         },
                         tooltip: _showArchived ? 'Show Active' : 'Show Archive',
                       ),
+                      const SizedBox(width: 4),
                       IconButton(
-                        icon: const Icon(CupertinoIcons.xmark),
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(),
+                        icon: const Icon(CupertinoIcons.xmark, size: 20),
                         onPressed: widget.onClose,
                       ),
                     ],
@@ -236,17 +248,24 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final panelWidth = min(screenWidth - 16.0, 420.0);
+    final isMobile = screenWidth < 500;
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      alignment: Alignment.topRight,
-      insetPadding: const EdgeInsets.only(
+      alignment: isMobile ? Alignment.topCenter : Alignment.topRight,
+      insetPadding: EdgeInsets.only(
         top: 70,
-        right: 20,
-        left: 20,
+        right: isMobile ? 8 : 20,
+        left: isMobile ? 8 : 20,
         bottom: 20,
       ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+        constraints: BoxConstraints(
+          maxWidth: panelWidth,
+          maxHeight: min(MediaQuery.sizeOf(context).height * 0.82, 600.0),
+        ),
         child: Container(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
@@ -258,21 +277,31 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      _showArchived ? 'Archive' : 'Notifications',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Text(
+                        _showArchived ? 'Archive' : 'Notifications',
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                     ),
+                    const SizedBox(width: 6),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         if (!_showArchived)
                           TextButton(
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
                             onPressed: () async {
                               final confirm = await showDialog<bool>(
                                 context: context,
@@ -306,14 +335,17 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                                 NotificationService.instance.markAllAsRead(widget.userId);
                               }
                             },
-                            child: const Text('Mark all as read', style: TextStyle(fontSize: 12)),
+                            child: const Text('Mark all as read', style: TextStyle(fontSize: 11)),
                           ),
+                        const SizedBox(width: 2),
                         IconButton(
+                          padding: const EdgeInsets.all(6),
+                          constraints: const BoxConstraints(),
                           icon: Icon(
                             _showArchived
                                 ? CupertinoIcons.tray_fill
                                 : CupertinoIcons.archivebox,
-                            size: 20,
+                            size: 19,
                           ),
                           onPressed: () {
                             setState(() {
@@ -325,8 +357,11 @@ class _NotificationsDialogState extends State<NotificationsDialog> {
                               ? 'Show Active'
                               : 'Show Archive',
                         ),
+                        const SizedBox(width: 2),
                         IconButton(
-                          icon: const Icon(CupertinoIcons.xmark, size: 20),
+                          padding: const EdgeInsets.all(6),
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(CupertinoIcons.xmark, size: 19),
                           onPressed: () => Navigator.pop(context),
                         ),
                       ],
@@ -797,9 +832,12 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: BoxConstraints(
+          maxWidth: 480,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
         child: Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -895,13 +933,14 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
                 ),
               ),
 
-              // Content Body
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Educator info message
+              // Content Body - Scrollable
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Educator info message
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1035,66 +1074,87 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
                       ),
                     ),
 
-                    const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
 
-                    // Actions: Dismiss and JOIN
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: isDark ? Colors.white70 : const Color(0xFF64748B),
-                            side: BorderSide(
-                              color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () => Navigator.pop(context),
-                          child: Text(
-                            'Close',
-                            style: GoogleFonts.inter(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isPastSession
-                                ? (isDark ? Colors.white12 : Colors.grey.shade300)
-                                : accentGreen,
-                            foregroundColor: _isPastSession
-                                ? (isDark ? Colors.white38 : Colors.grey.shade600)
-                                : Colors.white,
-                            disabledBackgroundColor: isDark ? Colors.white12 : Colors.grey.shade300,
-                            disabledForegroundColor: isDark ? Colors.white38 : Colors.grey.shade600,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          icon: Icon(
-                            _isPastSession ? Icons.event_busy_rounded : Icons.video_call_rounded,
-                            size: 20,
-                          ),
-                          label: Text(
-                            _isPastSession ? 'SESSION ENDED' : 'JOIN',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          onPressed: _isPastSession ? null : _handleJoin,
-                        ),
-                      ],
+              // Pinned Actions
+              Container(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  10,
+                  16,
+                  12 + MediaQuery.of(context).viewPadding.bottom,
+                ),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
                     ),
-                  ],
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  bottom: false,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 10,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: isDark ? Colors.white70 : const Color(0xFF64748B),
+                          side: BorderSide(
+                            color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'Close',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isPastSession
+                              ? (isDark ? Colors.white12 : Colors.grey.shade300)
+                              : accentGreen,
+                          foregroundColor: _isPastSession
+                              ? (isDark ? Colors.white38 : Colors.grey.shade600)
+                              : Colors.white,
+                          disabledBackgroundColor: isDark ? Colors.white12 : Colors.grey.shade300,
+                          disabledForegroundColor: isDark ? Colors.white38 : Colors.grey.shade600,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: Icon(
+                          _isPastSession ? Icons.event_busy_rounded : Icons.video_call_rounded,
+                          size: 18,
+                        ),
+                        label: Text(
+                          _isPastSession ? 'SESSION ENDED' : 'JOIN',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        onPressed: _isPastSession ? null : _handleJoin,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -1446,9 +1506,12 @@ class NotificationDetailDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: BoxConstraints(
+          maxWidth: 520,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
         child: Container(
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -1470,7 +1533,7 @@ class NotificationDetailDialog extends StatelessWidget {
             children: [
               // Header Banner
               Container(
-                padding: const EdgeInsets.fromLTRB(24, 20, 16, 20),
+                padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -1532,6 +1595,8 @@ class NotificationDetailDialog extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             notification.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.outfit(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -1555,172 +1620,187 @@ class NotificationDetailDialog extends StatelessWidget {
                 ),
               ),
 
-              // Content Area
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Timestamp pill
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time_rounded,
-                          size: 14,
-                          color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          DateFormat('MMMM d, yyyy • h:mm a').format(notification.createdAt),
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+              // Content Area - Scrollable Body
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Timestamp pill
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.access_time_rounded,
+                            size: 14,
                             color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              DateFormat('MMMM d, yyyy • h:mm a').format(notification.createdAt),
+                              softWrap: true,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Main Message Box
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: Text(
+                          notification.message,
+                          style: GoogleFonts.inter(
+                            fontSize: 14.5,
+                            height: 1.5,
+                            color: isDark ? Colors.white : const Color(0xFF334155),
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+
+                      if (isLessonUpload && lessonTitle.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.15 : 0.08),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.35 : 0.25),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(9),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.menu_book_rounded,
+                                  color: Color(0xFF10B981),
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'LESSON TITLE',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFF10B981),
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      lessonTitle,
+                                      softWrap: true,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 16),
 
-                    // Main Message Box
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                      child: Text(
-                        notification.message,
-                        style: GoogleFonts.inter(
-                          fontSize: 14.5,
-                          height: 1.5,
-                          color: isDark ? Colors.white : const Color(0xFF334155),
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ),
-
-                    if (isLessonUpload && lessonTitle.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.15 : 0.08),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: const Color(0xFF10B981).withValues(alpha: isDark ? 0.35 : 0.25),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(9),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.menu_book_rounded,
-                                color: Color(0xFF10B981),
-                                size: 20,
-                              ),
+                      // Rejection info if applicable
+                      if (notification.type == NotificationType.appRejected) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDC2626).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: const Color(0xFFDC2626).withValues(alpha: 0.3),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
-                                  Text(
-                                    'LESSON TITLE',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF10B981),
-                                      letterSpacing: 0.8,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    lessonTitle,
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFDC2626)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Feedback from Validator',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: const Color(0xFFDC2626),
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-
-                    // Rejection info if applicable
-                    if (notification.type == NotificationType.appRejected) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDC2626).withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: const Color(0xFFDC2626).withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFDC2626)),
-                                const SizedBox(width: 8),
+                              const SizedBox(height: 8),
+                              Text(
+                                notification.rejectionReason ?? 'No reason provided',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                              ),
+                              if (notification.rejectionDescription != null &&
+                                  notification.rejectionDescription!.isNotEmpty) ...[
+                                const SizedBox(height: 6),
                                 Text(
-                                  'Feedback from Validator',
+                                  notification.rejectionDescription!,
                                   style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: const Color(0xFFDC2626),
+                                    fontSize: 12.5,
+                                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                    height: 1.4,
                                   ),
                                 ),
                               ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              notification.rejectionReason ?? 'No reason provided',
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
-                              ),
-                            ),
-                            if (notification.rejectionDescription != null &&
-                                notification.rejectionDescription!.isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Text(
-                                notification.rejectionDescription!,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12.5,
-                                  color: isDark ? Colors.white70 : const Color(0xFF475569),
-                                  height: 1.4,
-                                ),
-                              ),
                             ],
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
 
-              // Footer Actions
+              // Footer Actions - Pinned with SafeArea / viewPadding.bottom
               Container(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  10,
+                  16,
+                  12 + MediaQuery.of(context).viewPadding.bottom,
+                ),
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
@@ -1728,128 +1808,128 @@ class NotificationDetailDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    // Archive and Delete buttons
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: TextButton.icon(
-                            style: TextButton.styleFrom(
-                              foregroundColor: isDark ? Colors.white60 : const Color(0xFF64748B),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: SafeArea(
+                  top: false,
+                  bottom: false,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      // Archive and Delete buttons
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: [
+                          MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: TextButton.icon(
+                              style: TextButton.styleFrom(
+                                foregroundColor: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              ),
+                              icon: Icon(
+                                notification.isArchived
+                                    ? Icons.unarchive_outlined
+                                    : Icons.archive_outlined,
+                                size: 16,
+                              ),
+                              label: Text(
+                                notification.isArchived ? 'Restore' : 'Archive',
+                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+                              ),
+                              onPressed: () {
+                                NotificationService.instance.archiveNotification(
+                                  notification.id,
+                                  archive: !notification.isArchived,
+                                );
+                                Navigator.pop(context);
+                              },
                             ),
-                            icon: Icon(
-                              notification.isArchived
-                                  ? Icons.unarchive_outlined
-                                  : Icons.archive_outlined,
-                              size: 16,
-                            ),
-                            label: Text(
-                              notification.isArchived ? 'Restore' : 'Archive',
-                              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
-                            ),
-                            onPressed: () {
-                              NotificationService.instance.archiveNotification(
-                                notification.id,
-                                archive: !notification.isArchived,
-                              );
-                              Navigator.pop(context);
-                            },
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: TextButton.icon(
-                            style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFFEF4444),
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: TextButton.icon(
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFFEF4444),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              ),
+                              icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                              label: Text(
+                                'Delete',
+                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+                              ),
+                              onPressed: () {
+                                NotificationService.instance.deleteNotification(notification.id);
+                                Navigator.pop(context);
+                              },
                             ),
-                            icon: const Icon(Icons.delete_outline_rounded, size: 16),
-                            label: Text(
-                              'Delete',
-                              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
-                            ),
-                            onPressed: () {
-                              NotificationService.instance.deleteNotification(notification.id);
-                              Navigator.pop(context);
-                            },
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
 
                     // Primary and Close buttons
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (isLessonUpload)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: MouseRegion(
-                              cursor: SystemMouseCursors.click,
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF10B981),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                                icon: const Icon(Icons.menu_book_rounded, size: 18),
-                                label: Text(
-                                  'VIEW LESSON',
-                                  style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.5),
-                                ),
-                                onPressed: () => openLessonFromNotification(context, notification),
+                          MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF10B981),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
+                              icon: const Icon(Icons.menu_book_rounded, size: 18),
+                              label: Text(
+                                'VIEW LESSON',
+                                style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.5),
+                              ),
+                              onPressed: () => openLessonFromNotification(context, notification),
                             ),
                           ),
                         if (isMentorship)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: MouseRegion(
-                              cursor: isMentorshipExpired
-                                  ? SystemMouseCursors.basic
-                                  : SystemMouseCursors.click,
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isMentorshipExpired
-                                      ? (isDark ? Colors.white12 : Colors.grey.shade300)
-                                      : const Color(0xFF16A34A),
-                                  foregroundColor: isMentorshipExpired
-                                      ? (isDark ? Colors.white38 : Colors.grey.shade600)
-                                      : Colors.white,
-                                  disabledBackgroundColor: isDark ? Colors.white12 : Colors.grey.shade300,
-                                  disabledForegroundColor: isDark ? Colors.white38 : Colors.grey.shade600,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                                icon: Icon(
-                                  isMentorshipExpired ? Icons.event_busy_rounded : Icons.video_call_rounded,
-                                  size: 18,
-                                ),
-                                label: Text(
-                                  isMentorshipExpired ? 'SESSION ENDED' : 'JOIN',
-                                  style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.5),
-                                ),
-                                onPressed: isMentorshipExpired ? null : () {
-                                  final nav = Navigator.of(context, rootNavigator: true);
-                                  nav.pop();
-                                  showDialog(
-                                    context: nav.context,
-                                    builder: (_) => MentorshipScheduleDialog(notification: notification),
-                                  );
-                                },
+                          MouseRegion(
+                            cursor: isMentorshipExpired
+                                ? SystemMouseCursors.basic
+                                : SystemMouseCursors.click,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isMentorshipExpired
+                                    ? (isDark ? Colors.white12 : Colors.grey.shade300)
+                                    : const Color(0xFF16A34A),
+                                foregroundColor: isMentorshipExpired
+                                    ? (isDark ? Colors.white38 : Colors.grey.shade600)
+                                    : Colors.white,
+                                disabledBackgroundColor: isDark ? Colors.white12 : Colors.grey.shade300,
+                                disabledForegroundColor: isDark ? Colors.white38 : Colors.grey.shade600,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
+                              icon: Icon(
+                                isMentorshipExpired ? Icons.event_busy_rounded : Icons.video_call_rounded,
+                                size: 18,
+                              ),
+                              label: Text(
+                                isMentorshipExpired ? 'SESSION ENDED' : 'JOIN',
+                                style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.5),
+                              ),
+                              onPressed: isMentorshipExpired ? null : () {
+                                final nav = Navigator.of(context, rootNavigator: true);
+                                nav.pop();
+                                showDialog(
+                                  context: nav.context,
+                                  builder: (_) => MentorshipScheduleDialog(notification: notification),
+                                );
+                              },
                             ),
                           ),
                         MouseRegion(
@@ -1875,9 +1955,10 @@ class NotificationDetailDialog extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
       ),
     );
   }

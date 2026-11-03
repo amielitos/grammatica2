@@ -1830,14 +1830,21 @@ class DatabaseService {
   }
 
   /// Stream archived lessons for viewing in the Archive modal/view.
-  Stream<List<Lesson>> streamArchivedLessons({String? uid}) {
+  Stream<List<Lesson>> streamArchivedLessons({String? uid, String? email}) {
     return _lessons
         .where('isArchived', isEqualTo: true)
         .snapshots()
         .map((snap) {
       var list = snap.docs.map(Lesson.fromDoc).toList();
-      if (uid != null) {
-        list = list.where((l) => l.createdByUid == uid).toList();
+      if (uid != null || email != null) {
+        final cleanEmail = email?.trim().toLowerCase();
+        list = list.where((l) {
+          final matchUid = uid != null && uid.isNotEmpty && l.createdByUid == uid;
+          final matchEmail = cleanEmail != null &&
+              cleanEmail.isNotEmpty &&
+              l.createdByEmail?.trim().toLowerCase() == cleanEmail;
+          return matchUid || matchEmail;
+        }).toList();
       }
       return list;
     });

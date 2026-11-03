@@ -820,7 +820,11 @@ class _AdminLessonDatabaseTabState extends State<AdminLessonDatabaseTab> {
                           onPressed: () {
                             showDialog(
                               context: context,
-                              builder: (_) => ArchiveManagementDialog(role: widget.role),
+                              builder: (_) => ArchiveManagementDialog(
+                                role: widget.role,
+                                userId: AuthService.instance.currentUser?.uid,
+                                userEmail: AuthService.instance.currentUser?.email,
+                              ),
                             );
                           },
                           icon: const Icon(Icons.archive_outlined, size: 18),

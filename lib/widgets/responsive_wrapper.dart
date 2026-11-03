@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+export 'responsive_dialog.dart';
 
 /// A wrapper to constrain content width on large screens.
 class ResponsiveWrapper extends StatelessWidget {
@@ -13,6 +14,11 @@ class ResponsiveWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return child;
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: child,
+      ),
+    );
   }
 }

@@ -2808,8 +2808,8 @@ class _LandingPageState extends State<LandingPage>
               onTap: () => _launchApkDownload(apkUrl),
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                  horizontal: 14,
+                  vertical: 7,
                 ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF81B655).withValues(alpha: 0.12),
@@ -2820,6 +2820,7 @@ class _LandingPageState extends State<LandingPage>
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(
                       Icons.touch_app_rounded,
@@ -2827,12 +2828,16 @@ class _LandingPageState extends State<LandingPage>
                       color: Color(0xFF2D6A1A),
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      'Click QR or button to download',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF2D6A1A),
+                    Flexible(
+                      child: Text(
+                        'Click QR or button to download',
+                        textAlign: TextAlign.center,
+                        softWrap: true,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF2D6A1A),
+                        ),
                       ),
                     ),
                   ],
@@ -2840,30 +2845,36 @@ class _LandingPageState extends State<LandingPage>
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
           // Caption
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.qr_code_scanner_rounded,
-                size: 16,
-                color: Color(0xFF81B655),
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  'Scan with phone camera to install',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white70 : const Color(0xFF334155),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.qr_code_scanner_rounded,
+                  size: 16,
+                  color: Color(0xFF81B655),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Scan with phone camera to install',
+                    textAlign: TextAlign.center,
+                    softWrap: true,
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white70 : const Color(0xFF334155),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 6),
 

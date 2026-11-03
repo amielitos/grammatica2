@@ -103,7 +103,10 @@ class _ContentDenialDialogState extends State<_ContentDenialDialog> {
       backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 580),
+        constraints: BoxConstraints(
+          maxWidth: 580,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+        ),
         child: Padding(
           padding: const EdgeInsets.all(28.0),
           child: SingleChildScrollView(

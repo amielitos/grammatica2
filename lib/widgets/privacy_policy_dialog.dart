@@ -20,15 +20,19 @@ class _PrivacyPolicyDialogState extends State<PrivacyPolicyDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: const Row(
         children: [
           Icon(Icons.privacy_tip_outlined, color: Color(0xFF81B655)),
           SizedBox(width: 10),
-          Text('Privacy Policy'),
+          Expanded(child: Text('Privacy Policy', overflow: TextOverflow.ellipsis)),
         ],
       ),
-      content: SizedBox(
-        width: 500,
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 500,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+        ),
         child: SingleChildScrollView(
           controller: _scrollController,
           child: const Text(

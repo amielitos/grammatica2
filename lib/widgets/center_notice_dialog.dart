@@ -61,12 +61,15 @@ class CenterNoticeDialog extends StatelessWidget {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       elevation: 10,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400),
+        constraints: BoxConstraints(
+          maxWidth: 400,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+        ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -81,7 +84,7 @@ class CenterNoticeDialog extends StatelessWidget {
                   child: Icon(icon, color: iconColor, size: 30),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               Text(
                 title,
                 textAlign: TextAlign.center,
@@ -92,13 +95,17 @@ class CenterNoticeDialog extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  height: 1.5,
-                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: isDark ? Colors.white70 : const Color(0xFF475569),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

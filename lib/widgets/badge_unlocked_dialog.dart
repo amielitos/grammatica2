@@ -78,9 +78,12 @@ class _BadgeUnlockedDialogState extends State<BadgeUnlockedDialog> {
           Material(
             color: Colors.transparent,
             child: Container(
-              width: 380,
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+              constraints: BoxConstraints(
+                maxWidth: 380,
+                maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+              ),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 borderRadius: BorderRadius.circular(28),
@@ -97,8 +100,9 @@ class _BadgeUnlockedDialogState extends State<BadgeUnlockedDialog> {
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                 children: [
                   // Badge unlocked banner pill
                   Container(
@@ -232,6 +236,7 @@ class _BadgeUnlockedDialogState extends State<BadgeUnlockedDialog> {
                     ),
                   ),
                 ],
+              ),
               ),
             ),
           ),

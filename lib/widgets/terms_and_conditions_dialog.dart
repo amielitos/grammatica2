@@ -53,8 +53,15 @@ class _TermsAndConditionsDialogState extends State<TermsAndConditionsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: const Text('Terms and Conditions'),
-      content: SingleChildScrollView(
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 520,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+        ),
+        child: SingleChildScrollView(
         controller: _scrollController,
         child: const Text(
           'GRAMMATICA — TERMS AND CONDITIONS\n'
@@ -100,6 +107,7 @@ class _TermsAndConditionsDialogState extends State<TermsAndConditionsDialog> {
           'Email: grammatica.support@gmail.com\n\n'
           '(Scroll to the bottom to accept)',
         ),
+      ),
       ),
       actions: [
         TextButton(

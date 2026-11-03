@@ -2,11 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
+import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 
 class ArchiveManagementDialog extends StatefulWidget {
   final UserRole role;
-  const ArchiveManagementDialog({super.key, required this.role});
+  final String? userId;
+  final String? userEmail;
+
+  const ArchiveManagementDialog({
+    super.key,
+    required this.role,
+    this.userId,
+    this.userEmail,
+  });
 
   @override
   State<ArchiveManagementDialog> createState() => _ArchiveManagementDialogState();
@@ -34,15 +43,28 @@ class _ArchiveManagementDialogState extends State<ArchiveManagementDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSuperAdmin = widget.role == UserRole.superadmin;
+    final isEducator = widget.role == UserRole.educator;
+    final isAdmin = widget.role == UserRole.admin;
+    final currentUser = AuthService.instance.currentUser;
+    final effectiveUid = widget.userId ?? currentUser?.uid;
+    final effectiveEmail = widget.userEmail ?? currentUser?.email;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 600;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 24,
+        vertical: isMobile ? 16 : 32,
+      ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 650),
+        constraints: BoxConstraints(
+          maxWidth: 720,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -65,18 +87,21 @@ class _ArchiveManagementDialogState extends State<ArchiveManagementDialog> {
                         Text(
                           'Lesson Content Archive',
                           style: GoogleFonts.outfit(
-                            fontSize: 20,
+                            fontSize: isMobile ? 18 : 20,
                             fontWeight: FontWeight.bold,
                             color: isDark ? Colors.white : AppColors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Archived lessons include all linked assessments, mind maps, slides, and flashcards. Purges after 30 days.',
+                          isEducator
+                              ? 'Your archived lessons include all linked assessments, mind maps, slides, and flashcards. Purges after 30 days.'
+                              : 'Archived lessons include all linked assessments, mind maps, slides, and flashcards. Purges after 30 days.',
                           style: GoogleFonts.inter(
-                            fontSize: 12.5,
+                            fontSize: 12,
                             color: isDark ? Colors.white70 : Colors.grey.shade600,
                           ),
+                          softWrap: true,
                         ),
                       ],
                     ),
@@ -87,11 +112,18 @@ class _ArchiveManagementDialogState extends State<ArchiveManagementDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // Content View
               Expanded(
-                child: _buildArchivedLessonsList(isDark, isSuperAdmin),
+                child: _buildArchivedLessonsList(
+                  isDark: isDark,
+                  isSuperAdmin: isSuperAdmin,
+                  isEducator: isEducator,
+                  isAdmin: isAdmin,
+                  effectiveUid: effectiveUid,
+                  effectiveEmail: effectiveEmail,
+                ),
               ),
             ],
           ),
@@ -100,14 +132,49 @@ class _ArchiveManagementDialogState extends State<ArchiveManagementDialog> {
     );
   }
 
-  Widget _buildArchivedLessonsList(bool isDark, bool isSuperAdmin) {
+  Widget _buildArchivedLessonsList({
+    required bool isDark,
+    required bool isSuperAdmin,
+    required bool isEducator,
+    required bool isAdmin,
+    required String? effectiveUid,
+    required String? effectiveEmail,
+  }) {
     return StreamBuilder<List<Lesson>>(
-      stream: DatabaseService.instance.streamArchivedLessons(),
+      stream: DatabaseService.instance.streamArchivedLessons(
+        uid: isEducator ? effectiveUid : null,
+        email: isEducator ? effectiveEmail : null,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        final items = snapshot.data ?? [];
+        var items = snapshot.data ?? [];
+
+        // Strict role filtering:
+        // Educators only see their own archived lessons (never other educators' or super-admin's).
+        if (isEducator) {
+          final cleanEmail = effectiveEmail?.trim().toLowerCase();
+          items = items.where((l) {
+            // Strictly exclude official Grammatica / super-admin lessons
+            if (l.isGrammaticaLesson == true) return false;
+
+            // Must match the current educator's UID or verified email
+            final matchesUid = effectiveUid != null &&
+                effectiveUid.isNotEmpty &&
+                l.createdByUid == effectiveUid;
+            final matchesEmail = cleanEmail != null &&
+                cleanEmail.isNotEmpty &&
+                l.createdByEmail?.trim().toLowerCase() == cleanEmail;
+
+            return matchesUid || matchesEmail;
+          }).toList();
+        } else if (isAdmin) {
+          // Admin only manages official Grammatica archived lessons
+          items = items.where((l) => l.isGrammaticaLesson == true).toList();
+        }
+        // Superadmin sees all archived lessons
+
         if (items.isEmpty) {
           return Center(
             child: Column(
@@ -116,7 +183,9 @@ class _ArchiveManagementDialogState extends State<ArchiveManagementDialog> {
                 Icon(Icons.inbox_outlined, size: 48, color: isDark ? Colors.white24 : Colors.grey.shade300),
                 const SizedBox(height: 12),
                 Text(
-                  'No archived lessons',
+                  isEducator
+                      ? 'No archived lessons found for your account'
+                      : 'No archived lessons',
                   style: GoogleFonts.outfit(
                     fontSize: 15,
                     color: isDark ? Colors.white60 : Colors.grey.shade500,
@@ -149,120 +218,151 @@ class _ArchiveManagementDialogState extends State<ArchiveManagementDialog> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          lesson.title,
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14.5,
-                            color: isDark ? Colors.white : AppColors.textPrimary,
-                          ),
+              child: LayoutBuilder(
+                builder: (context, cardConstraints) {
+                  final isNarrowCard = cardConstraints.maxWidth < 480;
+
+                  final contentColumn = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lesson.title,
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14.5,
+                          color: isDark ? Colors.white : AppColors.textPrimary,
                         ),
-                        const SizedBox(height: 4),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '$daysRemaining days remaining',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.amber.shade800,
-                                ),
-                              ),
+                        softWrap: true,
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF81B655).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
+                            child: Text(
+                              '$daysRemaining days remaining',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.amber.shade800,
                               ),
-                              child: Text(
-                                'Centralized Package (Quiz + Content)',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF4D8B28),
-                                ),
-                              ),
-                            ),
-                            if (lesson.createdByEmail != null && lesson.createdByEmail!.isNotEmpty)
-                              Text(
-                                '• ${lesson.createdByEmail}',
-                                style: GoogleFonts.inter(fontSize: 11, color: isDark ? Colors.white54 : Colors.grey),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  TextButton.icon(
-                    onPressed: () async {
-                      await DatabaseService.instance.restoreLesson(lesson.id);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Lesson "${lesson.title}" and all linked content restored successfully',
                             ),
                           ),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.restore_rounded, size: 16, color: Color(0xFF81B655)),
-                    label: const Text('Restore', style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold)),
-                  ),
-                  if (isSuperAdmin) ...[
-                    const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF81B655).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Centralized Package (Quiz + Content)',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF4D8B28),
+                              ),
+                            ),
+                          ),
+                          if (lesson.createdByEmail != null && lesson.createdByEmail!.isNotEmpty)
+                            Text(
+                              '• ${lesson.createdByEmail}',
+                              style: GoogleFonts.inter(fontSize: 11, color: isDark ? Colors.white54 : Colors.grey),
+                            ),
+                        ],
+                      ),
+                    ],
+                  );
+
+                  final actions = [
                     TextButton.icon(
                       onPressed: () async {
-                        final ok = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Purge Lesson Package?'),
-                            content: Text(
-                              'Permanently purge "${lesson.title}" and all associated quizzes, mind maps, and slides from storage right now?',
+                        await DatabaseService.instance.restoreLesson(lesson.id);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Lesson "${lesson.title}" and all linked content restored successfully',
+                              ),
                             ),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                              FilledButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE05050)),
-                                child: const Text('Purge Now'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (ok == true) {
-                          await DatabaseService.instance.permanentlyDeleteLessonPackage(lesson: lesson);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Lesson package "${lesson.title}" permanently purged'),
-                              ),
-                            );
-                          }
+                          );
                         }
                       },
-                      icon: const Icon(Icons.delete_forever_rounded, size: 16, color: Color(0xFFE05050)),
-                      label: const Text('Purge Now', style: TextStyle(color: Color(0xFFE05050), fontWeight: FontWeight.bold)),
+                      icon: const Icon(Icons.restore_rounded, size: 16, color: Color(0xFF81B655)),
+                      label: const Text('Restore', style: TextStyle(color: Color(0xFF81B655), fontWeight: FontWeight.bold)),
                     ),
-                  ],
-                ],
+                    if (isSuperAdmin) ...[
+                      const SizedBox(width: 4),
+                      TextButton.icon(
+                        onPressed: () async {
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Purge Lesson Package?'),
+                              content: Text(
+                                'Permanently purge "${lesson.title}" and all associated quizzes, mind maps, and slides from storage right now?',
+                              ),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE05050)),
+                                  child: const Text('Purge Now'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (ok == true) {
+                            await DatabaseService.instance.permanentlyDeleteLessonPackage(lesson: lesson);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Lesson package "${lesson.title}" permanently purged'),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.delete_forever_rounded, size: 16, color: Color(0xFFE05050)),
+                        label: const Text('Purge Now', style: TextStyle(color: Color(0xFFE05050), fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ];
+
+                  if (isNarrowCard) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        contentColumn,
+                        const SizedBox(height: 8),
+                        Wrap(
+                          alignment: WrapAlignment.end,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: actions,
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: contentColumn),
+                      const SizedBox(width: 10),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: actions,
+                      ),
+                    ],
+                  );
+                },
               ),
             );
           },

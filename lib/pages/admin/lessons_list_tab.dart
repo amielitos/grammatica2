@@ -289,7 +289,11 @@ class _LessonsListTabState extends State<LessonsListTab> {
                                   onPressed: () {
                                     showDialog(
                                       context: context,
-                                      builder: (context) => ArchiveManagementDialog(role: widget.role),
+                                      builder: (context) => ArchiveManagementDialog(
+                                        role: role,
+                                        userId: user?.uid,
+                                        userEmail: user?.email,
+                                      ),
                                     );
                                   },
                                   icon: const Icon(Icons.archive_outlined, size: 18),

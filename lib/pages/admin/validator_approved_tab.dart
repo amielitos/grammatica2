@@ -365,7 +365,7 @@ class _ApprovedLessonsListState extends State<_ApprovedLessonsList> {
             Expanded(
               child: ListView.separated(
                 key: const PageStorageKey('validator_approved_lessons_list'),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                 itemCount: pageItems.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
@@ -399,169 +399,177 @@ class _ApprovedLessonsListState extends State<_ApprovedLessonsList> {
                     child: InkWell(
                       onTap: () => _previewLesson(context, lesson),
                       borderRadius: BorderRadius.circular(16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: LayoutBuilder(
-                          builder: (context, cardConstraints) {
-                            final isNarrow = cardConstraints.maxWidth < 640;
+                      child: LayoutBuilder(
+                        builder: (context, cardConstraints) {
+                          final isNarrow = cardConstraints.maxWidth < 640;
 
-                            final contentColumn = Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  lesson.title,
-                                  style: GoogleFonts.outfit(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 16,
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                  ),
+                          final contentColumn = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                lesson.title,
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                                 ),
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 6,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF16A34A).withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.verified_rounded, size: 12, color: Color(0xFF16A34A)),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'Approved',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 10.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: const Color(0xFF16A34A),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                softWrap: true,
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF16A34A).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(20),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: (isOfficial ? const Color(0xFFD97706) : const Color(0xFF3B82F6))
-                                            .withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        isOfficial ? 'Grammatica Official' : 'Community Hub',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: isOfficial ? const Color(0xFFD97706) : const Color(0xFF3B82F6),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                AuthorName(
-                                  uid: lesson.createdByUid,
-                                  fallbackEmail: lesson.createdByEmail,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12.5,
-                                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 12,
-                                  runSpacing: 6,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF16A34A).withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.check_circle_outline_rounded, size: 13, color: Color(0xFF16A34A)),
-                                          const SizedBox(width: 5),
-                                          Text(
-                                            'Approved: $approvedAtStr',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: const Color(0xFF16A34A),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Row(
+                                    child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(
-                                          Icons.schedule_rounded,
-                                          size: 13,
-                                          color: isDark ? Colors.white38 : Colors.grey.shade500,
-                                        ),
+                                        const Icon(Icons.verified_rounded, size: 12, color: Color(0xFF16A34A)),
                                         const SizedBox(width: 4),
                                         Text(
-                                          'Submitted: $submittedAtStr',
+                                          'Approved',
                                           style: GoogleFonts.inter(
-                                            fontSize: 11.5,
-                                            color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF16A34A),
                                           ),
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
-                              ],
-                            );
-
-                            final viewButton = FilledButton.tonalIcon(
-                              onPressed: () => _previewLesson(context, lesson),
-                              icon: const Icon(Icons.visibility_rounded, size: 16),
-                              label: const Text('View Lesson'),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: const Color(0xFF81B655).withValues(alpha: 0.15),
-                                foregroundColor: const Color(0xFF81B655),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: (isOfficial ? const Color(0xFFD97706) : const Color(0xFF3B82F6))
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      isOfficial ? 'Grammatica Official' : 'Community Hub',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: isOfficial ? const Color(0xFFD97706) : const Color(0xFF3B82F6),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            );
+                              const SizedBox(height: 6),
+                              AuthorName(
+                                uid: lesson.createdByUid,
+                                fallbackEmail: lesson.createdByEmail,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12.5,
+                                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 6,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Wrap(
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      spacing: 5,
+                                      runSpacing: 2,
+                                      children: [
+                                        const Icon(Icons.check_circle_outline_rounded, size: 13, color: Color(0xFF16A34A)),
+                                        Text(
+                                          'Approved: $approvedAtStr',
+                                          softWrap: true,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF16A34A),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Wrap(
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 4,
+                                    runSpacing: 2,
+                                    children: [
+                                      Icon(
+                                        Icons.schedule_rounded,
+                                        size: 13,
+                                        color: isDark ? Colors.white38 : Colors.grey.shade500,
+                                      ),
+                                      Text(
+                                        'Submitted: $submittedAtStr',
+                                        softWrap: true,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11.5,
+                                          color: isDark ? Colors.white54 : Colors.grey.shade600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          );
 
-                            if (isNarrow) {
-                              return Column(
+                          final viewButton = FilledButton.tonalIcon(
+                            onPressed: () => _previewLesson(context, lesson),
+                            icon: const Icon(Icons.visibility_rounded, size: 16),
+                            label: const Text('View Lesson'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFF81B655).withValues(alpha: 0.15),
+                              foregroundColor: const Color(0xFF81B655),
+                            ),
+                          );
+
+                          if (isNarrow) {
+                            return Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.all(12),
+                                        padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFF16A34A).withValues(alpha: 0.12),
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(12),
                                         ),
                                         child: const Icon(
                                           Icons.menu_book_rounded,
                                           color: Color(0xFF16A34A),
-                                          size: 24,
+                                          size: 20,
                                         ),
                                       ),
-                                      const SizedBox(width: 14),
+                                      const SizedBox(width: 10),
                                       Expanded(child: contentColumn),
                                     ],
                                   ),
                                   const SizedBox(height: 12),
                                   viewButton,
                                 ],
-                              );
-                            }
+                              ),
+                            );
+                          }
 
-                            return Row(
+                          return Padding(
+                            padding: const EdgeInsets.all(18),
+                            child: Row(
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(12),
@@ -580,9 +588,9 @@ class _ApprovedLessonsListState extends State<_ApprovedLessonsList> {
                                 const SizedBox(width: 12),
                                 viewButton,
                               ],
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   );
@@ -655,8 +663,8 @@ class _ApprovedEducatorsListState extends State<_ApprovedEducatorsList> {
           children: [
             Expanded(
               child: ListView.separated(
-                key: const PageStorageKey('validator_approved_lessons_list'),
-                padding: const EdgeInsets.all(16),
+                key: const PageStorageKey('validator_approved_educators_list'),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                 itemCount: pageItems.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
@@ -834,6 +842,7 @@ class _ApprovedEducatorHeader extends StatelessWidget {
                   Wrap(
                     spacing: 8,
                     runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
@@ -842,13 +851,15 @@ class _ApprovedEducatorHeader extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.25)),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 4,
+                          runSpacing: 2,
                           children: [
                             const Icon(Icons.check_circle_outline_rounded, size: 13, color: Color(0xFF16A34A)),
-                            const SizedBox(width: 4),
                             Text(
                               'Approved on: $approvedAtStr',
+                              softWrap: true,
                               style: const TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.bold,
@@ -864,13 +875,15 @@ class _ApprovedEducatorHeader extends StatelessWidget {
                           color: isDark ? Colors.white10 : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 4,
+                          runSpacing: 2,
                           children: [
                             Icon(Icons.schedule_rounded, size: 12, color: isDark ? Colors.white60 : Colors.grey.shade600),
-                            const SizedBox(width: 4),
                             Text(
                               'Applied: $appliedAtStr',
+                              softWrap: true,
                               style: TextStyle(
                                 fontSize: 11,
                                 color: isDark ? Colors.white60 : Colors.grey.shade600,
