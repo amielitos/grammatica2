@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/auth_service.dart';
 import '../services/email_validator_service.dart';
+import '../services/role_service.dart';
 
 import 'package:flutter/services.dart';
 import '../widgets/google_sign_in_button.dart';
@@ -31,6 +32,8 @@ class _SignupPageState extends State<SignupPage> {
 
   // Role Selection
   String _selectedRole = 'learner'; // 'learner' or 'validator'
+  bool _isValidatorDisabled = false;
+  StreamSubscription<bool>? _validatorRegistrationSub;
 
   // Step 1 Controllers
   final _firstNameController = TextEditingController();
@@ -64,6 +67,19 @@ class _SignupPageState extends State<SignupPage> {
   void initState() {
     super.initState();
     AuthService.preferredGoogleRole = _selectedRole;
+    _validatorRegistrationSub = RoleService.instance
+        .isValidatorRegistrationDisabledStream()
+        .listen((isDisabled) {
+      if (mounted) {
+        setState(() {
+          _isValidatorDisabled = isDisabled;
+          if (isDisabled && _selectedRole == 'validator') {
+            _selectedRole = 'learner';
+            AuthService.preferredGoogleRole = 'learner';
+          }
+        });
+      }
+    });
     _authSubscription = AuthService.instance.authStateChanges().listen((user) {
       if (user != null && mounted) {
         final isGoogleUser = user.providerData.any(
@@ -458,7 +474,7 @@ class _SignupPageState extends State<SignupPage> {
         fullName: fullName,
         phoneNumber: '',
         dateOfBirth: _selectedDate ?? DateTime.now(),
-        role: _selectedRole,
+        role: (_isValidatorDisabled && _selectedRole == 'validator') ? 'learner' : _selectedRole,
       );
 
       final user = cred.user;
@@ -535,8 +551,9 @@ class _SignupPageState extends State<SignupPage> {
     });
 
     try {
-      AuthService.preferredGoogleRole = _selectedRole;
-      await AuthService.instance.googleSignIn(role: _selectedRole);
+      final effectiveRole = (_isValidatorDisabled && _selectedRole == 'validator') ? 'learner' : _selectedRole;
+      AuthService.preferredGoogleRole = effectiveRole;
+      await AuthService.instance.googleSignIn(role: effectiveRole);
       // Now that sign-up/sign-in is successful, pop this page so the AuthWrapper in main.dart
       // can show the dashboard.
       if (mounted) {
@@ -786,41 +803,95 @@ class _SignupPageState extends State<SignupPage> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: InkWell(
-                    onTap: () => setState(() {
-                      _selectedRole = 'validator';
-                      AuthService.preferredGoogleRole = 'validator';
-                      if (_selectedDate != null && _selectedDate!.isAfter(DateTime(2005, 12, 31))) {
-                        _selectedDate = null;
-                        _dobController.clear();
-                      }
-                    }),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: _selectedRole == 'validator'
-                            ? const Color(0xFF3B82F6).withValues(alpha: 0.12)
-                            : (isDark ? Colors.white10 : Colors.grey.shade100),
+                  child: Tooltip(
+                    message: _isValidatorDisabled
+                        ? RoleService.disabledValidatorMessage
+                        : '',
+                    waitDuration: const Duration(milliseconds: 150),
+                    showDuration: const Duration(seconds: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    margin: const EdgeInsets.symmetric(horizontal: 24),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF2D3748) : const Color(0xFF1F2937),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4)),
+                      ],
+                    ),
+                    textStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    child: MouseRegion(
+                      cursor: _isValidatorDisabled
+                          ? SystemMouseCursors.forbidden
+                          : SystemMouseCursors.click,
+                      child: InkWell(
+                        onTap: _isValidatorDisabled
+                            ? () {
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(RoleService.disabledValidatorMessage),
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: Duration(seconds: 4),
+                                  ),
+                                );
+                              }
+                            : () => setState(() {
+                                _selectedRole = 'validator';
+                                AuthService.preferredGoogleRole = 'validator';
+                                if (_selectedDate != null &&
+                                    _selectedDate!.isAfter(DateTime(2005, 12, 31))) {
+                                  _selectedDate = null;
+                                  _dobController.clear();
+                                }
+                              }),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _selectedRole == 'validator' ? const Color(0xFF3B82F6) : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.verified_rounded, size: 20, color: _selectedRole == 'validator' ? const Color(0xFF3B82F6) : Colors.grey),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Validator',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: _selectedRole == 'validator' ? const Color(0xFF3B82F6) : (isDark ? Colors.white70 : Colors.black87),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: _isValidatorDisabled
+                                ? (isDark ? Colors.white.withValues(alpha: 0.04) : Colors.grey.shade200)
+                                : (_selectedRole == 'validator'
+                                    ? const Color(0xFF3B82F6).withValues(alpha: 0.12)
+                                    : (isDark ? Colors.white10 : Colors.grey.shade100)),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: (!_isValidatorDisabled && _selectedRole == 'validator')
+                                  ? const Color(0xFF3B82F6)
+                                  : Colors.transparent,
+                              width: 2,
                             ),
                           ),
-                        ],
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.verified_rounded,
+                                size: 20,
+                                color: _isValidatorDisabled
+                                    ? (isDark ? Colors.white24 : Colors.grey.shade400)
+                                    : (_selectedRole == 'validator'
+                                        ? const Color(0xFF3B82F6)
+                                        : Colors.grey),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Validator',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: _isValidatorDisabled
+                                      ? (isDark ? Colors.white24 : Colors.grey.shade400)
+                                      : (_selectedRole == 'validator'
+                                          ? const Color(0xFF3B82F6)
+                                          : (isDark ? Colors.white70 : Colors.black87)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -1449,6 +1520,7 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   void dispose() {
+    _validatorRegistrationSub?.cancel();
     _emailDebounceTimer?.cancel();
     _authSubscription?.cancel();
     _firstNameController.dispose();

@@ -886,6 +886,12 @@ class DatabaseService {
     } catch (_) {}
   }
 
+  Stream<bool> isValidatorRegistrationDisabledStream() =>
+      RoleService.instance.isValidatorRegistrationDisabledStream();
+
+  Future<bool> isValidatorRegistrationDisabled() =>
+      RoleService.instance.isValidatorRegistrationDisabled();
+
   Stream<List<EducatorApplication>> streamEducatorApplications({String? type}) {
     // Basic query on status first
     Query<Map<String, dynamic>> query = _educatorApplications;

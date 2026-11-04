@@ -38,10 +38,62 @@ class RoleService {
   RoleService._();
   static final instance = RoleService._();
 
-  final _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _users =>
       _firestore.collection('users');
+
+  static const String disabledValidatorMessage =
+      'Thank you for your interest in applying as a Validator, currently Grammatica has already a Validator. Feel free to reapply next time once this button is no longer disabled.';
+
+  bool isApprovedValidatorData(Map<String, dynamic>? data) {
+    if (data == null) return false;
+    final role = (data['role'] as String? ?? '').trim().toUpperCase();
+    if (role != 'VALIDATOR') return false;
+
+    final status = (data['status'] as String? ?? '').trim().toUpperCase();
+    final isArchived = data['isArchived'] == true || status == 'ARCHIVED';
+    if (isArchived) return false;
+    if (status == 'DEACTIVATED' || status == 'INACTIVE' || status == 'REJECTED') {
+      return false;
+    }
+
+    final isVerified = data['isVerified'] == true;
+    return isVerified && status == 'ACTIVE';
+  }
+
+  Stream<bool> isValidatorRegistrationDisabledStream() {
+    return _users
+        .where('role', whereIn: ['VALIDATOR', 'validator'])
+        .snapshots()
+        .map((snapshot) {
+          int approvedCount = 0;
+          for (final doc in snapshot.docs) {
+            if (isApprovedValidatorData(doc.data())) {
+              approvedCount++;
+            }
+          }
+          return approvedCount >= 2;
+        })
+        .handleError((_) => false);
+  }
+
+  Future<bool> isValidatorRegistrationDisabled() async {
+    try {
+      final snapshot = await _users
+          .where('role', whereIn: ['VALIDATOR', 'validator'])
+          .get();
+      int approvedCount = 0;
+      for (final doc in snapshot.docs) {
+        if (isApprovedValidatorData(doc.data())) {
+          approvedCount++;
+        }
+      }
+      return approvedCount >= 2;
+    } catch (_) {
+      return false;
+    }
+  }
 
   Future<void> ensureUserDocument(User user) async {
     final docRef = _users.doc(user.uid);

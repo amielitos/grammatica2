@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +10,7 @@ import 'database_service.dart';
 import 'email_sender_service.dart';
 import 'email_validator_service.dart';
 import 'device_session_service.dart';
+import 'role_service.dart';
 import '../pages/home_page.dart';
 import '../pages/admin_dashboard.dart';
 
@@ -129,6 +131,12 @@ class AuthService {
             if (selected != null && selected.isNotEmpty) {
               chosenRole = selected.toUpperCase();
             }
+          }
+        }
+        if (chosenRole == 'VALIDATOR') {
+          final isValidatorDisabled = await RoleService.instance.isValidatorRegistrationDisabled();
+          if (isValidatorDisabled) {
+            chosenRole = 'LEARNER';
           }
         }
         if (chosenRole != 'VALIDATOR') {
@@ -679,6 +687,15 @@ class AuthService {
         .user!; // User is guaranteed to be non-null after successful creation
     // Create users/{uid} with defaults and new fields
     final isValidator = role.toUpperCase() == 'VALIDATOR';
+    if (isValidator) {
+      final isValidatorDisabled = await RoleService.instance.isValidatorRegistrationDisabled();
+      if (isValidatorDisabled) {
+        throw FirebaseAuthException(
+          code: 'ERROR_VALIDATOR_LIMIT_REACHED',
+          message: RoleService.disabledValidatorMessage,
+        );
+      }
+    }
     await _firestore.collection('users').doc(user.uid).set({
       'uid': user.uid,
       'email': user.email,
@@ -1132,6 +1149,31 @@ class _GoogleRoleSelectionDialog extends StatefulWidget {
 
 class _GoogleRoleSelectionDialogState extends State<_GoogleRoleSelectionDialog> {
   String _selectedRole = 'LEARNER';
+  bool _isValidatorDisabled = false;
+  StreamSubscription<bool>? _validatorSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _validatorSub = RoleService.instance
+        .isValidatorRegistrationDisabledStream()
+        .listen((disabled) {
+      if (mounted) {
+        setState(() {
+          _isValidatorDisabled = disabled;
+          if (disabled && _selectedRole == 'VALIDATOR') {
+            _selectedRole = 'LEARNER';
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _validatorSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1183,6 +1225,7 @@ class _GoogleRoleSelectionDialogState extends State<_GoogleRoleSelectionDialog> 
               icon: Icons.verified_rounded,
               color: const Color(0xFF3B82F6),
               isDark: isDark,
+              isDisabled: _isValidatorDisabled,
             ),
           ],
         ),
@@ -1216,10 +1259,11 @@ class _GoogleRoleSelectionDialogState extends State<_GoogleRoleSelectionDialog> 
     required IconData icon,
     required Color color,
     required bool isDark,
+    bool isDisabled = false,
   }) {
-    final isSelected = _selectedRole == role;
-    return InkWell(
-      onTap: () => setState(() => _selectedRole = role),
+    final isSelected = !isDisabled && _selectedRole == role;
+    Widget optionWidget = InkWell(
+      onTap: isDisabled ? null : () => setState(() => _selectedRole = role),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -1270,7 +1314,9 @@ class _GoogleRoleSelectionDialogState extends State<_GoogleRoleSelectionDialog> 
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? color : Colors.grey.shade400,
+                  color: isDisabled
+                      ? (isDark ? Colors.white12 : Colors.grey.shade300)
+                      : (isSelected ? color : Colors.grey.shade400),
                   width: 2,
                 ),
               ),
@@ -1291,6 +1337,30 @@ class _GoogleRoleSelectionDialogState extends State<_GoogleRoleSelectionDialog> 
         ),
       ),
     );
+
+    if (isDisabled) {
+      return Tooltip(
+        message: RoleService.disabledValidatorMessage,
+        waitDuration: const Duration(milliseconds: 150),
+        showDuration: const Duration(seconds: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF2D3748) : const Color(0xFF1F2937),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        textStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.forbidden,
+          child: optionWidget,
+        ),
+      );
+    }
+    return optionWidget;
   }
 }
 
