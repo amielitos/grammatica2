@@ -62,6 +62,16 @@ void main() {
       expect(statusAdmin.isExceeded, isFalse);
     });
 
+    test('getLimitForRole returns 100 for subscribed learner, 10 for free learner, 200 for educator, -1 for admin', () {
+      final service = AIRateLimitService.instance;
+      expect(service.getLimitForRole(UserRole.learner, false), 10);
+      expect(service.getLimitForRole(UserRole.learner, true), 100);
+      expect(service.getLimitForRole(UserRole.educator, false), 200);
+      expect(service.getLimitForRole(UserRole.educator, true), 200);
+      expect(service.getLimitForRole(UserRole.admin, false), -1);
+      expect(service.getLimitForRole(UserRole.superadmin, false), -1);
+    });
+
     testWidgets('AIQuotaNotification shows popup banner with remaining count', (tester) async {
       const status = AIRateLimitStatus(
         used: 3,

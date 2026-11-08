@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/educator_subscription_service.dart';
 
 import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
@@ -402,7 +404,18 @@ class QuickActionsGrid extends StatelessWidget {
         description: 'Generate lessons, quizzes & study aids with AI',
         icon: Icons.auto_stories_rounded,
         color: const Color(0xFF81B655),
-        onTap: () {
+        onTap: () async {
+          User? user;
+          try {
+            user = FirebaseAuth.instance.currentUser;
+          } catch (_) {}
+          if (user != null) {
+            final ok = await EducatorSubscriptionService.ensureSubscribed(
+              context,
+              user: user,
+            );
+            if (!ok) return;
+          }
           if (onNamedNavigation != null) {
             onNamedNavigation!('AI Notebooks');
           } else {
@@ -428,7 +441,18 @@ class QuickActionsGrid extends StatelessWidget {
         description: 'Review and schedule 1-on-1 student sessions',
         icon: Icons.event_rounded,
         color: const Color(0xFF8B5CF6),
-        onTap: () {
+        onTap: () async {
+          User? user;
+          try {
+            user = FirebaseAuth.instance.currentUser;
+          } catch (_) {}
+          if (user != null) {
+            final ok = await EducatorSubscriptionService.ensureSubscribed(
+              context,
+              user: user,
+            );
+            if (!ok) return;
+          }
           if (onNamedNavigation != null) {
             onNamedNavigation!('Mentorship');
           } else {
@@ -679,7 +703,18 @@ class _RecentLessonsList extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: () {
+            onPressed: () async {
+              User? user;
+              try {
+                user = FirebaseAuth.instance.currentUser;
+              } catch (_) {}
+              if (user != null) {
+                final ok = await EducatorSubscriptionService.ensureSubscribed(
+                  context,
+                  user: user,
+                );
+                if (!ok) return;
+              }
               if (onNamedNavigation != null) {
                 onNamedNavigation!('AI Notebooks');
               } else {
@@ -783,7 +818,15 @@ class _MyQuizzesSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 FilledButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
+                    final user = AuthService.instance.currentUser;
+                    if (user != null) {
+                      final ok = await EducatorSubscriptionService.ensureSubscribed(
+                        context,
+                        user: user,
+                      );
+                      if (!ok) return;
+                    }
                     if (onNamedNavigation != null) {
                       onNamedNavigation!('AI Notebooks');
                     } else {

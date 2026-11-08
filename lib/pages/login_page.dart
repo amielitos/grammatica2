@@ -246,7 +246,10 @@ class _LoginPageState extends State<LoginPage> {
             onPressed: () async {
               Navigator.pop(dialogCtx);
               try {
-                await AuthService.instance.sendEmailVerification(email: email);
+                await AuthService.instance.sendEmailVerification(
+                  email: email,
+                  password: _passwordController.text,
+                );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

@@ -571,26 +571,42 @@ Future<void> openLessonFromNotification(BuildContext context, NotificationModel 
   }
 }
 
-Future<void> _navigateToNotificationTarget(BuildContext context, NotificationModel n) async {
+Future<void> navigateToNotificationTarget(
+  BuildContext context,
+  NotificationModel n, {
+  bool closeCurrent = true,
+}) async {
   if (!n.isRead) {
     NotificationService.instance.markAsRead(n.id);
   }
 
+  final nav = Navigator.of(context, rootNavigator: true);
   final isMentorship = n.type == NotificationType.mentorship ||
       n.title.toLowerCase().contains('mentorship') ||
       n.message.toLowerCase().contains('scheduled');
 
-  final nav = Navigator.of(context, rootNavigator: true);
-  if (nav.canPop()) {
-    nav.pop();
-  }
-
   if (isMentorship) {
+    final isPast = await checkIsMentorshipSessionPast(n);
+    if (!nav.mounted) return;
+
+    if (closeCurrent && nav.canPop()) {
+      nav.pop();
+    }
+
+    if (isPast) {
+      showSessionEndedDialog(nav.context);
+      return;
+    }
+
     showDialog(
       context: nav.context,
       builder: (_) => MentorshipScheduleDialog(notification: n),
     );
     return;
+  }
+
+  if (closeCurrent && nav.canPop()) {
+    nav.pop();
   }
 
   // Pop-up modal containing "VIEW LESSON" button
@@ -599,6 +615,9 @@ Future<void> _navigateToNotificationTarget(BuildContext context, NotificationMod
     builder: (context) => NotificationDetailDialog(notification: n),
   );
 }
+
+Future<void> _navigateToNotificationTarget(BuildContext context, NotificationModel n) =>
+    navigateToNotificationTarget(context, n);
 
 class MentorshipScheduleDialog extends StatefulWidget {
   final NotificationModel notification;
@@ -613,41 +632,259 @@ class MentorshipScheduleDialog extends StatefulWidget {
       _MentorshipScheduleDialogState();
 }
 
+void showSessionEndedDialog(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFDC2626).withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.event_busy_rounded,
+              color: Color(0xFFDC2626),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Session Ended',
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: Text(
+        'This mentorship session has already ended and can no longer be joined.',
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          color: isDark ? Colors.white70 : const Color(0xFF334155),
+          height: 1.4,
+        ),
+      ),
+      actions: [
+        TextButton(
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFF16A34A),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          ),
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(
+            'OK',
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 bool isNotificationMentorshipExpired(NotificationModel notification) {
+  // Check 1: 10-minute reminder notification
+  // Notification title: "Mentorship Session in 10 Minutes! 🔔"
+  // Mentorship sessions strictly last 90 minutes.
+  // After 100 minutes from reminder creation, the session has definitely ended.
+  final titleLower = notification.title.toLowerCase();
+  final msgLower = notification.message.toLowerCase();
+  if (titleLower.contains('10 minute') || msgLower.contains('starts in 10 minutes')) {
+    if (DateTime.now().difference(notification.createdAt).inMinutes >= 100) {
+      return true;
+    }
+  }
+
+  // Check 2: Parse date from message if present
   final msg = notification.message;
+  String? timeStr;
   if (msg.contains(' for ')) {
     final parts = msg.split(' for ');
-    var timeStr = parts.sublist(1).join(' for ').trim();
+    timeStr = parts.sublist(1).join(' for ').trim();
+  } else if (msg.contains(' scheduled at ')) {
+    timeStr = msg.split(' scheduled at ').last.trim();
+  }
+
+  if (timeStr != null && timeStr.isNotEmpty) {
     if (timeStr.endsWith('.')) {
       timeStr = timeStr.substring(0, timeStr.length - 1).trim();
+    }
+    if (timeStr.startsWith('"') && timeStr.endsWith('"')) {
+      timeStr = timeStr.substring(1, timeStr.length - 1).trim();
     }
     for (final pattern in [
       'EEE, MMM d, yyyy @ h:mm a',
       'EEEE, MMMM d, yyyy • h:mm a',
+      'EEEE, MMMM d, yyyy @ h:mm a',
       'MMMM d, yyyy @ h:mm a',
       'MMM d, yyyy @ h:mm a',
+      'EEE, MMM d, yyyy h:mm a',
+      'yyyy-MM-dd HH:mm',
+      'yyyy-MM-dd h:mm a',
     ]) {
       try {
         final parsed = DateFormat(pattern).parse(timeStr);
         final endTime = parsed.add(const Duration(minutes: 90));
-        return DateTime.now().isAfter(endTime);
+        if (DateTime.now().isAfter(endTime)) {
+          return true;
+        }
       } catch (_) {}
     }
   }
   return false;
 }
 
+Future<bool> checkIsMentorshipSessionPast(NotificationModel notification) async {
+  // Fast check from notification text / time
+  if (isNotificationMentorshipExpired(notification)) {
+    return true;
+  }
+
+  try {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final currentUid = currentUser?.uid ?? notification.uid;
+    final targetUid = notification.uid;
+    final eduId = notification.educatorId;
+
+    final uidsToSearch = <String>{};
+    if (currentUid.isNotEmpty) uidsToSearch.add(currentUid);
+    if (targetUid.isNotEmpty) uidsToSearch.add(targetUid);
+    if (eduId != null && eduId.isNotEmpty) uidsToSearch.add(eduId);
+
+    final List<Map<String, dynamic>> matchingSessions = [];
+
+    // Query for sessions where user is student or educator
+    for (final uid in uidsToSearch) {
+      try {
+        final studentSnap = await FirebaseFirestore.instance
+            .collection('mentorship_sessions')
+            .where('studentId', isEqualTo: uid)
+            .get();
+        for (final doc in studentSnap.docs) {
+          final data = doc.data();
+          data['_id'] = doc.id;
+          matchingSessions.add(data);
+        }
+      } catch (_) {}
+
+      try {
+        final educatorSnap = await FirebaseFirestore.instance
+            .collection('mentorship_sessions')
+            .where('educatorId', isEqualTo: uid)
+            .get();
+        for (final doc in educatorSnap.docs) {
+          final data = doc.data();
+          data['_id'] = doc.id;
+          matchingSessions.add(data);
+        }
+      } catch (_) {}
+    }
+
+    // Deduplicate by _id
+    final uniqueSessions = <String, Map<String, dynamic>>{};
+    for (final s in matchingSessions) {
+      final id = s['_id'] as String;
+      uniqueSessions[id] = s;
+    }
+
+    if (uniqueSessions.isNotEmpty) {
+      // Try to find the session corresponding to this notification
+      final titleMatch = RegExp(r'"([^"]*)"').firstMatch(notification.message);
+      final titleFromMsg = titleMatch?.group(1)?.trim().toLowerCase();
+
+      Map<String, dynamic>? bestMatch;
+
+      if (titleFromMsg != null && titleFromMsg.isNotEmpty) {
+        for (final s in uniqueSessions.values) {
+          final mt = (s['meetingTitle'] ?? '').toString().trim().toLowerCase();
+          if (mt == titleFromMsg) {
+            bestMatch = s;
+            break;
+          }
+        }
+      }
+
+      if (bestMatch == null) {
+        int bestDiff = 999999999999;
+        for (final s in uniqueSessions.values) {
+          DateTime? sTime;
+          if (s['startTime'] is Timestamp) {
+            sTime = (s['startTime'] as Timestamp).toDate();
+          } else if (s['createdAt'] is Timestamp) {
+            sTime = (s['createdAt'] as Timestamp).toDate();
+          }
+          if (sTime != null) {
+            final diff = (sTime.difference(notification.createdAt).inSeconds).abs();
+            if (diff < bestDiff) {
+              bestDiff = diff;
+              bestMatch = s;
+            }
+          }
+        }
+      }
+
+      bestMatch ??= uniqueSessions.values.first;
+
+      final status = (bestMatch['status'] ?? '').toString().toLowerCase();
+      if (status == 'completed' || status == 'cancelled') {
+        return true;
+      }
+
+      final startTs = bestMatch['startTime'] as Timestamp?;
+      final endTs = bestMatch['endTime'] as Timestamp?;
+      final now = DateTime.now();
+
+      if (endTs != null) {
+        if (now.isAfter(endTs.toDate())) {
+          return true;
+        }
+      } else if (startTs != null) {
+        if (now.isAfter(startTs.toDate().add(const Duration(minutes: 90)))) {
+          return true;
+        }
+      }
+    } else {
+      if (DateTime.now().difference(notification.createdAt).inHours >= 2) {
+        return true;
+      }
+    }
+  } catch (e) {
+    debugPrint('Error checking if mentorship session is past: $e');
+  }
+
+  return false;
+}
+
 class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
   String? _educatorName;
+  String? _educatorId;
   String? _sessionTitle;
   String? _timeStr;
   String? _meetingLink;
   String? _agoraChannel;
   String? _sessionId;
+  String? _sessionStatus;
   DateTime? _sessionStartTime;
   DateTime? _sessionEndTime;
 
   bool get _isPastSession {
+    if (_sessionStatus != null &&
+        (_sessionStatus!.toLowerCase() == 'completed' ||
+         _sessionStatus!.toLowerCase() == 'cancelled')) {
+      return true;
+    }
     final now = DateTime.now();
     if (_sessionEndTime != null) {
       return now.isAfter(_sessionEndTime!);
@@ -655,7 +892,7 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
     if (_sessionStartTime != null) {
       return now.isAfter(_sessionStartTime!.add(const Duration(minutes: 90)));
     }
-    return false;
+    return isNotificationMentorshipExpired(widget.notification);
   }
 
   @override
@@ -702,28 +939,84 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
         : DateFormat('EEE, MMM d, yyyy @ h:mm a').format(n.createdAt);
 
     try {
-      // Query mentorship_sessions for session details
-      Query query = FirebaseFirestore.instance
-          .collection('mentorship_sessions')
-          .where('studentId', isEqualTo: currentUid);
-      if (n.educatorId != null && n.educatorId!.isNotEmpty) {
-        query = query.where('educatorId', isEqualTo: n.educatorId);
+      final List<Map<String, dynamic>> candidateSessions = [];
+      final List<String> sessionDocIds = [];
+
+      // 1. Query mentorship_sessions where studentId == currentUid
+      try {
+        final snapStudent = await FirebaseFirestore.instance
+            .collection('mentorship_sessions')
+            .where('studentId', isEqualTo: currentUid)
+            .get();
+        for (final doc in snapStudent.docs) {
+          candidateSessions.add(doc.data());
+          sessionDocIds.add(doc.id);
+        }
+      } catch (_) {}
+
+      // 2. Query mentorship_sessions where educatorId == currentUid (for educator)
+      try {
+        final snapEducator = await FirebaseFirestore.instance
+            .collection('mentorship_sessions')
+            .where('educatorId', isEqualTo: currentUid)
+            .get();
+        for (final doc in snapEducator.docs) {
+          if (!sessionDocIds.contains(doc.id)) {
+            candidateSessions.add(doc.data());
+            sessionDocIds.add(doc.id);
+          }
+        }
+      } catch (_) {}
+
+      // 3. Fallback: if educatorId is specified on the notification
+      if (candidateSessions.isEmpty && n.educatorId != null && n.educatorId!.isNotEmpty) {
+        try {
+          final snapEdu = await FirebaseFirestore.instance
+              .collection('mentorship_sessions')
+              .where('educatorId', isEqualTo: n.educatorId)
+              .get();
+          for (final doc in snapEdu.docs) {
+            if (!sessionDocIds.contains(doc.id)) {
+              candidateSessions.add(doc.data());
+              sessionDocIds.add(doc.id);
+            }
+          }
+        } catch (_) {}
       }
 
-      final snap = await query.get();
-      if (snap.docs.isNotEmpty) {
-        final sortedDocs = snap.docs.toList()
-          ..sort((a, b) {
-            final aTime = (a.data() as Map<String, dynamic>)['startTime'] as Timestamp?;
-            final bTime = (b.data() as Map<String, dynamic>)['startTime'] as Timestamp?;
-            if (aTime == null || bTime == null) return 0;
-            return bTime.compareTo(aTime);
-          });
+      if (candidateSessions.isNotEmpty) {
+        int bestIndex = -1;
+        final targetTitle = fallbackTitle.toLowerCase();
+        for (int i = 0; i < candidateSessions.length; i++) {
+          final mt = (candidateSessions[i]['meetingTitle'] ?? '').toString().trim().toLowerCase();
+          if (mt.isNotEmpty && (mt == targetTitle || targetTitle.contains(mt) || mt.contains(targetTitle))) {
+            bestIndex = i;
+            break;
+          }
+        }
 
-        final data = sortedDocs.first.data() as Map<String, dynamic>;
-        _sessionId = sortedDocs.first.id;
+        if (bestIndex == -1) {
+          int bestDiff = 999999999999;
+          for (int i = 0; i < candidateSessions.length; i++) {
+            final startTs = candidateSessions[i]['startTime'] as Timestamp?;
+            if (startTs != null) {
+              final diff = (startTs.toDate().difference(n.createdAt).inSeconds).abs();
+              if (diff < bestDiff) {
+                bestDiff = diff;
+                bestIndex = i;
+              }
+            }
+          }
+        }
+
+        if (bestIndex == -1) bestIndex = 0;
+
+        final data = candidateSessions[bestIndex];
+        _sessionId = sessionDocIds[bestIndex];
         _meetingLink = data['meetingLink'] as String?;
         _agoraChannel = data['agoraChannel'] as String?;
+        _sessionStatus = data['status'] as String?;
+        _educatorId = data['educatorId'] as String? ?? n.educatorId;
         if (data['meetingTitle'] != null && data['meetingTitle'].toString().isNotEmpty) {
           _sessionTitle = data['meetingTitle'].toString();
         }
@@ -736,12 +1029,13 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
           _timeStr = DateFormat('EEEE, MMMM d, yyyy • h:mm a').format(dt);
         }
 
-        final eduId = data['educatorId'] as String? ?? n.educatorId;
-        if (eduId != null && eduId.isNotEmpty) {
-          final eduDoc =
-              await FirebaseFirestore.instance.collection('users').doc(eduId).get();
-          if (eduDoc.exists && eduDoc.data() != null) {
-            final u = eduDoc.data()?['username'] as String?;
+        final otherUid = (currentUser?.uid == _educatorId)
+            ? (data['studentId'] as String?)
+            : _educatorId;
+        if (otherUid != null && otherUid.isNotEmpty) {
+          final userDoc = await FirebaseFirestore.instance.collection('users').doc(otherUid).get();
+          if (userDoc.exists && userDoc.data() != null) {
+            final u = userDoc.data()?['username'] as String?;
             if (u != null && u.isNotEmpty) {
               _educatorName = u;
             }
@@ -786,7 +1080,46 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
 
+    if (_isPastSession) {
+      if (mounted) {
+        showSessionEndedDialog(context);
+      }
+      return;
+    }
+
     final nav = Navigator.of(context, rootNavigator: true);
+
+    if (_sessionId != null) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('mentorship_sessions').doc(_sessionId).get();
+        if (doc.exists) {
+          final data = doc.data()!;
+          final status = (data['status'] ?? '').toString().toLowerCase();
+          final endTs = data['endTime'] as Timestamp?;
+          final startTs = data['startTime'] as Timestamp?;
+          final now = DateTime.now();
+          bool isEnded = (status == 'completed' || status == 'cancelled');
+          if (endTs != null && now.isAfter(endTs.toDate())) {
+            isEnded = true;
+          } else if (startTs != null && now.isAfter(startTs.toDate().add(const Duration(minutes: 90)))) {
+            isEnded = true;
+          }
+          if (isEnded) {
+            if (mounted) {
+              setState(() {
+                _sessionStatus = 'completed';
+              });
+              showSessionEndedDialog(nav.context);
+            }
+            return;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error verifying session live status: $e');
+      }
+    }
+
+    if (!nav.mounted) return;
     nav.pop();
 
     // If external link provided and non-empty
@@ -810,14 +1143,17 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
         ? _agoraChannel!
         : AgoraService.instance.channelFromSessionId(effectiveSessionId);
 
+    final isHost = (currentUser.uid == _educatorId) ||
+                   (widget.notification.educatorId == currentUser.uid);
+
     nav.push(
       MaterialPageRoute(
         builder: (_) => ConferencePage(
           channelName: effectiveChannel,
           sessionId: effectiveSessionId,
           sessionTitle: _sessionTitle ?? 'Mentorship Session',
-          otherParticipantName: _educatorName ?? 'Educator',
-          isHost: false,
+          otherParticipantName: _educatorName ?? (isHost ? 'Learner' : 'Educator'),
+          isHost: isHost,
           currentUser: currentUser,
         ),
       ),
@@ -1151,7 +1487,9 @@ class _MentorshipScheduleDialogState extends State<MentorshipScheduleDialog> {
                             letterSpacing: 0.5,
                           ),
                         ),
-                        onPressed: _isPastSession ? null : _handleJoin,
+                        onPressed: _isPastSession
+                            ? () => showSessionEndedDialog(context)
+                            : _handleJoin,
                       ),
                     ],
                   ),
@@ -1922,14 +2260,22 @@ class NotificationDetailDialog extends StatelessWidget {
                                 isMentorshipExpired ? 'SESSION ENDED' : 'JOIN',
                                 style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.5),
                               ),
-                              onPressed: isMentorshipExpired ? null : () {
-                                final nav = Navigator.of(context, rootNavigator: true);
-                                nav.pop();
-                                showDialog(
-                                  context: nav.context,
-                                  builder: (_) => MentorshipScheduleDialog(notification: notification),
-                                );
-                              },
+                              onPressed: isMentorshipExpired
+                                  ? () => showSessionEndedDialog(context)
+                                  : () async {
+                                      final nav = Navigator.of(context, rootNavigator: true);
+                                      final isPast = await checkIsMentorshipSessionPast(notification);
+                                      if (!nav.mounted) return;
+                                      if (isPast) {
+                                        showSessionEndedDialog(nav.context);
+                                        return;
+                                      }
+                                      nav.pop();
+                                      showDialog(
+                                        context: nav.context,
+                                        builder: (_) => MentorshipScheduleDialog(notification: notification),
+                                      );
+                                    },
                             ),
                           ),
                         MouseRegion(

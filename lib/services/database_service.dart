@@ -823,15 +823,34 @@ class DatabaseService {
 
     // 2. Update educatorApplications
     final existingApps = await _educatorApplications.where('applicantUid', isEqualTo: uid).get();
-    for (final doc in existingApps.docs) {
-      final app = EducatorApplication.fromDoc(doc);
-      if (app.applicationType == 'validator' || app.status == 'pending') {
-        await _educatorApplications.doc(doc.id).update({
-          'status': 'approved',
-          'reviewedAt': FieldValue.serverTimestamp(),
-          if (reviewerEmail != null && reviewerEmail.isNotEmpty)
-            'reviewedBy': reviewerEmail,
-        });
+    if (existingApps.docs.isEmpty) {
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+      final uData = userDoc.data();
+      await _educatorApplications.doc('val_$uid').set({
+        'applicantUid': uid,
+        'applicantEmail': uData?['email'] ?? '',
+        'status': 'approved',
+        'applicationType': 'validator',
+        'appliedAt': uData?['createdAt'] ?? FieldValue.serverTimestamp(),
+        'reviewedAt': FieldValue.serverTimestamp(),
+        if (reviewerEmail != null && reviewerEmail.isNotEmpty)
+          'reviewedBy': reviewerEmail,
+        'cvUrl': '',
+        'certificateUrls': [],
+        'videoUrl': '',
+        'syllabusUrl': '',
+      }, SetOptions(merge: true));
+    } else {
+      for (final doc in existingApps.docs) {
+        final app = EducatorApplication.fromDoc(doc);
+        if (app.applicationType == 'validator' || app.status == 'pending') {
+          await _educatorApplications.doc(doc.id).update({
+            'status': 'approved',
+            'reviewedAt': FieldValue.serverTimestamp(),
+            if (reviewerEmail != null && reviewerEmail.isNotEmpty)
+              'reviewedBy': reviewerEmail,
+          });
+        }
       }
     }
 
@@ -865,14 +884,35 @@ class DatabaseService {
 
     // 2. Reject in educatorApplications
     final existingApps = await _educatorApplications.where('applicantUid', isEqualTo: uid).get();
-    for (final doc in existingApps.docs) {
-      final app = EducatorApplication.fromDoc(doc);
-      if (app.applicationType == 'validator' || app.status == 'pending') {
-        await rejectEducatorApplication(
-          app,
-          reason: reason,
-          description: description,
-        );
+    if (existingApps.docs.isEmpty) {
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+      final uData = userDoc.data();
+      await _educatorApplications.doc('val_$uid').set({
+        'applicantUid': uid,
+        'applicantEmail': uData?['email'] ?? '',
+        'status': 'rejected',
+        'applicationType': 'validator',
+        'appliedAt': uData?['createdAt'] ?? FieldValue.serverTimestamp(),
+        'rejectedAt': FieldValue.serverTimestamp(),
+        'rejectionReason': reason,
+        'rejectionDescription': description,
+        if (reviewerEmail != null && reviewerEmail.isNotEmpty)
+          'reviewedBy': reviewerEmail,
+        'cvUrl': '',
+        'certificateUrls': [],
+        'videoUrl': '',
+        'syllabusUrl': '',
+      }, SetOptions(merge: true));
+    } else {
+      for (final doc in existingApps.docs) {
+        final app = EducatorApplication.fromDoc(doc);
+        if (app.applicationType == 'validator' || app.status == 'pending') {
+          await rejectEducatorApplication(
+            app,
+            reason: reason,
+            description: description,
+          );
+        }
       }
     }
 
@@ -893,21 +933,70 @@ class DatabaseService {
       RoleService.instance.isValidatorRegistrationDisabled();
 
   Stream<List<EducatorApplication>> streamEducatorApplications({String? type}) {
-    // Basic query on status first
     Query<Map<String, dynamic>> query = _educatorApplications;
     
-    // We filter status in Dart if needed, or keep it minimal in query
-    return query.snapshots().map((snapshot) {
+    return query.snapshots().asyncMap((snapshot) async {
       var apps = snapshot.docs.map(EducatorApplication.fromDoc).toList();
-      
-      // Filter for pending status
       apps = apps.where((a) => a.status == 'pending').toList();
-      
-      // Filter by type if provided
       if (type != null) {
         apps = apps.where((a) => a.applicationType == type).toList();
       }
-      
+
+      // Also dynamically include any users with role 'VALIDATOR' and isVerified == false
+      if (type == 'validator' || type == null) {
+        try {
+          final valUsersSnap = await _firestore
+              .collection('users')
+              .where('role', isEqualTo: 'VALIDATOR')
+              .get();
+          for (final doc in valUsersSnap.docs) {
+            final data = doc.data();
+            final isVerified = data['isVerified'] == true;
+            final status = ((data['status'] as String?) ?? '').toLowerCase();
+            final isPending = !isVerified && status != 'rejected' && status != 'archived';
+            if (isPending) {
+              final alreadyPresent = apps.any((a) => a.applicantUid == doc.id);
+              if (!alreadyPresent) {
+                final certUrls = <String>[];
+                if ((data['prcUrl'] as String?)?.isNotEmpty == true) {
+                  certUrls.add(data['prcUrl'] as String);
+                } else if ((data['prc_url'] as String?)?.isNotEmpty == true) {
+                  certUrls.add(data['prc_url'] as String);
+                }
+                apps.add(
+                  EducatorApplication(
+                    id: 'val_${doc.id}',
+                    applicantUid: doc.id,
+                    applicantEmail: (data['email'] as String?) ?? '',
+                    cvUrl: '',
+                    certificateUrls: certUrls,
+                    videoUrl: '',
+                    syllabusUrl: '',
+                    status: 'pending',
+                    applicationType: 'validator',
+                    appliedAt: data['createdAt'] as Timestamp?,
+                    certificateFileNames: (data['prcFileName'] ?? data['prc_file_name']) != null
+                        ? [(data['prcFileName'] ?? data['prc_file_name']) as String]
+                        : null,
+                  ),
+                );
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('[streamEducatorApplications] Error syncing validator users: $e');
+        }
+      }
+
+      apps.sort((a, b) {
+        final tsA = a.appliedAt?.toDate();
+        final tsB = b.appliedAt?.toDate();
+        if (tsA == null && tsB == null) return 0;
+        if (tsA == null) return 1;
+        if (tsB == null) return -1;
+        return tsB.compareTo(tsA);
+      });
+
       return apps;
     });
   }
@@ -928,6 +1017,21 @@ class DatabaseService {
         .asBroadcastStream();
     _userApplicationCache[uid] = stream;
     return stream;
+  }
+
+  Future<EducatorApplication?> getUserApplication(String uid) async {
+    try {
+      final snap = await _educatorApplications
+          .where('applicantUid', isEqualTo: uid)
+          .orderBy('appliedAt', descending: true)
+          .limit(1)
+          .get();
+      if (snap.docs.isEmpty) return null;
+      return EducatorApplication.fromDoc(snap.docs.first);
+    } catch (e) {
+      debugPrint('Error getting user application: $e');
+      return null;
+    }
   }
 
   Future<void> updateApplicationStatus(String id, String status) async {
@@ -1552,10 +1656,18 @@ class DatabaseService {
         SettableMetadata(contentType: contentType),
       );
 
-      final snapshot = await uploadTask.whenComplete(() => null);
-      return await snapshot.ref.getDownloadURL();
+      final snapshot = await uploadTask.timeout(
+        const Duration(minutes: 5),
+        onTimeout: () {
+          uploadTask.cancel();
+          throw Exception('Upload timed out for $fileName. Please check your network connection and try again.');
+        },
+      );
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      return downloadUrl;
     } catch (e) {
-      throw Exception('Failed to upload application file: $e');
+      debugPrint('Error uploading application file $fileName: $e');
+      throw Exception('Failed to upload $fileName: $e');
     }
   }
 
@@ -3488,6 +3600,17 @@ class DatabaseService {
       SetOptions(merge: true),
     );
 
+    // Update learner user document so subscription status and 100 AI quota are immediately active
+    batch.set(
+      _firestore.collection('users').doc(user.uid),
+      {
+        'subscription_status': 'ACTIVE',
+        'has_active_subscription': true,
+        'isSubscribed': true,
+      },
+      SetOptions(merge: true),
+    );
+
     await batch.commit();
 
     if (wasAlreadyActive) {
@@ -3658,6 +3781,110 @@ class DatabaseService {
     );
   }
 
+  /// Records a successful Grammatica Educator Platform subscription payment.
+  Future<PaymentRecordResult> recordEducatorSubscriptionPayment({
+    required String educatorUid,
+    required String educatorEmail,
+    required String educatorName,
+    required String referenceNumber,
+    required String paymentMethod,
+    double amount = 392.0,
+    String? paymongoLinkId,
+    String? idempotencyKey,
+  }) async {
+    final String sanitizedRef =
+        referenceNumber.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final String docId = (paymongoLinkId != null &&
+            paymongoLinkId.isNotEmpty &&
+            !paymongoLinkId.startsWith('link_merchant_'))
+        ? 'pay_edu_${paymongoLinkId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')}'
+        : 'pay_edu_$sanitizedRef';
+
+    final effectiveKey = idempotencyKey ?? docId;
+
+    return await IdempotencyService.instance.executeDeduplicated<PaymentRecordResult>(
+      key: 'record_edu_payment_$docId',
+      action: () async {
+        // 1. Update educator user document
+        await _firestore.collection('users').doc(educatorUid).set({
+          'has_educator_subscription': true,
+          'hasEducatorSubscription': true,
+          'educator_subscription_status': 'ACTIVE',
+          'subscription_status': 'ACTIVE',
+          'educator_subscribed_at': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        // 2. Add subscription entry in subcollection
+        await _firestore
+            .collection('users')
+            .doc(educatorUid)
+            .collection('subscriptions')
+            .doc('grammatica_platform')
+            .set({
+          'educatorUid': 'grammatica_platform',
+          'status': 'active',
+          'tier': 'Educator Subscription',
+          'billingCycle': 'monthly',
+          'isPlatformSubscription': true,
+          'subscribedAt': FieldValue.serverTimestamp(),
+          'cancelledAt': null,
+        }, SetOptions(merge: true));
+
+        // 3. Write payment receipt in user payments subcollection
+        final paymentData = {
+          'paymentId': docId,
+          'educatorUid': educatorUid,
+          'educatorEmail': educatorEmail,
+          'educatorName': educatorName,
+          'tier': 'Educator Subscription',
+          'amount': amount,
+          'amountPhp': amount,
+          'currency': 'PHP',
+          'referenceNumber': referenceNumber,
+          'paymentMethod': paymentMethod,
+          'paymongoLinkId': paymongoLinkId ?? '',
+          'idempotencyKey': effectiveKey,
+          'status': 'paid',
+          'type': 'educator_subscription',
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+
+        await _firestore
+            .collection('users')
+            .doc(educatorUid)
+            .collection('payments')
+            .doc(docId)
+            .set(paymentData, SetOptions(merge: true));
+
+        try {
+          await _firestore
+              .collection('payments')
+              .doc(docId)
+              .set(paymentData, SetOptions(merge: true));
+        } catch (_) {}
+
+        // 4. Send notification
+        try {
+          await NotificationService.instance.sendNotification(
+            uid: educatorUid,
+            title: 'Educator Subscription Activated!',
+            message:
+                'You are now subscribed to Grammatica! You can now create lessons, upload content, and use the mentorship system.',
+            type: NotificationType.appApproved,
+          );
+        } catch (_) {}
+
+        return PaymentRecordResult(
+          isSuccess: true,
+          isDuplicate: false,
+          paymentId: docId,
+          message: 'Educator subscription payment recorded successfully.',
+        );
+      },
+    );
+  }
+
+
   /// Stream of payment receipts for the learner (defaults to currently signed-in user).
   Stream<List<Map<String, dynamic>>> streamLearnerPayments([String? learnerUid]) {
     final targetUid = learnerUid ?? FirebaseAuth.instance.currentUser?.uid;
@@ -3694,6 +3921,29 @@ class DatabaseService {
           .doc(educatorUid),
       {'status': 'cancelled', 'cancelledAt': FieldValue.serverTimestamp()},
     );
+
+    // Check remaining subscriptions
+    try {
+      final subSnap = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('subscriptions')
+          .get();
+      final hasOtherActive = subSnap.docs.any((d) =>
+          d.id != educatorUid &&
+          (d.data()['status'] ?? '').toString().toLowerCase() == 'active');
+      if (!hasOtherActive) {
+        batch.set(
+          _firestore.collection('users').doc(user.uid),
+          {
+            'subscription_status': 'NONE',
+            'has_active_subscription': false,
+            'isSubscribed': false,
+          },
+          SetOptions(merge: true),
+        );
+      }
+    } catch (_) {}
 
     await batch.commit();
   }
@@ -3966,6 +4216,26 @@ class DatabaseService {
             final data = doc.data();
             final eduUid = (data['educatorUid'] ?? data['educatorId'] ?? doc.id) as String?;
             if (eduUid == null || eduUid.isEmpty) continue;
+
+            // Handle platform subscriptions
+            if (doc.id == 'grammatica_platform' ||
+                eduUid == 'grammatica_platform' ||
+                data['tier'] == 'Educator Subscription' ||
+                data['isPlatformSubscription'] == true) {
+              subscriptions.add({
+                'educatorData': {
+                  'username': 'Grammatica Platform',
+                  'displayName': 'Grammatica',
+                  'role': 'PLATFORM',
+                  'email': 'support@grammatica.com',
+                  'photoUrl': '',
+                },
+                'isPlatformSubscription': true,
+                ...data,
+              });
+              continue;
+            }
+
             final eduDoc = await _firestore
                 .collection('users')
                 .doc(eduUid)
@@ -3974,6 +4244,45 @@ class DatabaseService {
               subscriptions.add({'educatorData': eduDoc.data(), ...data});
             }
           }
+
+          // Fallback: If user is an educator and marked as subscribed/existing,
+          // ensure Grammatica Platform plan appears in their active subscriptions list
+          final hasPlatformSub = subscriptions.any((s) =>
+              s['tier'] == 'Educator Subscription' ||
+              s['isPlatformSubscription'] == true ||
+              s['educatorUid'] == 'grammatica_platform');
+
+          if (!hasPlatformSub) {
+            final userDoc = await _firestore.collection('users').doc(learnerUid).get();
+            if (userDoc.exists) {
+              final uData = userDoc.data();
+              final isEduRole = (uData?['role'] ?? '').toString().toUpperCase() == 'EDUCATOR';
+              final isEduSub = (uData?['isExistingEducator'] == true) ||
+                  (uData?['has_educator_subscription'] == true) ||
+                  (uData?['hasEducatorSubscription'] == true) ||
+                  (uData?['educator_subscription_status'] == 'ACTIVE') ||
+                  (uData?['subscription_status'] == 'ACTIVE');
+              if (isEduRole && isEduSub) {
+                subscriptions.add({
+                  'educatorData': {
+                    'username': 'Grammatica Platform',
+                    'displayName': 'Grammatica',
+                    'role': 'PLATFORM',
+                    'email': 'support@grammatica.com',
+                    'photoUrl': '',
+                  },
+                  'id': 'grammatica_platform',
+                  'educatorUid': 'grammatica_platform',
+                  'tier': 'Educator Subscription',
+                  'status': 'active',
+                  'billingCycle': 'monthly',
+                  'isPlatformSubscription': true,
+                  'subscribedAt': uData?['createdAt'] ?? Timestamp.now(),
+                });
+              }
+            }
+          }
+
           return subscriptions;
         });
   }

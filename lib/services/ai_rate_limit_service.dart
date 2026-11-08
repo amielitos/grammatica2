@@ -77,7 +77,7 @@ class AIRateLimitService {
   AIRateLimitService._();
   static final instance = AIRateLimitService._();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   // ── Quotas by Role / Tier ──────────────────────────────────────────────────
   static const int freeLearnerDailyLimit = 10;
@@ -122,20 +122,40 @@ class AIRateLimitService {
   Future<bool> isUserSubscribed(String uid) async {
     try {
       final userDoc = await _firestore.collection('users').doc(uid).get();
-      final status = (userDoc.data()?['subscription_status'] ?? '').toString().toUpperCase();
+      final userData = userDoc.data();
+      final status = (userData?['subscription_status'] ?? '').toString().toUpperCase();
       if (status.isNotEmpty && status != 'NONE') {
         return true;
       }
+      if (userData?['has_active_subscription'] == true ||
+          userData?['isSubscribed'] == true) {
+        return true;
+      }
 
-      // Check active subscriptions subcollection
+      // Check active subscriptions subcollection (case-insensitive)
       final subSnap = await _firestore
           .collection('users')
           .doc(uid)
           .collection('subscriptions')
-          .where('status', isEqualTo: 'active')
-          .limit(1)
           .get();
-      return subSnap.docs.isNotEmpty;
+
+      final hasActive = subSnap.docs.any((d) {
+        final data = d.data();
+        final s = (data['status'] ?? '').toString().toLowerCase();
+        return s == 'active';
+      });
+
+      if (hasActive) {
+        // Heal user document so top-level status is in sync
+        _firestore.collection('users').doc(uid).set({
+          'subscription_status': 'ACTIVE',
+          'has_active_subscription': true,
+          'isSubscribed': true,
+        }, SetOptions(merge: true)).catchError((_) {});
+        return true;
+      }
+
+      return false;
     } catch (e) {
       debugPrint('[AIRateLimit] Error checking subscription: $e');
       return false;
@@ -179,34 +199,59 @@ class AIRateLimitService {
 
   /// Real-time stream of quota status for reactive UI badges.
   Stream<AIRateLimitStatus> quotaStream(String uid) {
-    final today = _todayDateStr();
-    final docRef = _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('ai_usage')
-        .doc('daily');
+    late StreamController<AIRateLimitStatus> controller;
+    StreamSubscription? usageSub;
+    StreamSubscription? subSub;
+    StreamSubscription? userSub;
 
-    return docRef.snapshots().asyncMap((snap) async {
-      final role = await RoleService.instance.getRole(uid);
-      final subscribed = (role == UserRole.learner) ? await isUserSubscribed(uid) : false;
-      final limit = getLimitForRole(role, subscribed);
-
-      int used = 0;
-      if (snap.exists) {
-        final data = snap.data() ?? {};
-        if (data['date'] == today) {
-          used = (data['used'] as num?)?.toInt() ?? 0;
+    void updateStatus() async {
+      try {
+        final status = await getStatus(uid);
+        if (!controller.isClosed) {
+          controller.add(status);
         }
+      } catch (e) {
+        debugPrint('[AIRateLimit] Error in quotaStream update: $e');
       }
+    }
 
-      return AIRateLimitStatus(
-        used: used,
-        limit: limit,
-        date: today,
-        role: role,
-        isSubscribed: subscribed,
-      );
-    });
+    controller = StreamController<AIRateLimitStatus>.broadcast(
+      onListen: () {
+        // Emit immediately upon listening
+        updateStatus();
+
+        // Listen to daily AI usage changes
+        usageSub = _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('ai_usage')
+            .doc('daily')
+            .snapshots()
+            .listen((_) => updateStatus());
+
+        // Listen to active educator subscriptions changes (subscribing/cancelling)
+        subSub = _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('subscriptions')
+            .snapshots()
+            .listen((_) => updateStatus());
+
+        // Listen to user profile document changes (role, subscription_status)
+        userSub = _firestore
+            .collection('users')
+            .doc(uid)
+            .snapshots()
+            .listen((_) => updateStatus());
+      },
+      onCancel: () {
+        usageSub?.cancel();
+        subSub?.cancel();
+        userSub?.cancel();
+      },
+    );
+
+    return controller.stream;
   }
 
   /// Checks burst cooldown. Throws [AIRateLimitException] if the user is clicking too quickly.

@@ -43,6 +43,10 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
   @override
   void initState() {
     super.initState();
+    // Check verification status immediately on page load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkVerificationSilently();
+    });
     // Periodically poll Firebase Auth to check if the user verified their email via the link
     _autoCheckTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       _checkVerificationSilently();
@@ -64,7 +68,12 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       final refreshed = FirebaseAuth.instance.currentUser;
       if (refreshed != null && refreshed.emailVerified && mounted) {
         _autoCheckTimer?.cancel();
-        _onVerificationSuccess();
+        await refreshed.getIdToken(true);
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'requires_email_verification': false,
+          'isVerified': true,
+        }).catchError((_) {});
+        if (mounted) _onVerificationSuccess();
       }
     } catch (_) {}
   }
@@ -88,9 +97,14 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
     try {
       await user.reload();
+      await user.getIdToken(true);
       final refreshed = FirebaseAuth.instance.currentUser;
 
       if (refreshed != null && refreshed.emailVerified) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'requires_email_verification': false,
+          'isVerified': true,
+        }).catchError((_) {});
         if (mounted) _onVerificationSuccess();
       } else {
         if (mounted) {
@@ -137,6 +151,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       await AuthService.instance.sendEmailVerification(
         email: widget.email,
         fullName: widget.fullName,
+        password: widget.password,
       );
 
       if (mounted) {
@@ -237,7 +252,10 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
               cursor: SystemMouseCursors.click,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  if (Navigator.canPop(context)) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  }
+                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF81B655),

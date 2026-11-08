@@ -155,6 +155,20 @@ class AuthService {
           'photoUrl': user.photoURL ?? '',
           'has_completed_onboarding': false,
         });
+
+        if (isValidator) {
+          await _firestore.collection('educatorApplications').doc('val_${user.uid}').set({
+            'applicantUid': user.uid,
+            'applicantEmail': user.email ?? '',
+            'status': 'pending',
+            'applicationType': 'validator',
+            'appliedAt': FieldValue.serverTimestamp(),
+            'cvUrl': '',
+            'certificateUrls': [],
+            'videoUrl': '',
+            'syllabusUrl': '',
+          }, SetOptions(merge: true));
+        }
         preferredGoogleRole = null;
         return true; // Is new user
       }
@@ -552,6 +566,14 @@ class AuthService {
               message:
                   'Your email has not been verified yet. Please check your inbox and confirm your identity before signing in.',
             );
+          } else if (!isGoogleUser && refreshedUser.emailVerified) {
+            // User verified their email! Heal Firestore field so they are never blocked again.
+            await _firestore.collection('users').doc(user.uid).update({
+              'requires_email_verification': false,
+              'isVerified': true,
+            }).catchError((e) {
+              debugPrint('Error updating requires_email_verification on sign-in: $e');
+            });
           }
         }
       }
@@ -714,8 +736,44 @@ class AuthService {
       'requires_email_verification': true, // Only new users starting now require verification
     });
 
+    if (isValidator) {
+      await _firestore.collection('educatorApplications').doc('val_${user.uid}').set({
+        'applicantUid': user.uid,
+        'applicantEmail': user.email ?? '',
+        'status': 'pending',
+        'applicationType': 'validator',
+        'appliedAt': FieldValue.serverTimestamp(),
+        'cvUrl': '',
+        'certificateUrls': [],
+        'videoUrl': '',
+        'syllabusUrl': '',
+      }, SetOptions(merge: true));
+    }
+
     if (!user.emailVerified) {
-      await user.sendEmailVerification();
+      String continueUrl = 'https://grammatica.site';
+      if (kIsWeb) {
+        try {
+          final origin = Uri.base.origin;
+          if (origin.contains('localhost') || origin.contains('127.0.0.1')) {
+            continueUrl = origin;
+          } else {
+            continueUrl = 'https://grammatica.site';
+          }
+        } catch (_) {}
+      }
+
+      final actionCodeSettings = ActionCodeSettings(
+        url: continueUrl,
+        handleCodeInApp: true,
+      );
+
+      try {
+        await user.sendEmailVerification(actionCodeSettings);
+      } catch (e) {
+        debugPrint('[AuthService] ActionCodeSettings sendEmailVerification failed: $e. Falling back to default.');
+        await user.sendEmailVerification();
+      }
     }
 
     return cred;
@@ -915,15 +973,14 @@ class AuthService {
   Future<void> sendPasswordResetEmail(String email) async {
     final emailClean = email.trim().toLowerCase();
 
-    String resetUrl = 'https://grammatica-68829.web.app';
+    String resetUrl = 'https://grammatica.site';
     if (kIsWeb) {
       try {
         final origin = Uri.base.origin;
-        if (origin.startsWith('https://') &&
-            (origin.contains('grammatica') ||
-                origin.contains('web.app') ||
-                origin.contains('firebaseapp.com'))) {
+        if (origin.contains('localhost') || origin.contains('127.0.0.1')) {
           resetUrl = origin;
+        } else {
+          resetUrl = 'https://grammatica.site';
         }
       } catch (_) {}
     }
@@ -1022,47 +1079,57 @@ class AuthService {
     return true;
   }
 
-  Future<void> sendEmailVerification({String? email, String? fullName}) async {
-    final user = _auth.currentUser;
-    final targetEmail = (email ?? user?.email ?? '').trim().toLowerCase();
-    if (targetEmail.isEmpty) return;
+  Future<void> sendEmailVerification({String? email, String? fullName, String? password}) async {
+    User? user = _auth.currentUser;
 
-    String recipientName = fullName ?? user?.displayName ?? 'Learner';
-    if (recipientName == 'Learner' || recipientName.isEmpty) {
+    // If currentUser is null (e.g. after signOut in unverified login dialog), authenticate temporarily
+    bool signedInTemporarily = false;
+    if (user == null && email != null && password != null && password.isNotEmpty) {
       try {
-        final doc = await _firestore.collection('users').doc(user?.uid).get();
-        if (doc.exists) {
-          final data = doc.data() ?? {};
-          recipientName = (data['username'] ?? data['full_name'] ?? 'Learner').toString();
-        }
-      } catch (_) {}
+        final cred = await _auth.signInWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        );
+        user = cred.user;
+        signedInTemporarily = true;
+      } catch (e) {
+        debugPrint('[AuthService] Temporary sign-in for resend failed: $e');
+      }
     }
-
-    final otpCode = (100000 + (DateTime.now().microsecondsSinceEpoch % 899999)).toString();
-
-    try {
-      await _firestore.collection('email_verifications').doc(_emailDocId(targetEmail)).set({
-        'email': targetEmail,
-        'otp': otpCode,
-        'expires_at': Timestamp.fromDate(DateTime.now().add(const Duration(minutes: 10))),
-        'created_at': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      debugPrint('Error saving email verification OTP to Firestore: $e');
-    }
-
-    // Send the branded Grammatica Email with logo and OTP!
-    await EmailSenderService.sendOtpEmail(
-      recipientEmail: targetEmail,
-      recipientName: recipientName,
-      otpCode: otpCode,
-    );
 
     if (user != null && !user.emailVerified) {
+      String continueUrl = 'https://grammatica.site';
+      if (kIsWeb) {
+        try {
+          final origin = Uri.base.origin;
+          if (origin.contains('localhost') || origin.contains('127.0.0.1')) {
+            continueUrl = origin;
+          } else {
+            continueUrl = 'https://grammatica.site';
+          }
+        } catch (_) {}
+      }
+
+      final actionCodeSettings = ActionCodeSettings(
+        url: continueUrl,
+        handleCodeInApp: true,
+      );
+
       try {
-        await user.sendEmailVerification();
+        try {
+          await user.sendEmailVerification(actionCodeSettings);
+        } catch (e) {
+          debugPrint('[AuthService] ActionCodeSettings sendEmailVerification failed: $e. Falling back to default.');
+          await user.sendEmailVerification();
+        }
+        debugPrint('[AuthService] Firebase verification email sent successfully to ${user.email}');
       } catch (e) {
-        debugPrint('Firebase default email verification trigger: $e');
+        debugPrint('[AuthService] Firebase verification email error: $e');
+        rethrow;
+      } finally {
+        if (signedInTemporarily) {
+          await _auth.signOut();
+        }
       }
     }
   }

@@ -522,7 +522,7 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
                         );
 
                         final canApproveThis = app.applicationType == 'validator'
-                            ? (widget.role == UserRole.admin)
+                            ? (widget.role == UserRole.admin || widget.role == UserRole.superadmin)
                             : (widget.role == UserRole.validator);
                         final actions = Wrap(
                           spacing: 8,
@@ -569,7 +569,7 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
                               ),
                             ] else ...[
                               Tooltip(
-                                message: widget.role == UserRole.superadmin
+                                message: widget.role == UserRole.superadmin && app.applicationType != 'validator'
                                     ? 'Super Admin has view-only access to educator applications'
                                     : 'Only designated validators or admins can review applications',
                                 child: Container(
@@ -715,7 +715,7 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
     EducatorApplication app,
   ) async {
     final canApprove = app.applicationType == 'validator'
-        ? (widget.role == UserRole.admin)
+        ? (widget.role == UserRole.admin || widget.role == UserRole.superadmin)
         : (widget.role == UserRole.validator);
     if (!canApprove) {
       if (context.mounted) {
@@ -802,7 +802,7 @@ class _EducatorApplicationsListState extends State<_EducatorApplicationsList> {
     EducatorApplication app,
   ) async {
     final canReject = app.applicationType == 'validator'
-        ? (widget.role == UserRole.admin)
+        ? (widget.role == UserRole.admin || widget.role == UserRole.superadmin)
         : (widget.role == UserRole.validator);
     if (!canReject) {
       if (context.mounted) {
@@ -2375,6 +2375,33 @@ class _ValidationCredentialListView extends StatelessWidget {
         'ext': _getFileExt(syllabusLabel, 'SYLLABUS'),
       },
     ];
+
+    if (app.applicationType == 'validator') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildRequirementItem(
+            context: context,
+            isDark: isDark,
+            title: 'PRC License / Accreditation Certificate',
+            subtitle: 'Professional Regulation Commission license or teacher accreditation certificate',
+            icon: Icons.verified_user_rounded,
+            accentColor: const Color(0xFF3B82F6),
+            files: certFiles,
+          ),
+          if (cvFiles.isNotEmpty)
+            _buildRequirementItem(
+              context: context,
+              isDark: isDark,
+              title: 'Curriculum Vitae (CV / Résumé)',
+              subtitle: 'Educational background, employment history, and qualifications',
+              icon: Icons.description_rounded,
+              accentColor: const Color(0xFF10B981),
+              files: cvFiles,
+            ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

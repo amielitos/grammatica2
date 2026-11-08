@@ -2,6 +2,13 @@
 <html>
 
 <head>
+  <script>
+    // Canonical domain redirect: ensure users land on grammatica.site
+    if (window.location.hostname === 'grammatica-68829.web.app' || 
+        window.location.hostname === 'grammatica-68829.firebaseapp.com') {
+      window.location.replace('https://grammatica.site' + window.location.pathname + window.location.search + window.location.hash);
+    }
+  </script>
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A new Flutter project.">

@@ -11,6 +11,7 @@ import '../widgets/universal_drawer.dart';
 import '../widgets/application_preview_widgets.dart';
 import '../widgets/preview_helper.dart';
 import '../services/notification_service.dart';
+import '../services/educator_subscription_service.dart';
 
 class RoleApplicationPage extends StatefulWidget {
   final User user;
@@ -37,6 +38,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
   PlatformFile? _syllabusFile;
 
   bool _isUploading = false;
+  String? _uploadStatus;
   bool _isDragging = false;
   String? _error;
   Map<String, dynamic>? _userData;
@@ -215,14 +217,14 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
   Future<void> _submit() async {
     setState(() {
       _isUploading = true;
+      _uploadStatus = 'Verifying eligibility...';
       _error = null;
     });
 
     try {
       if (widget.applicationType != 'validator') {
         final existingApp = await DatabaseService.instance
-            .streamUserApplication(widget.user.uid)
-            .first;
+            .getUserApplication(widget.user.uid);
         if (existingApp != null && existingApp.status == 'rejected') {
           if (existingApp.isSexualMisconductRejection) {
             throw Exception(
@@ -253,8 +255,8 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         final created = createdAt?.toDate() ?? widget.user.metadata.creationTime;
         if (created != null) {
           final days = DateTime.now().difference(created).inDays;
-          if (days < 7) {
-            throw Exception('Educator applicants must be registered on Grammatica for at least 7 days. You have been a member for $days days.');
+          if (days < 3) {
+            throw Exception('Educator applicants must be registered on Grammatica for at least 3 days. You have been a member for $days ${days == 1 ? 'day' : 'days'}.');
           }
         }
       }
@@ -273,6 +275,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
       }
 
       if (_cvFile?.bytes == null) throw Exception('CV file data not loaded');
+      if (mounted) setState(() => _uploadStatus = 'Uploading CV...');
       final cvUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
         fileBytes: _cvFile!.bytes!,
@@ -281,8 +284,13 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
       );
 
       List<String> certUrls = [];
-      for (var file in _certificateFiles) {
+      for (int i = 0; i < _certificateFiles.length; i++) {
+        final file = _certificateFiles[i];
         if (file.bytes == null) continue;
+        if (mounted) {
+          setState(() => _uploadStatus =
+              'Uploading Certificate ${i + 1}/${_certificateFiles.length}...');
+        }
         final url = await DatabaseService.instance.uploadApplicationFile(
           uid: widget.user.uid,
           fileBytes: file.bytes!,
@@ -292,12 +300,13 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         certUrls.add(url);
       }
 
-      if (_videoFile?.bytes == null) throw Exception('Video file data not loaded');
+      if (_videoFile?.bytes == null) throw Exception('Video demo file data not loaded');
       final videoExt = (_videoFile!.extension ?? _videoFile!.name.split('.').last).toLowerCase();
       if (!_videoExtensions.contains(videoExt)) {
         throw Exception(
             'The video demo file must be a valid video format (${_videoExtensions.map((e) => e.toUpperCase()).join(', ')}). PNG and image formats are not allowed.');
       }
+      if (mounted) setState(() => _uploadStatus = 'Uploading Teaching Demo Video...');
       final videoUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
         fileBytes: _videoFile!.bytes!,
@@ -305,7 +314,8 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         contentType: getContentType(_videoFile!.name),
       );
 
-      if (_syllabusFile?.bytes == null) throw Exception('Syllabus file data not loaded');
+      if (_syllabusFile?.bytes == null) throw Exception('Syllabus / Sample Lessons file data not loaded');
+      if (mounted) setState(() => _uploadStatus = 'Uploading Sample Lessons / Syllabus...');
       final syllabusUrl = await DatabaseService.instance.uploadApplicationFile(
         uid: widget.user.uid,
         fileBytes: _syllabusFile!.bytes!,
@@ -313,6 +323,7 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         contentType: getContentType(_syllabusFile!.name),
       );
 
+      if (mounted) setState(() => _uploadStatus = 'Submitting Application...');
       await DatabaseService.instance.submitEducatorApplication(
         uid: widget.user.uid,
         email: widget.user.email!,
@@ -340,9 +351,12 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         applicationType: widget.applicationType,
       ).catchError((e) => debugPrint('Error notifying validators of application: $e'));
 
-      setState(() {
-        _isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+          _uploadStatus = null;
+        });
+      }
 
       if (mounted) {
         showDialog(
@@ -376,10 +390,17 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
         );
       }
     } catch (e) {
-      setState(() {
-        _isUploading = false;
-        _error = 'Hmm, something went wrong. Please try again.';
-      });
+      debugPrint('Error submitting educator application: $e');
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+          _uploadStatus = null;
+          final cleanMsg = e.toString().replaceFirst('Exception: ', '').trim();
+          _error = cleanMsg.isNotEmpty
+              ? cleanMsg
+              : 'Hmm, something went wrong. Please check your files and try again.';
+        });
+      }
     }
   }
 
@@ -967,6 +988,41 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
               ),
             ],
           ),
+          if (widget.applicationType == 'educator') ...[
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF81B655).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: const Color(0xFF81B655).withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFF81B655),
+                    size: 22,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      EducatorSubscriptionService.applicationDisclaimer,
+                      style: GoogleFonts.inter(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : const Color(0xFF334155),
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1126,10 +1182,64 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
             child: ElevatedButton(
               onPressed: (_isUploading || !_canGoNext())
                   ? null
-                  : () {
+                  : () async {
                       if (_currentStep < 4) {
                         setState(() => _currentStep++);
                       } else {
+                        if (widget.applicationType == 'educator') {
+                          final bool? proceed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) {
+                              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                              return AlertDialog(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                title: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF81B655).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(Icons.info_outline_rounded, color: Color(0xFF81B655), size: 24),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Expanded(
+                                      child: Text(
+                                        'Educator Notice',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                content: Text(
+                                  EducatorSubscriptionService.applicationDisclaimer,
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    color: isDark ? Colors.white70 : const Color(0xFF475569),
+                                    height: 1.5,
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: const Color(0xFF81B655),
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text('Proceed'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                          if (proceed != true) return;
+                        }
                         _submit();
                       }
                     },
@@ -1142,13 +1252,33 @@ class _RoleApplicationPageState extends State<RoleApplicationPage> {
                 ),
               ),
               child: _isUploading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                        if (_uploadStatus != null) ...[
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              _uploadStatus!,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     )
                   : Text(
                       _currentStep == 4 ? "Submit Application" : "Next Step",

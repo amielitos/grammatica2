@@ -6,6 +6,7 @@ import '../../models/ai_models.dart';
 import '../../models/content_visibility.dart';
 import '../../models/notebook_models.dart';
 import '../../services/auth_service.dart';
+import '../../services/educator_subscription_service.dart';
 import '../../services/notebook_service.dart';
 import '../../theme/app_colors.dart';
 
@@ -152,6 +153,16 @@ class _PublishLessonDialogState extends State<PublishLessonDialog> {
   }
 
   Future<void> _publish() async {
+    final user = AuthService.instance.currentUser;
+    if (user != null) {
+      final ok = await EducatorSubscriptionService.ensureSubscribed(
+        context,
+        user: user,
+      );
+      if (!ok) return;
+    }
+    if (!mounted) return;
+
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
       setState(() {
@@ -1552,6 +1563,16 @@ class _PublishAllOutputsDialogState extends State<PublishAllOutputsDialog> {
   }
 
   Future<void> _publishAll() async {
+    final user = AuthService.instance.currentUser;
+    if (user != null) {
+      final ok = await EducatorSubscriptionService.ensureSubscribed(
+        context,
+        user: user,
+      );
+      if (!ok) return;
+    }
+    if (!mounted) return;
+
     if (widget.outputs.isEmpty) return;
 
     setState(() {

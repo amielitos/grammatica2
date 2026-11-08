@@ -23,6 +23,7 @@ import '../../services/ai_rate_limit_service.dart';
 import '../../widgets/ai_quota_badge.dart';
 import '../../widgets/ai_quota_exceeded_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/educator_subscription_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Main interactive workspace for a Notebook, featuring a split-pane layout
@@ -256,7 +257,17 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
-                  onPressed: () {
+                  onPressed: () async {
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user != null) {
+                      final ok = await EducatorSubscriptionService.ensureSubscribed(
+                        context,
+                        user: user,
+                      );
+                      if (!ok) return;
+                    }
+                    if (!context.mounted) return;
+
                     final effectiveOutputs = outputs.map((o) {
                       if (o.type == NotebookOutputType.lesson && _editedLessonTitle != null && _editedLessonTitle!.isNotEmpty) {
                         return o.copyWith(title: _editedLessonTitle!);
@@ -1134,6 +1145,15 @@ class _NotebookDetailPageState extends State<NotebookDetailPage> {
     bool hasExistingOutput = false,
     bool isAssessment = false,
   }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final ok = await EducatorSubscriptionService.ensureSubscribed(
+        context,
+        user: user,
+      );
+      if (!ok) return;
+    }
+    if (!mounted) return;
     final readySources = sources
         .where((s) => s.processingStatus == SourceProcessingStatus.ready && s.rawContent.isNotEmpty)
         .toList();

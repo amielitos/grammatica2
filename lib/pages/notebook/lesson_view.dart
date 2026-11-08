@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/educator_subscription_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/ai_models.dart';
@@ -307,7 +309,16 @@ class _LessonViewState extends State<LessonView> {
   void _openPublishDialog({
     required bool canUpdateApprovedLesson,
     required String? approvedLessonId,
-  }) {
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final ok = await EducatorSubscriptionService.ensureSubscribed(
+        context,
+        user: user,
+      );
+      if (!ok) return;
+    }
+    if (!mounted) return;
     final currentTitle = _titleCtrl.text.trim();
     final effectiveOutput = canUpdateApprovedLesson
         ? widget.output.copyWith(title: currentTitle)

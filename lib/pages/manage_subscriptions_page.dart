@@ -21,9 +21,6 @@ class ManageSubscriptionsPage extends StatefulWidget {
 }
 
 class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
-  final TextEditingController _premiumController = TextEditingController();
-  String? _premiumError;
-  bool _isEducator = false;
   Map<String, dynamic>? _userData;
   int _mentorshipPage = 1;
   static const int _mentorshipPageSize = 4;
@@ -31,64 +28,15 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
   @override
   void initState() {
     super.initState();
-    _checkRoleAndLoadPricing();
+    _loadUserData();
   }
 
-  @override
-  void dispose() {
-    _premiumController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _checkRoleAndLoadPricing() async {
+  Future<void> _loadUserData() async {
     final doc = await DatabaseService.instance.getUserData(widget.user.uid);
-    if (doc != null) {
-      if (mounted) {
-        setState(() {
-          _userData = doc;
-          _isEducator = doc['role'] == 'Educator';
-          final pricing = doc['subscription_pricing'] as Map<String, dynamic>?;
-          if (pricing != null) {
-            _premiumController.text = (pricing['premium'] ?? 7).toString();
-          } else {
-            _premiumController.text = '7';
-          }
-        });
-      }
-    }
-  }
-
-  Future<void> _savePricing() async {
-    final rawPremium = _premiumController.text.trim();
-    if (rawPremium.isEmpty) {
-      setState(() => _premiumError = 'Premium tier price is required');
-      return;
-    }
-    final premium = int.tryParse(rawPremium);
-    if (premium == null || premium <= 0) {
-      setState(() => _premiumError = 'Enter a valid price greater than 0');
-      return;
-    }
-
-    if (premium > 30) {
-      setState(() => _premiumError = 'Premium pricing cannot exceed \$30');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Premium pricing cannot exceed \$30')),
-      );
-      return;
-    }
-
-    setState(() => _premiumError = null);
-
-    await DatabaseService.instance.updateSubscriptionPricing(
-      widget.user.uid,
-      premium: premium,
-    );
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pricing updated successfully')),
-      );
+    if (doc != null && mounted) {
+      setState(() {
+        _userData = doc;
+      });
     }
   }
 
@@ -192,77 +140,6 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                   ),
                   const SizedBox(height: 32),
 
-                  if (_isEducator) ...[
-                    _buildHeaderBox(
-                      Icons.payments_rounded,
-                      'Subscription Pricing Settings',
-                      Colors.orange,
-                      textColor,
-                      isDark,
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(28),
-                      decoration: BoxDecoration(
-                        color: cardBg,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: borderColor),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(
-                              alpha: isDark ? 0.0 : 0.04,
-                            ),
-                            blurRadius: 20,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildPricingField(
-                            label: 'Premium Tier (Max \$30) *',
-                            controller: _premiumController,
-                            icon: Icons.auto_awesome_rounded,
-                            isDark: isDark,
-                            borderColor: borderColor,
-                            textColor: textColor,
-                            errorText: _premiumError,
-                            onChanged: (_) {
-                              if (_premiumError != null) {
-                                setState(() => _premiumError = null);
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            height: 48,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF81B655),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: _savePricing,
-                              child: Text(
-                                'Save Pricing Settings',
-                                style: GoogleFonts.outfit(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 36),
-                  ],
-
                   _buildLearnerSubscriptions(
                     isDark,
                     cardBg,
@@ -310,76 +187,6 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     );
   }
 
-  Widget _buildPricingField({
-    required String label,
-    required TextEditingController controller,
-    required IconData icon,
-    required bool isDark,
-    required Color borderColor,
-    required Color textColor,
-    String? errorText,
-    ValueChanged<String>? onChanged,
-  }) {
-    final bool isRequired = label.trim().endsWith('*');
-    final String cleanLabel = isRequired
-        ? label.replaceAll(RegExp(r'\s*\*'), '').trim()
-        : label;
-
-    return TextField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      onChanged: onChanged,
-      style: GoogleFonts.inter(fontSize: 14, color: textColor),
-      decoration: InputDecoration(
-        errorText: errorText,
-        labelText: isRequired ? null : label,
-        label: isRequired
-            ? Text.rich(
-                TextSpan(
-                  text: cleanLabel,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: isDark ? Colors.white38 : const Color(0xFF64748B),
-                  ),
-                  children: const [
-                    TextSpan(
-                      text: ' *',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : null,
-        labelStyle: GoogleFonts.inter(
-          fontSize: 13,
-          color: isDark ? Colors.white38 : const Color(0xFF64748B),
-        ),
-        prefixIcon: Icon(icon, color: const Color(0xFF81B655), size: 20),
-        suffixText: '\$',
-        suffixStyle: GoogleFonts.outfit(
-          fontWeight: FontWeight.w700,
-          color: const Color(0xFF81B655),
-        ),
-        filled: true,
-        fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: borderColor),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF81B655), width: 1.5),
-        ),
-      ),
-    );
-  }
 
   Widget _buildLearnerSubscriptions(
     bool isDark,
@@ -845,12 +652,19 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     final rawTier = sub['tier'] as String? ?? 'Basic';
     final tier = rawTier.toLowerCase() == 'standard' ? 'Premium' : rawTier;
     final eduUid = (sub['educatorUid'] ?? sub['educatorId'] ?? '') as String;
+    final bool isPlatform = sub['isPlatformSubscription'] == true ||
+        tier.toLowerCase().contains('educator') ||
+        eduUid == 'grammatica_platform' ||
+        username.toLowerCase().contains('grammatica');
 
     final lowerTier = tier.toLowerCase();
     Color pillBg;
     Color pillText;
 
-    if (lowerTier == 'premium') {
+    if (isPlatform) {
+      pillBg = const Color(0xFF81B655).withValues(alpha: 0.15);
+      pillText = const Color(0xFF81B655);
+    } else if (lowerTier == 'premium') {
       pillBg = const Color(0xFF8B5CF6).withValues(alpha: 0.12);
       pillText = const Color(0xFF8B5CF6);
     } else {
@@ -892,16 +706,22 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                   ? const Color(0xFF334155)
                   : const Color(0xFFF1F5F9),
               backgroundImage:
-                  (eduData['photoUrl'] as String?)?.isNotEmpty == true
+                  !isPlatform && (eduData['photoUrl'] as String?)?.isNotEmpty == true
                   ? NetworkImage(eduData['photoUrl']!)
                   : null,
-              child: (eduData['photoUrl'] as String?)?.isNotEmpty == true
-                  ? null
-                  : Icon(
-                      Icons.person_rounded,
-                      color: isDark ? Colors.white38 : Colors.grey.shade400,
+              child: isPlatform
+                  ? const Icon(
+                      Icons.school_rounded,
+                      color: Color(0xFF81B655),
                       size: 28,
-                    ),
+                    )
+                  : ((eduData['photoUrl'] as String?)?.isNotEmpty == true
+                      ? null
+                      : Icon(
+                          Icons.person_rounded,
+                          color: isDark ? Colors.white38 : Colors.grey.shade400,
+                          size: 28,
+                        )),
             ),
           ),
           const SizedBox(width: 18),
@@ -930,7 +750,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        tier.toUpperCase(),
+                        isPlatform ? 'EDUCATOR PLAN' : tier.toUpperCase(),
                         style: GoogleFonts.outfit(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
@@ -957,7 +777,37 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
               ],
             ),
           ),
-          if (isActive) ...[
+          if (isPlatform) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFF81B655).withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    size: 16,
+                    color: Color(0xFF81B655),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Subscribed',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF81B655),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (isActive) ...[
             OutlinedButton.icon(
               icon: const Icon(Icons.cancel_outlined, size: 16),
               label: Text(
@@ -1143,6 +993,9 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
     final status = payment['status'] as String? ?? 'paid';
     final isPaid = status.toLowerCase() == 'paid';
     final method = payment['paymentMethod'] as String? ?? 'PayMongo QR PH';
+    final bool isPlatform = tier.toLowerCase().contains('educator') ||
+        eduName.toLowerCase().contains('grammatica') ||
+        payment['type'] == 'educator_subscription';
 
     DateTime? paidDate;
     final paidAtRaw = payment['paidAt'] ?? payment['createdAt'];
@@ -1213,7 +1066,7 @@ class _ManageSubscriptionsPageState extends State<ManageSubscriptionsPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        tier.toUpperCase(),
+                        isPlatform ? 'EDUCATOR PLAN' : tier.toUpperCase(),
                         style: GoogleFonts.outfit(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,

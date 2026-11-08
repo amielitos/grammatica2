@@ -121,12 +121,6 @@ class _AdminNotificationsTabState extends State<AdminNotificationsTab> {
   }
 
   void _showDetails(BuildContext context, NotificationModel n) {
-    if (!n.isRead) {
-      NotificationService.instance.markAsRead(n.id);
-    }
-    showDialog(
-      context: context,
-      builder: (context) => NotificationDetailDialog(notification: n),
-    );
+    navigateToNotificationTarget(context, n, closeCurrent: false);
   }
 }

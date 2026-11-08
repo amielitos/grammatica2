@@ -170,6 +170,14 @@ class RoleService {
     if (role == UserRole.educator && currentRole != 'EDUCATOR') {
       updates['educatorStartDate'] = FieldValue.serverTimestamp();
       updates['educatorEndDate'] = null;
+      // Newer educators start as unsubscribed until they simulate/complete payment
+      if (data?['isExistingEducator'] != true) {
+        updates['isExistingEducator'] = false;
+        updates['has_educator_subscription'] = false;
+        updates['hasEducatorSubscription'] = false;
+        updates['educator_subscription_status'] = 'INACTIVE';
+        updates['subscription_status'] = 'NONE';
+      }
     } else if (currentRole == 'EDUCATOR' && role != UserRole.educator) {
       updates['educatorEndDate'] = FieldValue.serverTimestamp();
     }

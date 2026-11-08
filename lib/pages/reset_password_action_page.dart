@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/url_cleaner.dart';
 
 enum ResetPageStatus {
   verifying,
@@ -151,6 +152,7 @@ class _ResetPasswordActionPageState extends State<ResetPasswordActionPage> {
       }
 
       if (!mounted) return;
+      clearBrowserUrlParams('/');
       setState(() {
         _status = ResetPageStatus.success;
       });
@@ -288,6 +290,7 @@ class _ResetPasswordActionPageState extends State<ResetPasswordActionPage> {
           height: 48,
           child: ElevatedButton(
             onPressed: () {
+              clearBrowserUrlParams('/');
               Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
             },
             style: ElevatedButton.styleFrom(
@@ -360,6 +363,7 @@ class _ResetPasswordActionPageState extends State<ResetPasswordActionPage> {
           height: 48,
           child: ElevatedButton(
             onPressed: () {
+              clearBrowserUrlParams('/login');
               Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/login',

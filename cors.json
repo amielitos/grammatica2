@@ -1,7 +1,25 @@
 [
   {
-    "origin": ["*"],
-    "method": ["GET"],
+    "origin": [
+      "https://grammatica.site",
+      "https://www.grammatica.site",
+      "http://localhost",
+      "http://localhost:5000",
+      "http://localhost:3000",
+      "http://127.0.0.1",
+      "*"
+    ],
+    "method": [
+      "GET",
+      "HEAD",
+      "PUT",
+      "POST",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "responseHeader": [
+      "*"
+    ],
     "maxAgeSeconds": 3600
   }
 ]

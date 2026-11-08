@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import '../../utils/file_helper.dart';
 
 import '../../services/database_service.dart';
+import '../../services/educator_subscription_service.dart';
 import '../../services/ai_logic_service.dart';
 import '../../services/ai_rate_limit_service.dart';
 import '../../services/auth_service.dart';
@@ -1779,6 +1780,16 @@ class _ManageLessonsViewState extends State<_ManageLessonsView> {
   }
 
   Future<void> _saveIntegratedLesson() async {
+    final user = AuthService.instance.currentUser;
+    if (user != null) {
+      final ok = await EducatorSubscriptionService.ensureSubscribed(
+        context,
+        user: user,
+      );
+      if (!ok) return;
+    }
+    if (!mounted) return;
+
     if (_title.text.trim().isEmpty) {
       setState(() => _titleError = 'Lesson title is required');
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lesson title is required')));

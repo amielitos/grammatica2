@@ -21,6 +21,7 @@ import 'pages/onboarding_page.dart';
 import 'pages/otp_verification_page.dart';
 import 'pages/archived_account_gate_page.dart';
 import 'pages/reset_password_action_page.dart';
+import 'pages/verify_email_action_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -125,6 +126,12 @@ class GrammaticaApp extends StatelessWidget {
                 builder: (_) => ResetPasswordActionPage(oobCode: oobCode),
               );
             }
+            if ((mode == 'verifyEmail' || mode == 'verify-email') && oobCode != null && oobCode.isNotEmpty) {
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (_) => VerifyEmailActionPage(oobCode: oobCode),
+              );
+            }
             return null;
           },
           onUnknownRoute: (settings) {
@@ -134,6 +141,12 @@ class GrammaticaApp extends StatelessWidget {
               return MaterialPageRoute(
                 settings: settings,
                 builder: (_) => ResetPasswordActionPage(oobCode: oobCode),
+              );
+            }
+            if ((mode == 'verifyEmail' || mode == 'verify-email') && oobCode != null && oobCode.isNotEmpty) {
+              return MaterialPageRoute(
+                settings: settings,
+                builder: (_) => VerifyEmailActionPage(oobCode: oobCode),
               );
             }
             return MaterialPageRoute(
@@ -156,7 +169,7 @@ class _AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Intercept action code deep links (e.g. Firebase Password Reset)
+    // Intercept action code deep links (e.g. Firebase Password Reset & Email Verification)
     try {
       final uri = Uri.base;
       final mode = GrammaticaApp.extractMode(uri);
@@ -165,6 +178,11 @@ class _AuthWrapper extends StatelessWidget {
           oobCode != null &&
           oobCode.isNotEmpty) {
         return ResetPasswordActionPage(oobCode: oobCode);
+      }
+      if ((mode == 'verifyEmail' || mode == 'verify-email') &&
+          oobCode != null &&
+          oobCode.isNotEmpty) {
+        return VerifyEmailActionPage(oobCode: oobCode);
       }
     } catch (_) {}
 
@@ -322,10 +340,19 @@ class _AuthWrapper extends StatelessWidget {
             );
             final bool requiresEmailVerification =
                 (data['requires_email_verification'] == true);
-            if (!isGoogleUser &&
-                requiresEmailVerification &&
-                !user.emailVerified) {
-              return OtpVerificationPage(email: user.email ?? '');
+            if (!isGoogleUser && requiresEmailVerification) {
+              if (user.emailVerified) {
+                // Auto-sync Firestore: user is already verified in Firebase Auth!
+                FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+                  'requires_email_verification': false,
+                  'isVerified': true,
+                }).catchError((_) {});
+              } else {
+                return OtpVerificationPage(
+                  email: user.email ?? '',
+                  fullName: data['username'] ?? data['full_name'],
+                );
+              }
             }
 
             // Sync theme preference

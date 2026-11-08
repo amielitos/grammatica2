@@ -12,6 +12,10 @@ class PaymongoQrDialog extends StatefulWidget {
   final String? learnerName;
   final String? learnerEmail;
   final String? idempotencyKey;
+  final String? customTitle;
+  final String? customSubtitle;
+  final String? customNotice;
+  final String? customSuccessMessage;
 
   const PaymongoQrDialog({
     super.key,
@@ -21,6 +25,10 @@ class PaymongoQrDialog extends StatefulWidget {
     this.learnerName,
     this.learnerEmail,
     this.idempotencyKey,
+    this.customTitle,
+    this.customSubtitle,
+    this.customNotice,
+    this.customSuccessMessage,
   });
 
   @override
@@ -51,8 +59,8 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
 
     final link = await PaymongoService.createPaymentLinkDetailed(
       amount: widget.amount,
-      description: 'Grammatica ${widget.tier} Tier - ${widget.educatorName}',
-      remarks: 'Grammatica Subscription for ${widget.learnerName ?? "Learner"}',
+      description: widget.customTitle ?? 'Grammatica ${widget.tier} Tier - ${widget.educatorName}',
+      remarks: widget.customSubtitle ?? 'Grammatica Subscription for ${widget.learnerName ?? "Learner"}',
       idempotencyKey: widget.idempotencyKey,
     );
 
@@ -196,7 +204,8 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Enrolled in ${widget.tier} Tier with ${widget.educatorName}. Receipt will be emailed to you.',
+                widget.customSuccessMessage ??
+                    'Enrolled in ${widget.tier} Tier with ${widget.educatorName}. Receipt will be emailed to you.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 14,
@@ -226,44 +235,87 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
             children: [
               // Header
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E88E5).withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.qr_code_scanner_rounded,
-                      color: Color(0xFF1E88E5),
-                      size: 26,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(width: 32),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'PayMongo QR PH',
-                        style: GoogleFonts.outfit(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          color: const Color(0xFF1E88E5),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E88E5).withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.qr_code_scanner_rounded,
+                          color: Color(0xFF1E88E5),
+                          size: 26,
                         ),
                       ),
-                      Text(
-                        'Instant E-Wallet & Bank Transfer',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black45,
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PayMongo QR PH',
+                            style: GoogleFonts.outfit(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF1E88E5),
+                            ),
+                          ),
+                          Text(
+                            'Instant E-Wallet & Bank Transfer',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black45,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20, color: Colors.black45),
+                    onPressed: () => Navigator.pop(context, null),
+                    tooltip: 'Close',
+                  ),
+                ],
+              ),
+              if (widget.customNotice != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF81B655).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFF81B655).withValues(alpha: 0.35),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.stars_rounded, color: Color(0xFF81B655), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          widget.customNotice!,
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF2E7D32),
+                            height: 1.3,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
               const SizedBox(height: 14),
               Text(
                 'Scan using GCash, Maya, ShopeePay, or any QR PH banking app to complete your enrollment.',
@@ -449,7 +501,7 @@ class _PaymongoQrDialogState extends State<PaymongoQrDialog> {
                     const SizedBox(height: 8),
                     _buildDetailRow(
                       'Enrollment',
-                      '${widget.tier} Tier (${widget.educatorName})',
+                      widget.customTitle ?? '${widget.tier} Tier (${widget.educatorName})',
                     ),
                     if (_paymentLink != null) ...[
                       const SizedBox(height: 8),

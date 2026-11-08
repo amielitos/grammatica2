@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/educator_subscription_service.dart';
 import '../../models/notebook_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/notebook_service.dart';
@@ -365,7 +367,16 @@ class _NotebookListPageState extends State<NotebookListPage> {
     );
   }
 
-  void _showCreateNotebookDialog(BuildContext context, String currentUid) {
+  void _showCreateNotebookDialog(BuildContext context, String currentUid) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final ok = await EducatorSubscriptionService.ensureSubscribed(
+        context,
+        user: user,
+      );
+      if (!ok) return;
+    }
+    if (!context.mounted) return;
     final titleController = TextEditingController();
     final descController = TextEditingController();
     String? duplicateWarning;

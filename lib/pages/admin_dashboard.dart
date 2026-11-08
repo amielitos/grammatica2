@@ -22,6 +22,7 @@ import 'admin/educator_dashboard_tab.dart';
 import 'admin/admin_landing_settings_tab.dart';
 import 'notebook/notebook_list_page.dart';
 import 'admin/educator_groups_tab.dart';
+import '../services/educator_subscription_service.dart';
 import 'admin/admin_lessons_tab.dart';
 import 'admin/admin_lesson_database_tab.dart';
 import 'admin/admin_feedback_tab.dart';
@@ -221,7 +222,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
             tabs.add(
               EducatorDashboardTab(
                 userData: currentData,
-            onTabChange: (i) {
+            onTabChange: (i) async {
+              if (isEducator && i < navItems.length && (navItems[i].label.toLowerCase() == 'mentorship' || navItems[i].label.toLowerCase() == 'ai notebooks')) {
+                final ok = await EducatorSubscriptionService.ensureSubscribed(
+                  context,
+                  user: widget.user,
+                  userData: currentData,
+                );
+                if (!ok) return;
+              }
               setState(() {
                 _initialPracticeSubTab = null;
                 _initialPracticeShowEditor = false;
@@ -229,7 +238,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _persistedIndex = i;
               });
             },
-            onNamedNavigation: (label) {
+            onNamedNavigation: (label) async {
+              if (isEducator && (label.toLowerCase() == 'mentorship' || label.toLowerCase() == 'ai notebooks')) {
+                final ok = await EducatorSubscriptionService.ensureSubscribed(
+                  context,
+                  user: widget.user,
+                  userData: currentData,
+                );
+                if (!ok) return;
+              }
               final targetIdx = navItems.indexWhere(
                 (item) => item.label.toLowerCase() == label.toLowerCase(),
               );
@@ -355,58 +372,80 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _persistedIndex = _index;
     }
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: CustomAppBar(
-        user: widget.user,
-        userData: currentData,
-        onNotificationTap: () {
-          showDialog(
-            context: context,
-            barrierColor: Colors.transparent,
-            builder: (context) => NotificationsDialog(userId: widget.user.uid),
-          );
-        },
-        onLogoTap: () async {
-          setState(() {
-            _index = 0;
-            _persistedIndex = 0;
-          });
-          return true;
-        },
-        onProfileTap: () async {
-          final profileTabIndex = navItems.indexWhere(
-            (item) => item.icon == Icons.person,
-          );
-          if (profileTabIndex != -1) {
-            setState(() {
-              _index = profileTabIndex;
-              _persistedIndex = profileTabIndex;
-            });
-            AdminDashboard.activeTabNotifier.value = profileTabIndex;
-          }
-          return true;
-        },
-      ),
-      drawer: UniversalDrawer(
-        user: widget.user,
-        userData: currentData,
-        currentIndex: _index,
-        navItems: navItems,
-        onTap: (i) async {
-          if (_index != i) {
-            if (!await PracticeTab.canLeavePracticeSession()) return;
-            if (!mounted) return;
-          }
-          setState(() {
-            _initialPracticeSubTab = null;
-            _initialPracticeShowEditor = false;
-            _index = i;
-            _persistedIndex = i;
-          });
-        },
-      ),
-      body: IndexedStack(index: _index, children: tabs),
+    return ValueListenableBuilder<bool>(
+      valueListenable: PracticeTab.isInPracticeActivity,
+      builder: (context, isInPracticeActivity, _) {
+        final isPracticeTab = isEducator &&
+            ((_index < tabs.length && tabs[_index] is PracticeTab) ||
+             (_index < navItems.length && navItems[_index].label.toLowerCase() == 'practice'));
+        final hideHeader = isPracticeTab && isInPracticeActivity;
+
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: hideHeader
+              ? null
+              : CustomAppBar(
+                  user: widget.user,
+                  userData: currentData,
+                  onNotificationTap: () {
+                    showDialog(
+                      context: context,
+                      barrierColor: Colors.transparent,
+                      builder: (context) => NotificationsDialog(userId: widget.user.uid),
+                    );
+                  },
+                  onLogoTap: () async {
+                    setState(() {
+                      _index = 0;
+                      _persistedIndex = 0;
+                    });
+                    return true;
+                  },
+                  onProfileTap: () async {
+                    final profileTabIndex = navItems.indexWhere(
+                      (item) => item.icon == Icons.person,
+                    );
+                    if (profileTabIndex != -1) {
+                      setState(() {
+                        _index = profileTabIndex;
+                        _persistedIndex = profileTabIndex;
+                      });
+                      AdminDashboard.activeTabNotifier.value = profileTabIndex;
+                    }
+                    return true;
+                  },
+                ),
+          drawer: hideHeader
+              ? null
+              : UniversalDrawer(
+                  user: widget.user,
+                  userData: currentData,
+                  currentIndex: _index,
+                  navItems: navItems,
+                  onTap: (i) async {
+                    if (_index != i) {
+                      if (isEducator && i < navItems.length && (navItems[i].label.toLowerCase() == 'mentorship' || navItems[i].label.toLowerCase() == 'ai notebooks')) {
+                        final ok = await EducatorSubscriptionService.ensureSubscribed(
+                          context,
+                          user: widget.user,
+                          userData: currentData,
+                        );
+                        if (!ok) return;
+                      }
+                      if (!await PracticeTab.canLeavePracticeSession()) return;
+                      if (!mounted) return;
+                    }
+                    setState(() {
+                      _initialPracticeSubTab = null;
+                      _initialPracticeShowEditor = false;
+                      _index = i;
+                      _persistedIndex = i;
+                    });
+                  },
+                ),
+          body: IndexedStack(index: _index, children: tabs),
+        );
+      },
     );
       },
     );

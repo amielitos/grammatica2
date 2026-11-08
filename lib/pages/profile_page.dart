@@ -16,6 +16,7 @@ import '../services/database_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'manage_subscriptions_page.dart';
+import '../services/educator_subscription_service.dart';
 import 'role_application_page.dart';
 import '../widgets/video_player_modal.dart';
 import '../services/ai_rate_limit_service.dart';
@@ -1801,15 +1802,155 @@ class ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 24),
         ],
 
-        if (role == UserRole.learner)
+        if (role == UserRole.learner || role == UserRole.educator)
           _buildCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Learning Hub', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)),
-                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Learning Hub',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                      ),
+                    ),
+                    if (role == UserRole.educator)
+                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                        stream: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(widget.user.uid)
+                            .snapshots(),
+                        builder: (context, userSnap) {
+                          final uData = userSnap.data?.data();
+                          final isSub = EducatorSubscriptionService.isSubscribed(uData);
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSub
+                                  ? const Color(0xFF81B655).withValues(alpha: 0.15)
+                                  : Colors.orange.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSub
+                                    ? const Color(0xFF81B655)
+                                    : Colors.orange,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isSub
+                                      ? Icons.check_circle_rounded
+                                      : Icons.info_outline_rounded,
+                                  size: 14,
+                                  color: isSub
+                                      ? const Color(0xFF81B655)
+                                      : Colors.orange,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isSub ? 'Subscribed' : 'Not Subscribed',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSub
+                                        ? const Color(0xFF81B655)
+                                        : Colors.orange,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+                if (role == UserRole.educator) ...[
+                  const SizedBox(height: 12),
+                  StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(widget.user.uid)
+                        .snapshots(),
+                    builder: (context, userSnap) {
+                      final uData = userSnap.data?.data();
+                      final isSub = EducatorSubscriptionService.isSubscribed(uData);
+                      final isDark = Theme.of(context).brightness == Brightness.dark;
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: (isSub ? const Color(0xFF81B655) : Colors.orange)
+                                    .withValues(alpha: 0.15),
+                              ),
+                              child: Icon(
+                                isSub ? Icons.verified_rounded : Icons.lock_clock_rounded,
+                                size: 20,
+                                color: isSub ? const Color(0xFF81B655) : Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Grammatica Educator Platform Plan',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: isDark ? Colors.white : Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    isSub
+                                        ? 'Active • Full access to create lessons, AI Notebooks & mentorship'
+                                        : 'Not Subscribed • Required to upload content & access mentorship',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? Colors.white60 : Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+                const SizedBox(height: 20),
                 _buildGreenButton('My Learning Hub', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => ManageSubscriptionsPage(user: widget.user)));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ManageSubscriptionsPage(user: widget.user),
+                    ),
+                  );
                 }),
               ],
             ),
@@ -2282,7 +2423,7 @@ class ProfilePageState extends State<ProfilePage> {
       },
     );
   }
-  void _startEducatorApplication() {
+  void _startEducatorApplication() async {
     final age = _userAge;
     final accountDays = _accountAgeDays;
     final isAgeValid = age != null && age >= 21;
@@ -2412,6 +2553,61 @@ class ProfilePageState extends State<ProfilePage> {
       );
       return;
     }
+
+    final bool? proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF81B655).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.info_outline_rounded, color: Color(0xFF81B655), size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Educator Notice',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            EducatorSubscriptionService.applicationDisclaimer,
+            style: TextStyle(
+              fontSize: 14.5,
+              color: isDark ? Colors.white70 : const Color(0xFF475569),
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF81B655),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Proceed'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (proceed != true) return;
+    if (!mounted) return;
 
     Navigator.push(
       context,
