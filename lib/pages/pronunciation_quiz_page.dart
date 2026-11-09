@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:string_similarity/string_similarity.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/database_service.dart';
 import '../services/role_service.dart';
@@ -40,13 +41,20 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   SpellingDifficulty? _selectedDifficulty;
   List<SpellingWord> _sessionWords = [];
   int _currentIndex = 0;
-  int _score = 0;
+  double _score = 0.0;
   bool _isGameOver = false;
   bool _isRecording = false;
   String _recognizedText = "";
   bool? _isLastCorrect;
   bool _isTransitioning = false;
   bool _isLoading = false;
+
+  // Hint & Breakdown
+  bool _isHintRevealed = false;
+  final List<bool> _hintUsedPerWord = [];
+  final FlutterTts _flutterTts = FlutterTts();
+  bool _isPlayingTts = false;
+  bool _isSlowSpeed = false;
 
   // Speech to Text
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -71,6 +79,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   @override
   void initState() {
     super.initState();
+    _initTts();
     if (!kIsWeb) {
       _initSpeech();
     }
@@ -156,11 +165,282 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         _speech.cancel();
       } catch (_) {}
     }
+    try {
+      _flutterTts.stop();
+    } catch (_) {}
     PracticeTab.isGenerating.value = false;
     if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
       PracticeTab.confirmExitActiveSession = null;
     }
     super.dispose();
+  }
+
+  Future<void> _initTts() async {
+    try {
+      _flutterTts.setStartHandler(() {
+        if (mounted) setState(() => _isPlayingTts = true);
+      });
+      _flutterTts.setCompletionHandler(() {
+        if (mounted) setState(() => _isPlayingTts = false);
+      });
+      _flutterTts.setErrorHandler((msg) {
+        debugPrint("TTS Error: $msg");
+        if (mounted) setState(() => _isPlayingTts = false);
+      });
+
+      try {
+        await _flutterTts.setLanguage("en-US");
+        await _flutterTts.setSpeechRate(0.45);
+        await _flutterTts.setVolume(1.0);
+      } catch (e) {
+        debugPrint("TTS Configuration Error: $e");
+      }
+    } catch (e) {
+      debugPrint("TTS Init Error: $e");
+    }
+  }
+
+  Future<void> _playTtsWord(String word) async {
+    if (_isRecording) {
+      _stopRecording();
+    }
+    try {
+      await _flutterTts.stop();
+      await _flutterTts.setSpeechRate(_isSlowSpeed ? 0.22 : 0.45);
+      await _flutterTts.speak(word);
+    } catch (e) {
+      debugPrint("TTS Play Error: $e");
+    }
+  }
+
+  void _revealHint() {
+    if (_isHintRevealed || _isTransitioning) return;
+    setState(() {
+      _isHintRevealed = true;
+    });
+  }
+
+  String _formatScore(double s) => (s % 1 == 0) ? s.toInt().toString() : s.toStringAsFixed(1);
+
+  String _generateFallbackPhonetic(String word) {
+    if (word.isEmpty) return word;
+    final lower = word.toLowerCase();
+    final regex = RegExp(r'[^aeiouy]*[aeiouy]+(?:[^aeiouy](?=[^aeiouy]))?');
+    final matches = regex.allMatches(lower).map((m) => m.group(0)!).toList();
+    if (matches.length > 1) {
+      return matches.join(' · ');
+    }
+    return lower;
+  }
+
+  Widget _buildHintBreakdownCard(bool isDark) {
+    if (_currentIndex >= _sessionWords.length) return const SizedBox.shrink();
+    final currentWordObj = _sessionWords[_currentIndex];
+    final phonetic = (currentWordObj.phonetic != null && currentWordObj.phonetic!.trim().isNotEmpty)
+        ? currentWordObj.phonetic!.trim()
+        : _generateFallbackPhonetic(currentWordObj.word);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF18181B) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.35 : 0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top accent & deduction pill
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.language_rounded,
+                    size: 15,
+                    color: isDark ? Colors.white60 : Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'American Pronunciation',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white70 : Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7).withValues(alpha: isDark ? 0.2 : 0.8),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Text(
+                  '-50% points',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFFD97706),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Inner Breakdown Box
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF27272A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isDark ? Colors.white12 : Colors.grey.shade200,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sounds like',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: isDark ? Colors.white60 : AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildPhoneticBreakdown(phonetic, isDark),
+                    ),
+                    const SizedBox(width: 12),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _playTtsWord(currentWordObj.word),
+                        borderRadius: BorderRadius.circular(24),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: _isPlayingTts
+                                ? AppColors.primary.withValues(alpha: 0.2)
+                                : (isDark ? Colors.white10 : Colors.grey.shade100),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _isPlayingTts
+                                  ? AppColors.primary
+                                  : (isDark ? Colors.white24 : Colors.grey.shade300),
+                            ),
+                          ),
+                          child: Icon(
+                            _isPlayingTts ? Icons.volume_up_rounded : Icons.volume_up_outlined,
+                            size: 22,
+                            color: _isPlayingTts
+                                ? AppColors.primary
+                                : (isDark ? Colors.white : const Color(0xFF1E293B)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Slow toggle switch
+          Row(
+            children: [
+              Transform.scale(
+                scale: 0.85,
+                child: Switch.adaptive(
+                  value: _isSlowSpeed,
+                  onChanged: (val) {
+                    setState(() => _isSlowSpeed = val);
+                  },
+                  activeThumbColor: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Slow',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white70 : AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhoneticBreakdown(String phonetic, bool isDark) {
+    final parts = phonetic.split(RegExp(r'\s*[·•\-]\s*'));
+    if (parts.length <= 1) {
+      return Text(
+        phonetic,
+        style: GoogleFonts.outfit(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
+        ),
+      );
+    }
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: List.generate(parts.length * 2 - 1, (i) {
+        if (i.isOdd) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            child: Text(
+              '·',
+              style: GoogleFonts.outfit(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: Colors.grey.shade400,
+              ),
+            ),
+          );
+        }
+        final part = parts[i ~/ 2].trim();
+        final isStressed = part == part.toUpperCase() && part.toLowerCase() != part.toUpperCase();
+        return Text(
+          part.toLowerCase(),
+          style: GoogleFonts.outfit(
+            fontSize: isStressed ? 22 : 20,
+            fontWeight: isStressed ? FontWeight.w900 : FontWeight.w600,
+            color: isStressed
+                ? AppColors.primary
+                : (isDark ? Colors.white : const Color(0xFF0F172A)),
+          ),
+        );
+      }),
+    );
   }
 
   void _startTimer() {
@@ -197,6 +477,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   void _onTimeout() {
     _stopRecording();
     _userAnswers.add(null);
+    _hintUsedPerWord.add(_isHintRevealed);
     _nextWord();
   }
 
@@ -220,6 +501,8 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
           createdAt: Timestamp.now(),
           createdByUid: 'ai_generated',
           audioUrl: null,
+          phonetic: wordData['phonetic'],
+          ipa: wordData['ipa'],
         );
       }).toList();
 
@@ -273,10 +556,12 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       _selectedDifficulty = difficulty;
       _sessionWords = shuffled.take(10).toList();
       _currentIndex = 0;
-      _score = 0;
+      _score = 0.0;
       _isGameOver = false;
       _recognizedText = "";
       _userAnswers = [];
+      _isHintRevealed = false;
+      _hintUsedPerWord.clear();
       _showPreview = false;
       _isLastCorrect = null;
       _isTransitioning = false;
@@ -677,6 +962,8 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
     final correctWord = _normalizeWord(_sessionWords[_currentIndex].word);
 
     _userAnswers.add(_recognizedText);
+    final bool hintWasUsed = _isHintRevealed;
+    _hintUsedPerWord.add(hintWasUsed);
 
     // Matching logic: strict 1:1 match between the spoken word and the target word
     bool isCorrect = answer.isNotEmpty && answer == correctWord;
@@ -685,7 +972,10 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       setState(() {
         _isLastCorrect = isCorrect;
         _isTransitioning = true;
-        if (isCorrect) _score++;
+        if (isCorrect) {
+          final double pointsAwarded = hintWasUsed ? 0.5 : 1.0;
+          _score += pointsAwarded;
+        }
       });
 
       // Delay to show feedback before next word
@@ -704,12 +994,16 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
 
   void _nextWord() {
     _stopRecording();
+    try {
+      _flutterTts.stop();
+    } catch (_) {}
     if (_currentIndex < _sessionWords.length - 1) {
       setState(() {
         _currentIndex++;
         _recognizedText = "";
         _isRecording = false;
         _micVolume = 0.0;
+        _isHintRevealed = false;
       });
       _startTimer();
     } else {
@@ -776,6 +1070,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   void _skipWord() {
     _stopRecording();
     _userAnswers.add("");
+    _hintUsedPerWord.add(_isHintRevealed);
     _nextWord();
   }
 
@@ -896,146 +1191,170 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
   }
 
   Widget _buildDifficultySelection() {
-    final isDesktop = MediaQuery.of(context).size.width > 800;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      width: double.infinity,
-      color: Colors.transparent,
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: isDesktop ? 48 : 20,
-            vertical: 48,
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 750;
+        final isCompactHeight = constraints.maxHeight < 720;
+        final isVeryShort = constraints.maxHeight < 480;
 
-
-                // Main Centered Header
-                Text(
-                  'Choose your Difficulty',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    fontSize: isDesktop ? 44 : 32,
-                    fontWeight: FontWeight.w900,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    height: 1.15,
-                    letterSpacing: -1.0,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Subtitle
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Text(
-                    'Select a challenge level below to practice speaking. Test real-time speech recognition & accuracy scoring across levels.',
+        Widget content = Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1100),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? (isCompactHeight ? 24 : 48) : 20,
+                vertical: isCompactHeight ? 12 : 28,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Main Centered Header
+                  Text(
+                    'Choose your Difficulty',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
-                      height: 1.55,
-                      fontWeight: FontWeight.w400,
+                    style: GoogleFonts.outfit(
+                      fontSize: isDesktop ? (isCompactHeight ? 30 : 40) : 26,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      height: 1.15,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                ),
-                const SizedBox(height: 44),
+                  SizedBox(height: isCompactHeight ? 6 : 10),
 
-                // Cards Row / Column
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1100),
-                  child: isDesktop
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: _DifficultyCard(
+                  // Subtitle
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 540),
+                    child: Text(
+                      'Select a challenge level below to practice speaking. Test real-time speech recognition & accuracy scoring across levels.',
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: isCompactHeight ? 13 : 14.5,
+                        color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
+                        height: 1.45,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: isCompactHeight ? 16 : 32),
+
+                  // Cards Row / Column
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1100),
+                    child: isDesktop
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: _DifficultyCard(
+                                  title: 'Beginner',
+                                  subtitle:
+                                      '120s per word. Pronounce foundational words with extended time.',
+                                  tag: 'BEGINNER',
+                                  icon: Icons.lightbulb_outline_rounded,
+                                  themeColor: const Color(0xFFF59E0B),
+                                  isCompact: isCompactHeight,
+                                  onTap: () =>
+                                      _startSession(SpellingDifficulty.novice),
+                                ),
+                              ),
+                              SizedBox(width: isCompactHeight ? 16 : 24),
+                              Expanded(
+                                child: _DifficultyCard(
+                                  title: 'Intermediate',
+                                  subtitle:
+                                      '60s per word. Practice conversational and everyday pronunciation.',
+                                  tag: 'INTERMEDIATE',
+                                  icon: Icons.graphic_eq_rounded,
+                                  themeColor: const Color(0xFF81B655),
+                                  isCompact: isCompactHeight,
+                                  onTap: () =>
+                                      _startSession(SpellingDifficulty.amateur),
+                                ),
+                              ),
+                              SizedBox(width: isCompactHeight ? 16 : 24),
+                              Expanded(
+                                child: _DifficultyCard(
+                                  title: 'Advanced',
+                                  subtitle:
+                                      '30s per word. Master complex pronunciations under tight timers.',
+                                  tag: 'ADVANCED',
+                                  icon: Icons.psychology_rounded,
+                                  themeColor: const Color(0xFFEF4444),
+                                  isCompact: isCompactHeight,
+                                  onTap: () => _startSession(
+                                      SpellingDifficulty.professional),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _DifficultyCard(
                                 title: 'Beginner',
                                 subtitle:
                                     '120s per word. Pronounce foundational words with extended time.',
                                 tag: 'BEGINNER',
                                 icon: Icons.lightbulb_outline_rounded,
                                 themeColor: const Color(0xFFF59E0B),
+                                isCompact: isCompactHeight,
                                 onTap: () =>
                                     _startSession(SpellingDifficulty.novice),
                               ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: _DifficultyCard(
+                              const SizedBox(height: 16),
+                              _DifficultyCard(
                                 title: 'Intermediate',
                                 subtitle:
                                     '60s per word. Practice conversational and everyday pronunciation.',
                                 tag: 'INTERMEDIATE',
                                 icon: Icons.graphic_eq_rounded,
                                 themeColor: const Color(0xFF81B655),
+                                isCompact: isCompactHeight,
                                 onTap: () =>
                                     _startSession(SpellingDifficulty.amateur),
                               ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: _DifficultyCard(
+                              const SizedBox(height: 16),
+                              _DifficultyCard(
                                 title: 'Advanced',
                                 subtitle:
                                     '30s per word. Master complex pronunciations under tight timers.',
                                 tag: 'ADVANCED',
                                 icon: Icons.psychology_rounded,
                                 themeColor: const Color(0xFFEF4444),
+                                isCompact: isCompactHeight,
                                 onTap: () => _startSession(
                                     SpellingDifficulty.professional),
                               ),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            _DifficultyCard(
-                              title: 'Beginner',
-                              subtitle:
-                                  '120s per word. Pronounce foundational words with extended time.',
-                              tag: 'BEGINNER',
-                              icon: Icons.lightbulb_outline_rounded,
-                              themeColor: const Color(0xFFF59E0B),
-                              onTap: () =>
-                                  _startSession(SpellingDifficulty.novice),
-                            ),
-                            const SizedBox(height: 20),
-                            _DifficultyCard(
-                              title: 'Intermediate',
-                              subtitle:
-                                  '60s per word. Practice conversational and everyday pronunciation.',
-                              tag: 'INTERMEDIATE',
-                              icon: Icons.graphic_eq_rounded,
-                              themeColor: const Color(0xFF81B655),
-                              onTap: () =>
-                                  _startSession(SpellingDifficulty.amateur),
-                            ),
-                            const SizedBox(height: 20),
-                            _DifficultyCard(
-                              title: 'Advanced',
-                              subtitle:
-                                  '30s per word. Master complex pronunciations under tight timers.',
-                              tag: 'ADVANCED',
-                              icon: Icons.psychology_rounded,
-                              themeColor: const Color(0xFFEF4444),
-                              onTap: () => _startSession(
-                                  SpellingDifficulty.professional),
-                            ),
-                          ],
-                        ),
-                ),
-                const SizedBox(height: 24),
-              ],
+                            ],
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+
+        if (isDesktop && !isVeryShort) {
+          return SizedBox(
+            width: double.infinity,
+            height: constraints.maxHeight,
+            child: content,
+          );
+        }
+
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: content,
+        );
+      },
     );
   }
 
@@ -1176,320 +1495,392 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
         break;
     }
 
-    final isMobile = MediaQuery.of(context).size.width < 700;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 700;
+        final isCompactHeight = constraints.maxHeight < 680;
+        final isVeryCompact = constraints.maxHeight < 560;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 16 : 32, isMobile ? 16 : 24, 40),
-      child: Column(
-        children: [
-          // Header Badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: difficultyColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: difficultyColor.withValues(alpha: 0.3)),
+        return SizedBox(
+          width: double.infinity,
+          height: constraints.maxHeight,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              isMobile ? 12 : 24,
+              isCompactHeight ? 6 : 14,
+              isMobile ? 12 : 24,
+              isCompactHeight ? 8 : 16,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            child: Column(
               children: [
-                Icon(Icons.mic_rounded, size: 16, color: difficultyColor),
-                const SizedBox(width: 6),
-                Text(
-                  'PRONUNCIATION • $difficultyText',
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: difficultyColor,
-                    letterSpacing: 0.8,
+                // Header Badge
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: isCompactHeight ? 4 : 6),
+                  decoration: BoxDecoration(
+                    color: difficultyColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: difficultyColor.withValues(alpha: 0.3)),
                   ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: isMobile ? 12 : 20),
-
-          // KPI Stats Cards
-          if (isMobile)
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatBox(
-                    'Progress',
-                    '${_currentIndex + 1} / ${_sessionWords.length}',
-                    Icons.subtitles_rounded,
-                    AppColors.primary,
-                    isMobile: true,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildStatBox(
-                    'Score',
-                    '$_score / ${_sessionWords.length}',
-                    Icons.stars_rounded,
-                    const Color(0xFFF59E0B),
-                    isMobile: true,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildStatBox(
-                    'Time Left',
-                    '$minutes:$seconds',
-                    Icons.timer_rounded,
-                    const Color(0xFFEF4444),
-                    isMobile: true,
-                  ),
-                ),
-              ],
-            )
-          else
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              alignment: WrapAlignment.center,
-              children: [
-                _buildStatBox('Progress', '${_currentIndex + 1} / ${_sessionWords.length}', Icons.subtitles_rounded, AppColors.primary),
-                _buildStatBox('Current Score', '$_score / ${_sessionWords.length}', Icons.stars_rounded, const Color(0xFFF59E0B)),
-                _buildStatBox('Time Left', '$minutes:$seconds', Icons.timer_rounded, const Color(0xFFEF4444)),
-              ],
-            ),
-          SizedBox(height: isMobile ? 16 : 36),
-
-          // Main Interactive Card
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 40),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF262626) : Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  if (_currentIndex < _sessionWords.length)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: _isTransitioning
-                              ? (_isLastCorrect == true ? AppColors.primary : AppColors.error)
-                              : (isDark ? Colors.white12 : Colors.grey.shade300),
-                          width: _isTransitioning ? 2 : 1,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.mic_rounded, size: 15, color: difficultyColor),
+                      const SizedBox(width: 6),
+                      Text(
+                        'PRONUNCIATION • $difficultyText',
+                        style: GoogleFonts.outfit(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: difficultyColor,
+                          letterSpacing: 0.8,
                         ),
                       ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Center(
-                              child: Text(
-                                _sessionWords[_currentIndex].word,
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 42,
-                                  fontWeight: FontWeight.bold,
-                                  color: _isTransitioning
-                                      ? (_isLastCorrect == true ? AppColors.primary : AppColors.error)
-                                      : (isDark ? Colors.white : AppColors.textPrimary),
-                                  letterSpacing: 1.0,
+                    ],
+                  ),
+                ),
+                SizedBox(height: isCompactHeight ? 6 : 12),
+
+                // KPI Stats Cards
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 640),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatBox(
+                          'Progress',
+                          '${_currentIndex + 1} / ${_sessionWords.length}',
+                          Icons.subtitles_rounded,
+                          AppColors.primary,
+                          isMobile: isMobile || isCompactHeight,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatBox(
+                          'Score',
+                          '${_formatScore(_score)} / ${_sessionWords.length}',
+                          Icons.stars_rounded,
+                          const Color(0xFFF59E0B),
+                          isMobile: isMobile || isCompactHeight,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatBox(
+                          'Time Left',
+                          '$minutes:$seconds',
+                          Icons.timer_rounded,
+                          const Color(0xFFEF4444),
+                          isMobile: isMobile || isCompactHeight,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: isCompactHeight ? 8 : 16),
+
+                // Main Interactive Card
+                Expanded(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF262626) : Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 16 : 28,
+                        vertical: isCompactHeight ? 12 : 20,
+                      ),
+                      child: Column(
+                        children: [
+                          // Inner Scrollable Section: Word, Description, Phonetic hints, Feedback
+                          Expanded(
+                            child: Scrollbar(
+                              thumbVisibility: false,
+                              child: SingleChildScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (_currentIndex < _sessionWords.length)
+                                      Container(
+                                        width: double.infinity,
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: isCompactHeight ? 12 : 18,
+                                          horizontal: 16,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: _isTransitioning
+                                                ? (_isLastCorrect == true ? AppColors.primary : AppColors.error)
+                                                : (isDark ? Colors.white12 : Colors.grey.shade300),
+                                            width: _isTransitioning ? 2 : 1,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Center(
+                                                child: Text(
+                                                  _sessionWords[_currentIndex].word,
+                                                  textAlign: TextAlign.center,
+                                                  style: GoogleFonts.outfit(
+                                                    fontSize: isVeryCompact ? 28 : (isCompactHeight ? 34 : 40),
+                                                    fontWeight: FontWeight.bold,
+                                                    color: _isTransitioning
+                                                        ? (_isLastCorrect == true ? AppColors.primary : AppColors.error)
+                                                        : (isDark ? Colors.white : AppColors.textPrimary),
+                                                    letterSpacing: 1.0,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (_sessionWords[_currentIndex].description != null &&
+                                                  _sessionWords[_currentIndex].description!.isNotEmpty) ...[
+                                                const SizedBox(height: 6),
+                                                Padding(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                                  child: Text(
+                                                    _sessionWords[_currentIndex].description!,
+                                                    textAlign: TextAlign.center,
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: isCompactHeight ? 13 : 14,
+                                                      color: isDark ? Colors.white70 : AppColors.textSecondary,
+                                                      fontStyle: FontStyle.italic,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                              if (!_isTransitioning && !_isHintRevealed) ...[
+                                                const SizedBox(height: 10),
+                                                OutlinedButton.icon(
+                                                  onPressed: _revealHint,
+                                                  icon: const Icon(Icons.lightbulb_outline_rounded, size: 16, color: Color(0xFFD97706)),
+                                                  label: Text(
+                                                    '(Hint? -50% point)',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 12.5,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: const Color(0xFFD97706),
+                                                    ),
+                                                  ),
+                                                  style: OutlinedButton.styleFrom(
+                                                    backgroundColor: const Color(0xFFFEF3C7).withValues(alpha: isDark ? 0.15 : 0.6),
+                                                    side: const BorderSide(color: Color(0xFFF59E0B), width: 1.2),
+                                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                                  ),
+                                                ),
+                                              ],
+                                              if (_isHintRevealed) ...[
+                                                _buildHintBreakdownCard(isDark),
+                                              ],
+                                              if (_isTransitioning) ...[
+                                                const SizedBox(height: 10),
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      _isLastCorrect == true ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                                                      color: _isLastCorrect == true ? AppColors.primary : AppColors.error,
+                                                      size: 20,
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    Text(
+                                                      _isLastCorrect == true
+                                                          ? (_hintUsedPerWord.isNotEmpty && _hintUsedPerWord.last ? "Great Pronunciation! (+0.5 pts)" : "Great Pronunciation! (+1 pt)")
+                                                          : "Needs Practice",
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: _isLastCorrect == true ? AppColors.primary : AppColors.error,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    if (_recognizedText.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary.withValues(alpha: 0.08),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          _recognizedText == "Listening..." ? "Listening..." : "I heard: \"$_recognizedText\"",
+                                          textAlign: TextAlign.center,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: _isTransitioning
+                                                ? (_isLastCorrect == true ? AppColors.primary : AppColors.error)
+                                                : AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ),
-                            if (_sessionWords[_currentIndex].description != null &&
-                                _sessionWords[_currentIndex].description!.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Text(
-                                  _sessionWords[_currentIndex].description!,
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    color: isDark ? Colors.white70 : AppColors.textSecondary,
-                                    fontStyle: FontStyle.italic,
+                          ),
+
+                          // Pinned Controls at the bottom of the card
+                          const SizedBox(height: 8),
+                          Text(
+                            "Press the mic and say the word clearly",
+                            style: GoogleFonts.inter(
+                              fontSize: isCompactHeight ? 13 : 14,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white70 : AppColors.textSecondary,
+                            ),
+                          ),
+                          SizedBox(height: isCompactHeight ? 6 : 12),
+
+                          // Audio Waveform Meter
+                          SizedBox(
+                            height: isCompactHeight ? 26 : 36,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(31, (index) {
+                                double maxH = isCompactHeight ? 26.0 : 36.0;
+                                double baseHeight = 6.0 + (index % 5) * 2.5;
+                                double dynamicHeight = _isRecording ? baseHeight + (_micVolume * (maxH - 10) * (index % 3 + 1)) : baseHeight;
+                                if (index == 15) dynamicHeight = _isRecording ? maxH : (maxH * 0.6);
+
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 80),
+                                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                                  width: 3.5,
+                                  height: dynamicHeight.clamp(4.0, maxH),
+                                  decoration: BoxDecoration(
+                                    color: _isRecording ? AppColors.primary : (isDark ? Colors.white30 : Colors.grey.shade400),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                          SizedBox(height: isCompactHeight ? 10 : 16),
+
+                          // Mic Controls Bar
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Mic Button
+                              GestureDetector(
+                                onTap: _isRecording ? _stopRecording : _startRecording,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: isCompactHeight ? 58 : 68,
+                                  height: isCompactHeight ? 58 : 68,
+                                  decoration: BoxDecoration(
+                                    color: _isRecording ? AppColors.error : AppColors.primary,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: (_isRecording ? AppColors.error : AppColors.primary).withValues(alpha: 0.35),
+                                        blurRadius: 16,
+                                        spreadRadius: _isRecording ? 5 : 2,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                                    size: isCompactHeight ? 30 : 34,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 18),
+                              // Submit Button
+                              SizedBox(
+                                height: isCompactHeight ? 42 : 46,
+                                child: ElevatedButton.icon(
+                                  onPressed: (_recognizedText.isNotEmpty && _recognizedText != "Listening...") ? _submitAnswer : null,
+                                  icon: const Icon(Icons.check_rounded, size: 18),
+                                  label: Text('Submit', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    padding: EdgeInsets.symmetric(horizontal: isCompactHeight ? 16 : 20, vertical: 0),
                                   ),
                                 ),
                               ),
                             ],
-                            if (_isTransitioning) ...[
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _isLastCorrect == true ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                                    color: _isLastCorrect == true ? AppColors.primary : AppColors.error,
-                                    size: 22,
+                          ),
+                          SizedBox(height: isCompactHeight ? 10 : 14),
+
+                          // Skip / Quit row
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                height: isCompactHeight ? 36 : 40,
+                                child: OutlinedButton.icon(
+                                  onPressed: _skipWord,
+                                  icon: const Icon(Icons.skip_next_rounded, size: 16),
+                                  label: Text('Skip Word', style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: isDark ? Colors.white70 : AppColors.textSecondary,
+                                    side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    _isLastCorrect == true ? "Great Pronunciation!" : "Needs Practice",
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              SizedBox(
+                                height: isCompactHeight ? 36 : 40,
+                                child: TextButton.icon(
+                                  onPressed: _confirmQuitSession,
+                                  icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
+                                  label: Text(
+                                    'Quit Session',
                                     style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: _isLastCorrect == true ? AppColors.primary : AppColors.error,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.error,
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-                  Text(
-                    "Press the mic and say the word clearly",
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white70 : AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Audio Waveform Meter
-                  SizedBox(
-                    height: 48,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(31, (index) {
-                        double baseHeight = 8.0 + (index % 5) * 4.0;
-                        double dynamicHeight = _isRecording ? baseHeight + (_micVolume * 36 * (index % 3 + 1)) : baseHeight;
-                        if (index == 15) dynamicHeight = _isRecording ? 48.0 + _micVolume * 24 : 24.0;
-
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 80),
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          width: 4,
-                          height: dynamicHeight.clamp(4.0, 48.0),
-                          decoration: BoxDecoration(
-                            color: _isRecording ? AppColors.primary : (isDark ? Colors.white30 : Colors.grey.shade400),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  if (_recognizedText.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _recognizedText == "Listening..." ? "Listening..." : "I heard: \"$_recognizedText\"",
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: _isTransitioning
-                              ? (_isLastCorrect == true ? AppColors.primary : AppColors.error)
-                              : AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-
-                  // Mic Controls Bar
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Mic Button
-                      GestureDetector(
-                        onTap: _isRecording ? _stopRecording : _startRecording,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            color: _isRecording ? AppColors.error : AppColors.primary,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: (_isRecording ? AppColors.error : AppColors.primary).withValues(alpha: 0.35),
-                                blurRadius: 20,
-                                spreadRadius: _isRecording ? 6 : 2,
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          child: Icon(
-                            _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
-                            size: 36,
-                            color: Colors.white,
-                          ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 24),
-                      // Submit Button
-                      ElevatedButton.icon(
-                        onPressed: (_recognizedText.isNotEmpty && _recognizedText != "Listening...") ? _submitAnswer : null,
-                        icon: const Icon(Icons.check_rounded, size: 18),
-                        label: Text('Submit', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 28),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: _skipWord,
-                        icon: const Icon(Icons.skip_next_rounded, size: 16),
-                        label: Text('Skip Word', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: isDark ? Colors.white70 : AppColors.textSecondary,
-                          side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      TextButton.icon(
-                        onPressed: _confirmQuitSession,
-                        icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
-                        label: Text(
-                          'Quit Session',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1553,6 +1944,9 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
       _timer?.cancel();
       _submissionDebounceTimer?.cancel();
       _stopRecording();
+      try {
+        _flutterTts.stop();
+      } catch (_) {}
       if (PracticeTab.confirmExitActiveSession == _confirmQuitSession) {
         PracticeTab.confirmExitActiveSession = null;
       }
@@ -1660,7 +2054,7 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                             child: Column(
                               children: [
                                 Text(
-                                  '$_score / $total',
+                                  '${_formatScore(_score)} / $total',
                                   style: GoogleFonts.outfit(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w900,
@@ -1882,9 +2276,32 @@ class _PronunciationQuizPageState extends State<PronunciationQuizPage> {
                                     wordObj.word,
                                     style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16),
                                   ),
+                                  if (index < _hintUsedPerWord.length && _hintUsedPerWord[index]) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFEF3C7).withValues(alpha: isDark ? 0.2 : 0.8),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
+                                      ),
+                                      child: Text(
+                                        'Hint (-50%)',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: const Color(0xFFD97706),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   const Spacer(),
                                   Text(
-                                    '${(similarity * 100).round()}% match',
+                                    isCorrect
+                                        ? ((index < _hintUsedPerWord.length && _hintUsedPerWord[index])
+                                            ? '+0.5 pts • ${(similarity * 100).round()}% match'
+                                            : '+1 pt • ${(similarity * 100).round()}% match')
+                                        : '${(similarity * 100).round()}% match',
                                     style: TextStyle(
                                       color: isCorrect ? const Color(0xFF10B981) : const Color(0xFFEF4444),
                                       fontWeight: FontWeight.bold,
@@ -1936,6 +2353,7 @@ class _DifficultyCard extends StatefulWidget {
   final IconData icon;
   final Color themeColor;
   final VoidCallback onTap;
+  final bool isCompact;
 
   const _DifficultyCard({
     required this.title,
@@ -1944,6 +2362,7 @@ class _DifficultyCard extends StatefulWidget {
     required this.icon,
     required this.themeColor,
     required this.onTap,
+    this.isCompact = false,
   });
 
   @override
@@ -1997,7 +2416,10 @@ class _DifficultyCardState extends State<_DifficultyCard>
               Transform.scale(scale: _scale.value, child: child),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(32),
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.isCompact ? 16 : 24,
+              vertical: widget.isCompact ? 14 : 28,
+            ),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF262626) : Colors.white,
               borderRadius: BorderRadius.circular(24),
@@ -2025,7 +2447,7 @@ class _DifficultyCardState extends State<_DifficultyCard>
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 4,
+                    vertical: 3,
                   ),
                   decoration: BoxDecoration(
                     color: widget.themeColor.withValues(alpha: 0.10),
@@ -2034,20 +2456,20 @@ class _DifficultyCardState extends State<_DifficultyCard>
                   child: Text(
                     widget.tag,
                     style: GoogleFonts.outfit(
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w800,
                       color: widget.themeColor,
                       letterSpacing: 1.0,
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: widget.isCompact ? 12 : 20),
 
                 // Icon Box
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  width: 72,
-                  height: 72,
+                  width: widget.isCompact ? 52 : 68,
+                  height: widget.isCompact ? 52 : 68,
                   decoration: BoxDecoration(
                     color: _hovered
                         ? widget.themeColor
@@ -2057,40 +2479,42 @@ class _DifficultyCardState extends State<_DifficultyCard>
                   child: Icon(
                     widget.icon,
                     color: _hovered ? Colors.white : widget.themeColor,
-                    size: 34,
+                    size: widget.isCompact ? 26 : 32,
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: widget.isCompact ? 10 : 18),
 
                 // Title
                 Text(
                   widget.title,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.outfit(
-                    fontSize: 22,
+                    fontSize: widget.isCompact ? 18 : 22,
                     fontWeight: FontWeight.w800,
                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                     height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: widget.isCompact ? 4 : 8),
 
                 // Subtitle / Description
                 Text(
                   widget.subtitle,
                   textAlign: TextAlign.center,
+                  maxLines: widget.isCompact ? 2 : 3,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    fontSize: 13.5,
-                    height: 1.5,
+                    fontSize: widget.isCompact ? 12 : 13.5,
+                    height: 1.4,
                     color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: widget.isCompact ? 14 : 22),
 
                 // Action Button
                 SizedBox(
                   width: double.infinity,
-                  height: 46,
+                  height: widget.isCompact ? 38 : 44,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
@@ -2111,7 +2535,7 @@ class _DifficultyCardState extends State<_DifficultyCard>
                           Text(
                             'Start Practice',
                             style: GoogleFonts.outfit(
-                              fontSize: 14,
+                              fontSize: widget.isCompact ? 13 : 14,
                               fontWeight: FontWeight.w700,
                               color: _hovered
                                   ? Colors.white
@@ -2121,7 +2545,7 @@ class _DifficultyCardState extends State<_DifficultyCard>
                           const SizedBox(width: 6),
                           Icon(
                             Icons.arrow_forward_rounded,
-                            size: 16,
+                            size: 15,
                             color: _hovered ? Colors.white : widget.themeColor,
                           ),
                         ],

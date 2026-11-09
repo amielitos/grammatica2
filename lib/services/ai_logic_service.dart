@@ -747,11 +747,16 @@ $explanationLine
       action: () async {
         final systemPrompt = '''
 You are an expert English teacher.
-Output a valid JSON array of exactly $count objects, each with a "word" (an English word appropriate for the $difficulty difficulty level) and a "description" (a brief, simple meaning or definition — 5 to 12 words max. Do NOT include the word itself or its root form in the description).
+Output a valid JSON array of exactly $count objects, each with:
+- "word": an English word appropriate for the $difficulty difficulty level.
+- "description": a brief, simple meaning or definition (5 to 12 words max. Do NOT include the word itself or its root form in the description).
+- "phonetic": a clear pronunciation breakdown into syllables using middle dots "·" and phonetic respelling, indicating the stressed syllable with capitalization. Example: "eh · juh · kayt" for educate, "eh · FEM · er · ul" for ephemeral, "buh · NEV · uh · lunt" for benevolent.
+- "ipa": standard IPA pronunciation (e.g. "/ˈedʒ.ʊ.keɪt/").
+
 Example format:
 [
-  {"word": "ephemeral", "description": "Lasting for a very short time"},
-  {"word": "benevolent", "description": "Well-meaning and kindly; showing goodwill"}
+  {"word": "ephemeral", "description": "Lasting for a very short time", "phonetic": "eh · FEM · er · ul", "ipa": "/ɪˈfem.ər.əl/"},
+  {"word": "benevolent", "description": "Well-meaning and kindly; showing goodwill", "phonetic": "buh · NEV · uh · lunt", "ipa": "/bəˈnevələnt/"}
 ]
 ''';
 
@@ -762,6 +767,8 @@ Example format:
             return {
               'word': (map['word'] ?? '').toString(),
               'description': (map['description'] ?? '').toString(),
+              'phonetic': (map['phonetic'] ?? '').toString(),
+              'ipa': (map['ipa'] ?? '').toString(),
             };
           }).toList();
         }

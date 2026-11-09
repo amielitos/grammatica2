@@ -10,6 +10,8 @@ class SpellingWord {
   final Timestamp? createdAt;
   final String? createdByUid;
   final String? audioUrl;
+  final String? phonetic;
+  final String? ipa;
 
   SpellingWord({
     required this.id,
@@ -19,6 +21,8 @@ class SpellingWord {
     this.createdAt,
     this.createdByUid,
     this.audioUrl,
+    this.phonetic,
+    this.ipa,
   });
 
   factory SpellingWord.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -31,6 +35,8 @@ class SpellingWord {
       createdAt: data['createdAt'] as Timestamp?,
       createdByUid: data['createdByUid'] as String?,
       audioUrl: data['audioUrl'] as String?,
+      phonetic: data['phonetic'] as String?,
+      ipa: data['ipa'] as String?,
     );
   }
 
@@ -42,6 +48,8 @@ class SpellingWord {
       'createdAt': createdAt ?? FieldValue.serverTimestamp(),
       'createdByUid': createdByUid,
       'audioUrl': audioUrl,
+      if (phonetic != null) 'phonetic': phonetic,
+      if (ipa != null) 'ipa': ipa,
     };
   }
 

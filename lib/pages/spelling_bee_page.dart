@@ -348,6 +348,12 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
                     )
                   : null,
               actions: [
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: 12),
+                    child: AIQuotaBadge(),
+                  ),
+                ),
                 StreamBuilder<UserRole>(
                   stream: RoleService.instance.roleStream(widget.user.uid),
                   builder: (context, snapshot) {
@@ -413,149 +419,170 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
   }
 
   Widget _buildDifficultySelection() {
-    final isDesktop = MediaQuery.of(context).size.width > 800;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      width: double.infinity,
-      color: Colors.transparent,
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: isDesktop ? 48 : 20,
-            vertical: 48,
-          ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 750;
+        final isCompactHeight = constraints.maxHeight < 720;
+        final isVeryShort = constraints.maxHeight < 480;
 
-
-                const AIQuotaBadge(),
-                const SizedBox(height: 16),
-
-                // Main Centered Header
-                Text(
-                  'Choose your Difficulty',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    fontSize: isDesktop ? 44 : 32,
-                    fontWeight: FontWeight.w900,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    height: 1.15,
-                    letterSpacing: -1.0,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Subtitle
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Text(
-                    'Select a challenge level below for Spelling Bee. Master spelling audio prompts across various difficulty tiers.',
+        Widget content = Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1100),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? (isCompactHeight ? 24 : 48) : 20,
+                vertical: isCompactHeight ? 12 : 28,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Main Centered Header
+                  Text(
+                    'Choose your Difficulty',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
-                      height: 1.55,
-                      fontWeight: FontWeight.w400,
+                    style: GoogleFonts.outfit(
+                      fontSize: isDesktop ? (isCompactHeight ? 30 : 40) : 26,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      height: 1.15,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                ),
-                const SizedBox(height: 44),
+                  SizedBox(height: isCompactHeight ? 6 : 10),
 
-                // Cards Row / Column
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1100),
-                  child: isDesktop
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: _DifficultyCard(
+                  // Subtitle
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 540),
+                    child: Text(
+                      'Select a challenge level below for Spelling Bee. Master spelling audio prompts across various difficulty tiers.',
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: isCompactHeight ? 13 : 14.5,
+                        color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
+                        height: 1.45,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: isCompactHeight ? 16 : 32),
+
+                  // Cards Row / Column
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1100),
+                    child: isDesktop
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: _DifficultyCard(
+                                  title: 'Beginner',
+                                  subtitle:
+                                      '120s timer per word. Ideal for beginners building core spelling vocabulary.',
+                                  tag: 'BEGINNER',
+                                  icon: Icons.lightbulb_outline_rounded,
+                                  themeColor: const Color(0xFFF59E0B),
+                                  isCompact: isCompactHeight,
+                                  onTap: () =>
+                                      _startSession(SpellingDifficulty.novice),
+                                ),
+                              ),
+                              SizedBox(width: isCompactHeight ? 16 : 24),
+                              Expanded(
+                                child: _DifficultyCard(
+                                  title: 'Intermediate',
+                                  subtitle:
+                                      '60s timer per word. Balanced challenge for developing spellers.',
+                                  tag: 'INTERMEDIATE',
+                                  icon: Icons.trending_up_rounded,
+                                  themeColor: const Color(0xFF81B655),
+                                  isCompact: isCompactHeight,
+                                  onTap: () =>
+                                      _startSession(SpellingDifficulty.amateur),
+                                ),
+                              ),
+                              SizedBox(width: isCompactHeight ? 16 : 24),
+                              Expanded(
+                                child: _DifficultyCard(
+                                  title: 'Advanced',
+                                  subtitle:
+                                      '30s timer per word. Fast-paced challenge with advanced vocabulary.',
+                                  tag: 'ADVANCED',
+                                  icon: Icons.psychology_rounded,
+                                  themeColor: const Color(0xFFEF4444),
+                                  isCompact: isCompactHeight,
+                                  onTap: () => _startSession(
+                                      SpellingDifficulty.professional),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _DifficultyCard(
                                 title: 'Beginner',
                                 subtitle:
                                     '120s timer per word. Ideal for beginners building core spelling vocabulary.',
                                 tag: 'BEGINNER',
                                 icon: Icons.lightbulb_outline_rounded,
                                 themeColor: const Color(0xFFF59E0B),
+                                isCompact: isCompactHeight,
                                 onTap: () =>
                                     _startSession(SpellingDifficulty.novice),
                               ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: _DifficultyCard(
+                              const SizedBox(height: 16),
+                              _DifficultyCard(
                                 title: 'Intermediate',
                                 subtitle:
                                     '60s timer per word. Balanced challenge for developing spellers.',
                                 tag: 'INTERMEDIATE',
                                 icon: Icons.trending_up_rounded,
                                 themeColor: const Color(0xFF81B655),
+                                isCompact: isCompactHeight,
                                 onTap: () =>
                                     _startSession(SpellingDifficulty.amateur),
                               ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: _DifficultyCard(
+                              const SizedBox(height: 16),
+                              _DifficultyCard(
                                 title: 'Advanced',
                                 subtitle:
                                     '30s timer per word. Fast-paced challenge with advanced vocabulary.',
                                 tag: 'ADVANCED',
                                 icon: Icons.psychology_rounded,
                                 themeColor: const Color(0xFFEF4444),
+                                isCompact: isCompactHeight,
                                 onTap: () => _startSession(
                                     SpellingDifficulty.professional),
                               ),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            _DifficultyCard(
-                              title: 'Beginner',
-                              subtitle:
-                                  '120s timer per word. Ideal for beginners building core spelling vocabulary.',
-                              tag: 'BEGINNER',
-                              icon: Icons.lightbulb_outline_rounded,
-                              themeColor: const Color(0xFFF59E0B),
-                              onTap: () =>
-                                  _startSession(SpellingDifficulty.novice),
-                            ),
-                            const SizedBox(height: 20),
-                            _DifficultyCard(
-                              title: 'Intermediate',
-                              subtitle:
-                                  '60s timer per word. Balanced challenge for developing spellers.',
-                              tag: 'INTERMEDIATE',
-                              icon: Icons.trending_up_rounded,
-                              themeColor: const Color(0xFF81B655),
-                              onTap: () =>
-                                  _startSession(SpellingDifficulty.amateur),
-                            ),
-                            const SizedBox(height: 20),
-                            _DifficultyCard(
-                              title: 'Advanced',
-                              subtitle:
-                                  '30s timer per word. Fast-paced challenge with advanced vocabulary.',
-                              tag: 'ADVANCED',
-                              icon: Icons.psychology_rounded,
-                              themeColor: const Color(0xFFEF4444),
-                              onTap: () => _startSession(
-                                  SpellingDifficulty.professional),
-                            ),
-                          ],
-                        ),
-                ),
-                const SizedBox(height: 24),
-              ],
+                            ],
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+
+        if (isDesktop && !isVeryShort) {
+          return SizedBox(
+            width: double.infinity,
+            height: constraints.maxHeight,
+            child: content,
+          );
+        }
+
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: content,
+        );
+      },
     );
   }
 
@@ -696,299 +723,336 @@ class _SpellingBeePageState extends State<SpellingBeePage> {
         break;
     }
 
-    final isMobile = MediaQuery.of(context).size.width < 700;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 700;
+        final isCompactHeight = constraints.maxHeight < 680;
+        final isVeryCompact = constraints.maxHeight < 560;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, isMobile ? 16 : 32, isMobile ? 16 : 24, 40),
-      child: Column(
-        children: [
-          // Header Badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: difficultyColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: difficultyColor.withValues(alpha: 0.3)),
+        return SizedBox(
+          width: double.infinity,
+          height: constraints.maxHeight,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              isMobile ? 12 : 24,
+              isCompactHeight ? 6 : 14,
+              isMobile ? 12 : 24,
+              isCompactHeight ? 8 : 16,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            child: Column(
               children: [
-                Icon(Icons.spellcheck_rounded, size: 16, color: difficultyColor),
-                const SizedBox(width: 6),
-                Text(
-                  'SPELLING BEE • $difficultyText',
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: difficultyColor,
-                    letterSpacing: 0.8,
+                // Header Badge
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: isCompactHeight ? 4 : 6),
+                  decoration: BoxDecoration(
+                    color: difficultyColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: difficultyColor.withValues(alpha: 0.3)),
                   ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: isMobile ? 12 : 20),
-
-          // KPI Stats Cards
-          if (isMobile)
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatBox(
-                    'Progress',
-                    '${_currentIndex + 1} / 10',
-                    Icons.subtitles_rounded,
-                    AppColors.primary,
-                    isMobile: true,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildStatBox(
-                    'Score',
-                    '$_score / 10',
-                    Icons.stars_rounded,
-                    const Color(0xFFF59E0B),
-                    isMobile: true,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildStatBox(
-                    'Time Left',
-                    '$minutes:$seconds',
-                    Icons.timer_rounded,
-                    const Color(0xFFEF4444),
-                    isMobile: true,
-                  ),
-                ),
-              ],
-            )
-          else
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              alignment: WrapAlignment.center,
-              children: [
-                _buildStatBox('Progress', '${_currentIndex + 1} / 10', Icons.subtitles_rounded, AppColors.primary),
-                _buildStatBox('Current Score', '$_score / 10', Icons.stars_rounded, const Color(0xFFF59E0B)),
-                _buildStatBox('Time Left', '$minutes:$seconds', Icons.timer_rounded, const Color(0xFFEF4444)),
-              ],
-            ),
-          SizedBox(height: isMobile ? 16 : 36),
-
-          // Main Card
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 18 : 36,
-                vertical: isMobile ? 24 : 40,
-              ),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF262626) : Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Speaker Audio Button
-                  MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: _speakWord,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: _isPlaying ? 0.5 : 0.25),
-                              blurRadius: _isPlaying ? 28 : 16,
-                              spreadRadius: _isPlaying ? 6 : 2,
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          _isPlaying ? Icons.volume_up_rounded : Icons.play_arrow_rounded,
-                          size: 48,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _isPlaying ? "Listening to word..." : "Tap to replay audio prompt",
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _isPlaying ? AppColors.primary : (isDark ? Colors.white60 : AppColors.textSecondary),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(
-                    "Listen carefully and spell the word",
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
-                    ),
-                  ),
-                  if (_sessionWords.isNotEmpty &&
-                      _currentIndex < _sessionWords.length &&
-                      _sessionWords[_currentIndex].description != null &&
-                      _sessionWords[_currentIndex].description!.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      constraints: const BoxConstraints(maxWidth: 480),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.lightbulb_outline_rounded,
-                            size: 18,
-                            color: isDark ? Colors.amber[300] : const Color(0xFFD97706),
-                          ),
-                          const SizedBox(width: 10),
-                          Flexible(
-                            child: Text(
-                              _sessionWords[_currentIndex].description!,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontStyle: FontStyle.italic,
-                                color: isDark ? Colors.white70 : AppColors.textSecondary,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _answerController,
-                    focusNode: _focusNode,
-                    autofocus: true,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : AppColors.textPrimary,
-                      letterSpacing: 1.5,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Type your answer here...',
-                      hintStyle: GoogleFonts.inter(
-                        fontSize: 15,
-                        color: isDark ? Colors.white38 : Colors.grey.shade400,
-                        fontStyle: FontStyle.italic,
-                        letterSpacing: 0,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                      filled: true,
-                      fillColor: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: isDark ? Colors.white12 : Colors.grey.shade300,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: isDark ? Colors.white12 : Colors.grey.shade300,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    onSubmitted: (_) => _submitAnswer(),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton.icon(
-                      onPressed: _submitAnswer,
-                      icon: const Icon(Icons.check_circle_rounded, size: 20),
-                      label: Text(
-                        'Submit Answer',
-                        style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      OutlinedButton.icon(
-                        onPressed: _skipWord,
-                        icon: const Icon(Icons.skip_next_rounded, size: 16),
-                        label: Text('Skip Word', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: isDark ? Colors.white70 : AppColors.textSecondary,
-                          side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      TextButton.icon(
-                        onPressed: _confirmQuitSession,
-                        icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
-                        label: Text(
-                          'Quit Session',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.error,
-                          ),
+                      Icon(Icons.spellcheck_rounded, size: 15, color: difficultyColor),
+                      const SizedBox(width: 6),
+                      Text(
+                        'SPELLING BEE • $difficultyText',
+                        style: GoogleFonts.outfit(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: difficultyColor,
+                          letterSpacing: 0.8,
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                SizedBox(height: isCompactHeight ? 6 : 12),
+
+                // KPI Stats Cards (Row on all widths for screen consistency)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 640),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatBox(
+                          'Progress',
+                          '${_currentIndex + 1} / 10',
+                          Icons.subtitles_rounded,
+                          AppColors.primary,
+                          isMobile: isMobile || isCompactHeight,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatBox(
+                          'Score',
+                          '$_score / 10',
+                          Icons.stars_rounded,
+                          const Color(0xFFF59E0B),
+                          isMobile: isMobile || isCompactHeight,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatBox(
+                          'Time Left',
+                          '$minutes:$seconds',
+                          Icons.timer_rounded,
+                          const Color(0xFFEF4444),
+                          isMobile: isMobile || isCompactHeight,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: isCompactHeight ? 8 : 16),
+
+                // Main Card - stretches to fill available height
+                Expanded(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF262626) : Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.06),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 16 : 28,
+                        vertical: isCompactHeight ? 12 : 20,
+                      ),
+                      child: Column(
+                        children: [
+                          // Inner Scrollable Section: Speaker button, Audio prompt text, Instruction, Hint/Definition
+                          Expanded(
+                            child: Scrollbar(
+                              thumbVisibility: false,
+                              child: SingleChildScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Speaker Audio Button with min/max limits
+                                    MouseRegion(
+                                      cursor: SystemMouseCursors.click,
+                                      child: GestureDetector(
+                                        onTap: _speakWord,
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          width: isVeryCompact ? 60 : (isCompactHeight ? 72 : 88),
+                                          height: isVeryCompact ? 60 : (isCompactHeight ? 72 : 88),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: AppColors.primary.withValues(alpha: _isPlaying ? 0.5 : 0.25),
+                                                blurRadius: _isPlaying ? 24 : 14,
+                                                spreadRadius: _isPlaying ? 5 : 2,
+                                              ),
+                                            ],
+                                          ),
+                                          child: Icon(
+                                            _isPlaying ? Icons.volume_up_rounded : Icons.play_arrow_rounded,
+                                            size: isVeryCompact ? 30 : (isCompactHeight ? 36 : 42),
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      _isPlaying ? "Listening to word..." : "Tap to replay audio prompt",
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: _isPlaying ? AppColors.primary : (isDark ? Colors.white60 : AppColors.textSecondary),
+                                      ),
+                                    ),
+                                    SizedBox(height: isCompactHeight ? 8 : 14),
+                                    Text(
+                                      "Listen carefully and spell the word",
+                                      style: GoogleFonts.outfit(
+                                        fontSize: isCompactHeight ? 16 : 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark ? Colors.white : AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    if (_sessionWords.isNotEmpty &&
+                                        _currentIndex < _sessionWords.length &&
+                                        _sessionWords[_currentIndex].description != null &&
+                                        _sessionWords[_currentIndex].description!.isNotEmpty) ...[
+                                      const SizedBox(height: 10),
+                                      Container(
+                                        constraints: const BoxConstraints(maxWidth: 480),
+                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.lightbulb_outline_rounded,
+                                              size: 16,
+                                              color: isDark ? Colors.amber[300] : const Color(0xFFD97706),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                _sessionWords[_currentIndex].description!,
+                                                textAlign: TextAlign.center,
+                                                style: GoogleFonts.inter(
+                                                  fontSize: isCompactHeight ? 12.5 : 13.5,
+                                                  fontStyle: FontStyle.italic,
+                                                  color: isDark ? Colors.white70 : AppColors.textSecondary,
+                                                  height: 1.35,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Pinned Bottom Section: Text input, Submit button, Skip & Quit
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _answerController,
+                            focusNode: _focusNode,
+                            autofocus: true,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(
+                              fontSize: isCompactHeight ? 19 : 22,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : AppColors.textPrimary,
+                              letterSpacing: 1.5,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Type your answer here...',
+                              hintStyle: GoogleFonts.inter(
+                                fontSize: isCompactHeight ? 13.5 : 15,
+                                color: isDark ? Colors.white38 : Colors.grey.shade400,
+                                fontStyle: FontStyle.italic,
+                                letterSpacing: 0,
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: isCompactHeight ? 12 : 16,
+                                horizontal: 16,
+                              ),
+                              filled: true,
+                              fillColor: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF8FAFC),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: isDark ? Colors.white12 : Colors.grey.shade300,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: isDark ? Colors.white12 : Colors.grey.shade300,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(
+                                  color: AppColors.primary,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            onSubmitted: (_) => _submitAnswer(),
+                          ),
+                          SizedBox(height: isCompactHeight ? 8 : 14),
+                          SizedBox(
+                            width: double.infinity,
+                            height: isCompactHeight ? 44 : 48,
+                            child: ElevatedButton.icon(
+                              onPressed: _submitAnswer,
+                              icon: const Icon(Icons.check_circle_rounded, size: 18),
+                              label: Text(
+                                'Submit Answer',
+                                style: GoogleFonts.inter(fontSize: isCompactHeight ? 14 : 15, fontWeight: FontWeight.bold),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: isCompactHeight ? 8 : 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                height: isCompactHeight ? 36 : 40,
+                                child: OutlinedButton.icon(
+                                  onPressed: _skipWord,
+                                  icon: const Icon(Icons.skip_next_rounded, size: 16),
+                                  label: Text('Skip Word', style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: isDark ? Colors.white70 : AppColors.textSecondary,
+                                    side: BorderSide(color: isDark ? Colors.white24 : Colors.grey.shade300),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              SizedBox(
+                                height: isCompactHeight ? 36 : 40,
+                                child: TextButton.icon(
+                                  onPressed: _confirmQuitSession,
+                                  icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
+                                  label: Text(
+                                    'Quit Session',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.error,
+                                    ),
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1415,6 +1479,7 @@ class _DifficultyCard extends StatefulWidget {
   final IconData icon;
   final Color themeColor;
   final VoidCallback onTap;
+  final bool isCompact;
 
   const _DifficultyCard({
     required this.title,
@@ -1423,6 +1488,7 @@ class _DifficultyCard extends StatefulWidget {
     required this.icon,
     required this.themeColor,
     required this.onTap,
+    this.isCompact = false,
   });
 
   @override
@@ -1476,7 +1542,10 @@ class _DifficultyCardState extends State<_DifficultyCard>
               Transform.scale(scale: _scale.value, child: child),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(32),
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.isCompact ? 16 : 24,
+              vertical: widget.isCompact ? 14 : 28,
+            ),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF262626) : Colors.white,
               borderRadius: BorderRadius.circular(24),
@@ -1504,7 +1573,7 @@ class _DifficultyCardState extends State<_DifficultyCard>
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 4,
+                    vertical: 3,
                   ),
                   decoration: BoxDecoration(
                     color: widget.themeColor.withValues(alpha: 0.10),
@@ -1513,20 +1582,20 @@ class _DifficultyCardState extends State<_DifficultyCard>
                   child: Text(
                     widget.tag,
                     style: GoogleFonts.outfit(
-                      fontSize: 11,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w800,
                       color: widget.themeColor,
                       letterSpacing: 1.0,
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: widget.isCompact ? 12 : 20),
 
                 // Icon Box
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  width: 72,
-                  height: 72,
+                  width: widget.isCompact ? 52 : 68,
+                  height: widget.isCompact ? 52 : 68,
                   decoration: BoxDecoration(
                     color: _hovered
                         ? widget.themeColor
@@ -1536,40 +1605,42 @@ class _DifficultyCardState extends State<_DifficultyCard>
                   child: Icon(
                     widget.icon,
                     color: _hovered ? Colors.white : widget.themeColor,
-                    size: 34,
+                    size: widget.isCompact ? 26 : 32,
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: widget.isCompact ? 10 : 18),
 
                 // Title
                 Text(
                   widget.title,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.outfit(
-                    fontSize: 22,
+                    fontSize: widget.isCompact ? 18 : 22,
                     fontWeight: FontWeight.w800,
                     color: isDark ? Colors.white : const Color(0xFF0F172A),
                     height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: widget.isCompact ? 4 : 8),
 
                 // Subtitle / Description
                 Text(
                   widget.subtitle,
                   textAlign: TextAlign.center,
+                  maxLines: widget.isCompact ? 2 : 3,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    fontSize: 13.5,
-                    height: 1.5,
+                    fontSize: widget.isCompact ? 12 : 13.5,
+                    height: 1.4,
                     color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: widget.isCompact ? 14 : 22),
 
                 // Action Button
                 SizedBox(
                   width: double.infinity,
-                  height: 46,
+                  height: widget.isCompact ? 38 : 44,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
@@ -1590,7 +1661,7 @@ class _DifficultyCardState extends State<_DifficultyCard>
                           Text(
                             'Start Practice',
                             style: GoogleFonts.outfit(
-                              fontSize: 14,
+                              fontSize: widget.isCompact ? 13 : 14,
                               fontWeight: FontWeight.w700,
                               color: _hovered
                                   ? Colors.white
@@ -1600,7 +1671,7 @@ class _DifficultyCardState extends State<_DifficultyCard>
                           const SizedBox(width: 6),
                           Icon(
                             Icons.arrow_forward_rounded,
-                            size: 16,
+                            size: 15,
                             color: _hovered ? Colors.white : widget.themeColor,
                           ),
                         ],
